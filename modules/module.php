@@ -47,7 +47,7 @@ Class POS_Module {
                 'public' => false,
                 'show_ui' => true,
                 'has_archive' => false,
-                //'show_in_menu' => '?page=pos',
+                //'show_in_menu' => 'pos',
                 'rest_namespace' => 'pos/' . $this->id,
                 'labels' => $labels,
             ),

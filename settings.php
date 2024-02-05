@@ -57,7 +57,8 @@ class POS_Settings {
      * Add the top level menu page.
      */
     public function options_page() {
-        add_menu_page(
+        add_submenu_page(
+            'options-general.php',
             'Personal OS',
             'PersonalOS',
             'manage_options',
