@@ -24,7 +24,15 @@ class POS {
     public static function load_modules() {
         require_once( plugin_dir_path( __FILE__ ) . 'modules/module.php' );
         require_once( plugin_dir_path( __FILE__ ) . 'modules/notes/index.php' );
-        self::$modules[] = new Notes_Module();
+        require_once( plugin_dir_path( __FILE__ ) . 'modules/readwise/index.php' );
+        $notes = new Notes_Module();
+        $readwise = new Readwise( $notes );
+        self::$modules = [
+            $notes,
+            $readwise,
+        ];
+        require_once( plugin_dir_path( __FILE__ ) . 'settings.php' );
+        $settings = new POS_Settings( self::$modules );
     }
 }
 add_action( 'init', 'POS::init' );
