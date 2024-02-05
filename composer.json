@@ -1,0 +1,16 @@
+{
+    "name": "artpi/personalos",
+    "description": "Manage your life",
+    "require-dev": {
+      "squizlabs/php_codesniffer": "^3.7.1",
+      "wp-coding-standards/wpcs": "^2.3.0"
+    },
+    "scripts": {
+      "lint": [
+        "phpcs --standard=phpcs.xml ./"
+      ],
+      "phpcbf": [
+        "phpcbf --standard=phpcs.xml ./"
+      ]
+    }
+}

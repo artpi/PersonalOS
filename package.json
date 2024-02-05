@@ -1,0 +1,27 @@
+{
+	"name": "wp-personal-os",
+	"version": "0.0.1",
+	"description": "WordPress plugin to manage your life.",
+	"author": "Artpi",
+	"license": "GPL-2.0-or-later",
+	"main": "build/index.js",
+	"scripts": {
+		"build": "wp-scripts build",
+		"format": "wp-scripts format",
+		"lint:css": "wp-scripts lint-style",
+		"lint:js": "wp-scripts lint-js",
+		"packages-update": "wp-scripts packages-update",
+		"plugin-zip": "wp-scripts plugin-zip",
+		"start": "wp-scripts start",
+		"dev": "wp-scripts start",
+		"wp-env": "wp-env"
+	},
+	"dependencies": {
+	},
+	"devDependencies": {
+		"@wordpress/env": "^9.2.0",
+		"@wordpress/scripts": "^27.0.0",
+		"eslint": "^8.56.0",
+		"prettier": "npm:wp-prettier@3.0.3"
+	}
+}
