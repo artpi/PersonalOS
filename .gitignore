@@ -2,6 +2,7 @@
 build
 node_modules
 vendor
+debug.log
 
 # Operating system specific files
 .DS_Store
