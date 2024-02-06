@@ -19,6 +19,18 @@ class POS {
 
 	public static function init() {
         self::load_modules();
+        add_action( 'enqueue_block_editor_assets', array( 'POS', 'enqueue_assets' ) );
+
+	}
+
+    public static function enqueue_assets() {
+        $script_asset = require( plugin_dir_path( __FILE__ ) .'/build/index.asset.php' );
+		wp_enqueue_script(
+			'pos',
+			plugins_url( 'build/index.js', __FILE__ ),
+			$script_asset['dependencies'],
+			$script_asset['version']
+		);
 	}
 
     public static function load_modules() {

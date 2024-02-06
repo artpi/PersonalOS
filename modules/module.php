@@ -51,6 +51,7 @@ Class POS_Module {
                 'rest_namespace' => 'pos/' . $this->id,
                 'labels' => $labels,
                 'supports' => array( 'title', 'editor', 'custom-fields' ),
+                'taxonomies' => array( 'category', 'post_tag' ),
             ),
             $args
         );

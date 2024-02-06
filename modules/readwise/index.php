@@ -40,6 +40,26 @@ Class Readwise extends External_Service_Module {
     function __construct( $notes_module ) {
         $this->notes_module = $notes_module;
         $this->register_sync( 'hourly' );
+
+        register_post_meta( $this->notes_module->id, 'readwise_id', [
+            'auth_callback' => function() {
+                return current_user_can('edit_posts');
+            },
+            'sanitize_callback' => 'sanitize_text_field',
+            'show_in_rest'      => true,
+            'single'            => true,
+            'type'              => 'string',
+        ]);
+
+        register_post_meta( $this->notes_module->id, 'readwise_category', [
+            'auth_callback' => function() {
+                return current_user_can('edit_posts');
+            },
+            'sanitize_callback' => 'sanitize_text_field',
+            'show_in_rest'      => true,
+            'single'            => true,
+            'type'              => 'string',
+        ]);
     }
 
     function sync( $page_cursor = null ) {
