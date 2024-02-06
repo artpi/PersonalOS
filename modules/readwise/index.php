@@ -4,7 +4,21 @@ Class External_Service_Module extends POS_Module {
     public $id = 'external_service';
     public $name = "External Service";
 
-    function sync() {}
+    function get_sync_hook_name() {
+        return 'pos_sync_' . $this->id;
+    }
+
+    function register_sync( $interal = 'hourly' ) {
+        $hook_name = $this->get_sync_hook_name();
+        add_action( $hook_name, array( $this, 'sync' ) );
+        if ( ! wp_next_scheduled( $hook_name ) ) {
+            wp_schedule_event( time(), $interal, $hook_name );
+        }
+    }
+
+    public function sync() {
+        error_log( 'EMPTY SYNC' );
+    }
 }
 
 
@@ -25,15 +39,29 @@ Class Readwise extends External_Service_Module {
 
     function __construct( $notes_module ) {
         $this->notes_module = $notes_module;
+        $this->register_sync( 'hourly' );
     }
 
-    function sync() {
+    function sync( $page_cursor = null ) {
+        error_log( "[DEBUG] Syncing readwise triggering" );
+
         $token = $this->get_setting( 'token' );
         if( ! $token ) {
             return false;
         }
+
+        $query_args = [];
+        if( $page_cursor ) {
+            $query_args['pageCursor'] = $page_cursor;
+        } else {
+            $last_sync = '2024-01-01T00:00:00Z';//get_option( $this->get_setting_option_name( 'last_sync' ) );
+            if ( $last_sync ) {
+                $query_args['updatedAfter'] = $last_sync;
+            }
+        }
+
         $request = wp_remote_get(
-            'https://readwise.io/api/v2/export/?updatedAfter=2024-02-01T16:41:53.186Z',
+            'https://readwise.io/api/v2/export/?' . http_build_query( $query_args ),
             array(
                 'headers' => array(
                     'Authorization' => 'Token ' . $token
@@ -41,11 +69,74 @@ Class Readwise extends External_Service_Module {
             )
         );
         if ( is_wp_error( $request ) ) {
+            error_log( '[ERROR] Fetching readwise ' . $request->get_error_message() );
             return false; // Bail early
         }
         
         $body = wp_remote_retrieve_body( $request );
         $data = json_decode( $body );
-        return $data;
+
+        if ( ! empty ( $data->nextPageCursor ) ) {
+            // We want to unschedule any regular sync events until we have initial sync complete.
+            wp_unschedule_event( wp_next_scheduled( $this->get_sync_hook_name() ), $this->get_sync_hook_name() );
+            // We will schedule ONE TIME sync event for the next page.
+            wp_schedule_single_event( time() + 60, $this->get_sync_hook_name(), [ 'pageCursor' => $data->nextPageCursor ] );
+        } else {
+            error_log( "[DEBUG] Full sync completed" );
+            update_option( $this->get_setting_option_name( 'last_sync' ), date( 'c' ) );
+        }
+        error_log( "[DEBUG] Readwise Syncing {$data->count} highlights" );
+
+        foreach( $data->results as $book ) {
+            error_log( "[DEBUG] Readwise Updating {$book->title}" );
+            $this->sync_book( $book );
+        }
+    }
+
+    function find_note_by_readwise_id( $readwise_id ) {
+        $posts = get_posts( array(
+            'posts_per_page'   => -1,
+            'post_type'        => $this->notes_module->id,
+            'post_status'      => 'publish',
+            'meta_key'         => 'readwise_id',
+            'meta_value'       => $readwise_id
+        ) );
+        if ( empty( $posts ) ) {
+            return null;
+        }
+        return $posts[0];
+    }
+
+    function sync_book( $book ) {
+        $previous = $this->find_note_by_readwise_id( $book->user_book_id );
+
+        $content = array_map(
+            function( $highlight ) {
+                return "<p>$highlight->text</p>";
+            },
+            $book->highlights
+        );
+
+        if ( $previous ) {
+            wp_update_post( [ 
+                'ID' => $previous->ID,
+                'content' => implode( "\n", $content ),
+            ] );
+        } else {
+            wp_insert_post( [
+                'post_title' => $book->title,
+                'post_date'=> date( 'Y-m-d H:i:s', strtotime( $book->highlights[ count( $book->highlights ) - 1 ]->created_at ) ),
+                'post_type' => $this->notes_module->id,
+                'post_content' => implode( "\n", $content ),
+                'post_status' => 'publish',
+                'meta_input' => [
+                    'readwise_id' => $book->user_book_id,
+                    'readwise_category' => $book->category,
+                    'readwise_author' => $book->author,
+                    'url' => $book->source_url,
+                ],
+            ] );
+        }
+
     }
 }

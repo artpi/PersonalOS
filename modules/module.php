@@ -50,6 +50,7 @@ Class POS_Module {
                 //'show_in_menu' => 'pos',
                 'rest_namespace' => 'pos/' . $this->id,
                 'labels' => $labels,
+                'supports' => array( 'title', 'editor', 'custom-fields' ),
             ),
             $args
         );

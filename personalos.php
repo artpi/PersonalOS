@@ -25,6 +25,7 @@ class POS {
         require_once( plugin_dir_path( __FILE__ ) . 'modules/module.php' );
         require_once( plugin_dir_path( __FILE__ ) . 'modules/notes/index.php' );
         require_once( plugin_dir_path( __FILE__ ) . 'modules/readwise/index.php' );
+
         $notes = new Notes_Module();
         $readwise = new Readwise( $notes );
         self::$modules = [
