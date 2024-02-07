@@ -12,8 +12,8 @@ const SearchResult = ( { post } ) => {
     const [ modalOpen, setModalOpen ] = useState( false );
     const textContent = post.content.rendered.replace( /(<([^>]+)>)/ig, '' ).substring( 0, 100 ) + '...';
     return (
-        <div>
-            <h3 onClick={ () => setModalOpen( ! modalOpen ) }>{ post.title.rendered }</h3>
+        <div style={ { borderBottom:'1px solid black' } }>
+            <h2 onClick={ () => setModalOpen( ! modalOpen ) }>{ post.title.rendered }</h2>
             <p>{ textContent }</p>
             { modalOpen && (
                 <Popover>
@@ -40,14 +40,20 @@ const PluginSidebarTest = () => {
     }, 3000 );
 
     useEffect( () => {
-        if ( search || selectedTaxonomies.length ) {
-            debouncedAPIFetch( new URLSearchParams({
-                search: search,
-                tags: selectedTaxonomies.join( ',' ),
-            } ) );
+        let params = new URLSearchParams();
+        if( search.length ) {
+            params.append( 'search', search );
+        }
+        if( selectedTaxonomies.length ) {
+            params.append( 'tags', selectedTaxonomies.join( ',' ) );
+        }
+
+        if ( params.toString().length ) {
+            debouncedAPIFetch( params );
         } else {
             setResults( [] );
         }
+
     }, [ search, selectedTaxonomies ] );
 
     const metaFields = useSelect( ( select ) => {
@@ -67,20 +73,23 @@ const PluginSidebarTest = () => {
                 onChange={ (value) => setSearch(value) }
         />
         <div>
-            { allTags.map( ( tag, index ) => <span
+            { allTags.map( ( tag, index ) => <div
                 style={ {
                     border: '1px solid black',
+                    fontSize: '10px',
+                    lineHeight: '10px',
                     padding: '3px',
                     'margin': '3px',
                     borderRadius: '3px',
                     cursor: 'hand',
+                    display: 'inline-block',
                     backgroundColor: selectedTaxonomies.includes( tag.id ) ? '#e5ebee' : 'white',
                 } }
                 onClick={ () => setSelectedTaxonomies( selectedTaxonomies.includes( tag.id ) ? selectedTaxonomies.filter( sel => sel !== tag.id ) : [ ...selectedTaxonomies, tag.id ] ) }
 
                 key={ index }>
                     { tag.name }
-            </span> ) }
+            </div> ) }
         </div>
         <div style={ { margin: '10px' } }>
             { results.map( ( post, index ) =>  <SearchResult key={ index } post={ post } /> ) }
