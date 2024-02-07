@@ -62,8 +62,8 @@ Class Readwise extends External_Service_Module {
         ]);
     }
 
-    function sync( $page_cursor = null ) {
-        error_log( "[DEBUG] Syncing readwise triggering" );
+    function sync() {
+        error_log( "[DEBUG] Syncing readwise triggering " . ( $page_cursor ?? '') );
 
         $token = $this->get_setting( 'token' );
         if( ! $token ) {
@@ -71,10 +71,11 @@ Class Readwise extends External_Service_Module {
         }
 
         $query_args = [];
-        if( $page_cursor ) {
+        $page_cursor = get_option(  $this->get_setting_option_name( 'page_cursor' ), null );
+        if ( $page_cursor ) {
             $query_args['pageCursor'] = $page_cursor;
         } else {
-            $last_sync = '2024-01-01T00:00:00Z';//get_option( $this->get_setting_option_name( 'last_sync' ) );
+            $last_sync = '2023-01-01T00:00:00Z';//get_option( $this->get_setting_option_name( 'last_sync' ) );
             if ( $last_sync ) {
                 $query_args['updatedAfter'] = $last_sync;
             }
@@ -95,20 +96,21 @@ Class Readwise extends External_Service_Module {
         
         $body = wp_remote_retrieve_body( $request );
         $data = json_decode( $body );
-
+        error_log( "[DEBUG] Readwise Syncing {$data->count} highlights" );
         if ( ! empty ( $data->nextPageCursor ) ) {
             // We want to unschedule any regular sync events until we have initial sync complete.
-            wp_unschedule_event( wp_next_scheduled( $this->get_sync_hook_name() ), $this->get_sync_hook_name() );
+            wp_unschedule_hook( $this->get_sync_hook_name() );
             // We will schedule ONE TIME sync event for the next page.
-            wp_schedule_single_event( time() + 60, $this->get_sync_hook_name(), [ 'pageCursor' => $data->nextPageCursor ] );
+            update_option( $this->get_setting_option_name( 'page_cursor' ), $data->nextPageCursor );
+            wp_schedule_single_event( time() + 60, $this->get_sync_hook_name() );
+            error_log( "Scheduling next page sync with cursor {$data->nextPageCursor}" );
         } else {
             error_log( "[DEBUG] Full sync completed" );
             update_option( $this->get_setting_option_name( 'last_sync' ), date( 'c' ) );
+            delete_option( $this->get_setting_option_name( 'page_cursor' ) );
         }
-        error_log( "[DEBUG] Readwise Syncing {$data->count} highlights" );
 
         foreach( $data->results as $book ) {
-            error_log( "[DEBUG] Readwise Updating {$book->title}" );
             $this->sync_book( $book );
         }
     }
@@ -117,7 +119,7 @@ Class Readwise extends External_Service_Module {
         $posts = get_posts( array(
             'posts_per_page'   => -1,
             'post_type'        => $this->notes_module->id,
-            'post_status'      => 'publish',
+            'post_status'      => 'publish', // TODO: Remove this after testing - the post from trash should not be duplicated.
             'meta_key'         => 'readwise_id',
             'meta_value'       => $readwise_id
         ) );
@@ -129,6 +131,7 @@ Class Readwise extends External_Service_Module {
 
     function sync_book( $book ) {
         $previous = $this->find_note_by_readwise_id( $book->user_book_id );
+        error_log( "[DEBUG] Readwise " . ( $previous ? 'Updating' : 'Creating' ) .  " {$book->title}" );
 
         $content = array_map(
             function( $highlight ) {
@@ -136,27 +139,39 @@ Class Readwise extends External_Service_Module {
             },
             $book->highlights
         );
+        if( count( $content ) ===0  ){
+            return;
+        }
+
+        $tags = array_map( function( $tag ) {
+            return $tag->name;
+        }, $book->book_tags);
 
         if ( $previous ) {
             wp_update_post( [ 
                 'ID' => $previous->ID,
                 'content' => implode( "\n", $content ),
+                'tags_input' => $tags,
             ] );
         } else {
-            wp_insert_post( [
+            $data = [
                 'post_title' => $book->title,
-                'post_date'=> date( 'Y-m-d H:i:s', strtotime( $book->highlights[ count( $book->highlights ) - 1 ]->created_at ) ),
                 'post_type' => $this->notes_module->id,
                 'post_content' => implode( "\n", $content ),
                 'post_status' => 'publish',
+                'tags_input' => $tags,
                 'meta_input' => [
                     'readwise_id' => $book->user_book_id,
                     'readwise_category' => $book->category,
                     'readwise_author' => $book->author,
                     'url' => $book->source_url,
                 ],
-            ] );
+            ];
+            $last_highlight = end( $book->highlights );
+            if ( $last_highlight ) {
+                $data[ 'post_date' ] = date( 'Y-m-d H:i:s', strtotime( $last_highlight->created_at ) );
+            }
+            wp_insert_post( $data );
         }
-
     }
 }
