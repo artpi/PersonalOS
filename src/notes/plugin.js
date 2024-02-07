@@ -23,7 +23,7 @@ const SearchResult = ( { post } ) => {
 			<p>{ textContent }</p>
 			{ modalOpen && (
 				<Popover>
-					<RawHTML>{ post.content.rendered }</RawHTML>
+					<RawHTML style={{ minWidth: '500px'}}>{ post.content.rendered }</RawHTML>
 				</Popover>
 			) }
 		</div>
