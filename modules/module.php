@@ -57,4 +57,18 @@ Class POS_Module {
         );
         register_post_type( $this->id,$defaults );
     }
+
+    function meta_auth_callback() {
+        return current_user_can('edit_posts');
+    }
+
+    function register_meta( $key, $cpt = null ) {
+        register_post_meta( $cpt ?? $this->id, $key, [
+            'auth_callback' => [ $this, 'meta_auth_callback' ],
+            'sanitize_callback' => 'sanitize_text_field',
+            'show_in_rest'      => true,
+            'single'            => true,
+            'type'              => 'string',
+        ] );
+    }
 }

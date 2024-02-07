@@ -41,25 +41,8 @@ Class Readwise extends External_Service_Module {
         $this->notes_module = $notes_module;
         $this->register_sync( 'hourly' );
 
-        register_post_meta( $this->notes_module->id, 'readwise_id', [
-            'auth_callback' => function() {
-                return current_user_can('edit_posts');
-            },
-            'sanitize_callback' => 'sanitize_text_field',
-            'show_in_rest'      => true,
-            'single'            => true,
-            'type'              => 'string',
-        ]);
-
-        register_post_meta( $this->notes_module->id, 'readwise_category', [
-            'auth_callback' => function() {
-                return current_user_can('edit_posts');
-            },
-            'sanitize_callback' => 'sanitize_text_field',
-            'show_in_rest'      => true,
-            'single'            => true,
-            'type'              => 'string',
-        ]);
+        $this->register_meta( 'readwise_id', $this->notes_module->id );
+        $this->register_meta( 'readwise_category', $this->notes_module->id );
     }
 
     function sync() {
@@ -75,7 +58,7 @@ Class Readwise extends External_Service_Module {
         if ( $page_cursor ) {
             $query_args['pageCursor'] = $page_cursor;
         } else {
-            $last_sync = '2023-01-01T00:00:00Z';//get_option( $this->get_setting_option_name( 'last_sync' ) );
+            $last_sync = get_option( $this->get_setting_option_name( 'last_sync' ) );
             if ( $last_sync ) {
                 $query_args['updatedAfter'] = $last_sync;
             }
