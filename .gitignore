@@ -3,6 +3,7 @@ build
 node_modules
 vendor
 debug.log
+*.zip
 
 # Operating system specific files
 .DS_Store

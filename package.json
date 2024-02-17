@@ -5,6 +5,12 @@
 	"author": "Artpi",
 	"license": "GPL-2.0-or-later",
 	"main": "build/index.js",
+	"files": [
+		"build",
+		"modules",
+		"settings.php",
+		"personalos.php"
+	],
 	"scripts": {
 		"build": "wp-scripts build",
 		"format": "wp-scripts format",
