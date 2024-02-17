@@ -85,19 +85,7 @@ class POS_Settings {
     
         // show error/update messages
         settings_errors( 'pos_messages' );
-        $todo = $GLOBALS['wp_post_types']['todo']
     ?>
-    <div class="wrap" id="wp_learn_admin">
-        <h1>Book</h1>
-        <pre style="font-size: 22px; line-height: 1.2;"><?php var_dump( user_can( 0, 'read', 1367 ) ) ?></pre>
-
-        <pre style="font-size: 22px; line-height: 1.2;"><?php print_r( array( 'capability_type' => $todo->capability_type ) ) ?></pre>
-        <pre style="font-size: 22px; line-height: 1.2;"><?php print_r( array( 'map_meta_cap' => $todo->map_meta_cap ) ) ?></pre>
-        <pre style="font-size: 22px; line-height: 1.2;"><?php print_r( array( 'cap' => $todo->cap ) ) ?></pre>
-        <pre style="font-size: 22px; line-height: 1.2;"><?php print_r( $todo ) ?></pre>
-    </div>
-
-        
         <div class="wrap">
             <h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
             <form action="options.php" method="post">
