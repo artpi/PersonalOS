@@ -4,6 +4,7 @@ Class POS_Module {
     public $id = 'module_id';
     public $name = "Module Name";
     public $description = "";
+    public $rest_namespace = 'pos/v1';
     public $settings = [];
 
     function get_module_description() {
@@ -47,10 +48,12 @@ Class POS_Module {
                 'public' => false,
                 'show_ui' => true,
                 'has_archive' => false,
+                'publicly_queryable' => false,
+                'rest_controller_class' => 'POS_CPT_Rest_Controller',
                 //'show_in_menu' => 'pos',
-                'rest_namespace' => 'pos/' . $this->id,
+                'rest_namespace' => $this->rest_namespace,
                 'labels' => $labels,
-                'supports' => array( 'title', 'editor', 'custom-fields' ),
+                'supports' => array( 'title', 'excerpt', 'editor', 'custom-fields' ),
                 'taxonomies' => array( 'category', 'post_tag' ),
             ),
             $args
@@ -71,4 +74,15 @@ Class POS_Module {
             'type'              => 'string',
         ] );
     }
+}
+
+class POS_CPT_Rest_Controller extends WP_REST_Posts_Controller {
+    public function check_read_permission( $post ) {
+        $post_type = get_post_type_object( $post->post_type );
+        if ( ! $this->check_is_post_type_allowed( $post_type ) ) {
+            return false;
+        }
+
+        return current_user_can( 'read_post', $post->ID );
+    } 
 }

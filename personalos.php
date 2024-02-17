@@ -37,12 +37,15 @@ class POS {
         require_once( plugin_dir_path( __FILE__ ) . 'modules/module.php' );
         require_once( plugin_dir_path( __FILE__ ) . 'modules/notes/index.php' );
         require_once( plugin_dir_path( __FILE__ ) . 'modules/readwise/index.php' );
+        require_once( plugin_dir_path( __FILE__ ) . 'modules/todo/index.php' );
 
+        $todo = new TODO_Module();
         $notes = new Notes_Module();
         $readwise = new Readwise( $notes );
         self::$modules = [
             $notes,
             $readwise,
+            $todo,
         ];
         require_once( plugin_dir_path( __FILE__ ) . 'settings.php' );
         $settings = new POS_Settings( self::$modules );
