@@ -48,7 +48,7 @@ export default function NotesPlugin() {
 	} );
 
 	const debouncedAPIFetch = useDebounce( ( search ) => {
-		apiFetch( { path: '/pos/notes/notes?' + search.toString() } ).then(
+		apiFetch( { path: '/pos/v1/notes?' + search.toString() } ).then(
 			( posts ) => setResults( posts )
 		);
 	}, 3000 );
