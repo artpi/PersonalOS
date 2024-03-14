@@ -8,6 +8,7 @@ import apiFetch from '@wordpress/api-fetch';
 import { useState, useEffect, RawHTML } from '@wordpress/element';
 import { useDebounce } from '@wordpress/compose';
 import { useSelect } from '@wordpress/data';
+import { useDispatch } from '@wordpress/data';
 
 const SearchResult = ( { post } ) => {
 	const [ modalOpen, setModalOpen ] = useState( false );
@@ -72,6 +73,20 @@ export default function NotesPlugin() {
 	const metaFields = useSelect( ( select ) => {
 		return select( 'core/editor' ).getEditedPostAttribute( 'meta' ) ?? {};
 	} );
+
+
+	const isAutosaving = useSelect( ( select ) => {
+		return select( 'core/editor' ).isAutosavingPost();
+	} );
+	const { savePost } = useDispatch( 'core/editor' );
+	useEffect( () => {
+		// We are catching a transition from saving to not-autosaving anymore.
+		if ( ! isAutosaving ) {
+			console.log( 'Just auto saved' );
+			savePost();
+		}
+	}, [ isAutosaving ] );
+
 	console.log( metaFields );
 	return (
 		<>
