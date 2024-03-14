@@ -53,3 +53,8 @@ class POS {
 }
 add_action( 'init', 'POS::init' );
 
+// For debugging trackbacks:
+// add_action( 'pre_ping', function( $data ) {
+//     error_log( 'PING: ' . print_r( $data, true ) );
+//     return $data;
+// }, 10, 1 );
