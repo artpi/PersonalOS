@@ -8,5 +8,13 @@
 	},
 	"mappings": {
 		"wp-content/debug.log": "./debug.log"
+	},
+	"env": {
+		"development": {
+			"port": 8901
+		},
+		"tests": {
+			"port": 8902
+		}
 	}
 }
