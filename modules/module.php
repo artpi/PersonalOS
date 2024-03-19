@@ -31,6 +31,10 @@ Class POS_Module {
 
     }
 
+    function register_block( $blockname ) {
+        register_block_type(  dirname( __DIR__ ) . "/build/{$this->id}/blocks/{$blockname}/" );
+    }
+
     function register_post_type( $args = [] ) {
         $labels = array(
             'name' => $this->name,
