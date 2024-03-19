@@ -1,0 +1,22 @@
+
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "pos/readwise",
+	"title": "Readwise",
+	"category": "widgets",
+	"attributes": {
+		"content": {
+			"type": "string",
+			"source": "html",
+			"selector": "p"
+		},
+        "readwise_url": {
+            "type": "string"
+        }
+	},
+	"textdomain": "pos",
+	"keywords": [ "Readwise" ],
+	"editorScript": "file:./index.js",
+	"editorStyle": "file:./index.css"
+}

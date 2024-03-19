@@ -43,10 +43,11 @@ Class Readwise extends External_Service_Module {
 
         $this->register_meta( 'readwise_id', $this->notes_module->id );
         $this->register_meta( 'readwise_category', $this->notes_module->id );
+        $this->register_block( 'readwise' );
     }
 
     function sync() {
-        error_log( "[DEBUG] Syncing readwise triggering " . ( $page_cursor ?? '') );
+        error_log( "[DEBUG] Syncing readwise triggering " );
 
         $token = $this->get_setting( 'token' );
         if( ! $token ) {
@@ -80,6 +81,7 @@ Class Readwise extends External_Service_Module {
         $body = wp_remote_retrieve_body( $request );
         $data = json_decode( $body );
         error_log( "[DEBUG] Readwise Syncing {$data->count} highlights" );
+
         if ( ! empty ( $data->nextPageCursor ) ) {
             // We want to unschedule any regular sync events until we have initial sync complete.
             wp_unschedule_hook( $this->get_sync_hook_name() );
@@ -118,11 +120,18 @@ Class Readwise extends External_Service_Module {
 
         $content = array_map(
             function( $highlight ) {
-                return "<p>$highlight->text</p>";
+                return get_comment_delimited_block_content(
+                    'pos/readwise',
+                    [
+                        'readwise_url' => $highlight->readwise_url,
+                    ],
+                    '<p class="wp-block-pos-readwise">' . $highlight->text . '</p>'
+                );
             },
             $book->highlights
         );
-        if( count( $content ) ===0  ){
+
+        if( count( $content ) === 0 ){
             return;
         }
 
