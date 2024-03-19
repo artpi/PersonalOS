@@ -32,7 +32,8 @@ Class POS_Module {
     }
 
     function register_block( $blockname ) {
-        register_block_type(  dirname( __DIR__ ) . "/build/{$this->id}/blocks/{$blockname}/" );
+        $dir = dirname( __DIR__ ) . "/build/{$this->id}/blocks/{$blockname}/";
+        register_block_type( $dir );
     }
 
     function register_post_type( $args = [] ) {
