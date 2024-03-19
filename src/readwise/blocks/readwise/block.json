@@ -11,10 +11,10 @@
 			"source": "html",
 			"selector": "p"
 		},
-        "readwise-id": {
+        "readwise_url": {
             "type": "string",
             "source": "attribute",
-            "attribute": "readwise-id"
+            "attribute": "readwise_url"
         }
 	},
 	"textdomain": "pos",
