@@ -5,6 +5,7 @@
 import { useBlockProps, RichText, InspectorControls } from '@wordpress/block-editor';
 import { PanelBody } from '@wordpress/components';
 import { Fragment } from '@wordpress/element';
+import './index.css';
 
 const Edit = ( props ) => {
 	const {

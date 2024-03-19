@@ -3,7 +3,7 @@
  *
  * @see https://developer.wordpress.org/block-editor/reference-guides/block-api/block-registration/
  */
-import { registerBlockType } from '@wordpress/blocks';
+import { registerBlockType, createBlock } from '@wordpress/blocks';
 
 
 /**
@@ -50,4 +50,17 @@ registerBlockType( metadata.name, {
 		</svg>
 	   ),
 	},
+	transforms: {
+		to: [
+			{
+				type: 'block',
+				blocks: [ 'core/paragraph' ],
+				transform: ( { content } ) => {
+					return createBlock( 'core/paragraph', {
+						content,
+					} );
+				},
+			},
+		]
+	}
 } );
