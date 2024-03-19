@@ -12,9 +12,7 @@
 			"selector": "p"
 		},
         "readwise_url": {
-            "type": "string",
-            "source": "attribute",
-            "attribute": "readwise_url"
+            "type": "string"
         }
 	},
 	"textdomain": "pos",
