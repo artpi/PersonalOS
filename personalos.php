@@ -24,7 +24,7 @@ class POS {
 	}
 
     public static function admin_menu() {
-        add_menu_page( 'Personal OS', 'Personal OS', 'manage_options', 'personalos', false, 'dashicons-tickets', 3  );
+        add_menu_page( 'Personal OS', 'Personal OS', 'manage_options', 'personalos', false, 'dashicons-admin-generic', 3  );
         add_submenu_page( 'personalos', 'Your Dashboard', 'Dashboard', 'manage_options', 'personalos-settings', array( 'POS', 'admin_page' ), 0 );
     }
     public static function enqueue_assets() {
