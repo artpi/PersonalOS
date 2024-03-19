@@ -15,10 +15,10 @@ class Notes_Module extends POS_Module {
         }
     }
 
-    function create( $data ) {
+    public function create( $title, $content, $inbox = false ) {
         $post = array(
-            'post_title' => $data['title'],
-            'post_content' => $data['content'],
+            'post_title' => $title,
+            'post_content' => $content,
             'post_status' => 'publish',
             'post_type' => $this->id,
         );
