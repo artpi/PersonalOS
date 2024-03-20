@@ -11,4 +11,8 @@ Class OpenAI_Module extends POS_Module {
             'label' => 'You can get it from <a href="https://platform.openai.com/account/api-keys">here</a>',
         ],
     ];
+
+    public function is_configured() {
+        return ! empty( $this->settings['api_key'] );
+    }
 }

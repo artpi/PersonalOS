@@ -12,22 +12,49 @@ class POS_Transcription extends POS_Module {
         $this->notes = $notes;
         $this->register_meta( 'pos_transcribe', 'attachment' );
         add_action( 'pos_' . $this->id , array( $this, 'transcribe' ) );
+        add_action( 'add_attachment', array( $this, 'schedule_transcription' ) );
+        add_action( 'edit_attachment', array( $this, 'schedule_transcription' ) );
     }
 
-    public function transcribe( $attachment_id ) {
+    public function schedule_transcription( $attachment_id ) {
+        if ( $this->transcription_checks( $attachment_id ) !== true ) {
+            return;
+        }
+        error_log( 'Scheduling transcription for ' . $attachment_id );
+        wp_schedule_single_event( time(), 'pos_' . $this->id, [ $attachment_id ] );
+    }
+
+    public function transcription_checks( $attachment_id ) {
+        $last_transcription = get_post_meta( $attachment_id, 'pos_transcribe', true );
+
+        if ( ! $last_transcription ) {
+            return "This is not scheduled for transcription.";
+        }
+
+        if ( $last_transcription && is_numeric( $last_transcription ) && $last_transcription > 1000 ) {
+            return ( 'This file was already transcribed on ' . date( 'Y-m-d', $last_transcription ) );
+        }
+
         $file = wp_get_attachment_metadata( $attachment_id );
         $mime_type = explode( '/', $file['mime_type'] );
         if ( $mime_type[0] !== 'audio' ) {
-            error_log( 'Transcription: not an audio file');
-            return;
+            return ( 'Transcription: not an audio file' );
         }
         $mb = $file['filesize'] / 1024 / 1024;
         if ( $mb > 25 ) {
-            error_log( 'Transcription: file too big');
+            return ( 'Transcription: file too big' );
+        }
+        return true;
+    }
+
+    public function transcribe( $attachment_id ) {
+        
+        $checks = $this->transcription_checks( $attachment_id );
+        if ( $checks !== true ) {
+            error_log( $checks );
             return;
         }
-        // Upload file using curl to openai whisper
-        
+        $file = wp_get_attachment_metadata( $attachment_id );
         update_post_meta( $attachment_id, 'pos_transcribe', time() );
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, 'https://api.openai.com/v1/audio/transcriptions');
@@ -71,5 +98,6 @@ class POS_Transcription extends POS_Module {
             '<figure class="wp-block-audio"><audio controls src="'.wp_get_attachment_url( $attachment_id ).'"></audio></figure>'
         );
         $this->notes->create( 'Transcription', "{$audio_block}<p>{$response->text}</p>", true );
+        //TODO: Add recording as note child?
     }
 }
