@@ -38,14 +38,18 @@ class POS {
         require_once( plugin_dir_path( __FILE__ ) . 'modules/notes/index.php' );
         require_once( plugin_dir_path( __FILE__ ) . 'modules/readwise/index.php' );
         require_once( plugin_dir_path( __FILE__ ) . 'modules/todo/index.php' );
+        require_once( plugin_dir_path( __FILE__ ) . 'modules/openai/openai.php' );
+        require_once( plugin_dir_path( __FILE__ ) . 'modules/openai/transcription.php' );
 
         $todo = new TODO_Module();
         $notes = new Notes_Module();
-        $readwise = new Readwise( $notes );
+        $openai = new OpenAI_Module();
         self::$modules = [
             $notes,
-            $readwise,
+            new Readwise( $notes ),
             $todo,
+            $openai,
+            new POS_Transcription( $openai, $notes ),
         ];
         require_once( plugin_dir_path( __FILE__ ) . 'settings.php' );
         $settings = new POS_Settings( self::$modules );
