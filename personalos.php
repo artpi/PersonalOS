@@ -26,6 +26,7 @@ class POS {
     public static function admin_menu() {
         add_menu_page( 'Personal OS', 'Personal OS', 'manage_options', 'personalos', false, 'dashicons-admin-generic', 3  );
         add_submenu_page( 'personalos', 'Your Dashboard', 'Dashboard', 'manage_options', 'personalos-settings', array( 'POS', 'admin_page' ), 0 );
+        add_submenu_page( 'personalos', 'Notebooks', 'Notebooks', 'manage_options', 'edit-tags.php?taxonomy=notebook&post_type=notes' );
     }
     public static function enqueue_assets() {
         $script_asset = require( plugin_dir_path( __FILE__ ) .'/build/index.asset.php' );

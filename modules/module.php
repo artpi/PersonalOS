@@ -60,7 +60,7 @@ Class POS_Module {
                 'rest_namespace' => $this->rest_namespace,
                 'labels' => $labels,
                 'supports' => array( 'title', 'excerpt', 'editor', 'custom-fields' ),
-                'taxonomies' => array( 'category', 'post_tag' ),
+                'taxonomies' => [],
             ),
             $args
         );
