@@ -97,7 +97,7 @@ class Notes_Module extends POS_Module {
         if ( count( $notes ) > 0 ) {
             echo "<h3>{$conf['args']->name}: TODOs</h3>";
             $notes = array_map( function( $note ) {
-                return "<li style='margin-bottom:1em'><div class='draft-title'><a style='margin: 0 5px 0 0 ' href='" . get_edit_post_link( $note->ID ) . "' aria-label='Edit “{$note->post_title}”'>{$note->post_title}</a></div></li>";
+                return "<li style='margin-bottom:1em'><div class='draft-title'><input type='checkbox' disabled><a style='font-weight:bold;margin: 0 5px 0 0 ' href='" . get_edit_post_link( $note->ID ) . "' aria-label='Edit “{$note->post_title}”'>{$note->post_title}</a></div></li>";
             }, $notes );
     
             echo '<ul>' . implode( '', $notes ) . '</ul>'; 
