@@ -18,11 +18,15 @@ class POS {
 	public static $modules = [];
 
 	public static function init() {
+        add_action( 'admin_menu', array( 'POS', 'admin_menu' ) );
         self::load_modules();
         add_action( 'enqueue_block_editor_assets', array( 'POS', 'enqueue_assets' ) );
-
 	}
 
+    public static function admin_menu() {
+        add_menu_page( 'Personal OS', 'Personal OS', 'manage_options', 'personalos', false, 'dashicons-admin-generic', 3  );
+        add_submenu_page( 'personalos', 'Your Dashboard', 'Dashboard', 'manage_options', 'personalos-settings', array( 'POS', 'admin_page' ), 0 );
+    }
     public static function enqueue_assets() {
         $script_asset = require( plugin_dir_path( __FILE__ ) .'/build/index.asset.php' );
 		wp_enqueue_script(
@@ -33,6 +37,9 @@ class POS {
 		);
 	}
 
+    public static function admin_page() {
+        require plugin_dir_path( __FILE__ ) . 'dashboard.php';
+    }
     public static function load_modules() {
         require_once( plugin_dir_path( __FILE__ ) . 'modules/module.php' );
         require_once( plugin_dir_path( __FILE__ ) . 'modules/notes/index.php' );

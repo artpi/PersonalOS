@@ -53,6 +53,7 @@ Class POS_Module {
                 'public' => false,
                 'show_ui' => true,
                 'has_archive' => false,
+                'show_in_menu' => 'personalos',
                 'publicly_queryable' => false,
                 'rest_controller_class' => 'POS_CPT_Rest_Controller',
                 //'show_in_menu' => 'pos',
