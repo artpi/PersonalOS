@@ -10,7 +10,7 @@ class Notes_Module extends POS_Module {
             'public'                => false,
             'hierarchical'          => true,
             'show_ui'               => true,
-            'show_in_menu'      => true,
+            'show_in_menu'          => 'personalos',
             'default_term' => [
                 'name' => 'Inbox', 
                 'slug' => 'inbox',
