@@ -5,7 +5,27 @@ class Notes_Module extends POS_Module {
     public $name = "Notes";
 
     function register() {
-        $this->register_post_type();
+        register_taxonomy( 'notebook', [ $this->id, 'todo' ], array(
+            'label'                 => 'Notebook',
+            'public'                => false,
+            'hierarchical'          => true,
+            'show_ui'               => true,
+            'show_in_menu'          => 'personalos',
+            'default_term' => [
+                'name' => 'Inbox', 
+                'slug' => 'inbox',
+                'description' => 'Default notebook for notes and todos.',
+            ],
+            'show_admin_column'     => true,
+            'query_var'             => true,
+            'show_in_rest'          => true,
+            'rest_namespace'        => $this->rest_namespace,
+            'rewrite'               => array( 'slug' => 'notebook' ),
+        ) );
+        $this->register_post_type( [
+            'taxonomies' => [ 'notebook', 'post_tag' ],
+        ] );
+
         add_action( 'save_post_' . $this->id, array( $this, 'autopublish_drafts' ), 10, 3 );
     }
 
