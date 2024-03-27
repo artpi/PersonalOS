@@ -51,6 +51,7 @@ class Notes_Module extends POS_Module {
         foreach( $terms as $term ) {
             $this->register_notebook_admin_widget( $term );
         }
+        wp_enqueue_style('pos-notes-widgets-css', plugin_dir_url( __FILE__ ) . 'admin-widgets.css' );
     }
     public function register_notebook_admin_widget( $term ) {
         wp_add_dashboard_widget(
@@ -77,10 +78,10 @@ class Notes_Module extends POS_Module {
         if ( count( $notes ) > 0 ) {
             echo "<h3>{$conf['args']->name}: Notes</h3>";
             $notes = array_map( function( $note ) {
-                return "<li style='margin-bottom:1em'><div class='draft-title'><a style='margin: 0 5px 0 0 ' href='" . get_edit_post_link( $note->ID ) . "' aria-label='Edit “{$note->post_title}”'>{$note->post_title}</a><time style='color:#646970;' datetime='{$note->post_date}'>" . date( 'F j, Y', strtotime( $note->post_date ) ) . "</time></div><p>" . get_the_excerpt( $note ) . "</p></li>";
+                return "<li><a href='" . get_edit_post_link( $note->ID ) . "' aria-label='Edit “{$note->post_title}”'><h5>{$note->post_title}</h5><time datetime='{$note->post_date}'>" . date( 'F j, Y', strtotime( $note->post_date ) ) . "</time><p>" . get_the_excerpt( $note ) . "</p></a></li>";
             }, $notes );
     
-            echo '<ul>' . implode( '', $notes ) . '</ul>'; 
+            echo '<ul class="pos_admin_widget_notes">' . implode( '', $notes ) . '</ul>'; 
         }
         $notes = get_posts( array(
             'post_type' => 'todo',
