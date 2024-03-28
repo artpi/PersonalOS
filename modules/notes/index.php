@@ -52,7 +52,52 @@ class Notes_Module extends POS_Module {
             $this->register_notebook_admin_widget( $term );
         }
         wp_enqueue_style('pos-notes-widgets-css', plugin_dir_url( __FILE__ ) . 'admin-widgets.css' );
+
+        // TODO create widget
+        wp_add_dashboard_widget(
+            'pos_todo_create',
+            'Quick TODO',
+            array( $this,'todo_create_widget' ),
+            null
+        );
     }
+
+    public function todo_create_widget() {
+        ?>
+        <form id="quicktodo" method="get" class="initial-form hide-if-no-js">
+        <div class="input-text-wrap">
+            <input type="text" name="post_title" id="quick_todo" autocomplete="off">
+        </div>
+        <ul id="quicktodo_feedback"></ul>
+        </form>
+        <?php
+        wp_enqueue_script('wp-api-fetch' );
+        wp_add_inline_script( 'wp-api-fetch', "
+        document.getElementById('quicktodo').addEventListener( 'submit', function( e ) {
+            e.preventDefault();
+            var data = new FormData( e.target );
+            var title = data.get( 'post_title' );
+            if( title.length < 5 ) {
+                document.getElementById('quicktodo_feedback').innerHTML += '<li>Title too short!</li>';
+                return;
+
+            }
+            wp.apiFetch( {
+                path: '/pos/v1/todo',
+                method: 'POST',
+                data: {
+                    title: title,
+                    status: 'private',
+                }
+            } ).then( function( response ) {
+                console.log( response );
+                document.getElementById('quicktodo_feedback').innerHTML += '<li><a href=\"post.php?action=edit&post=' + response.id + '\">' + response.title.raw + '</a></li>';
+                e.target.reset();
+            } );
+        } );
+        ", 'after' );
+    }
+
     public function register_notebook_admin_widget( $term ) {
         wp_add_dashboard_widget(
             'pos_notebook_' . $term->slug,
@@ -67,6 +112,7 @@ class Notes_Module extends POS_Module {
         $notes = get_posts( array(
             'post_type' => $this->id,
             'post_status' => [ 'publish','private' ],
+            'posts_per_page' => 25,
             'tax_query' => [
                 [
                     'taxonomy' => 'notebook',
@@ -91,6 +137,7 @@ class Notes_Module extends POS_Module {
         $notes = get_posts( array(
             'post_type' => 'todo',
             'post_status' => [ 'publish','private' ],
+            'posts_per_page' => 25,
             'tax_query' => [
                 [
                     'taxonomy' => 'notebook',
