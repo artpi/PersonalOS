@@ -1,0 +1,42 @@
+.pos_admin_widget_notes li {
+    margin: 0
+}
+.pos_admin_widget_notes li a {
+    display:block;
+    padding: 0.5em;
+    border-top: 1px solid #e5e5e5;
+}
+.pos_admin_widget_notes li:hover {
+    background-color: #efefef;
+}
+
+.pos_admin_widget_notes h5 {
+    margin: 0 5px 0 0;
+}
+
+.pos_admin_widget_notes time {
+    color:#646970;
+    display: block;
+    text-align: right;
+}
+
+.pos_admin_widget_notes p {
+    color:gray;
+    font-style:italic;
+    margin-top: 0.1em;
+    margin-bottom: 0;
+}
+
+.pos_admin_widget_todos li {
+    display:flex;
+    flex-direction: row;
+    height: 25px;
+}
+.pos_admin_widget_todos li a {
+    line-height: 25px;
+    height: 25px;
+    display:flex;
+}
+.pos_admin_widget_todos li svg {
+    margin-right: 10px;
+}
