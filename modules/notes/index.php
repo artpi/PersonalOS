@@ -60,13 +60,19 @@ class Notes_Module extends POS_Module {
             array( $this,'todo_create_widget' ),
             null
         );
+        wp_add_dashboard_widget(
+            'pos_note_create',
+            'Quick Note',
+            array( $this,'note_create_widget' ),
+            null
+        );
     }
 
     public function todo_create_widget() {
         ?>
         <form id="quicktodo" method="get" class="initial-form hide-if-no-js">
         <div class="input-text-wrap">
-            <input type="text" name="post_title" id="quick_todo" autocomplete="off">
+            <input type="text" name="post_title" autocomplete="off">
         </div>
         <ul id="quicktodo_feedback"></ul>
         </form>
@@ -97,7 +103,59 @@ class Notes_Module extends POS_Module {
         } );
         ", 'after' );
     }
+    public function note_create_widget() {
+        ?>
+        <form id="quicknote" method="get" class="initial-form hide-if-no-js">
+        <div class="textarea-wrap">
+			<textarea name="content" placeholder="What’s on your mind?" class="mceEditor" rows="3" cols="15" autocomplete="off" style="overflow: hidden; height: 170px;"></textarea>
+		</div>
+        <p class="submit">
+            <input type="submit" name="save" id="save-post" disabled class="button button-primary" value="Save Note" style="width:100%">
+            <br class="clear">
+		</p>
+        <ul id="quicktodo_feedback"></ul>
+        </form>
+        <?php
+        wp_enqueue_script('wp-api-fetch' );
+        wp_add_inline_script( 'wp-api-fetch', "
+        var saveNoteTimer = null;
+        var postId = null;
+        var editedNoteId = 0;
 
+        function saveNote() {
+            clearTimeout( saveNoteTimer );
+            document.querySelector('#save-post').setAttribute( 'disabled', true );
+            console.log( 'saving', document.querySelector('#quicknote textarea').value );
+
+            wp.apiFetch( {
+                path: editedNoteId ? ( '/pos/v1/notes/' + editedNoteId ) : '/pos/v1/notes',
+                method: 'POST',
+                data: {
+                    title: 'Quick Note',
+                    status: 'publish',
+                    content: document.querySelector('#quicknote textarea').value,
+                }
+            } ).then( function( response ) {
+                console.log( response );
+                editedNoteId = response.id;
+            } );
+        }
+
+        document.querySelector('#quicknote textarea').addEventListener( 'input', function( e ) {
+            if ( saveNoteTimer ) {
+                clearTimeout( saveNoteTimer );
+            }
+            saveNoteTimer = setTimeout( saveNote, 5000 );
+            if ( e.target.value.length > 5 ) {
+                document.querySelector('#save-post').removeAttribute( 'disabled' );
+            }
+        } );
+        document.getElementById('quicktodo').addEventListener( 'submit', function( e ) {
+            e.preventDefault();
+            var data = new FormData( e.target );
+        } );
+        ", 'after' );
+    }
     public function register_notebook_admin_widget( $term ) {
         wp_add_dashboard_widget(
             'pos_notebook_' . $term->slug,
