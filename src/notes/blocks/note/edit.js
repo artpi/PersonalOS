@@ -2,10 +2,10 @@
  * WordPress dependencies
  */
 
-import { useBlockProps, useInnerBlocksProps } from '@wordpress/block-editor';
+import { useBlockProps, useInnerBlocksProps, InnerBlocks } from '@wordpress/block-editor';
 import { useEffect } from "@wordpress/element";
 import { useDispatch, useSelect } from '@wordpress/data';
-import { serialize } from '@wordpress/blocks';
+import { serialize, parse } from '@wordpress/blocks';
 
 
 import './index.css';
@@ -20,40 +20,50 @@ const Edit = ( props ) => {
 	const { children, ...innerBlocksProps } = useInnerBlocksProps();
 
 	const { saveEntityRecord, editEntityRecord } = useDispatch( 'core' );
+	const { replaceInnerBlocks } = useDispatch( 'core/block-editor' );
 
-	const { childrenBlocks } = useSelect( ( select ) => {
+	const localEmbeddedContent = useSelect( ( select ) => {
 		const { getBlocksByClientId } = select( 'core/block-editor' );
 		const childrenBlocks = getBlocksByClientId( children?.props?.clientId )[0]?.innerBlocks || [];
-		return { childrenBlocks };
+		return childrenBlocks ? serialize( childrenBlocks ) : "";
 	}, [ children ] );
 
+	const remoteEmbedded = useSelect( ( select ) => {
+		if ( ! note_id ) {
+			return null;
+		}
+		return select('core').getEntityRecord( 'postType', 'notes', note_id );
+	}, [ note_id ] );
 
+	const remoteEmbeddedContent = remoteEmbedded?.content?.raw;
 	useEffect( () => {
 		if ( ! note_id ) {
 			saveEntityRecord( 'postType', 'notes', { title: 'Embedded Note', status: 'draft' } ).then( note => {
 				setAttributes( { note_id: note.id } );
 			} );
+		} else if ( remoteEmbedded && remoteEmbedded.content ) {
+			replaceInnerBlocks( props?.clientId, parse( remoteEmbeddedContent ) );
 		}
-	}, [note_id] );
+	}, [note_id, remoteEmbeddedContent ] );
 
 	useEffect( () => {
-		if ( childrenBlocks && childrenBlocks.length ) {
-			if ( ! note_id ) {
-				return;
-			}
-			const content = serialize( childrenBlocks );
-			if ( ! content ) {
-				return;
-			}
-			editEntityRecord( 'postType', 'notes', note_id, { content } );
+		if( ! note_id ) {
+			return;
 		}
-	}, [ childrenBlocks, note_id ] );
+		if ( remoteEmbeddedContent === localEmbeddedContent ) {
+			return;
+		}
+		if ( ! localEmbeddedContent || localEmbeddedContent.length < 5 ) {
+			return;
+		}
+		console.log( 'saving new content', localEmbeddedContent, remoteEmbeddedContent );
+		editEntityRecord( 'postType', 'notes', note_id, { id: note_id, content: localEmbeddedContent } );
+	}, [ localEmbeddedContent, remoteEmbeddedContent, note_id ] );
 
-	
-	
+
 	return (
 		<div { ...blockProps }>
-			<div {...innerBlocksProps}>
+			<div { ...innerBlocksProps }>
 				{ children }
 			</div>
 		</div>
