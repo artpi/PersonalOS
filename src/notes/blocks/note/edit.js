@@ -2,11 +2,11 @@
  * WordPress dependencies
  */
 
-import { useBlockProps, useInnerBlocksProps, InnerBlocks } from '@wordpress/block-editor';
+import { useBlockProps, useInnerBlocksProps, InspectorControls } from '@wordpress/block-editor';
 import { useEffect } from "@wordpress/element";
 import { useDispatch, useSelect } from '@wordpress/data';
 import { serialize, parse } from '@wordpress/blocks';
-
+import { PanelBody } from '@wordpress/components';
 
 import './index.css';
 
@@ -66,6 +66,18 @@ const Edit = ( props ) => {
 
 	return (
 		<div { ...blockProps }>
+			{ note_id && ( <InspectorControls>
+				<PanelBody title={ 'Note' }>
+					<p>
+						<a
+							target="_blank"
+							href={ `/wp-admin/post.php?post=${ note_id }&action=edit` }
+						>
+							Open original note
+						</a>
+					</p>
+				</PanelBody>
+			</InspectorControls> ) }
 			<div { ...innerBlocksProps }>
 				{ children }
 			</div>
