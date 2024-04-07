@@ -56,6 +56,9 @@ const Edit = ( props ) => {
 		if ( ! localEmbeddedContent || localEmbeddedContent.length < 5 ) {
 			return;
 		}
+		if( ! remoteEmbeddedContent ) {
+			return;
+		}
 		console.log( 'saving new content', localEmbeddedContent, remoteEmbeddedContent );
 		editEntityRecord( 'postType', 'notes', note_id, { id: note_id, content: localEmbeddedContent } );
 	}, [ localEmbeddedContent, remoteEmbeddedContent, note_id ] );
