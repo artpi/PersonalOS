@@ -1,12 +1,11 @@
 /**
  * WordPress dependencies
  */
-import { useBlockProps } from '@wordpress/block-editor';
+import { useBlockProps, useInnerBlocksProps } from '@wordpress/block-editor';
 
 const Save = ( props ) => {
 	let blockProps = useBlockProps.save();
-    blockProps = { ...blockProps, attributes: { note_id: 100 } };
-    console.log( 'save', blockProps, props );
-	return <div { ...blockProps }></div>;
+    const innerBlocksProps = useInnerBlocksProps.save();
+	return <div { ...blockProps }><div {...innerBlocksProps} /></div>;
 };
 export default Save;
