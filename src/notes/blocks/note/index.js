@@ -3,7 +3,7 @@
  *
  * @see https://developer.wordpress.org/block-editor/reference-guides/block-api/block-registration/
  */
-import { registerBlockType } from '@wordpress/blocks';
+import { registerBlockType, createBlock } from '@wordpress/blocks';
 
 
 /**
@@ -28,4 +28,17 @@ registerBlockType( metadata.name, {
 	 * @see ./save.js
 	 */
 	save,
+	transforms: {
+		from: [
+			{
+				type: 'block',
+				blocks: [ 'core/group' ],
+				transform: ( attributes, innerBlocks ) => {
+					return createBlock( metadata.name, {
+						note_id: 0,
+					}, innerBlocks );
+				},
+			},
+		]
+	}
 } );

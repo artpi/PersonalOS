@@ -38,7 +38,7 @@ const Edit = ( props ) => {
 	const remoteEmbeddedContent = remoteEmbedded?.content?.raw;
 	useEffect( () => {
 		if ( ! note_id ) {
-			saveEntityRecord( 'postType', 'notes', { title: 'Embedded Note', status: 'draft' } ).then( note => {
+			saveEntityRecord( 'postType', 'notes', { title: 'Embedded Note', status: 'draft', content: localEmbeddedContent } ).then( note => {
 				setAttributes( { note_id: note.id } );
 			} );
 		} else if ( remoteEmbedded && remoteEmbedded.content ) {
