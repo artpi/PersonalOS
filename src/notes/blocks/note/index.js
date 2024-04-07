@@ -18,6 +18,8 @@ import metadata from './block.json';
  *
  * @see https://developer.wordpress.org/block-editor/reference-guides/block-api/block-registration/
  */
+const selfURL = new URL( document.baseURI );
+const regex = /post\.php\?post=([0-9]+)\&action=edit/i;
 registerBlockType( metadata.name, {
 	/**
 	 * @see ./edit.js
@@ -37,6 +39,28 @@ registerBlockType( metadata.name, {
 					return createBlock( metadata.name, {
 						note_id: 0,
 					}, innerBlocks );
+				},
+			},
+			{
+				type: 'raw',
+				isMatch: ( node ) => {
+					if ( node.nodeName !== 'P' ) {
+						return false;
+					}
+					const content = node.textContent;
+					if ( ! content.includes( selfURL.origin ) ) {
+						return false;
+					}
+					// Now we are talking. This may be it.
+					return regex.test( content );
+				},
+				transform: ( node ) => {
+					// TODO: Disallow embedding other post types
+					const match = node.textContent.match( regex );
+					const note_id = parseInt( match[1] );
+					return createBlock( metadata.name, {
+						note_id,
+					} );
 				},
 			},
 		]
