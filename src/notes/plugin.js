@@ -87,7 +87,7 @@ export default function NotesPlugin() {
 		}
 	}, [ isAutosaving ] );
 
-	console.log( metaFields );
+
 	return (
 		<>
 			{ metaFields[ 'readwise_id' ] && (

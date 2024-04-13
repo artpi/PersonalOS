@@ -81,7 +81,7 @@ function mergeCompleters( completers ) {
 	}
 }
 
-// Our filter function
+
 function appendMergedCompleter( completers, blockName ) {
 	const linksCompleter = completers.find( ( { name } ) => name === 'links' );
 	const allCompleters = completers.filter( ( { name } ) => name !== 'links' );
@@ -138,19 +138,14 @@ const Edit = ( props ) => {
 			return;
 		}
 		if ( remoteEmbeddedContent === localEmbeddedContent ) {
-			console.log( note_id, 'remote and local the same', remoteEmbeddedContent, localEmbeddedContent );
 			return;
 		}
 		if ( ! localEmbeddedContent || localEmbeddedContent.length < 5 ) {
-			console.log( note_id, 'local content too short', remoteEmbeddedContent, localEmbeddedContent );
 			return;
 		}
 		if( typeof remoteEmbeddedContent !== 'string' ) {
-			console.log( note_id, 'remote content missing', remoteEmbeddedContent, localEmbeddedContent );
-
 			return;
 		}
-		console.log( 'saving new content', localEmbeddedContent, remoteEmbeddedContent );
 		editEntityRecord( 'postType', 'notes', note_id, { content: localEmbeddedContent } );
 	}, [ localEmbeddedContent, remoteEmbeddedContent, note_id ] );
 
