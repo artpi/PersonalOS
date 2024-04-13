@@ -9,7 +9,7 @@ import { serialize, parse } from '@wordpress/blocks';
 import { PanelBody } from '@wordpress/components';
 import apiFetch from '@wordpress/api-fetch';
 import { addQueryArgs } from '@wordpress/url';
-import { Icon, page, post, overlayText } from '@wordpress/icons';
+import { Icon, overlayText } from '@wordpress/icons';
 import { createBlock } from '@wordpress/blocks';
 
 
@@ -28,17 +28,19 @@ const NoteCompleter = {
 			} ),
 		} );
 	
-		options = options.map( ( { id, title, type } ) => ( {
+		options = options.map( ( { id, title, type, excerpt } ) => ( {
 			id,
 			title: title.rendered,
 			type,
+			excerpt: excerpt.rendered.replace( /(<([^>]+)>)/gi, '' ).substring( 0, 100 ),
 		} ) );
-		options = options.filter( ( option ) => option.title !== '' );
+
 		return options;
 	},
 	getOptionKeywords( item ) {
 		const expansionWords = item.title.split( /\s+/ );
-		return [ ...expansionWords ];
+		const experptWords = item.excerpt.split( /\s+/ );
+		return [ ...expansionWords, ...experptWords ];
 	},
 	getOptionLabel( item ) {
 		return (
@@ -47,7 +49,7 @@ const NoteCompleter = {
 					key="icon"
 					icon={ overlayText }
 				/>
-				{ item.title }
+				{ item.title || item.excerpt }
 			</>
 		);
 	},
