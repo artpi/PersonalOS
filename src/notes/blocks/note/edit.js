@@ -3,15 +3,15 @@
  */
 
 import { useBlockProps, useInnerBlocksProps, InspectorControls } from '@wordpress/block-editor';
-import { useEffect } from "@wordpress/element";
+import { useEffect, useState } from "@wordpress/element";
 import { useDispatch, useSelect } from '@wordpress/data';
 import { serialize, parse } from '@wordpress/blocks';
 import { PanelBody } from '@wordpress/components';
 import apiFetch from '@wordpress/api-fetch';
 import { addQueryArgs } from '@wordpress/url';
-import { Icon, overlayText } from '@wordpress/icons';
+import { Icon, drafts } from '@wordpress/icons';
 import { createBlock } from '@wordpress/blocks';
-
+import { TextControl } from '@wordpress/components';
 
 import './index.css';
 
@@ -47,7 +47,7 @@ const NoteCompleter = {
 			<>
 				<Icon
 					key="icon"
-					icon={ overlayText }
+					icon={ drafts }
 				/>
 				{ item.title || item.excerpt }
 			</>
@@ -115,6 +115,8 @@ const Edit = ( props ) => {
 		return childrenBlocks ? serialize( childrenBlocks ) : "";
 	}, [ children ] );
 
+	const currentPostTitle = useSelect( ( select ) => select( 'core/editor' ).getCurrentPostAttribute('title') );
+
 	const remoteEmbedded = useSelect( ( select ) => {
 		if ( ! note_id ) {
 			return null;
@@ -122,14 +124,19 @@ const Edit = ( props ) => {
 		return select('core').getEntityRecord( 'postType', 'notes', note_id );
 	}, [ note_id ] );
 
+	const [ titleEdited, editTitle ] = useState( '' );
+
 	const remoteEmbeddedContent = remoteEmbedded?.content?.raw;
 	useEffect( () => {
 		if ( ! note_id ) {
-			saveEntityRecord( 'postType', 'notes', { title: 'Embedded Note', status: 'draft', content: localEmbeddedContent } ).then( note => {
+			const today = ( new Date() ).toISOString().split( 'T' )[0];
+			saveEntityRecord( 'postType', 'notes', { title: `Note from ${currentPostTitle} ${today}`, status: 'draft', content: localEmbeddedContent } ).then( note => {
 				setAttributes( { note_id: note.id } );
+				editTitle( note.title.raw );
 			} );
 		} else if ( remoteEmbedded && remoteEmbedded.content ) {
 			replaceInnerBlocks( props?.clientId, parse( remoteEmbeddedContent ) );
+			editTitle( remoteEmbedded.title.raw );
 		}
 	}, [ note_id, remoteEmbeddedContent ] );
 
@@ -162,8 +169,17 @@ const Edit = ( props ) => {
 							Open original note
 						</a>
 					</p>
+					{ note_id && remoteEmbedded && ( <TextControl
+						label="Note title"
+						value={ titleEdited }
+						onChange={ ( value ) => {
+							editEntityRecord( 'postType', 'notes', note_id, { title: value } );
+							editTitle( value );
+						} }
+					/> ) }
 				</PanelBody>
 			</InspectorControls> ) }
+			<div className='wp-block-pos-note__title'>{ remoteEmbedded?.title.raw }</div>
 			<div { ...innerBlocksProps }>
 				{ children }
 			</div>

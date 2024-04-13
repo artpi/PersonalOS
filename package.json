@@ -26,7 +26,7 @@
 		"@wordpress/compose": "^6.27.0",
 		"@wordpress/data": "^9.20.0",
 		"@wordpress/edit-post": "^7.27.2",
-		"@wordpress/icons": "^9.41.0",
+		"@wordpress/icons": "^9.46.0",
 		"@wordpress/plugins": "^6.18.0"
 	},
 	"devDependencies": {

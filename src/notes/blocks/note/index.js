@@ -4,7 +4,7 @@
  * @see https://developer.wordpress.org/block-editor/reference-guides/block-api/block-registration/
  */
 import { registerBlockType, createBlock } from '@wordpress/blocks';
-
+import { Icon, drafts } from '@wordpress/icons';
 
 /**
  * Internal dependencies
@@ -21,6 +21,7 @@ import metadata from './block.json';
 const selfURL = new URL( document.baseURI );
 const regex = /post\.php\?post=([0-9]+)\&action=edit/i;
 registerBlockType( metadata.name, {
+	icon: <Icon icon={ drafts } />,
 	/**
 	 * @see ./edit.js
 	 */

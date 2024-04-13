@@ -1,5 +1,17 @@
 .wp-block-pos-note {
     background-color: #f3f3f3;
-    padding: 10x;
-    border-radius: 10px;
+    border-radius: 0.5em;
+}
+
+.wp-block-pos-note__title {
+    font-size: .75em;
+    margin: 0;
+    padding: 0.5em;
+    font-style: oblique;
+    border: 1px solid #c0c6c9;
+    border-radius: 0.5em;
+}
+
+.block-editor-block-list__layout {
+    padding: 0 .5em .5em .5em;
 }
