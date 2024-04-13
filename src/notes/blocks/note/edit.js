@@ -82,7 +82,7 @@ function mergeCompleters( completers ) {
 }
 
 // Our filter function
-function appendAcronymCompleter( completers, blockName ) {
+function appendMergedCompleter( completers, blockName ) {
 	const linksCompleter = completers.find( ( { name } ) => name === 'links' );
 	const allCompleters = completers.filter( ( { name } ) => name !== 'links' );
     return [ mergeCompleters( [ linksCompleter, NoteCompleter ] ), ...allCompleters ]
@@ -92,8 +92,8 @@ function appendAcronymCompleter( completers, blockName ) {
 // Adding the filter
 wp.hooks.addFilter(
     'editor.Autocomplete.completers',
-    'my-plugin/autocompleters/acronym',
-    appendAcronymCompleter
+    'pos/autocompleters/links-and-notes',
+    appendMergedCompleter
 );
 
 
