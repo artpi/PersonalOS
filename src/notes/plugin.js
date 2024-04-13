@@ -2,26 +2,51 @@ import {
 	PluginSidebar,
 	PluginDocumentSettingPanel,
 } from '@wordpress/edit-post';
-import { pencil } from '@wordpress/icons';
-import { TextControl, Popover } from '@wordpress/components';
+import { drafts } from '@wordpress/icons';
+import { TextControl, Popover,Draggable } from '@wordpress/components';
 import apiFetch from '@wordpress/api-fetch';
 import { useState, useEffect, RawHTML } from '@wordpress/element';
 import { useDebounce } from '@wordpress/compose';
 import { useSelect } from '@wordpress/data';
 import { useDispatch } from '@wordpress/data';
+import { createBlock, serialize } from '@wordpress/blocks';
 
 const SearchResult = ( { post } ) => {
 	const [ modalOpen, setModalOpen ] = useState( false );
+
 	const textContent =
 		post.content.rendered
 			.replace( /(<([^>]+)>)/gi, '' )
 			.substring( 0, 100 ) + '...';
 	return (
-		<div style={ { borderBottom: '1px solid black' } }>
-			<h2 onClick={ () => setModalOpen( ! modalOpen ) }>
-				{ post.title.rendered }
-			</h2>
-			<p>{ textContent }</p>
+		<div id={ `note-sidebar-${post.id}` } style={ { borderBottom: '1px solid black' } }>
+			<Draggable
+				elementId={ `note-sidebar-${post.id}` }
+				__experimentalTransferDataType="wp-blocks"
+				transferData={{}}
+				onDragStart={ ( event ) => {
+					const block = createBlock( 'pos/note', {
+						note_id: post.id,
+					} )
+					event.dataTransfer.setData(
+						'text/html',
+						serialize( [ block ] )
+					);
+				} }
+			>
+				{ ( { onDraggableStart, onDraggableEnd } ) => (
+					<div
+						draggable
+						onDragStart={ onDraggableStart }
+						onDragEnd={ onDraggableEnd }
+					>
+						<h2 onClick={ () => setModalOpen( ! modalOpen ) }>
+						{ post.title.rendered }
+						</h2>
+						<p>{ textContent }</p>
+					</div>
+				) }
+			</Draggable>
 			{ modalOpen && (
 				<Popover>
 					<RawHTML style={{ minWidth: '500px'}}>{ post.content.rendered }</RawHTML>
@@ -37,15 +62,10 @@ export default function NotesPlugin() {
 	const [ selectedTaxonomies, setSelectedTaxonomies ] = useState( [] );
 
 	const allTags = useSelect( ( select ) => {
-		const tags = select( 'core' ).getEntityRecords(
+		return select( 'core' ).getEntityRecords(
 			'taxonomy',
-			'post_tag'
-		);
-		const cats = select( 'core' ).getEntityRecords(
-			'taxonomy',
-			'category'
-		);
-		return [ ...( cats ?? [] ), ...( tags ?? [] ) ];
+			'notebook'
+		) ?? [];
 	} );
 
 	const debouncedAPIFetch = useDebounce( ( search ) => {
@@ -60,7 +80,7 @@ export default function NotesPlugin() {
 			params.append( 'search', search );
 		}
 		if ( selectedTaxonomies.length ) {
-			params.append( 'tags', selectedTaxonomies.join( ',' ) );
+			params.append( 'notebook', selectedTaxonomies.join( ',' ) );
 		}
 
 		if ( params.toString().length ) {
@@ -79,6 +99,7 @@ export default function NotesPlugin() {
 		return select( 'core/editor' ).isAutosavingPost();
 	} );
 	const { savePost } = useDispatch( 'core/editor' );
+
 	useEffect( () => {
 		// We are catching a transition from saving to not-autosaving anymore.
 		if ( ! isAutosaving ) {
@@ -108,7 +129,7 @@ export default function NotesPlugin() {
 					</p>
 				</PluginDocumentSettingPanel>
 			) }
-			<PluginSidebar name="pos-notes" title="Notes" icon={ pencil }>
+			<PluginSidebar name="pos-notes" title="Notes" icon={ drafts }>
 				<TextControl
 					label="Search Notes"
 					value={ search }
