@@ -32,6 +32,16 @@ registerBlockType( metadata.name, {
 	 */
 	save,
 	transforms: {
+		ungroup: ( attributes, innerBlocks ) => innerBlocks,
+		to: [
+			{
+				type: 'block',
+				blocks: [ 'core/group' ],
+				transform: ( attributes, innerBlocks ) => {
+					return createBlock( 'core/group', {}, innerBlocks );
+				},
+			},
+		],
 		from: [
 			{
 				type: 'block',
