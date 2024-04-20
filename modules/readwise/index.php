@@ -52,6 +52,7 @@ Class Readwise extends External_Service_Module {
         $this->register_meta( 'readwise_id', $this->notes_module->id );
         $this->register_meta( 'readwise_category', $this->notes_module->id );
         $this->register_block( 'readwise' );
+        $this->register_block( 'book-summary' );
     }
 
     function setup_default_notebook() {

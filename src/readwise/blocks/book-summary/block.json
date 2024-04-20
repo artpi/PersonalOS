@@ -1,0 +1,19 @@
+
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "pos/book-summary",
+	"title": "Book Summary",
+	"category": "widgets",
+	"attributes": {
+		"content": {
+			"type": "string",
+			"source": "html",
+			"selector": "div"
+		}
+	},
+	"textdomain": "pos",
+	"keywords": [ "Readwise", "Book Summary" ],
+	"editorScript": "file:./index.js",
+	"editorStyle": "file:./index.css"
+}
