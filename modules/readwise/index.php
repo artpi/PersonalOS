@@ -26,6 +26,14 @@ Class Readwise extends External_Service_Module {
     public $id = 'readwise';
     public $name = "Readwise";
     public $description = "Syncs with readwise service";
+    public $parent_notebook = null;
+    public $category_names = [
+        'books' => 'Books',
+        'articles' => 'Articles',
+        'podcasts' => 'Podcasts',
+        'tweets' => 'Tweets',
+        'supplementals' => 'Supplementals',
+    ];
 
     public $settings = [
         'token' => [
@@ -46,6 +54,15 @@ Class Readwise extends External_Service_Module {
         $this->register_block( 'readwise' );
     }
 
+    function setup_default_notebook() {
+        $this->parent_notebook = get_term_by( 'slug', 'readwise', 'notebook' );
+        if ( $this->parent_notebook ) {
+            return;
+        }
+        wp_insert_term( 'Readwise', 'notebook', [ 'slug' => 'readwise' ] );
+        $this->parent_notebook = get_term_by( 'slug', 'readwise', 'notebook' );
+    }
+
     function sync() {
         error_log( "[DEBUG] Syncing readwise triggering " );
 
@@ -53,6 +70,7 @@ Class Readwise extends External_Service_Module {
         if( ! $token ) {
             return false;
         }
+        $this->setup_default_notebook();
 
         $query_args = [];
         $page_cursor = get_option(  $this->get_setting_option_name( 'page_cursor' ), null );
@@ -135,15 +153,39 @@ Class Readwise extends External_Service_Module {
             return;
         }
 
-        $tags = array_map( function( $tag ) {
+        $parent_notebook = $this->parent_notebook;
+        $term_names = array_map( function( $tag ) {
             return $tag->name;
-        }, $book->book_tags);
+        }, $book->book_tags );
+
+        if ( ! empty( $book->category ) ) {
+            $term_names[] = $this->category_names[ $book->category ] ?? $book->category;
+        }
+
+        $term_ids = array_map( function( $name ) use ( $parent_notebook ) {
+            $matching_notebooks = get_terms( [
+                'taxonomy' => 'notebook',
+                'hide_empty' => false,
+                'name' => $name,
+                'child_of' => $parent_notebook->term_id,
+            ] );
+
+            if( count( $matching_notebooks ) > 0) {
+                return $matching_notebooks[0]->term_id;
+            }
+            $term = wp_insert_term( $name, 'notebook', [ 'parent' => $parent_notebook->term_id ]);
+
+            return $term['term_id'];
+        }, $term_names );
+
+        $term_ids = array_filter( $term_ids );
+        $term_ids[] = get_term_by( 'slug', 'inbox', 'notebook' )->term_id;
 
         if ( $previous ) {
+            $post_id = $previous->ID;
             wp_update_post( [ 
                 'ID' => $previous->ID,
-                'content' => implode( "\n", $content ),
-                'tags_input' => $tags,
+                'content' => $previous->post_content . "\n" . implode( "\n", $content ),
             ] );
         } else {
             $data = [
@@ -151,7 +193,6 @@ Class Readwise extends External_Service_Module {
                 'post_type' => $this->notes_module->id,
                 'post_content' => implode( "\n", $content ),
                 'post_status' => 'publish',
-                'tags_input' => $tags,
                 'meta_input' => [
                     'readwise_id' => $book->user_book_id,
                     'readwise_category' => $book->category,
@@ -167,7 +208,9 @@ Class Readwise extends External_Service_Module {
                 $data[ 'post_date' ] = date( 'Y-m-d H:i:s', strtotime( $last_highlight->created_at ) );
             }
             $post_id = wp_insert_post( $data );
-            wp_set_object_terms( $post_id, $this->notes_module->get_default_notebook_id(), 'notebook' );
+        }
+        if ( $post_id && count( $term_ids ) > 0 ) {
+            wp_set_post_terms( $post_id, $term_ids, 'notebook', true );
         }
     }
 }
