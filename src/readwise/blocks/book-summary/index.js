@@ -51,17 +51,15 @@ registerBlockType( metadata.name, {
 	   ),
 	},
 	transforms: {
-        ungroup: ( attributes, innerBlocks ) => attributes.content,
+		ungroup: ( attributes, innerBlocks ) => innerBlocks,
 		to: [
 			{
 				type: 'block',
-				blocks: [ 'core/paragraph' ],
-				transform: ( { content } ) => {
-					return createBlock( 'core/paragraph', {
-						content,
-					} );
+				blocks: [ 'core/group' ],
+				transform: ( attributes, innerBlocks ) => {
+					return createBlock( 'core/group', {}, innerBlocks );
 				},
 			},
-		]
+		],
 	}
 } );

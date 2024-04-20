@@ -2,14 +2,16 @@
  * WordPress dependencies
  */
 
-import { useBlockProps, RichText, InspectorControls } from '@wordpress/block-editor';
+import { useBlockProps, RichText, InspectorControls, useInnerBlocksProps } from '@wordpress/block-editor';
 import { useState, useEffect } from '@wordpress/element';
 import { TextareaControl, Button, Panel, PanelBody, Spinner } from '@wordpress/components';
 import { getBlockContent, rawHandler } from '@wordpress/blocks';
+import { useDispatch, useSelect } from '@wordpress/data';
+
 import apiFetch from '@wordpress/api-fetch';
 
 import './index.css';
-import { useSelect } from '@wordpress/data';
+
 const systemPromptDefault = `You are a fantastic Book Summarizer, functioning as an adept editor, guiding users in creating the book summaries they desire for their blog posts, specifically for publication on a blog.
 The summary you generate readers' memories by emphasizing notes and highlights that resonated.
 When provided, follow and extend outlines as necessary. 
@@ -25,16 +27,12 @@ Please use simple language and simple words.
 Please output simple HTML.`
 
 const Edit = ( props ) => {
-	const {
-		attributes: { content },
-		setAttributes,
-	} = props;
 
 	const blockProps = useBlockProps();
+	const { children, ...innerBlocksProps } = useInnerBlocksProps();
 
-	const onChangeContent = ( newContent ) => {
-		setAttributes( { content: newContent } );
-	};
+    const { replaceInnerBlocks, replaceBlocks } = useDispatch( 'core/block-editor' );
+
     const [ prompt, setPrompt ] = useState( '' );
     const [ systemPrompt, setSystemPrompt ] = useState( systemPromptDefault );
     const [ generating, setGenerating ] = useState( false );
@@ -78,7 +76,9 @@ const Edit = ( props ) => {
         } )
         .then( data => {
             console.log( data );
-            setAttributes( { content: data.choices[0].message.content } );
+            const blocks = rawHandler( { HTML: data.choices[0].message.content } );
+            console.log( 'BLOCKZ', blocks, props?.clientId );
+            replaceInnerBlocks( props?.clientId, blocks );
             setGenerating( false );
         })
         .catch( error => {
@@ -104,11 +104,9 @@ const Edit = ( props ) => {
                     onClick={ generateSummary }
                 >Generate Summary</Button>
             </Panel>
-			<RichText
-				tagName="div"
-				onChange={ onChangeContent }
-				value={ content }
-			/>
+            <div { ...innerBlocksProps }>
+				{ children }
+			</div>
             <InspectorControls>
 				<PanelBody title={ 'Book Summarizer Config' }>
                     <TextareaControl

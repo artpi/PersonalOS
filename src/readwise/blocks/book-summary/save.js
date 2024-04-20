@@ -1,14 +1,11 @@
 /**
  * WordPress dependencies
  */
-import { useBlockProps, RichText } from '@wordpress/block-editor';
+import { useBlockProps, useInnerBlocksProps } from '@wordpress/block-editor';
 
 const Save = ( props ) => {
-	const {
-		attributes: { content },
-	} = props;
-	const blockProps = useBlockProps.save();
-
-	return <RichText.Content { ...blockProps } tagName="div" value={ content } />;
+	let blockProps = useBlockProps.save();
+    const innerBlocksProps = useInnerBlocksProps.save();
+	return <div { ...blockProps }><div {...innerBlocksProps} /></div>;
 };
 export default Save;
