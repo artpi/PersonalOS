@@ -37,6 +37,11 @@ class Notes_Module extends POS_Module {
         }
     }
 
+    public function get_default_notebook_id() {
+        $term = get_term_by( 'slug', 'inbox', 'notebook' );
+        return $term->term_id;
+    }
+
     public function create( $title, $content, $inbox = false ) {
         $post = array(
             'post_title' => $title,

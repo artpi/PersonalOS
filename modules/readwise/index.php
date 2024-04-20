@@ -159,11 +159,15 @@ Class Readwise extends External_Service_Module {
                     'url' => $book->source_url,
                 ],
             ];
+            if ( $book->summary ) {
+                $data[ 'post_excerpt' ] = $book->summary;
+            }
             $last_highlight = end( $book->highlights );
             if ( $last_highlight ) {
                 $data[ 'post_date' ] = date( 'Y-m-d H:i:s', strtotime( $last_highlight->created_at ) );
             }
-            wp_insert_post( $data );
+            $post_id = wp_insert_post( $data );
+            wp_set_object_terms( $post_id, $this->notes_module->get_default_notebook_id(), 'notebook' );
         }
     }
 }
