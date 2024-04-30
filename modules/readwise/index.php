@@ -110,7 +110,7 @@ Class Readwise extends External_Service_Module {
             error_log( "Scheduling next page sync with cursor {$data->nextPageCursor}" );
         } else {
             error_log( "[DEBUG] Full sync completed" );
-            update_option( $this->get_setting_option_name( 'last_sync' ), date( 'c' ) );
+            update_option( $this->get_setting_option_name( 'last_sync' ), str_replace('+00:00', 'Z', gmdate('c') ) );
             delete_option( $this->get_setting_option_name( 'page_cursor' ) );
         }
 
@@ -189,17 +189,26 @@ Class Readwise extends External_Service_Module {
                 'content' => $previous->post_content . "\n" . implode( "\n", $content ),
             ] );
         } else {
+            $meta = [];
+            foreach( [
+                'user_book_id' => 'readwise_id',
+                'category' => 'readwise_category',
+                'author' => 'readwise_author',
+                'source_url' => 'url',
+                'asin' => 'readwise_asin',
+                'cover_image_url' => 'readwise_cover_image_url',
+            ] as $key => $value ) {
+                if ( ! empty( $book->{$key} ) ) {
+                    $meta[ $value ] = $book->$key;
+                }
+            }
+
             $data = [
                 'post_title' => $book->title,
                 'post_type' => $this->notes_module->id,
                 'post_content' => implode( "\n", $content ),
                 'post_status' => 'publish',
-                'meta_input' => [
-                    'readwise_id' => $book->user_book_id,
-                    'readwise_category' => $book->category,
-                    'readwise_author' => $book->author,
-                    'url' => $book->source_url,
-                ],
+                'meta_input' => $meta,
             ];
             if ( $book->summary ) {
                 $data[ 'post_excerpt' ] = $book->summary;

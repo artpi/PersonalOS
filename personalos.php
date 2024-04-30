@@ -65,6 +65,11 @@ class POS {
 }
 add_action( 'init', 'POS::init' );
 
+// add_filter( 'wp_loupe_post_types', function() {
+//     return [ 'post', 'page', 'notes' ];
+// } );
+
+
 // For debugging trackbacks:
 // add_action( 'pre_ping', function( $data ) {
 //     error_log( 'PING: ' . print_r( $data, true ) );
