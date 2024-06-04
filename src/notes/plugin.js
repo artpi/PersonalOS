@@ -129,6 +129,21 @@ export default function NotesPlugin() {
 					</p>
 				</PluginDocumentSettingPanel>
 			) }
+			{ metaFields[ 'evernote_guid' ] && (
+				<PluginDocumentSettingPanel
+					name="notes-evernote"
+					title="Evernote"
+				>
+					<p>
+						<a
+							target="_blank"
+							href={ '/?rest_route=/pos/v1/evernote-redirect/' + 1756 }
+						>
+							Open in an evernote app
+						</a>
+					</p>
+				</PluginDocumentSettingPanel>
+			) }
 			<PluginSidebar name="pos-notes" title="Notes" icon={ drafts }>
 				<TextControl
 					label="Search Notes"

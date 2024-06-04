@@ -32,7 +32,28 @@ Class Evernote extends External_Service_Module {
         // $this->register_meta( 'readwise_category', $this->notes_module->id );
         // $this->register_block( 'readwise' );
         // $this->register_block( 'book-summary' );
+        add_action( 'rest_api_init', [ $this, 'register_rest_routes' ] );
         $this->connect();
+    }
+
+    function get_app_link_from_guid( $guid ) {
+        $user = $this->advanced_client->getUserStore()->getUser();
+        $note_url = "evernote:///view/{$user->id}/{$user->shardId}/{$guid}/{$guid}/";
+        return $note_url;
+    }
+
+    public function register_rest_routes() {
+        register_rest_route( $this->rest_namespace, '/evernote-redirect/(?P<post_id>\w+)/', [
+            'methods' => 'GET',
+            'callback' => function( $request ) {
+                $post_id = $request->get_param( 'post_id' );
+                $guid = get_post_meta( $post_id, 'evernote_guid', true );
+                $note_url = $this->get_app_link_from_guid( $guid );
+                header( "Location: $note_url" );
+                die();
+            },
+            'permission_callback' => '__return_true',
+        ] );
     }
 
     public function synced_notebooks_setting_callback ( $option_name, $value, $setting ) {
