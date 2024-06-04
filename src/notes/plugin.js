@@ -94,6 +94,9 @@ export default function NotesPlugin() {
 		return select( 'core/editor' ).getEditedPostAttribute( 'meta' ) ?? {};
 	} );
 
+	const postId = useSelect( ( select ) => {
+		return select( 'core/editor' ).getCurrentPostId();
+	} );
 
 	const isAutosaving = useSelect( ( select ) => {
 		return select( 'core/editor' ).isAutosavingPost();
@@ -137,7 +140,7 @@ export default function NotesPlugin() {
 					<p>
 						<a
 							target="_blank"
-							href={ '/?rest_route=/pos/v1/evernote-redirect/' + 1756 }
+							href={ '/?rest_route=/pos/v1/evernote-redirect/' + postId }
 						>
 							Open in an evernote app
 						</a>
