@@ -142,8 +142,16 @@ Class Evernote extends External_Service_Module {
 
     function sync_note( $note ) {
         $content = $this->advanced_client->getNoteStore()->getNoteContent( $note->guid );
-        //$c = new Evernote\Enml\Converter\EnmlToHtmlConverter();
-		//$content = $c->convertToHtml( $content );
+        if( class_exists( 'XSLTProcessor'  ) ) {
+            $c = new Evernote\Enml\Converter\EnmlToHtmlConverter();
+            $content = $c->convertToHtml( $content );
+        } else {
+            error_log( "[WARN] No processor for xslt. Will convert notes the dum way" );
+            if ( preg_match( '/<en-note[^>]*>(.*?)<\/en-note>/s', $content, $matches ) ){
+                $content = $matches[1];
+            }
+        }
+
 
         error_log( "[DEBUG] Evernote Creating {$note->title}" );
         $data = [
