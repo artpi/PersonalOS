@@ -6,6 +6,7 @@ Class Evernote extends External_Service_Module {
     public $description = "Syncs with evernote service";
     public $parent_notebook = null;
     public $simple_client = null;
+    public $advanced_client = null;
 
     public $settings = [
         'token' => [
@@ -25,9 +26,9 @@ Class Evernote extends External_Service_Module {
     function __construct( $notes_module ) {
         $this->settings['synced_notebooks']['callback'] = [ $this, 'synced_notebooks_setting_callback' ];
         $this->notes_module = $notes_module;
-        // $this->register_sync( 'hourly' );
+        $this->register_sync( 'hourly' );
 
-        // $this->register_meta( 'readwise_id', $this->notes_module->id );
+        $this->register_meta( 'evernote_guid', $this->notes_module->id );
         // $this->register_meta( 'readwise_category', $this->notes_module->id );
         // $this->register_block( 'readwise' );
         // $this->register_block( 'book-summary' );
@@ -78,7 +79,87 @@ Class Evernote extends External_Service_Module {
         }
         require_once( plugin_dir_path( __FILE__ ) . '/../../vendor/autoload.php' );
         $this->simple_client = new \Evernote\Client( $token, false );
+        $this->advanced_client = new \Evernote\AdvancedClient( $token, false );
         return $this->simple_client;
+    }
+
+    function sync() {
+        error_log( "[DEBUG] Syncing Evernote triggering " );
+        $notebooks = $this->get_setting( 'synced_notebooks' );
+        if( ! $notebooks || ! $this->advanced_client ) {
+            return [];
+        }
+        $usn = get_option(  $this->get_setting_option_name( 'usn' ), 0 );
+        $last_sync = get_option( $this->get_setting_option_name( 'last_sync' ), 0 );
+        $last_update_count = get_option( $this->get_setting_option_name( 'last_update_count' ), 0 );
+        $sync_state = $this->advanced_client->getNoteStore()->getSyncState();
+        $sync_filter = new \EDAM\NoteStore\SyncChunkFilter( [
+            'includeNotes' => true,
+            'includeNotebooks' => false,
+            'includeNoteAttributes' => true,
+            //'notebookGuids' => $notebooks,
+        ] );
+        update_option( $this->get_setting_option_name( 'last_sync' ), $sync_state->currentTime );
+        delete_option( $this->get_setting_option_name( 'last_update_count' ), $sync_state->updateCount );
+
+        if ( $sync_state->updateCount === $last_update_count ) {
+            error_log( "[DEBUG] Evernote: No updates since last sync" );
+            return;
+        }
+
+        if ( $sync_state->fullSyncBefore > $last_sync ) {
+            // Retriggering full sync
+            $usn = 0;
+        }
+
+        $sync_chunk = $this->advanced_client->getNoteStore()->getFilteredSyncChunk( $usn, 100, $sync_filter );
+        if ( ! $sync_chunk ) {
+            error_log( "[ERROR] Evernote: Sync failed" );
+            return;
+        }
+
+        // We have to manually filter for the notebooks we marked
+        $filtered_notes = array_filter( $sync_chunk->notes, function( $note ) use ( $notebooks ) {
+            return in_array( $note->notebookGuid, $notebooks );
+        } );
+        $filtered_notes = array_values( $filtered_notes );
+    
+        if ( ! empty ( $sync_chunk->chunkHighUSN ) ) {
+            // We want to unschedule any regular sync events until we have initial sync complete.
+            wp_unschedule_hook( $this->get_sync_hook_name() );
+            // We will schedule ONE TIME sync event for the next page.
+            update_option( $this->get_setting_option_name( 'usn' ), $sync_chunk->chunkHighUSN );
+            wp_schedule_single_event( time() + 60, $this->get_sync_hook_name() );
+            error_log( "Scheduling next page chunk with cursor {$sync_chunk->chunkHighUSN}" );
+        } else {
+            error_log( "[DEBUG] Evernote: Full sync completed" );
+        }
+
+        foreach( $filtered_notes as $note ) {
+            $this->sync_note( $note );
+        }
+    }
+
+    function sync_note( $note ) {
+        $content = $this->advanced_client->getNoteStore()->getNoteContent( $note->guid );
+        //$c = new Evernote\Enml\Converter\EnmlToHtmlConverter();
+		//$content = $c->convertToHtml( $content );
+
+        error_log( "[DEBUG] Evernote Creating {$note->title}" );
+        $data = [
+            'post_title' => $note->title,
+            'post_type' => $this->notes_module->id,
+            'post_content' => $content,
+            'post_status' => 'publish',
+            'post_date' => date( 'Y-m-d H:i:s', $note->created / 1000 ),
+            'meta_input' => [
+                'evernote_guid' => $note->guid,
+            ],
+        ];
+        if( ! empty( $note->attributes->sourceURL ) ) {
+            $data['meta_input']['url'] = $note->attributes->sourceURL;
+        }
+        wp_insert_post( $data );
     }
 
     // function setup_default_notebook() {
@@ -127,18 +208,18 @@ Class Evernote extends External_Service_Module {
     //     $data = json_decode( $body );
     //     error_log( "[DEBUG] Readwise Syncing {$data->count} highlights" );
 
-    //     if ( ! empty ( $data->nextPageCursor ) ) {
-    //         // We want to unschedule any regular sync events until we have initial sync complete.
-    //         wp_unschedule_hook( $this->get_sync_hook_name() );
-    //         // We will schedule ONE TIME sync event for the next page.
-    //         update_option( $this->get_setting_option_name( 'page_cursor' ), $data->nextPageCursor );
-    //         wp_schedule_single_event( time() + 60, $this->get_sync_hook_name() );
-    //         error_log( "Scheduling next page sync with cursor {$data->nextPageCursor}" );
-    //     } else {
-    //         error_log( "[DEBUG] Full sync completed" );
-    //         update_option( $this->get_setting_option_name( 'last_sync' ), date( 'c' ) );
-    //         delete_option( $this->get_setting_option_name( 'page_cursor' ) );
-    //     }
+        // if ( ! empty ( $data->nextPageCursor ) ) {
+        //     // We want to unschedule any regular sync events until we have initial sync complete.
+        //     wp_unschedule_hook( $this->get_sync_hook_name() );
+        //     // We will schedule ONE TIME sync event for the next page.
+        //     update_option( $this->get_setting_option_name( 'page_cursor' ), $data->nextPageCursor );
+        //     wp_schedule_single_event( time() + 60, $this->get_sync_hook_name() );
+        //     error_log( "Scheduling next page sync with cursor {$data->nextPageCursor}" );
+        // } else {
+        //     error_log( "[DEBUG] Full sync completed" );
+        //     update_option( $this->get_setting_option_name( 'last_sync' ), date( 'c' ) );
+        //     delete_option( $this->get_setting_option_name( 'page_cursor' ) );
+        // }
 
     //     foreach( $data->results as $book ) {
     //         $this->sync_book( $book );
