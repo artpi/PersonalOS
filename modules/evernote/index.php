@@ -29,7 +29,8 @@ Class Evernote extends External_Service_Module {
         $this->register_sync( 'hourly' );
 
         $this->register_meta( 'evernote_guid', $this->notes_module->id );
-        // $this->register_meta( 'readwise_category', $this->notes_module->id );
+        $this->register_meta( 'evernote_content_hash', $this->notes_module->id );
+
         // $this->register_block( 'readwise' );
         // $this->register_block( 'book-summary' );
         add_action( 'rest_api_init', [ $this, 'register_rest_routes' ] );
@@ -118,12 +119,15 @@ Class Evernote extends External_Service_Module {
             'includeNotes' => true,
             'includeNotebooks' => false,
             'includeNoteAttributes' => true,
+            'includeExpunged' => false,
             //'notebookGuids' => $notebooks,
         ] );
+        $sync_filter->includeExpunged = false;
         update_option( $this->get_setting_option_name( 'last_sync' ), $sync_state->currentTime );
         delete_option( $this->get_setting_option_name( 'last_update_count' ), $sync_state->updateCount );
 
-        if ( $sync_state->updateCount === $last_update_count ) {
+        error_log( print_r( [ $sync_state, $last_update_count, $usn ], true ) );
+        if ( $sync_state->updateCount === $last_update_count || $sync_state->updateCount === $usn ) {
             error_log( "[DEBUG] Evernote: No updates since last sync" );
             return;
         }
@@ -139,13 +143,18 @@ Class Evernote extends External_Service_Module {
             return;
         }
 
+        if( empty ( $sync_chunk->notes ) ) {
+            error_log( "[DEBUG] Evernote: No notes to sync" );
+            return;
+        }
+
         // We have to manually filter for the notebooks we marked
         $filtered_notes = array_filter( $sync_chunk->notes, function( $note ) use ( $notebooks ) {
-            return in_array( $note->notebookGuid, $notebooks );
+            return ( in_array( $note->notebookGuid, $notebooks ) && empty( $note->deleted ) );
         } );
         $filtered_notes = array_values( $filtered_notes );
     
-        if ( ! empty ( $sync_chunk->chunkHighUSN ) ) {
+        if ( ! empty ( $sync_chunk->chunkHighUSN ) && $sync_chunk->chunkHighUSN > $usn ) {
             // We want to unschedule any regular sync events until we have initial sync complete.
             wp_unschedule_hook( $this->get_sync_hook_name() );
             // We will schedule ONE TIME sync event for the next page.
@@ -161,7 +170,43 @@ Class Evernote extends External_Service_Module {
         }
     }
 
-    function sync_note( $note ) {
+    function get_notebook_by_guid( $guid ) {
+        $args = array(
+            'hide_empty' => false,
+            'meta_query' => array(
+                array(
+                   'key'       => 'evernote_notebook_guid',
+                   'value'     => $guid,
+                   'compare'   => 'LIKE'
+                )
+            ),
+            'taxonomy'  => 'notebook',
+        );
+        $terms = get_terms( $args );
+        if( count( $terms ) > 0 ) {
+            return $terms[0]->term_id;
+        }
+
+        // We have to create this notebook, under "Evernote" parent
+
+        $notebook = $this->advanced_client->getNoteStore()->getNotebook( $guid );
+        error_log( "[DEBUG] Evernote Creating " . print_r( $notebook, true ) );
+        $name = $notebook->name;
+
+        if ( ! $this->parent_notebook ) {
+            $this->parent_notebook = get_term_by( 'slug', 'evernote', 'notebook' );
+        }
+        if ( ! $this->parent_notebook ) {
+            wp_insert_term( 'Evernote', 'notebook', [ 'slug' => 'evernote' ] );
+            $this->parent_notebook = get_term_by( 'slug', 'evernote', 'notebook' );
+        }
+        $term = wp_insert_term( $name, 'notebook', [ 'parent' => $this->parent_notebook->term_id ] );
+        update_term_meta( $term['term_id'], 'evernote_notebook_guid', $guid );
+        return $term['term_id'];
+    }
+
+    function get_note_html( $note ) {
+        // TODO: Handle resources like <en-media hash="0a35baf77505fa7867468ec2b1b21865" type="audio/m4a" />
         $content = $this->advanced_client->getNoteStore()->getNoteContent( $note->guid );
         if( class_exists( 'XSLTProcessor'  ) ) {
             $c = new Evernote\Enml\Converter\EnmlToHtmlConverter();
@@ -172,23 +217,74 @@ Class Evernote extends External_Service_Module {
                 $content = $matches[1];
             }
         }
+        return $content;
+    }
 
+    function sync_note( $note ) {
+        error_log( "[DEBUG] Syncing " . print_r( $note, true ) );
 
-        error_log( "[DEBUG] Evernote Creating {$note->title}" );
-        $data = [
-            'post_title' => $note->title,
+        $existing = get_posts( [
             'post_type' => $this->notes_module->id,
-            'post_content' => $content,
-            'post_status' => 'publish',
-            'post_date' => date( 'Y-m-d H:i:s', $note->created / 1000 ),
-            'meta_input' => [
-                'evernote_guid' => $note->guid,
+            'meta_query' => [
+                [
+                    'key' => 'evernote_guid',
+                    'value' => $note->guid,
+                ],
             ],
-        ];
-        if( ! empty( $note->attributes->sourceURL ) ) {
-            $data['meta_input']['url'] = $note->attributes->sourceURL;
+        ] );
+        if ( count( $existing ) > 0 ) {
+            $existing = $existing[0];
+            $update_array = [];
+            if ( bin2hex( $note->contentHash ) !== get_post_meta( $existing->ID, 'evernote_content_hash', true ) ) {
+                $update_array['post_content'] = $this->get_note_html( $note );
+                if ( ! isset( $data['meta_input'] ) ) {
+                    $data['meta_input'] = [];
+                }
+                $data['meta_input']['evernote_content_hash'] = bin2hex( $note->contentHash );
+            }
+            if ( $note->updated > strtotime( $existing->post_modified ) ) {
+                $update_array['post_date'] = date( 'Y-m-d H:i:s', ( $note->updated / 1000 ) );
+            }
+
+            if( $note->title !== $existing->post_title ) {
+                $update_array['post_title'] = $note->title;
+            }
+
+            if ( $note->attributes->sourceURL !== get_post_meta( $existing->ID, 'url', true ) ) {
+                if ( ! isset( $data['meta_input'] ) ) {
+                    $data['meta_input'] = [];
+                } 
+                $data['meta_input']['url'] = $note->attributes->sourceURL;
+            }
+
+            // TODO: change notebook too
+
+
+            if ( count( $update_array ) > 0 ) {
+                $update_array['ID'] = $existing->ID;
+                error_log( "[DEBUG] Evernote Updating " . print_r( $update_array, true ) );
+                wp_update_post( $update_array );
+            }
+
+        } else {
+            error_log( "[DEBUG] Evernote Creating {$note->title}" );
+            $data = [
+                'post_title' => $note->title,
+                'post_type' => $this->notes_module->id,
+                'post_content' => $this->get_note_html( $note ),
+                'post_status' => 'publish',
+                'post_date' => date( 'Y-m-d H:i:s', $note->created / 1000 ),
+                'meta_input' => [
+                    'evernote_guid' => $note->guid,
+                    'evernote_content_hash' => bin2hex( $note->contentHash ),
+                ],
+            ];
+            if( ! empty( $note->attributes->sourceURL ) ) {
+                $data['meta_input']['url'] = $note->attributes->sourceURL;
+            }
+            $post_id = wp_insert_post( $data );
+            wp_set_post_terms( $post_id, [ $this->get_notebook_by_guid( $note->notebookGuid ) ], 'notebook', true );
         }
-        wp_insert_post( $data );
     }
 
     // function setup_default_notebook() {
