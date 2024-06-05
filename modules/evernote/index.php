@@ -150,7 +150,7 @@ Class Evernote extends External_Service_Module {
 
         // We have to manually filter for the notebooks we marked
         $filtered_notes = array_filter( $sync_chunk->notes, function( $note ) use ( $notebooks ) {
-            return ( in_array( $note->notebookGuid, $notebooks ) && empty( $note->deleted ) );
+            return ( in_array( $note->notebookGuid, $notebooks ) );
         } );
         $filtered_notes = array_values( $filtered_notes );
     
@@ -234,6 +234,13 @@ Class Evernote extends External_Service_Module {
         ] );
         if ( count( $existing ) > 0 ) {
             $existing = $existing[0];
+
+            if( ! empty( $note->deleted ) ) {
+                error_log( "[DEBUG] Evernote Deleting {$note->title}" );
+                wp_trash_post( $existing->ID );
+                return;
+            }
+
             $update_array = [];
             if ( bin2hex( $note->contentHash ) !== get_post_meta( $existing->ID, 'evernote_content_hash', true ) ) {
                 $update_array['post_content'] = $this->get_note_html( $note );
@@ -266,7 +273,7 @@ Class Evernote extends External_Service_Module {
                 wp_update_post( $update_array );
             }
 
-        } else {
+        } else if ( empty( $note->deleted ) ) {
             error_log( "[DEBUG] Evernote Creating {$note->title}" );
             $data = [
                 'post_title' => $note->title,
