@@ -117,6 +117,8 @@ Class Evernote extends External_Service_Module {
     }
 
     function sync() {
+        // print_r(wp_get_attachment_metadata( 2006 ));
+        // return;
         error_log( "[DEBUG] Syncing Evernote triggering " );
         $notebooks = $this->get_setting( 'synced_notebooks' );
         if( ! $notebooks || ! $this->advanced_client ) {
@@ -221,7 +223,7 @@ Class Evernote extends External_Service_Module {
             $filename = $resource->attributes->fileName;
 
             $file = array(
-                'name'     => wp_salt( $resource->guid ) . "-" . $filename, // This hash is used to obfuscate the file names which should NEVER be exposed.
+                'name'     => wp_hash( $resource->guid ) . "-" . $filename, // This hash is used to obfuscate the file names which should NEVER be exposed.
                 'type'     => $resource->mime,
                 'tmp_name' => $tempfile,
                 'error'    => 0,
@@ -229,12 +231,22 @@ Class Evernote extends External_Service_Module {
             );
 
             error_log( 'Saving, setting post status private', LOG_DEBUG );
-            $media_id = media_handle_sideload($file, $notes[0]->ID, null, [
+            $data = [
                 'post_status' => 'private', // Always default to private instead of inherit because https://piszek.com/2024/02/17/wordpress-custom-post-types-and-read-permission-in-rest/
                 'post_title' => preg_replace( '/\.[^.]+$/', '', wp_basename( $filename ) ),
-            ] );
-            update_post_meta( $media_id, 'evernote_guid', $resource->guid );
-            update_post_meta( $media_id, 'evernote_content_hash', bin2hex( $resource->data->bodyHash ) );
+                'meta_input' => [
+                    'evernote_guid' => $resource->guid,
+                    'evernote_content_hash' => bin2hex( $resource->data->bodyHash ),
+                ],
+            ];
+            $media_id = media_handle_sideload($file, $notes[0]->ID, null, $data  );
+
+            if ( stristr( $resource->mime, 'audio' ) ) { // if auto transcribe audio
+                // We have to schedule transcription ourselves because the mime is not ready yet at this time.
+                update_post_meta( $media_id, 'pos_transcribe', 1 );
+                wp_schedule_single_event( time() + 10, 'pos_transcription', [ $media_id ] );
+            }
+
             error_log( 'UPLOADED: ' . $media_id );
         }
 

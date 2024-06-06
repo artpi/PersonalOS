@@ -12,8 +12,8 @@ class POS_Transcription extends POS_Module {
         $this->notes = $notes;
         $this->register_meta( 'pos_transcribe', 'attachment' );
         add_action( 'pos_' . $this->id , array( $this, 'transcribe' ) );
-        add_action( 'add_attachment', array( $this, 'schedule_transcription' ) );
-        add_action( 'edit_attachment', array( $this, 'schedule_transcription' ) );
+        add_action( 'add_attachment', array( $this, 'schedule_transcription' ), 100 );
+        add_action( 'edit_attachment', array( $this, 'schedule_transcription' ), 100 );
     }
 
     public function schedule_transcription( $attachment_id ) {
@@ -36,6 +36,9 @@ class POS_Transcription extends POS_Module {
         }
 
         $file = wp_get_attachment_metadata( $attachment_id );
+        if( empty( $file ) ) {
+            return "No attachment metadata.";
+        }
         $mime_type = explode( '/', $file['mime_type'] );
         if ( $mime_type[0] !== 'audio' ) {
             return ( 'Transcription: not an audio file' );
@@ -48,7 +51,7 @@ class POS_Transcription extends POS_Module {
     }
 
     public function transcribe( $attachment_id ) {
-        
+        error_log( 'Transcribing ' . $attachment_id );
         $checks = $this->transcription_checks( $attachment_id );
         if ( $checks !== true ) {
             error_log( $checks );
@@ -89,15 +92,26 @@ class POS_Transcription extends POS_Module {
         $post->post_content = $response->text;
         wp_update_post( $post );
 
-        // Save a note.
-        $audio_block = get_comment_delimited_block_content(
-            'audio',
-            [
-                'id' => $attachment_id,
-            ],
-            '<figure class="wp-block-audio"><audio controls src="'.wp_get_attachment_url( $attachment_id ).'"></audio></figure>'
-        );
-        $this->notes->create( 'Transcription', "{$audio_block}<p>{$response->text}</p>", true );
-        //TODO: Add recording as note child?
+        // Is this a child post?
+        if ( empty( $post->post_parent ) ) {
+            // Save a note.
+            $audio_block = get_comment_delimited_block_content(
+                'audio',
+                [
+                    'id' => $attachment_id,
+                ],
+                '<figure class="wp-block-audio"><audio controls src="'.wp_get_attachment_url( $attachment_id ).'"></audio></figure>'
+            );
+            $this->notes->create( 'Transcription', "{$audio_block}<p>{$response->text}</p>", true );
+            //TODO: Add recording as note child?
+            return;
+        } else {
+            // We have to figure out where to insert the transcription to the post.
+            // Let's append for now.
+            $parent = get_post( $post->post_parent );
+            $parent->post_content .= "<p>{$response->text}</p>";
+            wp_update_post( $parent );
+        }
+
     }
 }
