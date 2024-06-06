@@ -30,9 +30,67 @@ Class Evernote extends External_Service_Module {
 
         $this->register_meta( 'evernote_guid', $this->notes_module->id );
         $this->register_meta( 'evernote_content_hash', $this->notes_module->id );
+        add_action( 'save_post_' . $this->notes_module->id, array( $this, 'sync_note_to_evernote' ), 10, 3 );
+
 
         add_action( 'rest_api_init', [ $this, 'register_rest_routes' ] );
         $this->connect();
+    }
+
+    function sync_note_to_evernote( $post_id, \WP_Post $post, $update ) {
+        $guid = get_post_meta( $post->ID, 'evernote_guid', true );
+
+        if ( $guid ) {
+            $note = $this->advanced_client->getNoteStore()->getNote( $guid, false, false, false, false );
+            if ( $note ) {
+                $note->title = $post->post_title;
+                $note->content = self::html2enml( $post->post_content );
+                
+                try {
+                    $note = $this->advanced_client->getNoteStore()->updateNote( $note );
+                    $result = $this->advanced_client->getNoteStore()->updateNote( $note );
+                    $this->update_note_from_evernote( $result, $post );
+                } catch( \EDAM\Error\EDAMSystemException $e ) {
+                    throw new \Exception( "Evernote: " . $e->message );
+                }
+            }
+            return;
+        }
+
+        // is this in one of ev notebooks?
+        $notebooks = wp_get_post_terms( $post->ID, 'notebook', [
+            'fields' => 'ids',
+            'meta_key' => 'evernote_notebook_guid',
+            'meta_value' => $this->get_setting( 'synced_notebooks' ),
+        ] );
+        if( empty( $notebooks ) ) {
+            return;
+        }
+        // There is something like "main category" in wordpress, but whatever
+        $notebook = new \Evernote\Model\Notebook();
+        $notebook->guid = get_term_meta( $notebooks[0], 'evernote_notebook_guid', true );
+
+        // edam note
+        $note = new \EDAM\Types\Note();
+        $note->title = $post->post_title;
+        $note->content = self::html2enml( $post->post_content );
+        $note->notebookGuid = $notebook->guid;
+        $result = $this->advanced_client->getNoteStore()->createNote( $note );
+    
+        if ( $result ) {
+            $this->update_note_from_evernote( $result, $post );
+        }
+
+    }
+
+    function update_note_from_evernote( $result, $post ) {
+        error_log( "[DEBUG] Evernote: Updating post from evernote " . print_r( [ 'evernote' => $result, 'wp' => $post ], true ) );
+        remove_action( 'save_post_' . $this->notes_module->id, [ $this, 'sync_note_to_evernote' ], 10 );
+        update_post_meta( $post->ID, 'evernote_guid', $result->guid );
+        update_post_meta( $post->ID, 'evernote_content_hash', bin2hex( $result->contentHash ) );
+        $post->post_content = $this->get_note_html( $result );
+        wp_update_post( $post );
+        add_action( 'save_post_' . $this->notes_module->id, [ $this, 'sync_note_to_evernote' ], 10, 3 );
     }
 
     function get_app_link_from_guid( $guid ) {
@@ -175,9 +233,12 @@ Class Evernote extends External_Service_Module {
             } );
             $filtered_notes = array_values( $filtered_notes );
 
+            // We are going to be updating notes and we don't want the hook to loop
+            remove_action( 'save_post_' . $this->notes_module->id, [ $this, 'sync_note_to_evernote' ], 10 );
             foreach( $filtered_notes as $note ) {
                 $this->sync_note( $note );
             }
+            add_action( 'save_post_' . $this->notes_module->id, [ $this, 'sync_note_to_evernote' ], 10, 3 );
         }
 
         // Now that notes are synced, we are going to sync the resources
@@ -300,6 +361,44 @@ Class Evernote extends External_Service_Module {
             }
         }
         return $content;
+    }
+
+    static function html2enml( $html ) {
+
+        $permitted_enml_tags =  ['a', 'abbr', 'acronym', 'address', 'area', 'b', 'bdo', 'big', 'blockquote', 'br', 'caption', 'center', 'cite', 'code', 'col', 'colgroup', 'dd', 'del', 'dfn', 'div', 'dl', 'dt', 'em', 'font', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'ins', 'kbd', 'li', 'map', 'ol', 'p', 'pre', 'q', 's', 'samp', 'small', 'span', 'strike', 'strong', 'sub', 'sup', 'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'title', 'tr', 'tt', 'u', 'ul', 'var', 'xmp'];
+        $permittedENMLAttributes = [
+            'abbr', 'accept', 'accept-charset', 'accesskey', 'action', 'align', 'alink', 'alt', 'archive', 'axis',
+            'background', 'bgcolor', 'border', 'cellpadding', 'cellspacing', 'char', 'charoff', 'charset', 'checked',
+            'cite', 'classid', 'clear', 'code', 'codebase', 'codetype', 'color', 'cols', 'colspan', 'compact', 'content',
+            'coords', 'data', 'datetime', 'declare', 'defer', 'dir', 'disabled', 'enctype', 'face', 'for', 'frame',
+            'frameborder', 'headers', 'height', 'href', 'hreflang', 'hspace', 'http-equiv', 'ismap', 'label', 'lang', 'language',
+            'link', 'longdesc', 'marginheight', 'marginwidth', 'maxlength', 'media', 'method', 'multiple', 'name', 'nohref',
+            'noresize', 'noshade', 'nowrap', 'object', 'onblur', 'onchange', 'onclick', 'ondblclick', 'onfocus', 'onkeydown',
+            'onkeypress', 'onkeyup', 'onload', 'onmousedown', 'onmousemove', 'onmouseout', 'onmouseover', 'onmouseup', 'onreset',
+            'onselect', 'onsubmit', 'onunload', 'profile', 'prompt', 'readonly', 'rel', 'rev', 'rows', 'rowspan', 'rules',
+            'scheme', 'scope', 'scrolling', 'selected', 'shape', 'size', 'span', 'src', 'standby', 'start', 'style', 'summary',
+            'target', 'text', 'title', 'type', 'usemap', 'valign', 'value', 'valuetype', 'version', 'vlink', 'vspace', 'width'
+        ];
+
+        $kses_list = [];
+        foreach( $permitted_enml_tags as $tag ) {
+            $kses_list[$tag] = [];
+            // Yeah not all attributes are for all tags, but we are going to be lazy
+            foreach( $permittedENMLAttributes as $attr ) {
+                $kses_list[$tag][$attr] = true;
+            }
+        }
+        $html = wp_kses( $html, $kses_list );
+
+        $html = preg_replace( '/<p[^>]*>/', '<div>', $html );
+        $html = preg_replace( '/<\/p>/', '</div>', $html );
+
+        // Strip all comments
+        $html = preg_replace( '/<!--.*?-->/', '', $html );
+        
+        return '<?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+        <en-note>' . $html . '</en-note>';
     }
 
     function get_notes_by_guid( $guid, $post_type = null ) {
