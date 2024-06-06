@@ -53,6 +53,19 @@ Class Evernote extends External_Service_Module {
             },
             'permission_callback' => '__return_true',
         ] );
+        // TODO: Auth
+        register_rest_route( $this->rest_namespace, '/evernote/file/(?P<guid>[a-z0-9\-]+)/', [
+            'methods' => 'GET',
+            'callback' => function( $request ) {
+                $guid = $request->get_param( 'guid' );
+                $file = $this->advanced_client->getNoteStore()->getResource( $guid, true, false, true, false );
+                header( "Content-Disposition: inline;filename={$file->attributes->fileName}" );
+                header( "Content-Type: {$file->mime}" );
+                echo $file->data->body;
+                die();
+            },
+            'permission_callback' => '__return_true',
+        ] );
     }
 
     public function synced_notebooks_setting_callback ( $option_name, $value, $setting ) {
@@ -118,6 +131,7 @@ Class Evernote extends External_Service_Module {
             'includeNotebooks' => false,
             'includeNoteAttributes' => true,
             'includeExpunged' => false,
+            'includeResources' => true,
             //'notebookGuids' => $notebooks,
         ] );
         $sync_filter->includeExpunged = false;
@@ -140,18 +154,6 @@ Class Evernote extends External_Service_Module {
             error_log( "[ERROR] Evernote: Sync failed" );
             return;
         }
-
-        if( empty ( $sync_chunk->notes ) ) {
-            error_log( "[DEBUG] Evernote: No notes to sync" );
-            return;
-        }
-
-        // We have to manually filter for the notebooks we marked
-        $filtered_notes = array_filter( $sync_chunk->notes, function( $note ) use ( $notebooks ) {
-            return ( in_array( $note->notebookGuid, $notebooks ) );
-        } );
-        $filtered_notes = array_values( $filtered_notes );
-    
         if ( ! empty ( $sync_chunk->chunkHighUSN ) && $sync_chunk->chunkHighUSN > $usn ) {
             // We want to unschedule any regular sync events until we have initial sync complete.
             wp_unschedule_hook( $this->get_sync_hook_name() );
@@ -163,9 +165,79 @@ Class Evernote extends External_Service_Module {
             error_log( "[DEBUG] Evernote: Full sync completed" );
         }
 
-        foreach( $filtered_notes as $note ) {
-            $this->sync_note( $note );
+        if ( ! empty ( $sync_chunk->notes ) ) {
+
+            // We have to manually filter for the notebooks we marked
+            $filtered_notes = array_filter( $sync_chunk->notes, function( $note ) use ( $notebooks ) {
+                return ( in_array( $note->notebookGuid, $notebooks ) );
+            } );
+            $filtered_notes = array_values( $filtered_notes );
+
+            foreach( $filtered_notes as $note ) {
+                $this->sync_note( $note );
+            }
         }
+
+        // Now that notes are synced, we are going to sync the resources
+        if ( ! empty( $sync_chunk->resources ) ) {
+            error_log( "[DEBUG] Syncing resources" );
+            foreach( $sync_chunk->resources as $resource ) {
+                $this->sync_resource( $resource );
+            }
+        } 
+
+    }
+
+    function sync_resource( $resource ) {
+        $notes = $this->get_notes_by_guid( $resource->noteGuid );
+        if( count( $notes ) === 0 ) {
+            error_log( "[DEBUG] Note not in the lib " . print_r( $resource, true ) );
+            // This note is not in our lib and we don't care about it - its probably from another notebook
+            return;
+        }
+        error_log( "[DEBUG] Syncing resource " . print_r( $resource, true ), LOG_DEBUG );
+
+
+        $existing = $this->get_notes_by_guid( $resource->guid, 'attachment' );
+        if ( count( $existing ) > 0 ) {
+            $existing = $existing[0];
+
+            if( ! empty( $resource->deleted ) ) {
+                error_log( "[DEBUG] Evernote Deleting {$resource->guid}" );
+                wp_trash_post( $existing->ID );
+                return;
+            }
+        }
+
+        // If we want to auto-upload all resources
+        if ( true ) {
+            $tempfile = wp_tempnam();
+            file_put_contents( $tempfile, $this->advanced_client->getNoteStore()->getResourceData( $resource->guid ) );
+            error_log( "Tempfile: $tempfile" );
+            if ( empty( $resource->attributes->fileName ) ) {
+                // TODO: Could create but maybe better not?
+                return;
+            }
+            $filename = $resource->attributes->fileName;
+
+            $file = array(
+                'name'     => wp_salt( $resource->guid ) . "-" . $filename, // This hash is used to obfuscate the file names which should NEVER be exposed.
+                'type'     => $resource->mime,
+                'tmp_name' => $tempfile,
+                'error'    => 0,
+                'size'     => filesize( $tempfile ),
+            );
+
+            error_log( 'Saving, setting post status private', LOG_DEBUG );
+            $media_id = media_handle_sideload($file, $notes[0]->ID, null, [
+                'post_status' => 'private', // Always default to private instead of inherit because https://piszek.com/2024/02/17/wordpress-custom-post-types-and-read-permission-in-rest/
+                'post_title' => preg_replace( '/\.[^.]+$/', '', wp_basename( $filename ) ),
+            ] );
+            update_post_meta( $media_id, 'evernote_guid', $resource->guid );
+            update_post_meta( $media_id, 'evernote_content_hash', bin2hex( $resource->data->bodyHash ) );
+            error_log( 'UPLOADED: ' . $media_id );
+        }
+
     }
 
     function get_notebook_by_guid( $guid ) {
@@ -218,24 +290,49 @@ Class Evernote extends External_Service_Module {
         return $content;
     }
 
-    function sync_note( $note ) {
-        error_log( "[DEBUG] Syncing " . print_r( $note, true ) );
+    function get_notes_by_guid( $guid, $post_type = null ) {
+        if ( ! $post_type ) {
+            $post_type = $this->notes_module->id;
+        }
 
-        $existing = get_posts( [
-            'post_type' => $this->notes_module->id,
+        return get_posts( [
+            'post_type' => $post_type,
             'meta_query' => [
                 [
                     'key' => 'evernote_guid',
-                    'value' => $note->guid,
+                    'value' => $guid,
                 ],
             ],
         ] );
+    }
+    function sync_note( $note ) {
+        error_log( "[DEBUG] Syncing " . print_r( $note, true ) );
+        $existing = $this->get_notes_by_guid( $note->guid );
+
         if ( count( $existing ) > 0 ) {
             $existing = $existing[0];
 
             if( ! empty( $note->deleted ) ) {
                 error_log( "[DEBUG] Evernote Deleting {$note->title}" );
                 wp_trash_post( $existing->ID );
+                // Let's also get all attachments attached to this note that come from evernote.
+                $attachments = get_posts( [
+                    'post_type' => 'attachment',
+                    'post_parent' => $existing->ID,
+                    'post_status' => array('publish', 'pending', 'draft', 'auto-draft', 'future', 'private', 'inherit'),
+                    'meta_query'  => array(
+                        'relation' => 'AND',
+                        array(
+                            'key'     => 'evernote_guid',
+                            'compare' => 'EXISTS',
+                        ),
+                    ),
+                ] );
+                error_log( "[DEBUG] Deleting attachments " . print_r( $attachments, true ) );
+                foreach( $attachments as $attachment ) {
+                    wp_delete_attachment( $attachment->ID );
+                }
+
                 return;
             }
 
