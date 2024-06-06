@@ -51,7 +51,9 @@ Class Evernote extends External_Service_Module {
                     $result = $this->advanced_client->getNoteStore()->updateNote( $note );
                     $this->update_note_from_evernote( $result, $post );
                 } catch( \EDAM\Error\EDAMSystemException $e ) {
-                    throw new \Exception( "Evernote: " . $e->message );
+                    // Silently fail because conflicts and stuff.
+                    error_log( "[ERROR] Evernote: " . $e->getMessage() );
+                    error_log( print_r( $post, true ) );
                 }
             }
             return;
