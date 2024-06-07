@@ -38,6 +38,7 @@ Class Evernote extends External_Service_Module {
     }
 
     function sync_note_to_evernote( $post_id, \WP_Post $post, $update ) {
+        //return;//  Off for now
         $guid = get_post_meta( $post->ID, 'evernote_guid', true );
 
         if ( $guid ) {
@@ -45,7 +46,7 @@ Class Evernote extends External_Service_Module {
             if ( $note ) {
                 $note->title = $post->post_title;
                 $note->content = self::html2enml( $post->post_content );
-                
+    
                 try {
                     $note = $this->advanced_client->getNoteStore()->updateNote( $note );
                     $result = $this->advanced_client->getNoteStore()->updateNote( $note );
@@ -82,16 +83,57 @@ Class Evernote extends External_Service_Module {
         if ( $result ) {
             $this->update_note_from_evernote( $result, $post );
         }
-
     }
 
-    function update_note_from_evernote( $result, $post ) {
-        error_log( "[DEBUG] Evernote: Updating post from evernote " . print_r( [ 'evernote' => $result, 'wp' => $post ], true ) );
+    function update_note_from_evernote( $note, $post, $sync_resources = false ) {
         remove_action( 'save_post_' . $this->notes_module->id, [ $this, 'sync_note_to_evernote' ], 10 );
-        update_post_meta( $post->ID, 'evernote_guid', $result->guid );
-        update_post_meta( $post->ID, 'evernote_content_hash', bin2hex( $result->contentHash ) );
-        $post->post_content = $this->get_note_html( $result );
-        wp_update_post( $post );
+
+        $update_array = [];
+        if ( bin2hex( $note->contentHash ) !== get_post_meta( $post->ID, 'evernote_content_hash', true ) ) {
+            error_log( 'Content hashes:  new: ' . bin2hex( $note->contentHash ) . ' old: ' . get_post_meta( $post->ID, 'evernote_content_hash', true ) );
+            // we are assuming resources only changed when note content changed
+            if ( ! empty ( $note->resources ) && $sync_resources ) {
+                foreach( $note->resources as $resource ) {
+                    $this->sync_resource( $resource );
+                }
+            }
+            $update_array['post_content'] = $this->get_note_html( $note );
+            if ( ! isset( $update_array['meta_input'] ) ) {
+                $update_array['meta_input'] = [];
+            }
+            $update_array['meta_input']['evernote_content_hash'] = bin2hex( $note->contentHash );
+        }
+
+        $stored_guid = get_post_meta( $post->ID, 'evernote_guid', true );
+        if ( ! $stored_guid || $stored_guid !== $note->guid ) {
+            if ( ! isset( $update_array['meta_input'] ) ) {
+                $update_array['meta_input'] = [];
+            }
+            $update_array['meta_input']['evernote_guid'] = $note->guid;
+        }
+
+        $updated = floor( $note->updated / 1000 );
+        if ( $updated > strtotime( $post->post_modified ) ) {
+            $update_array['post_modified'] = date( 'Y-m-d H:i:s', $updated );
+        }
+
+        if( $note->title !== $post->post_title ) {
+            $update_array['post_title'] = $note->title;
+        }
+
+        if ( ! empty( $note->attributes->sourceURL ) && $note->attributes->sourceURL !== get_post_meta( $post->ID, 'url', true ) ) {
+            if ( ! isset( $update_array['meta_input'] ) ) {
+                $update_array['meta_input'] = [];
+            } 
+            $update_array['meta_input']['url'] = $note->attributes->sourceURL;
+        }
+
+        // TODO: change notebook too
+        if ( count( $update_array ) > 0 ) {
+            $update_array['ID'] = $post->ID;
+            error_log( "[DEBUG] Evernote: Updating post from evernote {$post->ID} {$note->guid} " . print_r( $update_array, true ) );
+            wp_update_post( $update_array );
+        }
         add_action( 'save_post_' . $this->notes_module->id, [ $this, 'sync_note_to_evernote' ], 10, 3 );
     }
 
@@ -177,8 +219,6 @@ Class Evernote extends External_Service_Module {
     }
 
     function sync() {
-        // print_r(wp_get_attachment_metadata( 2006 ));
-        // return;
         error_log( "[DEBUG] Syncing Evernote triggering " );
         $notebooks = $this->get_setting( 'synced_notebooks' );
         if( ! $notebooks || ! $this->advanced_client ) {
@@ -193,14 +233,14 @@ Class Evernote extends External_Service_Module {
             'includeNotebooks' => false,
             'includeNoteAttributes' => true,
             'includeExpunged' => false,
-            'includeResources' => true,
+            //'includeResources' => true,
+            'includeNoteResources' => true,
             //'notebookGuids' => $notebooks,
         ] );
         $sync_filter->includeExpunged = false;
         update_option( $this->get_setting_option_name( 'last_sync' ), $sync_state->currentTime );
         update_option( $this->get_setting_option_name( 'last_update_count' ), $sync_state->updateCount );
 
-        error_log( print_r( [ $sync_state, $last_update_count, $usn ], true ) );
         if ( $sync_state->updateCount === $last_update_count || $sync_state->updateCount === $usn ) {
             error_log( "[DEBUG] Evernote: No updates since last sync" );
             return;
@@ -256,12 +296,10 @@ Class Evernote extends External_Service_Module {
     function sync_resource( $resource ) {
         $notes = $this->get_notes_by_guid( $resource->noteGuid );
         if( count( $notes ) === 0 ) {
-            error_log( "[DEBUG] Note not in the lib " . print_r( $resource, true ) );
+            //error_log( "[DEBUG] Note not in the lib " . $resource->guid );
             // This note is not in our lib and we don't care about it - its probably from another notebook
             return;
         }
-        error_log( "[DEBUG] Syncing resource " . print_r( $resource, true ), LOG_DEBUG );
-
 
         $existing = $this->get_notes_by_guid( $resource->guid, 'attachment' );
         if ( count( $existing ) > 0 ) {
@@ -271,6 +309,9 @@ Class Evernote extends External_Service_Module {
                 error_log( "[DEBUG] Evernote Deleting {$resource->guid}" );
                 wp_trash_post( $existing->ID );
                 return;
+            } else {
+                //error_log( "[WARN] Resource edited or not edited at all, not implemented yet " . print_r( $resource, true )  );
+                return;
             }
         }
 
@@ -278,7 +319,6 @@ Class Evernote extends External_Service_Module {
         if ( true ) {
             $tempfile = wp_tempnam();
             file_put_contents( $tempfile, $this->advanced_client->getNoteStore()->getResourceData( $resource->guid ) );
-            error_log( "Tempfile: $tempfile" );
             if ( empty( $resource->attributes->fileName ) ) {
                 // TODO: Could create but maybe better not?
                 return;
@@ -293,7 +333,6 @@ Class Evernote extends External_Service_Module {
                 'size'     => filesize( $tempfile ),
             );
 
-            error_log( 'Saving, setting post status private', LOG_DEBUG );
             $data = [
                 'post_status' => 'private', // Always default to private instead of inherit because https://piszek.com/2024/02/17/wordpress-custom-post-types-and-read-permission-in-rest/
                 'post_title' => preg_replace( '/\.[^.]+$/', '', wp_basename( $filename ) ),
@@ -310,9 +349,8 @@ Class Evernote extends External_Service_Module {
                 wp_schedule_single_event( time() + 10, 'pos_transcription', [ $media_id ] );
             }
 
-            error_log( 'UPLOADED: ' . $media_id );
+            error_log( '[DEBUG] UPLOADED resource ' . $resource->guid . ' to : ' . $media_id );
         }
-
     }
 
     function get_notebook_by_guid( $guid ) {
@@ -352,23 +390,58 @@ Class Evernote extends External_Service_Module {
 
     function get_note_html( $note ) {
         // TODO: Handle resources like <en-media hash="0a35baf77505fa7867468ec2b1b21865" type="audio/m4a" />
-        $content = $this->advanced_client->getNoteStore()->getNoteContent( $note->guid );
+        if( empty( $note->content ) ) {
+            $note->content = $this->advanced_client->getNoteStore()->getNoteContent( $note->guid );
+        }
+
+        $content = '';
         if( class_exists( 'XSLTProcessor'  ) ) {
             $c = new Evernote\Enml\Converter\EnmlToHtmlConverter();
-            $content = $c->convertToHtml( $content );
+            $content = $c->convertToHtml( $note->content );
         } else {
             error_log( "[WARN] No processor for xslt. Will convert notes the dum way" );
-            if ( preg_match( '/<en-note[^>]*>(.*?)<\/en-note>/s', $content, $matches ) ){
+            if ( preg_match( '/<en-note[^>]*>(.*?)<\/en-note>/s', $note->content, $matches ) ){
                 $content = $matches[1];
             }
         }
+        $pattern = '/<en-media .*?hash="(?P<hash>[a-f0-9]+)" type="(?P<type>[^"]+)"[^\/]*?\/>/';
+        $content = preg_replace_callback( $pattern, function( $matches ) {
+            $attachment = get_posts( [
+                'post_type' => 'attachment',
+                'post_status' => array('publish', 'pending', 'draft', 'auto-draft', 'future', 'private', 'inherit'),
+                'meta_query' => [
+                    [
+                        'key' => 'evernote_content_hash',
+                        'value' => $matches['hash'],
+                    ],
+                ],
+            ] );
+            if( count( $attachment ) < 1 ) {
+                return $matches[0];
+            }
+            $attachment = $attachment[0];
+            $edit_url = admin_url( sprintf( get_post_type_object( 'attachment')->_edit_link . '&action=edit', $attachment->ID ) );
+            if ( stristr( $matches['type'], 'image' ) ) {
+                $content = sprintf( '<img src="%1$s" alt="%2$s" />', wp_get_attachment_url( $attachment->ID ), $attachment->post_title );
+            } else {
+                $content = sprintf( '<a target="_blank" href="%1$s">%2$s</a>', $edit_url, $attachment->post_title );
+            }
+
+            return sprintf(
+                '<div data-en-hash="%1$s" data-en-type="%2$s">%3$s</div>',
+                $matches['hash'],
+                $matches['type'],
+                $content
+            );
+            
+        }, $content );
         return $content;
     }
 
-    static function html2enml( $html ) {
-
-        $permitted_enml_tags =  ['a', 'abbr', 'acronym', 'address', 'area', 'b', 'bdo', 'big', 'blockquote', 'br', 'caption', 'center', 'cite', 'code', 'col', 'colgroup', 'dd', 'del', 'dfn', 'div', 'dl', 'dt', 'em', 'font', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'ins', 'kbd', 'li', 'map', 'ol', 'p', 'pre', 'q', 's', 'samp', 'small', 'span', 'strike', 'strong', 'sub', 'sup', 'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'title', 'tr', 'tt', 'u', 'ul', 'var', 'xmp'];
+    static function kses( $html ) {
+        $permitted_enml_tags =  ['en-media', 'a', 'abbr', 'acronym', 'address', 'area', 'b', 'bdo', 'big', 'blockquote', 'br', 'caption', 'center', 'cite', 'code', 'col', 'colgroup', 'dd', 'del', 'dfn', 'div', 'dl', 'dt', 'em', 'font', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'ins', 'kbd', 'li', 'map', 'ol', 'p', 'pre', 'q', 's', 'samp', 'small', 'span', 'strike', 'strong', 'sub', 'sup', 'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'title', 'tr', 'tt', 'u', 'ul', 'var', 'xmp'];
         $permittedENMLAttributes = [
+            'hash', 'type',
             'abbr', 'accept', 'accept-charset', 'accesskey', 'action', 'align', 'alink', 'alt', 'archive', 'axis',
             'background', 'bgcolor', 'border', 'cellpadding', 'cellspacing', 'char', 'charoff', 'charset', 'checked',
             'cite', 'classid', 'clear', 'code', 'codebase', 'codetype', 'color', 'cols', 'colspan', 'compact', 'content',
@@ -390,8 +463,13 @@ Class Evernote extends External_Service_Module {
                 $kses_list[$tag][$attr] = true;
             }
         }
-        $html = wp_kses( $html, $kses_list );
+        return wp_kses( $html, $kses_list );
+    }
 
+    static function html2enml( $html ) {
+        // Media!
+        $html = preg_replace( '#<div data-en-hash="(?P<hash>[a-f0-9]+)" data-en-type="(?P<type>[a-z0-9\/]+)">.+?<\/div>#is', '<en-media hash="\\1" type="\\2" />', $html );
+        $html = self::kses( $html );
         $html = preg_replace( '/<p[^>]*>/', '<div>', $html );
         $html = preg_replace( '/<\/p>/', '</div>', $html );
 
@@ -410,6 +488,7 @@ Class Evernote extends External_Service_Module {
 
         return get_posts( [
             'post_type' => $post_type,
+            'post_status' => array( 'publish', 'pending', 'draft', 'auto-draft', 'future', 'private', 'inherit'),
             'meta_query' => [
                 [
                     'key' => 'evernote_guid',
@@ -419,14 +498,13 @@ Class Evernote extends External_Service_Module {
         ] );
     }
     function sync_note( $note ) {
-        error_log( "[DEBUG] Syncing " . print_r( $note, true ) );
         $existing = $this->get_notes_by_guid( $note->guid );
 
         if ( count( $existing ) > 0 ) {
             $existing = $existing[0];
 
             if( ! empty( $note->deleted ) ) {
-                error_log( "[DEBUG] Evernote Deleting {$note->title}" );
+                error_log( "[DEBUG] Evernote Deleting {$note->guid} {$note->title}" );
                 wp_trash_post( $existing->ID );
                 // Let's also get all attachments attached to this note that come from evernote.
                 $attachments = get_posts( [
@@ -449,37 +527,7 @@ Class Evernote extends External_Service_Module {
                 return;
             }
 
-            $update_array = [];
-            if ( bin2hex( $note->contentHash ) !== get_post_meta( $existing->ID, 'evernote_content_hash', true ) ) {
-                $update_array['post_content'] = $this->get_note_html( $note );
-                if ( ! isset( $data['meta_input'] ) ) {
-                    $data['meta_input'] = [];
-                }
-                $data['meta_input']['evernote_content_hash'] = bin2hex( $note->contentHash );
-            }
-            if ( $note->updated > strtotime( $existing->post_modified ) ) {
-                $update_array['post_date'] = date( 'Y-m-d H:i:s', ( $note->updated / 1000 ) );
-            }
-
-            if( $note->title !== $existing->post_title ) {
-                $update_array['post_title'] = $note->title;
-            }
-
-            if ( $note->attributes->sourceURL !== get_post_meta( $existing->ID, 'url', true ) ) {
-                if ( ! isset( $data['meta_input'] ) ) {
-                    $data['meta_input'] = [];
-                } 
-                $data['meta_input']['url'] = $note->attributes->sourceURL;
-            }
-
-            // TODO: change notebook too
-
-
-            if ( count( $update_array ) > 0 ) {
-                $update_array['ID'] = $existing->ID;
-                error_log( "[DEBUG] Evernote Updating " . print_r( $update_array, true ) );
-                wp_update_post( $update_array );
-            }
+            $this->update_note_from_evernote( $note, $existing, true );
 
         } else if ( empty( $note->deleted ) ) {
             error_log( "[DEBUG] Evernote Creating {$note->title}" );
@@ -499,6 +547,17 @@ Class Evernote extends External_Service_Module {
             }
             $post_id = wp_insert_post( $data );
             wp_set_post_terms( $post_id, [ $this->get_notebook_by_guid( $note->notebookGuid ) ], 'notebook', true );
+            if ( ! empty ( $note->resources ) ) {
+                foreach( $note->resources as $resource ) {
+                    $this->sync_resource( $resource );
+                }
+                // We need to regenerate content again because resources now are available for linking
+                $data['post_content'] = $this->get_note_html( $note );
+                wp_update_post( [
+                    'ID' => $post_id,
+                    'post_content' => $data['post_content'],
+                ] );
+            }
         }
     }
 
