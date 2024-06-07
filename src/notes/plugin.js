@@ -103,13 +103,13 @@ export default function NotesPlugin() {
 	} );
 	const { savePost } = useDispatch( 'core/editor' );
 
-	useEffect( () => {
-		// We are catching a transition from saving to not-autosaving anymore.
-		if ( ! isAutosaving ) {
-			console.log( 'Just auto saved' );
-			savePost();
-		}
-	}, [ isAutosaving ] );
+	// useEffect( () => {
+	// 	// We are catching a transition from saving to not-autosaving anymore.
+	// 	if ( ! isAutosaving ) {
+	// 		console.log( 'Just auto saved' );
+	// 		savePost();
+	// 	}
+	// }, [ isAutosaving ] );
 
 
 	return (
