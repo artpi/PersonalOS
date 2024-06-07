@@ -508,6 +508,8 @@ Class Evernote extends External_Service_Module {
                 wp_trash_post( $existing->ID );
                 // Let's also get all attachments attached to this note that come from evernote.
                 $attachments = get_posts( [
+                    'numberposts' => -1,
+                    'fields' => 'ids',
                     'post_type' => 'attachment',
                     'post_parent' => $existing->ID,
                     'post_status' => array('publish', 'pending', 'draft', 'auto-draft', 'future', 'private', 'inherit'),
@@ -519,9 +521,9 @@ Class Evernote extends External_Service_Module {
                         ),
                     ),
                 ] );
-                error_log( "[DEBUG] Deleting attachments " . print_r( $attachments, true ) );
+                error_log( "[DEBUG] Deleting attachments " . json_encode( $attachments ) );
                 foreach( $attachments as $attachment ) {
-                    wp_delete_attachment( $attachment->ID );
+                    wp_delete_attachment( $attachment );
                 }
 
                 return;
