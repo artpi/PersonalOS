@@ -7,6 +7,7 @@
  * TODO: Comment everything, include strong typing, write unit tests for.
  * TODO: The WP <-> ENML conversion is hacky, it would be awesome if it used blocks, and just transformed blocks into enml and vice versa. Since ENML does not support comments, it could store the metadata in style the same ENML todos are stored.
  * TODO: Handle checkboxes <en-todo checked="true"/>
+ * TODO: when something goes wrong in syncing a chunk, the rest of the changes are not synced. we should probably update USN after each successful note so that when we have an error, sync is picked up from the point it failed.
  * 
  */
 Class Evernote extends External_Service_Module {
