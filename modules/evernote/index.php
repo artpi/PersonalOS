@@ -114,20 +114,25 @@ Class Evernote extends External_Service_Module {
      * 
      * @param \EDAM\Types\Note $note
      * @param \WP_Post $post
-     * @param bool $sync_resources
+     * @param bool $sync_resources - If true, it will also upload note resources. We want this in most cases, EXCEPT when we are sending the data from WordPress and know the response will not have new resources for us.
      */
     function update_note_from_evernote( \EDAM\Types\Note $note, \WP_Post $post, $sync_resources = false ) {
         remove_action( 'save_post_' . $this->notes_module->id, [ $this, 'sync_note_to_evernote' ], 10 );
 
         $update_array = [];
-        if ( bin2hex( $note->contentHash ) !== get_post_meta( $post->ID, 'evernote_content_hash', true ) ) {
-            error_log( 'Content hashes:  new: ' . bin2hex( $note->contentHash ) . ' old: ' . get_post_meta( $post->ID, 'evernote_content_hash', true ) );
-            // we are assuming resources only changed when note content changed
-            if ( ! empty ( $note->resources ) && $sync_resources ) {
-                foreach( $note->resources as $resource ) {
-                    $this->sync_resource( $resource );
+        if ( ! empty ( $note->resources ) && $sync_resources ) {
+            foreach( $note->resources as $resource ) {
+                $media_id = $this->sync_resource( $resource );
+                if( $media_id ) {
+                    // Even though content did not change, we uploaded media and have to rewrite the content with new media.
+                    $force_rewrite_content = true;
                 }
             }
+        }
+
+        if ( $force_rewrite_content || bin2hex( $note->contentHash ) !== get_post_meta( $post->ID, 'evernote_content_hash', true ) ) {
+            error_log( 'Content hashes:  new: ' . bin2hex( $note->contentHash ) . ' old: ' . get_post_meta( $post->ID, 'evernote_content_hash', true ) );
+            // we are assuming resources only changed when note content changed
             $update_array['post_content'] = $this->get_note_html( $note );
             if ( ! isset( $update_array['meta_input'] ) ) {
                 $update_array['meta_input'] = [];
@@ -349,19 +354,20 @@ Class Evernote extends External_Service_Module {
      * Sync individual resource
      * 
      * @param \EDAM\Types\Resource $resource
+     * @return int|false - Post ID of the attachment or false if not uploaded
      */
-    function sync_resource( \EDAM\Types\Resource $resource ) {
+    function sync_resource( \EDAM\Types\Resource $resource ): int|false {
         $notes = $this->get_notes_by_guid( $resource->noteGuid );
         if( count( $notes ) === 0 ) {
             //error_log( "[DEBUG] Note not in the lib " . $resource->guid );
             // This note is not in our lib and we don't care about it - its probably from another notebook
-            return;
+            return false;
         }
 
         $existing = $this->get_notes_by_guid( $resource->guid, 'attachment' );
         if ( count( $existing ) > 0 ) {
             $existing = $existing[0];
-            return;
+            return false;
 
             // if( ! empty( $resource->deleted ) ) {
             //     error_log( "[DEBUG] Evernote Deleting {$resource->guid}" );
@@ -376,6 +382,8 @@ Class Evernote extends External_Service_Module {
         // If we want to auto-upload all resources
         // TODO: Should this be a setting?
         if ( true ) {
+            require_once( ABSPATH . 'wp-admin/includes/file.php' );
+            require_once( ABSPATH . 'wp-admin/includes/media.php' );
             $tempfile = wp_tempnam();
             file_put_contents( $tempfile, $this->advanced_client->getNoteStore()->getResourceData( $resource->guid ) );
             if ( empty( $resource->attributes->fileName ) ) {
@@ -409,7 +417,9 @@ Class Evernote extends External_Service_Module {
             }
 
             error_log( '[DEBUG] UPLOADED resource ' . $resource->guid . ' to : ' . $media_id );
+            return $media_id;
         }
+        return false;
     }
 
     /**
