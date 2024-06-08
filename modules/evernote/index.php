@@ -120,6 +120,7 @@ Class Evernote extends External_Service_Module {
         remove_action( 'save_post_' . $this->notes_module->id, [ $this, 'sync_note_to_evernote' ], 10 );
 
         $update_array = [];
+        $force_rewrite_content = false;
         if ( ! empty ( $note->resources ) && $sync_resources ) {
             foreach( $note->resources as $resource ) {
                 $media_id = $this->sync_resource( $resource );
@@ -384,6 +385,8 @@ Class Evernote extends External_Service_Module {
         if ( true ) {
             require_once( ABSPATH . 'wp-admin/includes/file.php' );
             require_once( ABSPATH . 'wp-admin/includes/media.php' );
+            require_once( ABSPATH . 'wp-admin/includes/image.php' );
+
             $tempfile = wp_tempnam();
             file_put_contents( $tempfile, $this->advanced_client->getNoteStore()->getResourceData( $resource->guid ) );
             if ( empty( $resource->attributes->fileName ) ) {
