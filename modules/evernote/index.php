@@ -388,7 +388,7 @@ Class Evernote extends External_Service_Module {
             file_put_contents( $tempfile, $this->advanced_client->getNoteStore()->getResourceData( $resource->guid ) );
             if ( empty( $resource->attributes->fileName ) ) {
                 // TODO: Could create but maybe better not?
-                return;
+                return false;
             }
             $filename = $resource->attributes->fileName;
 
@@ -477,15 +477,11 @@ Class Evernote extends External_Service_Module {
         }
 
         $content = '';
-        if( class_exists( 'XSLTProcessor'  ) ) {
-            $c = new Evernote\Enml\Converter\EnmlToHtmlConverter();
-            $content = $c->convertToHtml( $note->content );
-        } else {
-            error_log( "[WARN] No processor for xslt. Will convert notes the dum way" );
-            if ( preg_match( '/<en-note[^>]*>(.*?)<\/en-note>/s', $note->content, $matches ) ){
-                $content = $matches[1];
-            }
+
+        if ( preg_match( '/<en-note[^>]*>(.*?)<\/en-note>/s', $note->content, $matches ) ){
+            $content = $matches[1];
         }
+
         $pattern = '/<en-media .*?hash="(?P<hash>[a-f0-9]+)" type="(?P<type>[^"]+)"[^\/]*?\/>/';
         $content = preg_replace_callback( $pattern, function( $matches ) {
             $attachment = get_posts( [
