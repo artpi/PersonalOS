@@ -9,7 +9,8 @@
 		"build",
 		"modules",
 		"settings.php",
-		"personalos.php"
+		"personalos.php",
+		"vendor"
 	],
 	"scripts": {
 		"build": "wp-scripts build",
