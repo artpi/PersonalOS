@@ -494,7 +494,6 @@ Class Evernote extends External_Service_Module {
      * @return string
      */
     function get_note_html( \EDAM\Types\Note $note ): string {
-        // TODO: Handle resources like <en-media hash="0a35baf77505fa7867468ec2b1b21865" type="audio/m4a" />
         if( empty( $note->content ) ) {
             $note->content = $this->advanced_client->getNoteStore()->getNoteContent( $note->guid );
         }
@@ -507,7 +506,13 @@ Class Evernote extends External_Service_Module {
 
         $content = preg_replace_callback( '/<en-media .*?hash="(?P<hash>[a-f0-9]+)" type="(?P<type>[^"]+)"[^\/]*?\/>/', [ $this, 'en_media_replace_callback' ] , $content );
         $content = preg_replace_callback( '/<en-media .*?type="(?P<type>[^"]+)" hash="(?P<hash>[a-f0-9]+)"[^\/]*?\/>/', [ $this, 'en_media_replace_callback' ] , $content );
-
+        $content = preg_replace_callback( '/<en-todo .*?checked="(?P<checked>[^"]+)"[^\/]*?\/>/', function( $match ) {
+            $checked = 'o';
+            if( $match['checked'] === 'true' ) {
+                $checked = 'x';
+            }
+            return '<span class="pos-evernote-todo">'. $checked .'</span>';
+        }, $content );
         return $content;
     }
 
@@ -557,7 +562,7 @@ Class Evernote extends External_Service_Module {
             'hash', 'type',
             'abbr', 'accept', 'accept-charset', 'accesskey', 'action', 'align', 'alink', 'alt', 'archive', 'axis',
             'background', 'bgcolor', 'border', 'cellpadding', 'cellspacing', 'char', 'charoff', 'charset', 'checked',
-            'cite', 'classid', 'clear', 'code', 'codebase', 'codetype', 'color', 'cols', 'colspan', 'compact', 'content',
+            'cite', 'clear', 'code', 'codebase', 'codetype', 'color', 'cols', 'colspan', 'compact', 'content',
             'coords', 'data', 'datetime', 'declare', 'defer', 'dir', 'disabled', 'enctype', 'face', 'for', 'frame',
             'frameborder', 'headers', 'height', 'href', 'hreflang', 'hspace', 'http-equiv', 'ismap', 'label', 'lang', 'language',
             'link', 'longdesc', 'marginheight', 'marginwidth', 'maxlength', 'media', 'method', 'multiple', 'name', 'nohref',
@@ -589,6 +594,10 @@ Class Evernote extends External_Service_Module {
     static function html2enml( string $html ): string {
         // Media!
         $html = preg_replace( '#<div data-en-hash="(?P<hash>[a-f0-9]+)" data-en-type="(?P<type>[a-z0-9\/]+)">.+?<\/div>#is', '<en-media hash="\\1" type="\\2" />', $html );
+        $html = preg_replace_callback( '#<span class="pos-evernote-todo">([a-z]+)<\/span>#', function( $match ) {
+            $checked = ( strtolower( $match[1] ) === 'x' ) ? 'true' : 'false';
+            return '<en-todo checked="' . $checked . '"/>';
+        }, $html );
         $html = self::kses( $html );
 
         $html = preg_replace( '/<p[^>]*>/', '<div>', $html );
