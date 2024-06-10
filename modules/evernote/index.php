@@ -395,10 +395,15 @@ Class Evernote extends External_Service_Module {
             $tempfile = wp_tempnam();
             file_put_contents( $tempfile, $this->advanced_client->getNoteStore()->getResourceData( $resource->guid ) );
             if ( empty( $resource->attributes->fileName ) ) {
-                // TODO: Could create but maybe better not?
-                return false;
+                $extension = self::get_extension_from_mime( $resource->mime );
+                if( $extension === false ) {
+                    return false;
+                }
+
+                $filename = $resource->guid . '.' . $extension;
+            } else {
+                $filename = $resource->attributes->fileName;
             }
-            $filename = $resource->attributes->fileName;
 
             $file = array(
                 'name'     => wp_hash( $resource->guid ) . "-" . $filename, // This hash is used to obfuscate the file names which should NEVER be exposed.
@@ -430,6 +435,16 @@ Class Evernote extends External_Service_Module {
         return false;
     }
 
+    static public function get_extension_from_mime( $mime ) {
+        $extension_to_mime = wp_get_mime_types();
+        $mime_to_extension = array_flip( $extension_to_mime );
+        if( empty( $mime_to_extension[ $mime ] ) ) {
+            return false;
+        }
+
+        $extensions = explode( '|' , $mime_to_extension[ $mime ] );
+        return $extensions[0];
+    }
     /**
      * Get WordPress term id for a notebook by evernote guid.
      * Creates the notebook if it does not exist and is one of the synced ones.
@@ -490,38 +505,41 @@ Class Evernote extends External_Service_Module {
             $content = $matches[1];
         }
 
-        $pattern = '/<en-media .*?hash="(?P<hash>[a-f0-9]+)" type="(?P<type>[^"]+)"[^\/]*?\/>/';
-        $content = preg_replace_callback( $pattern, function( $matches ) {
-            $attachment = get_posts( [
-                'post_type' => 'attachment',
-                'post_status' => array('publish', 'pending', 'draft', 'auto-draft', 'future', 'private', 'inherit'),
-                'meta_query' => [
-                    [
-                        'key' => 'evernote_content_hash',
-                        'value' => $matches['hash'],
-                    ],
-                ],
-            ] );
-            if( count( $attachment ) < 1 ) {
-                return $matches[0];
-            }
-            $attachment = $attachment[0];
-            $edit_url = admin_url( sprintf( get_post_type_object( 'attachment')->_edit_link . '&action=edit', $attachment->ID ) );
-            if ( stristr( $matches['type'], 'image' ) ) {
-                $content = sprintf( '<img src="%1$s" alt="%2$s" />', wp_get_attachment_url( $attachment->ID ), $attachment->post_title );
-            } else {
-                $content = sprintf( '<a target="_blank" href="%1$s">%2$s</a>', $edit_url, $attachment->post_title );
-            }
+        $content = preg_replace_callback( '/<en-media .*?hash="(?P<hash>[a-f0-9]+)" type="(?P<type>[^"]+)"[^\/]*?\/>/', [ $this, 'en_media_replace_callback' ] , $content );
+        $content = preg_replace_callback( '/<en-media .*?type="(?P<type>[^"]+)" hash="(?P<hash>[a-f0-9]+)"[^\/]*?\/>/', [ $this, 'en_media_replace_callback' ] , $content );
 
-            return sprintf(
-                '<div data-en-hash="%1$s" data-en-type="%2$s">%3$s</div>',
-                $matches['hash'],
-                $matches['type'],
-                $content
-            );
-            
-        }, $content );
         return $content;
+    }
+
+    public function en_media_replace_callback( $matches ) {
+        $attachment = get_posts( [
+            'post_type' => 'attachment',
+            'post_status' => array('publish', 'pending', 'draft', 'auto-draft', 'future', 'private', 'inherit'),
+            'meta_query' => [
+                [
+                    'key' => 'evernote_content_hash',
+                    'value' => $matches['hash'],
+                ],
+            ],
+        ] );
+        if( count( $attachment ) < 1 ) {
+            return $matches[0];
+        }
+        $attachment = $attachment[0];
+        $edit_url = admin_url( sprintf( get_post_type_object( 'attachment')->_edit_link . '&action=edit', $attachment->ID ) );
+        if ( stristr( $matches['type'], 'image' ) ) {
+            $content = sprintf( '<img src="%1$s" alt="%2$s" />', wp_get_attachment_url( $attachment->ID ), $attachment->post_title );
+        } else {
+            $content = sprintf( '<a target="_blank" href="%1$s">%2$s</a>', $edit_url, $attachment->post_title );
+        }
+
+        return sprintf(
+            '<div data-en-hash="%1$s" data-en-type="%2$s">%3$s</div>',
+            $matches['hash'],
+            $matches['type'],
+            $content
+        );
+        
     }
 
     /**
