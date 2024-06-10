@@ -46,6 +46,11 @@ Class Evernote extends External_Service_Module {
 
         add_action( 'rest_api_init', [ $this, 'register_rest_routes' ] );
         $this->connect();
+        add_filter( 'kses_allowed_protocols', function ( $protocols ) {
+            $protocols[] = 'evernote';
+            return $protocols;
+        } );
+
     }
 
     /**
@@ -171,10 +176,16 @@ Class Evernote extends External_Service_Module {
         }
 
         // TODO: change notebook too
+        // We are removing this filter so that kses wont strip the `evernote` scheme
+        $post_kses_filter_removed = remove_filter( 'content_save_pre', 'wp_filter_post_kses' );
         if ( count( $update_array ) > 0 ) {
             $update_array['ID'] = $post->ID;
             error_log( "[DEBUG] Evernote: Updating post from evernote {$post->ID} {$note->guid} " . print_r( $update_array, true ) );
             wp_update_post( $update_array );
+            //error_log( 'CONTENT POST UPDATE: '. get_post($post->ID)->post_content );
+        }
+        if ( $post_kses_filter_removed ) {
+            add_filter( 'content_save_pre', 'wp_filter_post_kses' );
         }
         add_action( 'save_post_' . $this->notes_module->id, [ $this, 'sync_note_to_evernote' ], 10, 3 );
     }
@@ -693,7 +704,15 @@ Class Evernote extends External_Service_Module {
             }
 
             remove_action( 'save_post_' . $this->notes_module->id, [ $this, 'sync_note_to_evernote' ], 10 );
+
+            // we are removing this filter because we have already ran this through kses.
+            $filter_removed = remove_filter( 'content_save_pre', 'wp_filter_post_kses' );
             $post_id = wp_insert_post( $data );
+            if ( $filter_removed ) {
+                add_filter( 'content_save_pre', 'wp_filter_post_kses' );
+            }
+            //error_log( 'CONTENT AFTER SAVING:' . get_post($post_id)->post_content );
+
             wp_set_post_terms( $post_id, [ $this->get_notebook_by_guid( $note->notebookGuid ) ], 'notebook', true );
             add_action( 'save_post_' . $this->notes_module->id, [ $this, 'sync_note_to_evernote' ], 10, 3 );
 
