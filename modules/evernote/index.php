@@ -68,13 +68,14 @@ Class Evernote extends External_Service_Module {
                 $note->content = self::html2enml( $post->post_content );
     
                 try {
-                    $note = $this->advanced_client->getNoteStore()->updateNote( $note );
                     $result = $this->advanced_client->getNoteStore()->updateNote( $note );
                     $this->update_note_from_evernote( $result, $post );
                 } catch( \EDAM\Error\EDAMSystemException $e ) {
                     // Silently fail because conflicts and stuff.
                     error_log( "[ERROR] Evernote: " . $e->getMessage() );
                     error_log( print_r( $post, true ) );
+                } catch( \EdAM\Error\EDAMUserException $e ) {
+                    error_log( "[ERROR] Evernote ENML probably misformatted: '" . $e->getMessage() . '" . While saving: ' . $note->content );
                 }
             }
             return;
@@ -98,11 +99,15 @@ Class Evernote extends External_Service_Module {
         $note->title = $post->post_title;
         $note->content = self::html2enml( $post->post_content );
         $note->notebookGuid = $notebook->guid;
-        $result = $this->advanced_client->getNoteStore()->createNote( $note );
-    
-        if ( $result ) {
-            $this->update_note_from_evernote( $result, $post );
+        try {
+            $result = $this->advanced_client->getNoteStore()->createNote( $note );
+            if ( $result ) {
+                $this->update_note_from_evernote( $result, $post );
+            }
+        } catch( \EDAM\Error\EDAMUserException $e ) {
+            error_log( "[ERROR] Evernote ENML probably misformatted: '" . $e->getMessage() . '" . While saving: ' . $note->content );
         }
+
     }
 
     /**
@@ -527,6 +532,9 @@ Class Evernote extends External_Service_Module {
      */
     static function kses( string $html ): string {
         $permitted_enml_tags =  ['en-media', 'a', 'abbr', 'acronym', 'address', 'area', 'b', 'bdo', 'big', 'blockquote', 'br', 'caption', 'center', 'cite', 'code', 'col', 'colgroup', 'dd', 'del', 'dfn', 'div', 'dl', 'dt', 'em', 'font', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'ins', 'kbd', 'li', 'map', 'ol', 'p', 'pre', 'q', 's', 'samp', 'small', 'span', 'strike', 'strong', 'sub', 'sup', 'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'title', 'tr', 'tt', 'u', 'ul', 'var', 'xmp'];
+        $permitted_protocols = wp_allowed_protocols();
+        $permitted_protocols[] = 'evernote'; // For evernote links
+
         $permittedENMLAttributes = [
             'hash', 'type',
             'abbr', 'accept', 'accept-charset', 'accesskey', 'action', 'align', 'alink', 'alt', 'archive', 'axis',
@@ -550,7 +558,7 @@ Class Evernote extends External_Service_Module {
                 $kses_list[$tag][$attr] = true;
             }
         }
-        return wp_kses( $html, $kses_list );
+        return wp_kses( $html, $kses_list, $permitted_protocols );
     }
 
     /**
@@ -564,6 +572,7 @@ Class Evernote extends External_Service_Module {
         // Media!
         $html = preg_replace( '#<div data-en-hash="(?P<hash>[a-f0-9]+)" data-en-type="(?P<type>[a-z0-9\/]+)">.+?<\/div>#is', '<en-media hash="\\1" type="\\2" />', $html );
         $html = self::kses( $html );
+
         $html = preg_replace( '/<p[^>]*>/', '<div>', $html );
         $html = preg_replace( '/<\/p>/', '</div>', $html );
 
