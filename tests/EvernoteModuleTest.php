@@ -66,4 +66,13 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		EOF;
 		$this->assert_enml_transformed_to_html_and_stored_unserializes_correctly( $enml );
 	}
+
+	public function test_extension_from_mime() {
+		$this->assertEquals( 'png', \Evernote::get_extension_from_mime( 'image/png' ) );
+		$this->assertEquals( 'jpg', \Evernote::get_extension_from_mime( 'image/jpeg' ) );
+		$this->assertEquals( 'mp4', \Evernote::get_extension_from_mime( 'video/mp4' ) );
+		// Evernote has 'audio/m4a' mime type for m4a files
+		$this->assertEquals( 'm4a', \Evernote::get_extension_from_mime( 'audio/m4a' ) );
+		$this->assertEquals( 'amr', \Evernote::get_extension_from_mime( 'audio/amr' ) );
+	}
 }

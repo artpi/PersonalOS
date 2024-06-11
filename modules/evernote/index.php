@@ -43,16 +43,28 @@ Class Evernote extends External_Service_Module {
         // TODO: Hook this up only if the token is set.
         add_action( 'save_post_' . $this->notes_module->id, array( $this, 'sync_note_to_evernote' ), 10, 3 );
 
-
         add_action( 'rest_api_init', [ $this, 'register_rest_routes' ] );
         $this->connect();
-        add_filter( 'kses_allowed_protocols', function ( $protocols ) {
-            $protocols[] = 'evernote';
-            return $protocols;
-        } );
-
+        add_action( 'admin_post_evernote_resource', [ $this, 'proxy_media' ] );
     }
 
+    public function proxy_media() {
+        if( ! isset( $_GET['evernote_guid'] ) ) {
+            return;
+        }
+        $guid = sanitize_text_field( $_GET['evernote_guid'] );
+
+        // TODO figure out this streaming trick
+        //$user = $this->advanced_client->getUserStore()->getUser();
+        // $userInfo = $this->advanced_client->getUserStore()->getPublicUserInfo( $user->username );
+        // $resUrl = $userInfo->webApiUrlPrefix . '/res/' . $guid;
+
+        $file = $this->advanced_client->getNoteStore()->getResource( $guid, true, false, true, false );
+        header( "Content-Disposition: inline;filename={$file->attributes->fileName}" );
+        header( "Content-Type: {$file->mime}" );
+        echo $file->data->body;
+        die();
+    }
     /**
      * This is hooked into the save_post action of the notes module.
      * Every time a post is updated, this will check if it is in the synced notebooks and sync it to evernote.
@@ -132,12 +144,10 @@ Class Evernote extends External_Service_Module {
         $update_array = [];
         $force_rewrite_content = false;
         if ( ! empty ( $note->resources ) && $sync_resources ) {
+            // Even though content did not change, we uploaded media and have to rewrite the content with new media.
+            $force_rewrite_content = true;
             foreach( $note->resources as $resource ) {
                 $media_id = $this->sync_resource( $resource );
-                if( $media_id ) {
-                    // Even though content did not change, we uploaded media and have to rewrite the content with new media.
-                    $force_rewrite_content = true;
-                }
             }
         }
 
@@ -211,20 +221,6 @@ Class Evernote extends External_Service_Module {
             },
             'permission_callback' => '__return_true',
         ] );
-        // TODO: Auth
-        // TODO: This should be using the special post described here "Downloading resource directly from the web" https://dev.evernote.com/doc/articles/resources.php
-        // register_rest_route( $this->rest_namespace, '/evernote/file/(?P<guid>[a-z0-9\-]+)/', [
-        //     'methods' => 'GET',
-        //     'callback' => function( $request ) {
-        //         $guid = $request->get_param( 'guid' );
-        //         $file = $this->advanced_client->getNoteStore()->getResource( $guid, true, false, true, false );
-        //         header( "Content-Disposition: inline;filename={$file->attributes->fileName}" );
-        //         header( "Content-Type: {$file->mime}" );
-        //         echo $file->data->body;
-        //         die();
-        //     },
-        //     'permission_callback' => '__return_true',
-        // ] );
     }
 
     /**
@@ -435,8 +431,7 @@ Class Evernote extends External_Service_Module {
             $media_id = media_handle_sideload($file, $notes[0]->ID, null, $data  );
 
             if ( is_wp_error( $media_id ) ) {
-                error_log( print_r( $media_id, true ) );
-                trigger_error( print_r( $media_id, true ), E_USER_WARNING );
+                trigger_error( "Error uploading file:" . print_r( [ $media_id->get_error_message(), $resource->mime, $filename ], true ), E_USER_WARNING );
                 return false;
             }
 
@@ -455,6 +450,9 @@ Class Evernote extends External_Service_Module {
     static public function get_extension_from_mime( $mime ) {
         $extension_to_mime = wp_get_mime_types();
         $mime_to_extension = array_flip( $extension_to_mime );
+        // Evernote specific types
+        $mime_to_extension['audio/m4a'] = 'm4a';
+        $mime_to_extension['audio/amr'] = 'amr';
         if( empty( $mime_to_extension[ $mime ] ) ) {
             return false;
         }
@@ -566,7 +564,7 @@ Class Evernote extends External_Service_Module {
             $file_url = wp_get_attachment_url( $attachment[0]->ID );
         } else {
             $title = 'Evernote Resource';
-            $file_url = '#'; // TODO generate a proxy link
+            $file_url = admin_url( "admin-post.php?action=evernote_resource&evernote_hash={$matches['hash']}" );
             $edit_url = $file_url;
         }
 
