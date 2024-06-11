@@ -504,25 +504,13 @@ Class Evernote extends External_Service_Module {
         return $term['term_id'];
     }
 
-    /**
-     * Get HTML for WordPress from ENML
-     * 
-     * @param \EDAM\Types\Note $note
-     * @return string
-     */
-    function get_note_html( \EDAM\Types\Note $note ): string {
-        if( empty( $note->content ) ) {
-            $note->content = $this->advanced_client->getNoteStore()->getNoteContent( $note->guid );
-        }
-
-        $content = '';
-
-        if ( preg_match( '/<en-note[^>]*>(.*?)<\/en-note>/s', $note->content, $matches ) ){
+    static public function enml2html( $content ) {
+        if ( preg_match( '/<en-note[^>]*>(.*?)<\/en-note>/s', $content, $matches ) ){
             $content = $matches[1];
         }
 
-        $content = preg_replace_callback( '/<en-media .*?hash="(?P<hash>[a-f0-9]+)" type="(?P<type>[^"]+)"[^\/]*?\/>/', [ $this, 'en_media_replace_callback' ] , $content );
-        $content = preg_replace_callback( '/<en-media .*?type="(?P<type>[^"]+)" hash="(?P<hash>[a-f0-9]+)"[^\/]*?\/>/', [ $this, 'en_media_replace_callback' ] , $content );
+        $content = preg_replace_callback( '/<en-media .*?hash="(?P<hash>[a-f0-9]+)" type="(?P<type>[^"]+)"[^\/]*?\/>/', [ "\Evernote", 'en_media_replace_callback' ] , $content );
+        $content = preg_replace_callback( '/<en-media .*?type="(?P<type>[^"]+)" hash="(?P<hash>[a-f0-9]+)"[^\/]*?\/>/', [ "\Evernote", 'en_media_replace_callback' ] , $content );
         $content = preg_replace_callback( '/<en-todo .*?checked="(?P<checked>[^"]+)"[^\/]*?\/>/', function( $match ) {
             $checked = 'o';
             if( $match['checked'] === 'true' ) {
@@ -547,8 +535,21 @@ Class Evernote extends External_Service_Module {
         }, $content );
         return $content;
     }
+    /**
+     * Get HTML for WordPress from ENML
+     * 
+     * @param \EDAM\Types\Note $note
+     * @return string
+     */
+    function get_note_html( \EDAM\Types\Note $note ): string {
+        if( empty( $note->content ) ) {
+            $note->content = $this->advanced_client->getNoteStore()->getNoteContent( $note->guid );
+        }
 
-    public function en_media_replace_callback( $matches ) {
+        return self::enml2html( $note->content );
+    }
+
+    public static function en_media_replace_callback( $matches ) {
         $attachment = get_posts( [
             'post_type' => 'attachment',
             'post_status' => array('publish', 'pending', 'draft', 'auto-draft', 'future', 'private', 'inherit'),
@@ -626,9 +627,7 @@ Class Evernote extends External_Service_Module {
     static function html2enml( string $html ): string {
         // Media!
         $html = preg_replace( '#<div data-en-hash="(?P<hash>[a-f0-9]+)" data-en-type="(?P<type>[a-z0-9\/]+)">.+?<\/div>#is', '<en-media hash="\\1" type="\\2" />', $html );
-        error_log('pre ' . $html );
-        $html = preg_replace( '/<a(?P<prehref>[^>]*?)href="(?P<href>[^"]+)" evernote-link="(?P<evlink>evernote\:[^"]+)"(?P<posthref>[^>]*?)>/is', '<a\\1shref="\\2"\\4>', $html );
-        error_log('post ' . $html );
+        $html = preg_replace( '/<a(?P<prehref>[^>]*?)href="(?P<href>[^"]+)" evernote-link="(?P<evlink>evernote\:[^"]+)"(?P<posthref>[^>]*?)>/is', '<a\\1href="\\3"\\4>', $html );
 
         $html = preg_replace_callback( '#<span class="pos-evernote-todo">([a-z]+)<\/span>#', function( $match ) {
             $checked = ( strtolower( $match[1] ) === 'x' ) ? 'true' : 'false';
