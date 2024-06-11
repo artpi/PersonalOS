@@ -20,8 +20,9 @@
 		"packages-update": "wp-scripts packages-update",
 		"plugin-zip": "wp-scripts plugin-zip",
 		"start": "wp-scripts start",
+		"wp-env": "wp-env",
 		"dev": "wp-scripts start",
-		"wp-env": "wp-env"
+		"test:unit": "wp-env run tests-cli --env-cwd=wp-content/plugins/personalos ./vendor/bin/phpunit"
 	},
 	"dependencies": {
 		"@wordpress/compose": "^6.27.0",
