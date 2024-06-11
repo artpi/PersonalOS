@@ -6,7 +6,6 @@
  *
  * TODO: Comment everything, include strong typing, write unit tests for.
  * TODO: The WP <-> ENML conversion is hacky, it would be awesome if it used blocks, and just transformed blocks into enml and vice versa. Since ENML does not support comments, it could store the metadata in style the same ENML todos are stored.
- * TODO: Handle checkboxes <en-todo checked="true"/>
  * TODO: when something goes wrong in syncing a chunk, the rest of the changes are not synced. we should probably update USN after each successful note so that when we have an error, sync is picked up from the point it failed.
  * 
  */
@@ -17,6 +16,7 @@ Class Evernote extends External_Service_Module {
     public $parent_notebook = null;
     public $simple_client = null;
     public $advanced_client = null;
+    private $token = null;
 
     public $settings = [
         'token' => [
@@ -34,17 +34,18 @@ Class Evernote extends External_Service_Module {
     public $notes_module = null;
 
     function __construct( \POS_Module $notes_module ) {
-        $this->settings['synced_notebooks']['callback'] = [ $this, 'synced_notebooks_setting_callback' ];
         $this->notes_module = $notes_module;
+        $this->token = $this->get_setting( 'token' );
+        if( ! $this->token ) {
+            return false;
+        }
+        $this->settings['synced_notebooks']['callback'] = [ $this, 'synced_notebooks_setting_callback' ];
         $this->register_sync( 'hourly' );
-
         $this->register_meta( 'evernote_guid', $this->notes_module->id );
         $this->register_meta( 'evernote_content_hash', $this->notes_module->id );
-        // TODO: Hook this up only if the token is set.
-        add_action( 'save_post_' . $this->notes_module->id, array( $this, 'sync_note_to_evernote' ), 10, 3 );
 
+        add_action( 'save_post_' . $this->notes_module->id, array( $this, 'sync_note_to_evernote' ), 10, 3 );
         add_action( 'rest_api_init', [ $this, 'register_rest_routes' ] );
-        $this->connect();
         add_action( 'admin_post_evernote_resource', [ $this, 'proxy_media' ] );
     }
 
@@ -53,7 +54,7 @@ Class Evernote extends External_Service_Module {
             return;
         }
         $guid = sanitize_text_field( $_GET['evernote_guid'] );
-
+        $this->connect();
         // TODO figure out this streaming trick
         //$user = $this->advanced_client->getUserStore()->getUser();
         // $userInfo = $this->advanced_client->getUserStore()->getPublicUserInfo( $user->username );
@@ -76,6 +77,7 @@ Class Evernote extends External_Service_Module {
      */
     function sync_note_to_evernote( int $post_id, \WP_Post $post, bool $update ) {
         //return;//  Off for now
+        $this->connect();
         $guid = get_post_meta( $post->ID, 'evernote_guid', true );
 
         if ( $guid ) {
@@ -213,6 +215,7 @@ Class Evernote extends External_Service_Module {
         register_rest_route( $this->rest_namespace, '/evernote-redirect/(?P<post_id>\w+)/', [
             'methods' => 'GET',
             'callback' => function( $request ) {
+                $this->connect();
                 $post_id = $request->get_param( 'post_id' );
                 $guid = get_post_meta( $post_id, 'evernote_guid', true );
                 $note_url = $this->get_app_link_from_guid( $guid );
@@ -235,6 +238,7 @@ Class Evernote extends External_Service_Module {
     public function synced_notebooks_setting_callback ( string $option_name, $value, $setting ) {
         // TODO: create notebooks here.
         nl2br( print_r( $value ) );
+        $this->connect();
         if( ! $this->simple_client ) {
             echo '<p>Please enter a valid token</p>';
             return;
@@ -273,13 +277,9 @@ Class Evernote extends External_Service_Module {
      * Connect to Evernote and create a client
      */
     function connect() {
-        $token = $this->get_setting( 'token' );
-        if( ! $token ) {
-            return false;
-        }
         require_once( plugin_dir_path( __FILE__ ) . '/../../vendor/autoload.php' );
-        $this->simple_client = new \Evernote\Client( $token, false );
-        $this->advanced_client = new \Evernote\AdvancedClient( $token, false );
+        $this->simple_client = new \Evernote\Client( $this->token, false );
+        $this->advanced_client = new \Evernote\AdvancedClient( $this->token, false );
         return $this->simple_client;
     }
 
@@ -290,6 +290,7 @@ Class Evernote extends External_Service_Module {
      */
     function sync() {
         error_log( "[DEBUG] Syncing Evernote triggering " );
+        $this->connect();
         $notebooks = $this->get_setting( 'synced_notebooks' );
         if( ! $notebooks || ! $this->advanced_client ) {
             return [];
@@ -647,11 +648,14 @@ Class Evernote extends External_Service_Module {
         // Strip all comments
         $html = preg_replace( '/<!--.*?-->/', '', $html );
         
+        return self::wrap_note( $html );
+    }
+
+    static public function wrap_note( $html ) {
         return '<?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
         <en-note>' . $html . '</en-note>';
     }
-
     /**
      * Get notes by evernote guid
      * 

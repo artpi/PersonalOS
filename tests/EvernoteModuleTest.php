@@ -75,4 +75,41 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$this->assertEquals( 'm4a', \Evernote::get_extension_from_mime( 'audio/m4a' ) );
 		$this->assertEquals( 'amr', \Evernote::get_extension_from_mime( 'audio/amr' ) );
 	}
+
+	public function test_create_note_from_evernote() {
+		$module = \POS::$modules[2];
+		$post_id = wp_insert_post( [
+			'post_title' => 'WordPress',
+			'post_content' => 'Test WordPress content',
+			'post_status' => 'publish',
+			'post_type' => 'notes',
+		] );
+
+		$note = new \EDAM\Types\Note();
+		$note->title = 'Evernote';
+		$note->guid = 'potato';
+		$note->content = $module::wrap_note( <<<EOF
+			<h1>Test</h1>
+			<div>First Test paragraph</div>
+		EOF );
+		$note->contentHash = md5( $note->content, true );
+		$note->created = time() * 1000;
+
+		$module->update_note_from_evernote( $note, get_post( $post_id ) );
+		$updated_note = get_post( $post_id );
+		$this->assertEquals( 'Evernote', $updated_note->post_title );
+		$this->assertStringContainsString( 'First Test paragraph', $updated_note->post_content );
+
+		$note->content = $module::wrap_note( <<<EOF
+			<h1>Test</h1>
+			<div>Replaced Test Paragraph</div>
+			EOF );
+		$module->update_note_from_evernote( $note, get_post( $post_id ) );
+		$this->assertStringNotContainsString( 'Replaced Test Paragraph', get_post( $post_id )->post_content, 'Content remains unchanged if bodyhash is the same' );
+		$note->contentHash = md5( $note->content, true );
+		$module->update_note_from_evernote( $note, get_post( $post_id ) );
+		$this->assertStringContainsString( 'Replaced Test Paragraph', get_post( $post_id )->post_content, 'Content is updated when bodyhash changes' );
+		$this->assertEquals( bin2hex( $note->contentHash ), get_post_meta( $post_id, 'evernote_content_hash', true ), 'Content hash is updated' );
+		wp_delete_post( $post_id, true );
+	}
 }
