@@ -526,7 +526,7 @@ Class Evernote extends External_Service_Module {
             }
             $evernote_web_url = "https://www.evernote.com/shard/{$evernote_link[2]}/nl/{$evernote_link[1]}/{$evernote_link[3]}";
             return sprintf(
-                '<a%1$shref="%2$s" evernote-link="%3$s"%4$s>',
+                '<a%1$shref="%2$s" data-evernote-link="%3$s"%4$s>',
                 $match['prehref'],
                 $evernote_web_url,
                 $match['href'],
@@ -560,19 +560,24 @@ Class Evernote extends External_Service_Module {
                 ],
             ],
         ] );
-        if( count( $attachment ) < 1 ) {
-            return $matches[0];
-        }
-        $attachment = $attachment[0];
-        $edit_url = admin_url( sprintf( get_post_type_object( 'attachment')->_edit_link . '&action=edit', $attachment->ID ) );
-        if ( stristr( $matches['type'], 'image' ) ) {
-            $content = sprintf( '<img src="%1$s" alt="%2$s" />', wp_get_attachment_url( $attachment->ID ), $attachment->post_title );
+        if( count( $attachment ) > 0 ) {
+            $title = $attachment[0]->post_title;
+            $edit_url = admin_url( sprintf( get_post_type_object( 'attachment')->_edit_link . '&action=edit', $attachment[0]->ID ) );
+            $file_url = wp_get_attachment_url( $attachment[0]->ID );
         } else {
-            $content = sprintf( '<a target="_blank" href="%1$s">%2$s</a>', $edit_url, $attachment->post_title );
+            $title = 'Evernote Resource';
+            $file_url = '#'; // TODO generate a proxy link
+            $edit_url = $file_url;
+        }
+
+        if ( stristr( $matches['type'], 'image' ) ) {
+            $content = sprintf( '<img src="%1$s" data-evernote-link="%2$s" />', $file_url, $title );
+        } else {
+            $content = sprintf( '<a target="_blank" href="%1$s">%2$s</a>', $edit_url, $title );
         }
 
         return sprintf(
-            '<div data-en-hash="%1$s" data-en-type="%2$s">%3$s</div>',
+            '<div data-evernote-hash="%1$s" data-evernote-type="%2$s">%3$s</div>',
             $matches['hash'],
             $matches['type'],
             $content
@@ -587,7 +592,7 @@ Class Evernote extends External_Service_Module {
      * @return string
      */
     static function kses( string $html ): string {
-        $permitted_enml_tags =  ['en-media', 'a', 'abbr', 'acronym', 'address', 'area', 'b', 'bdo', 'big', 'blockquote', 'br', 'caption', 'center', 'cite', 'code', 'col', 'colgroup', 'dd', 'del', 'dfn', 'div', 'dl', 'dt', 'em', 'font', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'ins', 'kbd', 'li', 'map', 'ol', 'p', 'pre', 'q', 's', 'samp', 'small', 'span', 'strike', 'strong', 'sub', 'sup', 'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'title', 'tr', 'tt', 'u', 'ul', 'var', 'xmp'];
+        $permitted_enml_tags =  ['en-todo', 'en-media', 'a', 'abbr', 'acronym', 'address', 'area', 'b', 'bdo', 'big', 'blockquote', 'br', 'caption', 'center', 'cite', 'code', 'col', 'colgroup', 'dd', 'del', 'dfn', 'div', 'dl', 'dt', 'em', 'font', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'ins', 'kbd', 'li', 'map', 'ol', 'p', 'pre', 'q', 's', 'samp', 'small', 'span', 'strike', 'strong', 'sub', 'sup', 'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'title', 'tr', 'tt', 'u', 'ul', 'var', 'xmp'];
         $permitted_protocols = wp_allowed_protocols();
         $permitted_protocols[] = 'evernote'; // For evernote links
 
@@ -626,10 +631,10 @@ Class Evernote extends External_Service_Module {
      */
     static function html2enml( string $html ): string {
         // Media!
-        $html = preg_replace( '#<div data-en-hash="(?P<hash>[a-f0-9]+)" data-en-type="(?P<type>[a-z0-9\/]+)">.+?<\/div>#is', '<en-media hash="\\1" type="\\2" />', $html );
-        $html = preg_replace( '/<a(?P<prehref>[^>]*?)href="(?P<href>[^"]+)" evernote-link="(?P<evlink>evernote\:[^"]+)"(?P<posthref>[^>]*?)>/is', '<a\\1href="\\3"\\4>', $html );
+        $html = preg_replace( '#<div data-evernote-hash="(?P<hash>[a-f0-9]+)" data-evernote-type="(?P<type>[a-z0-9\/]+)">.+?<\/div>#is', '<en-media hash="\\1" type="\\2" />', $html );
+        $html = preg_replace( '/<a(?P<prehref>[^>]*?)href="(?P<href>[^"]+)" data-evernote-link="(?P<evlink>evernote\:[^"]+)"(?P<posthref>[^>]*?)>/is', '<a\\1href="\\3"\\4>', $html );
 
-        $html = preg_replace_callback( '#<span class="pos-evernote-todo">([a-z]+)<\/span>#', function( $match ) {
+        $html = preg_replace_callback( '#<span class="pos-evernote-todo">([a-z]*)<\/span>#', function( $match ) {
             $checked = ( strtolower( $match[1] ) === 'x' ) ? 'true' : 'false';
             return '<en-todo checked="' . $checked . '"/>';
         }, $html );
