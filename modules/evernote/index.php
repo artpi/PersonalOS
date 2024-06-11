@@ -509,8 +509,8 @@ Class Evernote extends External_Service_Module {
             $content = $matches[1];
         }
 
-        $content = preg_replace_callback( '/<en-media .*?hash="(?P<hash>[a-f0-9]+)" type="(?P<type>[^"]+)"[^\/]*?\/>/', [ "\Evernote", 'en_media_replace_callback' ] , $content );
-        $content = preg_replace_callback( '/<en-media .*?type="(?P<type>[^"]+)" hash="(?P<hash>[a-f0-9]+)"[^\/]*?\/>/', [ "\Evernote", 'en_media_replace_callback' ] , $content );
+        $content = preg_replace_callback( '/<en-media(?P<pre>[^>]*?)hash="(?P<hash>[a-f0-9]+)"(?P<middle>[^>]*?)type="(?P<type>[^"]+)"(?P<post>[^>]*?)\/>/', [ "\Evernote", 'en_media_replace_callback' ] , $content );
+        $content = preg_replace_callback( '/<en-media(?P<pre>[^>]*?)type="(?P<type>[^"]+)"(?P<middle>[^>]*?)hash="(?P<hash>[a-f0-9]+)"(?P<post>[^>]*?)\/>/', [ "\Evernote", 'en_media_replace_callback' ] , $content );
         $content = preg_replace_callback( '/<en-todo .*?checked="(?P<checked>[^"]+)"[^\/]*?\/>/', function( $match ) {
             $checked = 'o';
             if( $match['checked'] === 'true' ) {
@@ -577,9 +577,12 @@ Class Evernote extends External_Service_Module {
         }
 
         return sprintf(
-            '<div data-evernote-hash="%1$s" data-evernote-type="%2$s">%3$s</div>',
+            '<div%1$sdata-evernote-hash="%2$s"%3$sdata-evernote-type="%4$s"%5$s>%6$s</div>',
+            $matches['pre'],
             $matches['hash'],
+            $matches['middle'],
             $matches['type'],
+            $matches['post'],
             $content
         );
         
@@ -631,7 +634,7 @@ Class Evernote extends External_Service_Module {
      */
     static function html2enml( string $html ): string {
         // Media!
-        $html = preg_replace( '#<div data-evernote-hash="(?P<hash>[a-f0-9]+)" data-evernote-type="(?P<type>[a-z0-9\/]+)">.+?<\/div>#is', '<en-media hash="\\1" type="\\2" />', $html );
+        $html = preg_replace( '#<div(?P<pre>[^>]*?)data-evernote-hash="(?P<hash>[a-f0-9]+)"(?P<middle>[^>]*?)data-evernote-type="(?P<type>[a-z0-9\/]+)"(?P<post>[^>]*?)>.+?<\/div>#is', '<en-media\\1hash="\\2"\\3type="\\4"\\5/>', $html );
         $html = preg_replace( '/<a(?P<prehref>[^>]*?)href="(?P<href>[^"]+)" data-evernote-link="(?P<evlink>evernote\:[^"]+)"(?P<posthref>[^>]*?)>/is', '<a\\1href="\\3"\\4>', $html );
 
         $html = preg_replace_callback( '#<span class="pos-evernote-todo">([a-z]*)<\/span>#', function( $match ) {
