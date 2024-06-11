@@ -10,6 +10,7 @@
 		"modules",
 		"settings.php",
 		"personalos.php",
+		"dashboard.php",
 		"vendor"
 	],
 	"scripts": {
