@@ -177,16 +177,16 @@ Class Evernote extends External_Service_Module {
 
         // TODO: change notebook too
         // We are removing this filter so that kses wont strip the `evernote` scheme
-        $post_kses_filter_removed = remove_filter( 'content_save_pre', 'wp_filter_post_kses' );
+        //$post_kses_filter_removed = remove_filter( 'content_save_pre', 'wp_filter_post_kses' );
         if ( count( $update_array ) > 0 ) {
             $update_array['ID'] = $post->ID;
             error_log( "[DEBUG] Evernote: Updating post from evernote {$post->ID} {$note->guid} " . print_r( $update_array, true ) );
             wp_update_post( $update_array );
             //error_log( 'CONTENT POST UPDATE: '. get_post($post->ID)->post_content );
         }
-        if ( $post_kses_filter_removed ) {
-            add_filter( 'content_save_pre', 'wp_filter_post_kses' );
-        }
+        // if ( $post_kses_filter_removed ) {
+        //     add_filter( 'content_save_pre', 'wp_filter_post_kses' );
+        // }
         add_action( 'save_post_' . $this->notes_module->id, [ $this, 'sync_note_to_evernote' ], 10, 3 );
     }
 
@@ -434,6 +434,12 @@ Class Evernote extends External_Service_Module {
             ];
             $media_id = media_handle_sideload($file, $notes[0]->ID, null, $data  );
 
+            if ( is_wp_error( $media_id ) ) {
+                error_log( print_r( $media_id, true ) );
+                trigger_error( print_r( $media_id, true ), E_USER_WARNING );
+                return false;
+            }
+
             if ( stristr( $resource->mime, 'audio' ) ) { // if auto transcribe audio
                 // We have to schedule transcription ourselves because the mime is not ready yet at this time.
                 update_post_meta( $media_id, 'pos_transcribe', 1 );
@@ -524,6 +530,21 @@ Class Evernote extends External_Service_Module {
             }
             return '<span class="pos-evernote-todo">'. $checked .'</span>';
         }, $content );
+        $content = preg_replace_callback( '/<a(?P<prehref>[^>]*?)href="(?P<href>evernote\:[^"]+)"(?P<posthref>[^>]*?)>/', function( $match ) {
+            //regex to match evernote links
+            if( ! preg_match( '/evernote:\/\/\/view\/(\d+)\/(s\d+)\/([a-f0-9\-]+)\/([a-f0-9\-]+)/', $match['href'], $evernote_link ) ) {
+                // Something wrong
+                return $match[0];
+            }
+            $evernote_web_url = "https://www.evernote.com/shard/{$evernote_link[2]}/nl/{$evernote_link[1]}/{$evernote_link[3]}";
+            return sprintf(
+                '<a%1$shref="%2$s" evernote-link="%3$s"%4$s>',
+                $match['prehref'],
+                $evernote_web_url,
+                $match['href'],
+                $match['posthref']
+            );
+        }, $content );
         return $content;
     }
 
@@ -570,7 +591,7 @@ Class Evernote extends External_Service_Module {
         $permitted_protocols[] = 'evernote'; // For evernote links
 
         $permittedENMLAttributes = [
-            'hash', 'type',
+            'hash', 'type', 'evernote-link',
             'abbr', 'accept', 'accept-charset', 'accesskey', 'action', 'align', 'alink', 'alt', 'archive', 'axis',
             'background', 'bgcolor', 'border', 'cellpadding', 'cellspacing', 'char', 'charoff', 'charset', 'checked',
             'cite', 'clear', 'code', 'codebase', 'codetype', 'color', 'cols', 'colspan', 'compact', 'content',
@@ -605,6 +626,10 @@ Class Evernote extends External_Service_Module {
     static function html2enml( string $html ): string {
         // Media!
         $html = preg_replace( '#<div data-en-hash="(?P<hash>[a-f0-9]+)" data-en-type="(?P<type>[a-z0-9\/]+)">.+?<\/div>#is', '<en-media hash="\\1" type="\\2" />', $html );
+        error_log('pre ' . $html );
+        $html = preg_replace( '/<a(?P<prehref>[^>]*?)href="(?P<href>[^"]+)" evernote-link="(?P<evlink>evernote\:[^"]+)"(?P<posthref>[^>]*?)>/is', '<a\\1shref="\\2"\\4>', $html );
+        error_log('post ' . $html );
+
         $html = preg_replace_callback( '#<span class="pos-evernote-todo">([a-z]+)<\/span>#', function( $match ) {
             $checked = ( strtolower( $match[1] ) === 'x' ) ? 'true' : 'false';
             return '<en-todo checked="' . $checked . '"/>';
@@ -706,11 +731,11 @@ Class Evernote extends External_Service_Module {
             remove_action( 'save_post_' . $this->notes_module->id, [ $this, 'sync_note_to_evernote' ], 10 );
 
             // we are removing this filter because we have already ran this through kses.
-            $filter_removed = remove_filter( 'content_save_pre', 'wp_filter_post_kses' );
+            //$filter_removed = remove_filter( 'content_save_pre', 'wp_filter_post_kses' );
             $post_id = wp_insert_post( $data );
-            if ( $filter_removed ) {
-                add_filter( 'content_save_pre', 'wp_filter_post_kses' );
-            }
+            // if ( $filter_removed ) {
+            //     add_filter( 'content_save_pre', 'wp_filter_post_kses' );
+            // }
             //error_log( 'CONTENT AFTER SAVING:' . get_post($post_id)->post_content );
 
             wp_set_post_terms( $post_id, [ $this->get_notebook_by_guid( $note->notebookGuid ) ], 'notebook', true );
