@@ -55,6 +55,7 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 			<en-note>
 			<h1>This is some media that wont get uploaded</h1>
 			<en-media hash="0a35baf77505fa7867468ec2b1b21865" type="audio/m4a" />
+			<br /><en-media hash="13708d05e93f6a57e37a8b3c08022406" type="image/png" ></en-media>
 			</en-note>
 		EOF;
 		$this->assert_enml_transformed_to_html_and_stored_unserializes_correctly( $enml );

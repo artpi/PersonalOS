@@ -510,6 +510,8 @@ Class Evernote extends External_Service_Module {
 
         $content = preg_replace_callback( '/<en-media(?P<pre>[^>]*?)hash="(?P<hash>[a-f0-9]+)"(?P<middle>[^>]*?)type="(?P<type>[^"]+)"(?P<post>[^>]*?)\/>/', [ "\Evernote", 'en_media_replace_callback' ] , $content );
         $content = preg_replace_callback( '/<en-media(?P<pre>[^>]*?)type="(?P<type>[^"]+)"(?P<middle>[^>]*?)hash="(?P<hash>[a-f0-9]+)"(?P<post>[^>]*?)\/>/', [ "\Evernote", 'en_media_replace_callback' ] , $content );
+        $content = preg_replace_callback( '/<en-media(?P<pre>[^>]*?)hash="(?P<hash>[a-f0-9]+)"(?P<middle>[^>]*?)type="(?P<type>[^"]+)"(?P<post>[^>]*?)><\/en-media>/', [ "\Evernote", 'en_media_replace_callback' ] , $content );
+        $content = preg_replace_callback( '/<en-media(?P<pre>[^>]*?)type="(?P<type>[^"]+)"(?P<middle>[^>]*?)hash="(?P<hash>[a-f0-9]+)"(?P<post>[^>]*?)><\/en-media>/', [ "\Evernote", 'en_media_replace_callback' ] , $content );
         $content = preg_replace_callback( '/<en-todo .*?checked="(?P<checked>[^"]+)"[^\/]*?\/>/', function( $match ) {
             $checked = 'o';
             if( $match['checked'] === 'true' ) {
