@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <ruleset name="@artpi/personalos">
 	<config name="installed_paths" value="vendor/wp-coding-standards/wpcs" />
+    <ini name="error_reporting" value="E_ALL &#38; ~E_DEPRECATED" />
 	<arg name="extensions" value="php" />
 
 	<exclude-pattern>*/vendor/*</exclude-pattern>
