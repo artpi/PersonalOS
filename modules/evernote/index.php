@@ -519,7 +519,7 @@ Class Evernote extends External_Service_Module {
             }
             return '<span class="pos-evernote-todo">'. $checked .'</span>';
         }, $content );
-        $content = preg_replace_callback( '/<a(?P<prehref>[^>]*?)href="(?P<href>evernote\:[^"]+)"(?P<posthref>[^>]*?)>/', function( $match ) {
+        $content = preg_replace_callback( '/<a(?P<prehref>[^>]*?)href=[\'"](?P<href>evernote\:[^\'"]+)[\'"](?P<posthref>[^>]*?)>/', function( $match ) {
             //regex to match evernote links
             if( ! preg_match( '/evernote:\/\/\/view\/(\d+)\/(s\d+)\/([a-f0-9\-]+)\/([a-f0-9\-]+)/', $match['href'], $evernote_link ) ) {
                 // Something wrong

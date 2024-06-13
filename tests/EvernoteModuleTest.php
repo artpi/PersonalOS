@@ -20,6 +20,21 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$saved = wp_unslash( $post->post_content );
 		$twice_transformed = \Evernote::html2enml( $saved );
 		$this->assertXmlStringEqualsXmlString( trim( $enml ), trim( $twice_transformed ), "ENML got mangled. Transformed: \n{$transformed}\n Stored in DB:\n{$saved}" );
+		// now real post insert
+		$note = new \EDAM\Types\Note();
+		$note->content = $enml;
+		$module = \POS::$modules[2];
+		$html = $module->get_note_html( $note );
+
+		$post_id = wp_insert_post( [
+			'post_title' => 'WordPress',
+			'post_content' => $html,
+			'post_status' => 'publish',
+			'post_type' => 'notes',
+		] );
+		$post = get_post( $post_id );
+		$this->assertXmlStringEqualsXmlString( trim( $enml ), trim( $module::html2enml( $post->post_content ) ) );
+		wp_delete_post( $post_id, true );
 	}
 
 	public function test_evernote_links() {
@@ -30,6 +45,8 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 			<h1>Test</h1>
 			<div>Test paragraph</div>
 			<div><a href="evernote:///view/1967834/s13/092a5913-c4dd-41bf-ab06-7039921ba433/092a5913-c4dd-41bf-ab06-7039921ba433/">Note Link</a></div>
+			<div><a href='evernote:///view/1967834/s13/970d08c4-ee40-4145-9722-32f28e0fc35a/970d08c4-ee40-4145-9722-32f28e0fc35a/'>(*)</a></div>
+
 			</en-note>
 		EOF;
 		$this->assert_enml_transformed_to_html_and_stored_unserializes_correctly( $enml );
