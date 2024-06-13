@@ -91,10 +91,9 @@ class Evernote extends External_Service_Module {
 					$this->update_note_from_evernote( $result, $post );
 				} catch ( \EDAM\Error\EDAMSystemException $e ) {
 					// Silently fail because conflicts and stuff.
-					error_log( '[ERROR] Evernote: ' . $e->getMessage() );
-					error_log( print_r( $post, true ) );
+					$this->log( 'Evernote: ' . $e->getMessage() . " " . print_r( $post, true ), E_USER_WARNING );
 				} catch ( \EdAM\Error\EDAMUserException $e ) {
-					error_log( "[ERROR] Evernote ENML probably misformatted: '" . $e->getMessage() . '" . While saving: ' . $note->content );
+					$this->log( "Evernote ENML probably misformatted: '" . $e->getMessage() . '" . While saving: ' . $note->content, E_USER_WARNING );
 				}
 			}
 			return;
@@ -128,7 +127,7 @@ class Evernote extends External_Service_Module {
 				$this->update_note_from_evernote( $result, $post );
 			}
 		} catch ( \EDAM\Error\EDAMUserException $e ) {
-			error_log( "[ERROR] Evernote ENML probably misformatted: '" . $e->getMessage() . '" . While saving: ' . $note->content );
+			$this->log( "Evernote ENML probably misformatted: '" . $e->getMessage() . '" . While saving: ' . $note->content, E_USER_WARNING );
 		}
 
 	}
@@ -158,7 +157,7 @@ class Evernote extends External_Service_Module {
 		}
 
 		if ( $force_rewrite_content || bin2hex( $note->contentHash ) !== get_post_meta( $post->ID, 'evernote_content_hash', true ) ) {
-			error_log( 'Content hashes:  new: ' . bin2hex( $note->contentHash ) . ' old: ' . get_post_meta( $post->ID, 'evernote_content_hash', true ) );
+			$this->log( 'Content hashes:  new: ' . bin2hex( $note->contentHash ) . ' old: ' . get_post_meta( $post->ID, 'evernote_content_hash', true ) );
 			// we are assuming resources only changed when note content changed
 			$update_array['post_content'] = $this->get_note_html( $note );
 			if ( ! isset( $update_array['meta_input'] ) ) {
@@ -196,7 +195,7 @@ class Evernote extends External_Service_Module {
 		//$post_kses_filter_removed = remove_filter( 'content_save_pre', 'wp_filter_post_kses' );
 		if ( count( $update_array ) > 0 ) {
 			$update_array['ID'] = $post->ID;
-			error_log( "[DEBUG] Evernote: Updating post from evernote {$post->ID} {$note->guid} " . print_r( $update_array, true ) );
+			$this->log( "Evernote: Updating post from evernote {$post->ID} {$note->guid} " . print_r( $update_array, true ) );
 			wp_update_post( $update_array );
 			//error_log( 'CONTENT POST UPDATE: '. get_post($post->ID)->post_content );
 		}
@@ -297,7 +296,7 @@ class Evernote extends External_Service_Module {
 	 * @see register_sync
 	 */
 	function sync() {
-		error_log( '[DEBUG] Syncing Evernote triggering ' );
+		$this->log( 'Syncing Evernote triggering ' );
 		$this->connect();
 		$notebooks = $this->get_setting( 'synced_notebooks' );
 		if ( ! $notebooks || ! $this->advanced_client ) {
@@ -323,7 +322,7 @@ class Evernote extends External_Service_Module {
 		update_option( $this->get_setting_option_name( 'last_update_count' ), $sync_state->updateCount );
 
 		if ( $sync_state->updateCount === $last_update_count || $sync_state->updateCount === $usn ) {
-			error_log( '[DEBUG] Evernote: No updates since last sync' );
+			$this->log( 'Evernote: No updates since last sync' );
 			return;
 		}
 
@@ -334,7 +333,7 @@ class Evernote extends External_Service_Module {
 
 		$sync_chunk = $this->advanced_client->getNoteStore()->getFilteredSyncChunk( $usn, 100, $sync_filter );
 		if ( ! $sync_chunk ) {
-			error_log( '[ERROR] Evernote: Sync failed' );
+			$this->log( 'Evernote: Sync failed', E_USER_WARNING );
 			return;
 		}
 		if ( ! empty( $sync_chunk->chunkHighUSN ) && $sync_chunk->chunkHighUSN > $usn ) {
@@ -343,9 +342,9 @@ class Evernote extends External_Service_Module {
 			// We will schedule ONE TIME sync event for the next page.
 			update_option( $this->get_setting_option_name( 'usn' ), $sync_chunk->chunkHighUSN );
 			wp_schedule_single_event( time() + 60, $this->get_sync_hook_name() );
-			error_log( "Scheduling next page chunk with cursor {$sync_chunk->chunkHighUSN}" );
+			$this->log( "Scheduling next page chunk with cursor {$sync_chunk->chunkHighUSN}" );
 		} else {
-			error_log( '[DEBUG] Evernote: Full sync completed' );
+			$this->log( 'Evernote: Full sync completed' );
 		}
 
 		if ( ! empty( $sync_chunk->notes ) ) {
@@ -369,7 +368,7 @@ class Evernote extends External_Service_Module {
 
 		// Now that notes are synced, we are going to sync the resources
 		if ( ! empty( $sync_chunk->resources ) ) {
-			error_log( '[DEBUG] Syncing resources' );
+			$this->log( 'Syncing resources' );
 			foreach ( $sync_chunk->resources as $resource ) {
 				$this->sync_resource( $resource );
 			}
@@ -455,7 +454,7 @@ class Evernote extends External_Service_Module {
 				wp_schedule_single_event( time() + 10, 'pos_transcription', array( $media_id ) );
 			}
 
-			error_log( '[DEBUG] UPLOADED resource ' . $resource->guid . ' to : ' . $media_id );
+			$this->log( 'UPLOADED resource ' . $resource->guid . ' to : ' . $media_id );
 			return $media_id;
 		}
 		return false;
@@ -501,7 +500,7 @@ class Evernote extends External_Service_Module {
 		// We have to create this notebook, under "Evernote" parent
 
 		$notebook = $this->advanced_client->getNoteStore()->getNotebook( $guid );
-		error_log( '[DEBUG] Evernote Creating ' . print_r( $notebook, true ) );
+		$this->log( 'Evernote Creating ' . print_r( $notebook, true ) );
 		$name = $notebook->name;
 
 		if ( ! $this->parent_notebook ) {
@@ -830,7 +829,7 @@ class Evernote extends External_Service_Module {
 			$existing = $existing[0];
 
 			if ( ! empty( $note->deleted ) ) {
-				error_log( "[DEBUG] Evernote Deleting {$note->guid} {$note->title}" );
+				$this->log( "Evernote Deleting {$note->guid} {$note->title}" );
 				wp_trash_post( $existing->ID );
 				// Let's also get all attachments attached to this note that come from evernote.
 				$attachments = get_posts(
@@ -849,7 +848,7 @@ class Evernote extends External_Service_Module {
 						),
 					)
 				);
-				error_log( '[DEBUG] Deleting attachments ' . json_encode( $attachments ) );
+				$this->log( 'Deleting attachments ' . json_encode( $attachments ) );
 				foreach ( $attachments as $attachment ) {
 					wp_delete_attachment( $attachment );
 				}
@@ -860,7 +859,7 @@ class Evernote extends External_Service_Module {
 			$this->update_note_from_evernote( $note, $existing, true );
 
 		} elseif ( empty( $note->deleted ) ) {
-			error_log( "[DEBUG] Evernote Creating {$note->title}" );
+			$this->log( "Evernote Creating {$note->title}" );
 			$data = array(
 				'post_title'   => $note->title,
 				'post_type'    => $this->notes_module->id,

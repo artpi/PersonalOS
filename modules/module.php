@@ -80,6 +80,23 @@ Class POS_Module {
             'type'              => 'string',
         ] );
     }
+
+    function log( $message, $level = 'DEBUG' ) {
+        $map = [
+            E_USER_NOTICE => 'NOTICE',
+            E_USER_WARNING => 'WARNING',
+            E_USER_ERROR => 'ERROR',
+        ];
+
+        if ( in_array( $level, $map ) ) {
+            $level = $map[ $level ];
+        } else if ( ! is_string ( $level ) ) {
+            $level = 'DEBUG';
+        }
+
+        //phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+        error_log( "[{$level}] [{$this->id}] {$message}" );
+    }
 }
 
 class POS_CPT_Rest_Controller extends WP_REST_Posts_Controller {
