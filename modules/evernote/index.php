@@ -33,7 +33,7 @@ class Evernote extends External_Service_Module {
 
 	public $notes_module = null;
 
-	function __construct( \POS_Module $notes_module ) {
+	public function __construct( \POS_Module $notes_module ) {
 		$this->notes_module = $notes_module;
 		$this->token        = $this->get_setting( 'token' );
 		if ( ! $this->token ) {
@@ -75,7 +75,7 @@ class Evernote extends External_Service_Module {
 	 * @param \WP_Post $post
 	 * @param bool $update
 	 */
-	function sync_note_to_evernote( int $post_id, \WP_Post $post, bool $update ) {
+	public function sync_note_to_evernote( int $post_id, \WP_Post $post, bool $update ) {
 		//return;//  Off for now
 		$this->connect();
 		$guid = get_post_meta( $post->ID, 'evernote_guid', true );
@@ -143,7 +143,7 @@ class Evernote extends External_Service_Module {
 	 * @param \WP_Post $post
 	 * @param bool $sync_resources - If true, it will also upload note resources. We want this in most cases, EXCEPT when we are sending the data from WordPress and know the response will not have new resources for us.
 	 */
-	function update_note_from_evernote( \EDAM\Types\Note $note, \WP_Post $post, $sync_resources = false ) {
+	public function update_note_from_evernote( \EDAM\Types\Note $note, \WP_Post $post, $sync_resources = false ) {
 		remove_action( 'save_post_' . $this->notes_module->id, array( $this, 'sync_note_to_evernote' ), 10 );
 
 		$update_array          = array();
@@ -208,7 +208,7 @@ class Evernote extends External_Service_Module {
 	/**
 	 * This is a helper function to get the app link for a note. This URL opens the note in the Evernote app.
 	 */
-	function get_app_link_from_guid( string $guid ) {
+	public function get_app_link_from_guid( string $guid ) {
 		$user     = $this->advanced_client->getUserStore()->getUser();
 		$note_url = "evernote:///view/{$user->id}/{$user->shardId}/{$guid}/{$guid}/";
 		return $note_url;
@@ -283,7 +283,7 @@ class Evernote extends External_Service_Module {
 	/**
 	 * Connect to Evernote and create a client
 	 */
-	function connect() {
+	protected function connect() {
 		require_once plugin_dir_path( __FILE__ ) . '/../../vendor/autoload.php';
 		$this->simple_client   = new \Evernote\Client( $this->token, false );
 		$this->advanced_client = new \Evernote\AdvancedClient( $this->token, false );
@@ -295,7 +295,7 @@ class Evernote extends External_Service_Module {
 	 *
 	 * @see register_sync
 	 */
-	function sync() {
+	public function sync() {
 		$this->log( 'Syncing Evernote triggering ' );
 		$this->connect();
 		$notebooks = $this->get_setting( 'synced_notebooks' );
@@ -382,7 +382,7 @@ class Evernote extends External_Service_Module {
 	 * @param \EDAM\Types\Resource $resource
 	 * @return int|false - Post ID of the attachment or false if not uploaded
 	 */
-	function sync_resource( \EDAM\Types\Resource $resource ): int|false {
+	public function sync_resource( \EDAM\Types\Resource $resource ): int|false {
 		$notes = $this->get_notes_by_guid( $resource->noteGuid );
 		if ( count( $notes ) === 0 ) {
 			//error_log( "[DEBUG] Note not in the lib " . $resource->guid );
@@ -480,7 +480,7 @@ class Evernote extends External_Service_Module {
 	 * @param string $guid
 	 * @return int
 	 */
-	function get_notebook_by_guid( string $guid ) {
+	public function get_notebook_by_guid( string $guid ) {
 		$args  = array(
 			'hide_empty' => false,
 			'meta_query' => array(
@@ -562,7 +562,7 @@ class Evernote extends External_Service_Module {
 	 * @param \EDAM\Types\Note $note
 	 * @return string
 	 */
-	function get_note_html( \EDAM\Types\Note $note ): string {
+	public function get_note_html( \EDAM\Types\Note $note ): string {
 		if ( empty( $note->content ) ) {
 			$note->content = $this->advanced_client->getNoteStore()->getNoteContent( $note->guid );
 		}
@@ -617,7 +617,7 @@ class Evernote extends External_Service_Module {
 	 * @param string $html
 	 * @return string
 	 */
-	static function kses( string $html ): string {
+	public static function kses( string $html ): string {
 		$permitted_enml_tags   = array( 'en-todo', 'en-media', 'a', 'abbr', 'acronym', 'address', 'area', 'b', 'bdo', 'big', 'blockquote', 'br', 'caption', 'center', 'cite', 'code', 'col', 'colgroup', 'dd', 'del', 'dfn', 'div', 'dl', 'dt', 'em', 'font', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'ins', 'kbd', 'li', 'map', 'ol', 'p', 'pre', 'q', 's', 'samp', 'small', 'span', 'strike', 'strong', 'sub', 'sup', 'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'title', 'tr', 'tt', 'u', 'ul', 'var', 'xmp' );
 		$permitted_protocols   = wp_allowed_protocols();
 		$permitted_protocols[] = 'evernote'; // For evernote links
@@ -761,7 +761,7 @@ class Evernote extends External_Service_Module {
 	 * @param string $html
 	 * @return string
 	 */
-	static function html2enml( string $html ): string {
+	public static function html2enml( string $html ): string {
 		// Media!
 		$html = preg_replace( '#<div(?P<pre>[^>]*?)data-evernote-hash="(?P<hash>[a-f0-9]+)"(?P<middle>[^>]*?)data-evernote-type="(?P<type>[a-z0-9\/]+)"(?P<post>[^>]*?)>.+?<\/div>#is', '<en-media\\1hash="\\2"\\3type="\\4"\\5/>', $html );
 		$html = preg_replace( '/<a(?P<prehref>[^>]*?)href="(?P<href>[^"]+)" data-evernote-link="(?P<evlink>evernote\:[^"]+)"(?P<posthref>[^>]*?)>/is', '<a\\1href="\\3"\\4>', $html );
@@ -797,7 +797,7 @@ class Evernote extends External_Service_Module {
 	 * @param string $post_type
 	 * @return \WP_Post[]
 	 */
-	function get_notes_by_guid( string $guid, $post_type = null ) {
+	public function get_notes_by_guid( string $guid, $post_type = null ) {
 		if ( ! $post_type ) {
 			$post_type = $this->notes_module->id;
 		}
@@ -822,7 +822,7 @@ class Evernote extends External_Service_Module {
 	 *
 	 * @param \EDAM\Types\Note $note
 	 */
-	function sync_note( \EDAM\Types\Note $note ) {
+	public function sync_note( \EDAM\Types\Note $note ) {
 		$existing = $this->get_notes_by_guid( $note->guid );
 
 		if ( count( $existing ) > 0 ) {
