@@ -18,6 +18,10 @@ class Evernote extends External_Service_Module {
 	public $advanced_client = null;
 	private $token          = null;
 
+	// phpcs:disable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+	// phpcs:disable WordPress.PHP.DevelopmentFunctions.error_log_print_r
+	// phpcs:disable WordPress.PHP.YodaConditions.NotYoda
+	// phpcs:disable Squiz.PHP.CommentedOutCode.Found
 	public $settings = array(
 		'token'            => array(
 			'type'  => 'text',
@@ -63,6 +67,7 @@ class Evernote extends External_Service_Module {
 		$file = $this->advanced_client->getNoteStore()->getResource( $guid, true, false, true, false );
 		header( "Content-Disposition: inline;filename={$file->attributes->fileName}" );
 		header( "Content-Type: {$file->mime}" );
+		//phpcs:ignore WordPress.Security.EscapeOutput
 		echo $file->data->body;
 		die();
 	}
@@ -91,9 +96,9 @@ class Evernote extends External_Service_Module {
 					$this->update_note_from_evernote( $result, $post );
 				} catch ( \EDAM\Error\EDAMSystemException $e ) {
 					// Silently fail because conflicts and stuff.
-					$this->log( 'Evernote: ' . $e->getMessage() . " " . print_r( $post, true ), E_USER_WARNING );
+					$this->log( 'Evernote: ' . $e->getMessage() . ' ' . print_r( $post, true ), E_USER_WARNING );
 				} catch ( \EdAM\Error\EDAMUserException $e ) {
-					$this->log( "Evernote ENML probably misformatted: '" . $e->getMessage() . '" . While saving: ' . $note->content, E_USER_WARNING );
+					$this->log( 'Evernote ENML probably misformatted: ' . $e->getMessage() . ' While saving: ' . $note->content, E_USER_WARNING );
 				}
 			}
 			return;
@@ -155,7 +160,6 @@ class Evernote extends External_Service_Module {
 				$media_id = $this->sync_resource( $resource );
 			}
 		}
-
 		if ( $force_rewrite_content || bin2hex( $note->contentHash ) !== get_post_meta( $post->ID, 'evernote_content_hash', true ) ) {
 			$this->log( 'Content hashes:  new: ' . bin2hex( $note->contentHash ) . ' old: ' . get_post_meta( $post->ID, 'evernote_content_hash', true ) );
 			// we are assuming resources only changed when note content changed
@@ -176,14 +180,14 @@ class Evernote extends External_Service_Module {
 
 		$updated = floor( $note->updated / 1000 );
 		if ( $updated > strtotime( $post->post_modified ) ) {
-			$update_array['post_modified'] = date( 'Y-m-d H:i:s', $updated );
+			$update_array['post_modified'] = gmdate( 'Y-m-d H:i:s', $updated );
 		}
 
 		if ( $note->title !== $post->post_title ) {
 			$update_array['post_title'] = $note->title;
 		}
 
-		if ( ! empty( $note->attributes->sourceURL ) && $note->attributes->sourceURL !== get_post_meta( $post->ID, 'url', true ) ) {
+		if ( ! empty( $note->attributes->sourceURL ) && get_post_meta( $post->ID, 'url', true ) !== $note->attributes->sourceURL ) {
 			if ( ! isset( $update_array['meta_input'] ) ) {
 				$update_array['meta_input'] = array();
 			}
@@ -268,12 +272,20 @@ class Evernote extends External_Service_Module {
 
 		echo "<ul style='list-style:initial'>";
 		foreach ( $stacks as $stackname => $stack ) {
-			echo "<li><b>{$stackname}</b><ul style='list-style:initial; padding-left: 25px'>";
+			printf(
+				'<li><b>%s</b><ul style="list-style:initial; padding-left: 25px">',
+				esc_html( $stackname ),
+			);
 			ksort( $stack );
 
 			foreach ( $stack as $n ) {
-				$checked = ( is_array( $value ) && in_array( $n->guid, $value ) ) ? 'checked' : '';
-				echo "<li><input name='{$option_name}[]' type='checkbox' value='{$n->guid}' {$checked}>{$n->name}</li>";
+				printf(
+					'<li><input name="%s[]" type="checkbox" value="%s" %s>%s</li>',
+					esc_attr( $option_name ),
+					esc_attr( $n->guid ),
+					( is_array( $value ) && in_array( $n->guid, $value, true ) ) ? 'checked' : '',
+					esc_attr( $n->name )
+				);
 			}
 			echo '</ul></li>';
 		}
@@ -353,7 +365,7 @@ class Evernote extends External_Service_Module {
 			$filtered_notes = array_filter(
 				$sync_chunk->notes,
 				function( $note ) use ( $notebooks ) {
-					return ( in_array( $note->notebookGuid, $notebooks ) );
+					return ( in_array( $note->notebookGuid, $notebooks, true ) );
 				}
 			);
 			$filtered_notes = array_values( $filtered_notes );
@@ -407,13 +419,15 @@ class Evernote extends External_Service_Module {
 
 		// If we want to auto-upload all resources
 		// TODO: Should this be a setting?
+		// phpcs:ignore Generic.CodeAnalysis.UnconditionalIfStatement.Found
 		if ( true ) {
 			require_once ABSPATH . 'wp-admin/includes/file.php';
 			require_once ABSPATH . 'wp-admin/includes/media.php';
 			require_once ABSPATH . 'wp-admin/includes/image.php';
 
 			$tempfile = wp_tempnam();
-			file_put_contents( $tempfile, $this->advanced_client->getNoteStore()->getResourceData( $resource->guid ) );
+			global $wp_filesystem;
+			$wp_filesystem->put_contents( $tempfile, $this->advanced_client->getNoteStore()->getResourceData( $resource->guid ) );
 			if ( empty( $resource->attributes->fileName ) ) {
 				$extension = self::get_extension_from_mime( $resource->mime );
 				if ( $extension === false ) {
@@ -444,7 +458,7 @@ class Evernote extends External_Service_Module {
 			$media_id = media_handle_sideload( $file, $notes[0]->ID, null, $data );
 
 			if ( is_wp_error( $media_id ) ) {
-				trigger_error( 'Error uploading file:' . print_r( array( $media_id->get_error_message(), $resource->mime, $filename ), true ), E_USER_WARNING );
+				$this->log( 'Error uploading file:' . print_r( array( $media_id->get_error_message(), $resource->mime, $filename ), true ), E_USER_WARNING );
 				return false;
 			}
 
@@ -622,7 +636,7 @@ class Evernote extends External_Service_Module {
 		$permitted_protocols   = wp_allowed_protocols();
 		$permitted_protocols[] = 'evernote'; // For evernote links
 
-		$permittedENMLAttributes = array(
+		$permitted_enml_attributes = array(
 			'hash',
 			'type',
 			'evernote-link',
@@ -747,7 +761,7 @@ class Evernote extends External_Service_Module {
 		foreach ( $permitted_enml_tags as $tag ) {
 			$kses_list[ $tag ] = array();
 			// Yeah not all attributes are for all tags, but we are going to be lazy
-			foreach ( $permittedENMLAttributes as $attr ) {
+			foreach ( $permitted_enml_attributes as $attr ) {
 				$kses_list[ $tag ][ $attr ] = true;
 			}
 		}
@@ -848,7 +862,7 @@ class Evernote extends External_Service_Module {
 						),
 					)
 				);
-				$this->log( 'Deleting attachments ' . json_encode( $attachments ) );
+				$this->log( 'Deleting attachments ' . wp_json_encode( $attachments ) );
 				foreach ( $attachments as $attachment ) {
 					wp_delete_attachment( $attachment );
 				}
@@ -865,7 +879,7 @@ class Evernote extends External_Service_Module {
 				'post_type'    => $this->notes_module->id,
 				'post_content' => $this->get_note_html( $note ),
 				'post_status'  => 'publish',
-				'post_date'    => date( 'Y-m-d H:i:s', $note->created / 1000 ),
+				'post_date'    => gmdate( 'Y-m-d H:i:s', $note->created / 1000 ),
 				'meta_input'   => array(
 					'evernote_guid'         => $note->guid,
 					'evernote_content_hash' => bin2hex( $note->contentHash ),
