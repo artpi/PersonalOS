@@ -4,11 +4,18 @@
  *
  * @package Personalos
  */
-
+class MockedEvernoteNoteStore {
+	public function getResourceData( $a ) {
+		return 'b';
+	}
+}
 /**
  * Sample test case.
  */
 class EvernoteModuleTest extends WP_UnitTestCase {
+
+	private $module = null;
+	private $note_store = null;
 
 	private function assert_enml_transformed_to_html_and_stored_unserializes_correctly( $enml ) {
 		// Fix for evernote putting end ; in styles.
@@ -129,5 +136,56 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Replaced Test Paragraph', get_post( $post_id )->post_content, 'Content is updated when bodyhash changes' );
 		$this->assertEquals( bin2hex( $note->contentHash ), get_post_meta( $post_id, 'evernote_content_hash', true ), 'Content hash is updated' );
 		wp_delete_post( $post_id, true );
+	}
+
+	public function set_up() {
+		parent::set_up();
+		$this->module = \POS::$modules[2];
+		$this->module->advanced_client = $this->createMock( '\Evernote\AdvancedClient' );
+		$this->note_store = $this->createMock( 'MockedEvernoteNoteStore' );
+		$this->module->advanced_client->expects( $this->any() )
+			->method( 'getNoteStore' )
+			->will( $this->returnValue( $this->note_store ) );
+	}
+
+	function test_upload_file() {
+		$file_to_upload = ABSPATH . '/wp-admin/images/wordpress-logo.png';
+		$content = file_get_contents( $file_to_upload );
+
+		$post_id = wp_insert_post( [
+			'post_title' => 'Placeholder',
+			'post_status' => 'publish',
+			'post_type' => 'notes',
+		] );
+		$note = new \EDAM\Types\Note();
+		$note->title = 'Note with file';
+		$note->guid = 'potato';
+
+		$this->note_store->expects( $this->once() )
+		->method( 'getResourceData' )
+		->with( 'test-resource' )
+		->will( $this->returnValue( $content ) );
+	
+		$this->module->update_note_from_evernote( $note, get_post( $post_id ) );
+		$this->assertEquals( 'potato', get_post_meta( $post_id, 'evernote_guid', true ) );
+
+		$resource = new \EDAM\Types\Resource();
+		$resource->guid = 'test-resource';
+		$resource->noteGuid = 'potato';
+		$resource->attributes = new \EDAM\Types\ResourceAttributes();
+		$resource->attributes->fileName = 'wordpress-logo.png';
+		$resource->data = new \EDAM\Types\Data();
+		$resource->data->bodyHash = md5( $content, true );
+		$resource->mime = 'image/png';
+	
+		$media_id = $this->module->sync_resource( $resource, $file_to_upload );
+		$this->assertNotFalse( $media_id );
+		$media = get_post( $media_id );
+		$this->assertEquals( 'attachment', $media->post_type );
+		$this->assertEquals( 'wordpress-logo', $media->post_title );
+		$this->assertEquals( 'image/png', get_post_mime_type( $media_id ) );
+		// This is important!
+		$this->assertEquals( 'private', $media->post_status );
+		$this->assertEquals( $post_id, $media->post_parent );
 	}
 }
