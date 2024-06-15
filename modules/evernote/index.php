@@ -427,6 +427,7 @@ class Evernote extends External_Service_Module {
 
 			$tempfile = wp_tempnam();
 			global $wp_filesystem;
+			WP_Filesystem();
 			$wp_filesystem->put_contents( $tempfile, $this->advanced_client->getNoteStore()->getResourceData( $resource->guid ) );
 			if ( empty( $resource->attributes->fileName ) ) {
 				$extension = self::get_extension_from_mime( $resource->mime );
