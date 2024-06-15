@@ -45,6 +45,7 @@ class POS {
         require_once( plugin_dir_path( __FILE__ ) . 'modules/module.php' );
         require_once( plugin_dir_path( __FILE__ ) . 'modules/notes/index.php' );
         require_once( plugin_dir_path( __FILE__ ) . 'modules/readwise/index.php' );
+        require_once( plugin_dir_path( __FILE__ ) . 'modules/evernote/index.php' );
         require_once( plugin_dir_path( __FILE__ ) . 'modules/todo/index.php' );
         require_once( plugin_dir_path( __FILE__ ) . 'modules/openai/openai.php' );
         require_once( plugin_dir_path( __FILE__ ) . 'modules/openai/transcription.php' );
@@ -55,6 +56,7 @@ class POS {
         self::$modules = [
             $notes,
             new Readwise( $notes ),
+            new Evernote( $notes ),
             $todo,
             $openai,
             new POS_Transcription( $openai, $notes ),

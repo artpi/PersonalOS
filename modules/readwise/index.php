@@ -1,27 +1,5 @@
 <?php
 
-Class External_Service_Module extends POS_Module {
-    public $id = 'external_service';
-    public $name = "External Service";
-
-    function get_sync_hook_name() {
-        return 'pos_sync_' . $this->id;
-    }
-
-    function register_sync( $interal = 'hourly' ) {
-        $hook_name = $this->get_sync_hook_name();
-        add_action( $hook_name, array( $this, 'sync' ) );
-        if ( ! wp_next_scheduled( $hook_name ) ) {
-            wp_schedule_event( time(), $interal, $hook_name );
-        }
-    }
-
-    public function sync() {
-        error_log( 'EMPTY SYNC' );
-    }
-}
-
-
 Class Readwise extends External_Service_Module {
     public $id = 'readwise';
     public $name = "Readwise";

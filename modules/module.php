@@ -67,6 +67,20 @@ Class POS_Module {
         register_post_type( $this->id,$defaults );
     }
 
+    public function jetpack_filter_whitelist_cpt_sync_with_dotcom( $types ) {
+        $types[] = $this->id;
+        return $types;
+    }
+
+    /**
+     * Add the custom post type to the Jetpack whitelist for syncing with WordPress.com
+     * 
+     * @see https://developer.jetpack.com/hooks/rest_api_allowed_post_types/
+     */
+    public function jetpack_whitelist_cpt_with_dotcom() {
+        add_filter( 'rest_api_allowed_post_types', [ $this, 'jetpack_filter_whitelist_cpt_sync_with_dotcom' ] );
+    }
+
     function meta_auth_callback() {
         return current_user_can('edit_posts');
     }
@@ -80,6 +94,23 @@ Class POS_Module {
             'type'              => 'string',
         ] );
     }
+
+    function log( $message, $level = 'DEBUG' ) {
+        $map = [
+            E_USER_NOTICE => 'NOTICE',
+            E_USER_WARNING => 'WARNING',
+            E_USER_ERROR => 'ERROR',
+        ];
+
+        if ( in_array( $level, $map ) ) {
+            $level = $map[ $level ];
+        } else if ( ! is_string ( $level ) ) {
+            $level = 'DEBUG';
+        }
+
+        //phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+        error_log( "[{$level}] [{$this->id}] {$message}" );
+    }
 }
 
 class POS_CPT_Rest_Controller extends WP_REST_Posts_Controller {
@@ -92,3 +123,25 @@ class POS_CPT_Rest_Controller extends WP_REST_Posts_Controller {
         return current_user_can( 'read_post', $post->ID );
     } 
 }
+
+Class External_Service_Module extends POS_Module {
+    public $id = 'external_service';
+    public $name = "External Service";
+
+    function get_sync_hook_name() {
+        return 'pos_sync_' . $this->id;
+    }
+
+    function register_sync( $interal = 'hourly' ) {
+        $hook_name = $this->get_sync_hook_name();
+        add_action( $hook_name, array( $this, 'sync' ) );
+        if ( ! wp_next_scheduled( $hook_name ) ) {
+            wp_schedule_event( time(), $interal, $hook_name );
+        }
+    }
+
+    public function sync() {
+        error_log( 'EMPTY SYNC' );
+    }
+}
+

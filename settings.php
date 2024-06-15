@@ -35,12 +35,17 @@ class POS_Settings {
                         function() use ( $setting, $option_name ) {
                             $value = get_option( $option_name );
 
-                            printf(
-                                '<input class="large-text" type="text" name="%1$s" id="pos_field_%1$s" value="%2$s"><br/><label for="pos_field_%1$s">%3$s</label>',
-                                $option_name,
-                                $value,
-                                $setting['label'] ?? ''
-                            );
+                            if ( $setting['type'] === 'text' ) {
+                                printf(
+                                    '<input class="large-text" type="text" name="%1$s" id="pos_field_%1$s" value="%2$s"><br/><label for="pos_field_%1$s">%3$s</label>',
+                                    $option_name,
+                                    $value,
+                                    $setting['label'] ?? ''
+                                );
+                            } elseif ( $setting['type'] === 'callback' && is_callable( $setting['callback'] ) ) {
+                                call_user_func( $setting['callback'], $option_name, $value, $setting );
+                            }
+
                         },
                         'pos',
                         'pos_section_' . $module->id,

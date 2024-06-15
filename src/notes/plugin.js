@@ -94,19 +94,22 @@ export default function NotesPlugin() {
 		return select( 'core/editor' ).getEditedPostAttribute( 'meta' ) ?? {};
 	} );
 
+	const postId = useSelect( ( select ) => {
+		return select( 'core/editor' ).getCurrentPostId();
+	} );
 
 	const isAutosaving = useSelect( ( select ) => {
 		return select( 'core/editor' ).isAutosavingPost();
 	} );
 	const { savePost } = useDispatch( 'core/editor' );
 
-	useEffect( () => {
-		// We are catching a transition from saving to not-autosaving anymore.
-		if ( ! isAutosaving ) {
-			console.log( 'Just auto saved' );
-			savePost();
-		}
-	}, [ isAutosaving ] );
+	// useEffect( () => {
+	// 	// We are catching a transition from saving to not-autosaving anymore.
+	// 	if ( ! isAutosaving ) {
+	// 		console.log( 'Just auto saved' );
+	// 		savePost();
+	// 	}
+	// }, [ isAutosaving ] );
 
 
 	return (
@@ -125,6 +128,21 @@ export default function NotesPlugin() {
 							}
 						>
 							Open on Readwise
+						</a>
+					</p>
+				</PluginDocumentSettingPanel>
+			) }
+			{ metaFields[ 'evernote_guid' ] && (
+				<PluginDocumentSettingPanel
+					name="notes-evernote"
+					title="Evernote"
+				>
+					<p>
+						<a
+							target="_blank"
+							href={ '/?rest_route=/pos/v1/evernote-redirect/' + postId }
+						>
+							Open in an evernote app
 						</a>
 					</p>
 				</PluginDocumentSettingPanel>
