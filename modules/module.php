@@ -67,6 +67,20 @@ Class POS_Module {
         register_post_type( $this->id,$defaults );
     }
 
+    public function jetpack_filter_whitelist_cpt_sync_with_dotcom( $types ) {
+        $types[] = $this->id;
+        return $types;
+    }
+
+    /**
+     * Add the custom post type to the Jetpack whitelist for syncing with WordPress.com
+     * 
+     * @see https://developer.jetpack.com/hooks/rest_api_allowed_post_types/
+     */
+    public function jetpack_whitelist_cpt_with_dotcom() {
+        add_filter( 'rest_api_allowed_post_types', [ $this, 'jetpack_filter_whitelist_cpt_sync_with_dotcom' ] );
+    }
+
     function meta_auth_callback() {
         return current_user_can('edit_posts');
     }

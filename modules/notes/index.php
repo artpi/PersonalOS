@@ -25,6 +25,7 @@ class Notes_Module extends POS_Module {
         $this->register_post_type( [
             'taxonomies' => [ 'notebook', 'post_tag' ],
         ] );
+        $this->jetpack_whitelist_cpt_with_dotcom();
 
         add_action( 'save_post_' . $this->id, array( $this, 'autopublish_drafts' ), 10, 3 );
         add_action( 'wp_dashboard_setup', array( $this,'init_admin_widgets' ) );
