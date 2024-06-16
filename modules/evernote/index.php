@@ -17,6 +17,7 @@ class Evernote extends External_Service_Module {
 	public $simple_client   = null;
 	public $advanced_client = null;
 	private $token          = null;
+	public $synced_notebooks = array();
 
 	// phpcs:disable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 	// phpcs:disable WordPress.PHP.DevelopmentFunctions.error_log_print_r
@@ -326,8 +327,8 @@ class Evernote extends External_Service_Module {
 	public function sync() {
 		$this->log( 'Syncing Evernote triggering ' );
 		$this->connect();
-		$notebooks = $this->get_setting( 'synced_notebooks' );
-		if ( ! $notebooks || ! $this->advanced_client ) {
+		$this->synced_notebooks = $this->get_setting( 'synced_notebooks' );
+		if ( empty( $this->synced_notebooks ) || ! $this->advanced_client ) {
 			return array();
 		}
 		$usn               = get_option( $this->get_setting_option_name( 'usn' ), 0 );
@@ -376,19 +377,9 @@ class Evernote extends External_Service_Module {
 		}
 
 		if ( ! empty( $sync_chunk->notes ) ) {
-
-			// We have to manually filter for the notebooks we marked
-			$filtered_notes = array_filter(
-				$sync_chunk->notes,
-				function( $note ) use ( $notebooks ) {
-					return ( in_array( $note->notebookGuid, $notebooks, true ) );
-				}
-			);
-			$filtered_notes = array_values( $filtered_notes );
-
 			// We are going to be updating notes and we don't want the hook to loop
 			remove_action( 'save_post_' . $this->notes_module->id, array( $this, 'sync_note_to_evernote' ), 10 );
-			foreach ( $filtered_notes as $note ) {
+			foreach ( $sync_chunk->notes as $note ) {
 				$this->sync_note( $note );
 			}
 			add_action( 'save_post_' . $this->notes_module->id, array( $this, 'sync_note_to_evernote' ), 10, 3 );
@@ -890,6 +881,9 @@ class Evernote extends External_Service_Module {
 			$this->update_note_from_evernote( $note, $existing, true );
 
 		} elseif ( empty( $note->deleted ) ) {
+			if ( ! in_array( $note->notebookGuid, $this->synced_notebooks ) ) {
+				return;
+			}
 			$this->log( "Evernote Creating {$note->title}" );
 			$data = array(
 				'post_title'   => $note->title,
