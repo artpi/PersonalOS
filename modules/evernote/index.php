@@ -10,13 +10,13 @@
  *
  */
 class Evernote extends External_Service_Module {
-	public $id              = 'evernote';
-	public $name            = 'Evernote';
-	public $description     = 'Syncs with evernote service';
-	public $parent_notebook = null;
-	public $simple_client   = null;
-	public $advanced_client = null;
-	private $token          = null;
+	public $id               = 'evernote';
+	public $name             = 'Evernote';
+	public $description      = 'Syncs with evernote service';
+	public $parent_notebook  = null;
+	public $simple_client    = null;
+	public $advanced_client  = null;
+	private $token           = null;
 	public $synced_notebooks = array();
 
 	// phpcs:disable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
@@ -78,18 +78,18 @@ class Evernote extends External_Service_Module {
 			$id,
 			'notebook',
 			array(
-				'fields'     => 'ids',
-				'meta_key'   => 'evernote_notebook_guid',
+				'fields'   => 'ids',
+				'meta_key' => 'evernote_notebook_guid',
 				//'meta_value' => $this->get_setting( 'synced_notebooks' ),
 			)
 		);
 		if ( empty( $notebooks ) ) {
 			return false;
 		}
-		return [
+		return array(
 			'guid' => get_term_meta( $notebooks[0], 'evernote_notebook_guid', true ),
-			'id' => $notebooks[0],
-		];
+			'id'   => $notebooks[0],
+		);
 	}
 
 	/**
@@ -128,7 +128,7 @@ class Evernote extends External_Service_Module {
 		// There is something like "main category" in WordPress, but whatever
 		$notebook       = new \Evernote\Model\Notebook();
 		$notebook->guid = $this->get_note_evernote_notebook_guid( $post->ID )['guid'];
-		if ( ! $notebook->guid || ! in_array( $notebook->guid, $this->get_setting( 'synced_notebooks' ), true ) ){
+		if ( ! $notebook->guid || ! in_array( $notebook->guid, $this->get_setting( 'synced_notebooks' ), true ) ) {
 			return;
 		}
 
@@ -208,7 +208,7 @@ class Evernote extends External_Service_Module {
 		$current_notebook = $this->get_note_evernote_notebook_guid( $post->ID );
 		if ( ! $current_notebook ) {
 			wp_set_object_terms( $post->ID, $this->get_notebook_by_guid( $note->notebookGuid ), 'notebook', true );
-		} else if ( $current_notebook['guid'] !== $note->notebookGuid ) {
+		} elseif ( $current_notebook['guid'] !== $note->notebookGuid ) {
 			wp_remove_object_terms( $post->ID, $current_notebook['id'], 'notebook' );
 			wp_set_object_terms( $post->ID, $this->get_notebook_by_guid( $note->notebookGuid ), 'notebook', true );
 		}
