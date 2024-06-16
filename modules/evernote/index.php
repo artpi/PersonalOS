@@ -20,9 +20,6 @@ class Evernote extends External_Service_Module {
 	public $synced_notebooks = array();
 
 	// phpcs:disable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-	// phpcs:disable WordPress.PHP.DevelopmentFunctions.error_log_print_r
-	// phpcs:disable WordPress.PHP.YodaConditions.NotYoda
-	// phpcs:disable Squiz.PHP.CommentedOutCode.Found
 	public $settings = array(
 		'token'            => array(
 			'type'  => 'text',

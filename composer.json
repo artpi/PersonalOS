@@ -19,7 +19,7 @@
 	},
 	"scripts": {
 		"lint": [
-			"phpcs --standard=phpcs.xml ./"
+			"phpcs -s --standard=phpcs.xml ./"
 		],
 		"phpcbf": [
 			"phpcbf --standard=phpcs.xml ./"
