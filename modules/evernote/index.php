@@ -71,6 +71,26 @@ class Evernote extends External_Service_Module {
 		echo $file->data->body;
 		die();
 	}
+
+	function get_note_evernote_notebook_guid( int $id ) : array|false {
+		$notebooks = wp_get_post_terms(
+			$id,
+			'notebook',
+			array(
+				'fields'     => 'ids',
+				'meta_key'   => 'evernote_notebook_guid',
+				//'meta_value' => $this->get_setting( 'synced_notebooks' ),
+			)
+		);
+		if ( empty( $notebooks ) ) {
+			return false;
+		}
+		return [
+			'guid' => get_term_meta( $notebooks[0], 'evernote_notebook_guid', true ),
+			'id' => $notebooks[0],
+		];
+	}
+
 	/**
 	 * This is hooked into the save_post action of the notes module.
 	 * Every time a post is updated, this will check if it is in the synced notebooks and sync it to evernote.
@@ -104,22 +124,12 @@ class Evernote extends External_Service_Module {
 			return;
 		}
 
-		// is this in one of ev notebooks?
-		$notebooks = wp_get_post_terms(
-			$post->ID,
-			'notebook',
-			array(
-				'fields'     => 'ids',
-				'meta_key'   => 'evernote_notebook_guid',
-				'meta_value' => $this->get_setting( 'synced_notebooks' ),
-			)
-		);
-		if ( empty( $notebooks ) ) {
-			return;
-		}
 		// There is something like "main category" in WordPress, but whatever
 		$notebook       = new \Evernote\Model\Notebook();
-		$notebook->guid = get_term_meta( $notebooks[0], 'evernote_notebook_guid', true );
+		$notebook->guid = $this->get_note_evernote_notebook_guid( $post->ID )['guid'];
+		if ( ! $notebook->guid || ! in_array( $notebook->guid, $this->get_setting( 'synced_notebooks' ), true ) ){
+			return;
+		}
 
 		// edam note
 		$note               = new \EDAM\Types\Note();
@@ -194,7 +204,13 @@ class Evernote extends External_Service_Module {
 			$update_array['meta_input']['url'] = $note->attributes->sourceURL;
 		}
 
-		// TODO: change notebook too
+		$current_notebook = $this->get_note_evernote_notebook_guid( $post->ID );
+		if ( ! $current_notebook ) {
+			wp_set_object_terms( $post->ID, $this->get_notebook_by_guid( $note->notebookGuid ), 'notebook', true );
+		} else if ( $current_notebook['guid'] !== $note->notebookGuid ) {
+			wp_remove_object_terms( $post->ID, $current_notebook['id'], 'notebook' );
+			wp_set_object_terms( $post->ID, $this->get_notebook_by_guid( $note->notebookGuid ), 'notebook', true );
+		}
 		// We are removing this filter so that kses wont strip the `evernote` scheme
 		//$post_kses_filter_removed = remove_filter( 'content_save_pre', 'wp_filter_post_kses' );
 		if ( count( $update_array ) > 0 ) {

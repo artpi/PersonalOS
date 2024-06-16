@@ -102,6 +102,12 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 	}
 
 	public function test_create_note_from_evernote() {
+		$term = wp_insert_term( 'Evernote test notebook', 'notebook' );
+		update_term_meta( $term['term_id'], 'evernote_notebook_guid', 'test-notebook-guid' );
+		$term2 = wp_insert_term( 'Evernote test notebook 2', 'notebook' );
+		update_term_meta( $term2['term_id'], 'evernote_notebook_guid', 'test-notebook-guid-2' );
+	
+
 		$module = \POS::$modules[2];
 		$post_id = wp_insert_post( [
 			'post_title' => 'WordPress',
@@ -113,6 +119,7 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$note = new \EDAM\Types\Note();
 		$note->title = 'Evernote';
 		$note->guid = 'potato';
+		$note->notebookGuid = 'test-notebook-guid';
 		$note->content = $module::wrap_note( <<<EOF
 			<h1>Test</h1>
 			<div>First Test paragraph</div>
@@ -129,8 +136,13 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 			<h1>Test</h1>
 			<div>Replaced Test Paragraph</div>
 			EOF );
+		$note->notebookGuid = 'test-notebook-guid-2';
 		$module->update_note_from_evernote( $note, get_post( $post_id ) );
 		$this->assertStringNotContainsString( 'Replaced Test Paragraph', get_post( $post_id )->post_content, 'Content remains unchanged if bodyhash is the same' );
+		$updated_terms = wp_get_post_terms( $post_id, 'notebook', [ 'fields' => 'ids' ] );
+		$this->assertContains( $term2['term_id'], $updated_terms, 'New category should be present in: ' . print_r( $updated_terms, true ) );
+		$this->assertNotContains( $term['term_id'], $updated_terms, 'Old notebok is not assigned' );
+
 		$note->contentHash = md5( $note->content, true );
 		$module->update_note_from_evernote( $note, get_post( $post_id ) );
 		$this->assertStringContainsString( 'Replaced Test Paragraph', get_post( $post_id )->post_content, 'Content is updated when bodyhash changes' );
@@ -146,6 +158,9 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$this->module->advanced_client->expects( $this->any() )
 			->method( 'getNoteStore' )
 			->will( $this->returnValue( $this->note_store ) );
+
+		$term = wp_insert_term( 'Evernote default notebook', 'notebook' );
+		update_term_meta( $term['term_id'], 'evernote_notebook_guid', 'default-notebook' );
 	}
 
 	function test_upload_file() {
@@ -160,6 +175,7 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$note = new \EDAM\Types\Note();
 		$note->title = 'Note with file';
 		$note->guid = 'potato';
+		$note->notebookGuid = 'default-notebook';
 
 		$this->note_store->expects( $this->once() )
 		->method( 'getResourceData' )
@@ -187,5 +203,26 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		// This is important!
 		$this->assertEquals( 'private', $media->post_status );
 		$this->assertEquals( $post_id, $media->post_parent );
+	}
+
+	public function test_get_note_evernote_notebook_guid() {
+		$otherterm1 = wp_insert_term( 'Other notebook', 'notebook' );
+		$otherterm2 = wp_insert_term( 'Yet another notebook', 'notebook' );
+		$term = wp_insert_term( 'Evernote test notebook', 'notebook' );
+		update_term_meta( $term['term_id'], 'evernote_notebook_guid', 'test-guid' );
+
+		$post_id = wp_insert_post( [
+			'post_title' => 'Test post',
+			'post_content' => 'Test WordPress content',
+			'post_status' => 'publish',
+			'post_type' => 'notes',
+			'meta_input' => [
+				'evernote_guid' => 'post-guid',
+			],
+		] );
+		wp_set_post_terms( $post_id, [ $otherterm1['term_id'], $otherterm2['term_id'] , $term['term_id'] ], 'notebook' );
+		$notebook = $this->module->get_note_evernote_notebook_guid( $post_id );
+		$this->assertEquals( 'test-guid', $notebook['guid'] );
+		$this->assertEquals( $term['term_id'], $notebook['id'] );
 	}
 }
