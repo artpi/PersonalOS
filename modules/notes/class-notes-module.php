@@ -35,7 +35,21 @@ class Notes_Module extends POS_Module {
 
 		add_action( 'save_post_' . $this->id, array( $this, 'autopublish_drafts' ), 10, 3 );
 		add_action( 'wp_dashboard_setup', array( $this, 'init_admin_widgets' ) );
-		$this->register_block( 'note' );
+
+		$this->register_block(
+			'note',
+			array(
+				'render_callback' => array( $this, 'render_note_block' ),
+			)
+		);
+	}
+
+	public function render_note_block( $attributes, $content ) {
+		$post = get_post( $attributes['note_id'] );
+		if ( ! $post ) {
+			return $content;
+		}
+		return $post->post_content;
 	}
 
 	public function autopublish_drafts( $post_id, $post, $updating ) {
