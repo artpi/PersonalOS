@@ -52,9 +52,11 @@ class Evernote_Module extends External_Service_Module {
 	}
 
 	public function proxy_media() {
+		//phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! isset( $_GET['evernote_guid'] ) ) {
 			return;
 		}
+		//phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$guid = sanitize_text_field( $_GET['evernote_guid'] );
 		$this->connect();
 		// TODO figure out this streaming trick
@@ -878,7 +880,7 @@ class Evernote_Module extends External_Service_Module {
 			$this->update_note_from_evernote( $note, $existing, true );
 
 		} elseif ( empty( $note->deleted ) ) {
-			if ( ! in_array( $note->notebookGuid, $this->synced_notebooks ) ) {
+			if ( ! in_array( $note->notebookGuid, $this->synced_notebooks, true ) ) {
 				return;
 			}
 			$this->log( "Evernote Creating {$note->title}" );

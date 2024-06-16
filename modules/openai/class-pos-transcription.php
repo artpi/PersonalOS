@@ -75,7 +75,7 @@ class POS_Transcription extends POS_Module {
 		);
 		curl_setopt( $ch, CURLOPT_POST, 1 );
 		$file_path = get_attached_file( $attachment_id );
-		$cfile    = new CURLFile( $file_path, $file['mime_type'] );
+		$cfile = new CURLFile( $file_path, $file['mime_type'] );
 		curl_setopt(
 			$ch,
 			CURLOPT_POSTFIELDS,

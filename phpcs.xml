@@ -13,6 +13,7 @@
 		<exclude name="WordPress.PHP.YodaConditions.NotYoda"/>
 		<exclude name="Squiz.PHP.CommentedOutCode"/>
 		<exclude name="WordPress.PHP.DevelopmentFunctions.error_log_print_r"/>
+		<exclude name="Generic.Formatting.MultipleStatementAlignment.NotSameWarning" />
 	</rule>
 	<rule ref="WordPress.WP.I18n">
 		<properties>

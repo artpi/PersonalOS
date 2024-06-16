@@ -82,6 +82,7 @@ class POS_Settings {
 
 		// check if the user have submitted the settings
 		// WordPress will add the "settings-updated" $_GET parameter to the url
+		//phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( isset( $_GET['settings-updated'] ) ) {
 			// add settings saved message with the class of "updated"
 			add_settings_error( 'pos_messages', 'wporg_message', __( 'Settings Saved', 'personalos' ), 'updated' );
