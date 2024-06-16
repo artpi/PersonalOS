@@ -123,12 +123,7 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$note->title        = 'Evernote';
 		$note->guid         = 'potato';
 		$note->notebookGuid = 'test-notebook-guid';
-		$note->content      = $module::wrap_note(
-			<<<EOF
-			<h1>Test</h1>
-			<div>First Test paragraph</div>
-        EOF
-		);
+		$note->content      = $module::wrap_note( '<h1>Test</h1><div>First Test paragraph</div>' );
 		$note->contentHash  = md5( $note->content, true );
 		$note->created      = time() * 1000;
 
@@ -137,12 +132,7 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$this->assertEquals( 'Evernote', $updated_note->post_title );
 		$this->assertStringContainsString( 'First Test paragraph', $updated_note->post_content );
 
-		$note->content      = $module::wrap_note(
-			<<<EOF
-			<h1>Test</h1>
-			<div>Replaced Test Paragraph</div>
-            EOF
-		);
+		$note->content      = $module::wrap_note( '<h1>Test</h1><div>Replaced Test Paragraph</div>' );
 		$note->notebookGuid = 'test-notebook-guid-2';
 		$module->update_note_from_evernote( $note, get_post( $post_id ) );
 		$this->assertStringNotContainsString( 'Replaced Test Paragraph', get_post( $post_id )->post_content, 'Content remains unchanged if bodyhash is the same' );
