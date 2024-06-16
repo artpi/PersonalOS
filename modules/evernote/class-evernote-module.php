@@ -9,7 +9,7 @@
  * TODO: when something goes wrong in syncing a chunk, the rest of the changes are not synced. we should probably update USN after each successful note so that when we have an error, sync is picked up from the point it failed.
  *
  */
-class Evernote extends External_Service_Module {
+class Evernote_Module extends External_Service_Module {
 	public $id               = 'evernote';
 	public $name             = 'Evernote';
 	public $description      = 'Syncs with evernote service';
@@ -539,10 +539,10 @@ class Evernote extends External_Service_Module {
 			$content = $matches[1];
 		}
 
-		$content = preg_replace_callback( '/<en-media(?P<pre>[^>]*?)hash="(?P<hash>[a-f0-9]+)"(?P<middle>[^>]*?)type="(?P<type>[^"]+)"(?P<post>[^>]*?)\/>/', array( '\Evernote', 'en_media_replace_callback' ), $content );
-		$content = preg_replace_callback( '/<en-media(?P<pre>[^>]*?)type="(?P<type>[^"]+)"(?P<middle>[^>]*?)hash="(?P<hash>[a-f0-9]+)"(?P<post>[^>]*?)\/>/', array( '\Evernote', 'en_media_replace_callback' ), $content );
-		$content = preg_replace_callback( '/<en-media(?P<pre>[^>]*?)hash="(?P<hash>[a-f0-9]+)"(?P<middle>[^>]*?)type="(?P<type>[^"]+)"(?P<post>[^>]*?)><\/en-media>/', array( '\Evernote', 'en_media_replace_callback' ), $content );
-		$content = preg_replace_callback( '/<en-media(?P<pre>[^>]*?)type="(?P<type>[^"]+)"(?P<middle>[^>]*?)hash="(?P<hash>[a-f0-9]+)"(?P<post>[^>]*?)><\/en-media>/', array( '\Evernote', 'en_media_replace_callback' ), $content );
+		$content = preg_replace_callback( '/<en-media(?P<pre>[^>]*?)hash="(?P<hash>[a-f0-9]+)"(?P<middle>[^>]*?)type="(?P<type>[^"]+)"(?P<post>[^>]*?)\/>/', array( __CLASS__, 'en_media_replace_callback' ), $content );
+		$content = preg_replace_callback( '/<en-media(?P<pre>[^>]*?)type="(?P<type>[^"]+)"(?P<middle>[^>]*?)hash="(?P<hash>[a-f0-9]+)"(?P<post>[^>]*?)\/>/', array( __CLASS__, 'en_media_replace_callback' ), $content );
+		$content = preg_replace_callback( '/<en-media(?P<pre>[^>]*?)hash="(?P<hash>[a-f0-9]+)"(?P<middle>[^>]*?)type="(?P<type>[^"]+)"(?P<post>[^>]*?)><\/en-media>/', array( __CLASS__, 'en_media_replace_callback' ), $content );
+		$content = preg_replace_callback( '/<en-media(?P<pre>[^>]*?)type="(?P<type>[^"]+)"(?P<middle>[^>]*?)hash="(?P<hash>[a-f0-9]+)"(?P<post>[^>]*?)><\/en-media>/', array( __CLASS__, 'en_media_replace_callback' ), $content );
 		$content = preg_replace_callback(
 			'/<en-todo .*?checked="(?P<checked>[^"]+)"[^\/]*?\/>/',
 			function( $match ) {

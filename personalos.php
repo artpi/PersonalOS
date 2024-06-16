@@ -1,4 +1,4 @@
-<?php
+<?php //phpcs:disable WordPress.Files.FileName.InvalidClassFileName
 
 /**
  * Plugin Name:     Personal OS
@@ -43,13 +43,13 @@ class POS {
 		require plugin_dir_path( __FILE__ ) . 'dashboard.php';
 	}
 	public static function load_modules() {
-		require_once plugin_dir_path( __FILE__ ) . 'modules/module.php';
-		require_once plugin_dir_path( __FILE__ ) . 'modules/notes/index.php';
-		require_once plugin_dir_path( __FILE__ ) . 'modules/readwise/index.php';
-		require_once plugin_dir_path( __FILE__ ) . 'modules/evernote/index.php';
-		require_once plugin_dir_path( __FILE__ ) . 'modules/todo/index.php';
-		require_once plugin_dir_path( __FILE__ ) . 'modules/openai/openai.php';
-		require_once plugin_dir_path( __FILE__ ) . 'modules/openai/transcription.php';
+		require_once plugin_dir_path( __FILE__ ) . 'modules/class-pos-module.php';
+		require_once plugin_dir_path( __FILE__ ) . 'modules/notes/class-notes-module.php';
+		require_once plugin_dir_path( __FILE__ ) . 'modules/readwise/class-readwise.php';
+		require_once plugin_dir_path( __FILE__ ) . 'modules/evernote/class-evernote-module.php';
+		require_once plugin_dir_path( __FILE__ ) . 'modules/todo/class-todo-module.php';
+		require_once plugin_dir_path( __FILE__ ) . 'modules/openai/class-openai-module.php';
+		require_once plugin_dir_path( __FILE__ ) . 'modules/openai/class-pos-transcription.php';
 
 		$todo          = new TODO_Module();
 		$notes         = new Notes_Module();
@@ -57,12 +57,12 @@ class POS {
 		self::$modules = array(
 			$notes,
 			new Readwise( $notes ),
-			new Evernote( $notes ),
+			new Evernote_Module( $notes ),
 			$todo,
 			$openai,
 			new POS_Transcription( $openai, $notes ),
 		);
-		require_once plugin_dir_path( __FILE__ ) . 'settings.php';
+		require_once plugin_dir_path( __FILE__ ) . 'class-pos-settings.php';
 		$settings = new POS_Settings( self::$modules );
 	}
 }

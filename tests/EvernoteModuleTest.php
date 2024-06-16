@@ -20,12 +20,12 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 	private function assert_enml_transformed_to_html_and_stored_unserializes_correctly( $enml ) {
 		// Fix for evernote putting end ; in styles.
 		$enml        = str_replace( ';"', '"', $enml );
-		$transformed = \Evernote::enml2html( $enml );
+		$transformed = \Evernote_Module::enml2html( $enml );
 		$post        = new \WP_Post( (object) array( 'post_content' => $transformed ) );
 		// We are running this through post sanitization so we know we are not losing valuable data in this process
 		$post              = sanitize_post( $post, 'db' );
 		$saved             = wp_unslash( $post->post_content );
-		$twice_transformed = \Evernote::html2enml( $saved );
+		$twice_transformed = \Evernote_Module::html2enml( $saved );
 		$this->assertXmlStringEqualsXmlString( trim( $enml ), trim( $twice_transformed ), "ENML got mangled. Transformed: \n{$transformed}\n Stored in DB:\n{$saved}" );
 		// now real post insert
 		$note          = new \EDAM\Types\Note();
@@ -95,12 +95,12 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 	}
 
 	public function test_extension_from_mime() {
-		$this->assertEquals( 'png', \Evernote::get_extension_from_mime( 'image/png' ) );
-		$this->assertEquals( 'jpg', \Evernote::get_extension_from_mime( 'image/jpeg' ) );
-		$this->assertEquals( 'mp4', \Evernote::get_extension_from_mime( 'video/mp4' ) );
+		$this->assertEquals( 'png', \Evernote_Module::get_extension_from_mime( 'image/png' ) );
+		$this->assertEquals( 'jpg', \Evernote_Module::get_extension_from_mime( 'image/jpeg' ) );
+		$this->assertEquals( 'mp4', \Evernote_Module::get_extension_from_mime( 'video/mp4' ) );
 		// Evernote has 'audio/m4a' mime type for m4a files
-		$this->assertEquals( 'm4a', \Evernote::get_extension_from_mime( 'audio/m4a' ) );
-		$this->assertEquals( 'amr', \Evernote::get_extension_from_mime( 'audio/amr' ) );
+		$this->assertEquals( 'm4a', \Evernote_Module::get_extension_from_mime( 'audio/m4a' ) );
+		$this->assertEquals( 'amr', \Evernote_Module::get_extension_from_mime( 'audio/amr' ) );
 	}
 
 	public function test_create_note_from_evernote() {
