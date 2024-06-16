@@ -4,7 +4,7 @@ class CRM_Module extends POS_Module {
 	public $id   = 'crm';
 	public $name = 'CRM';
 
-	function add_meta_box() {
+	public function add_meta_box() {
 		add_meta_box(
 			'crm_person_meta_box',
 			'Person Details',
@@ -14,7 +14,7 @@ class CRM_Module extends POS_Module {
 			'high'
 		);
 	}
-	function display_crm_person_meta_box() {
+	public function display_crm_person_meta_box() {
 		global $post;
 		$custom  = get_post_custom( $post->ID );
 		$phone   = $custom['phone'][0];
@@ -23,20 +23,20 @@ class CRM_Module extends POS_Module {
 		?>
 		<div>
 			<label for="phone">Phone</label>
-			<input name="phone" value="<?php echo $phone; ?>">
+			<input name="phone" value="<?php echo esc_attr( $phone ); ?>">
 		</div>
 		<div>
 			<label for="email">Email</label>
-			<input name="email" value="<?php echo $email; ?>">
+			<input name="email" value="<?php echo esc_attr( $email ); ?>">
 		</div>
 		<div>
 			<label for="address">Address</label>
-			<input name="address" value="<?php echo $address; ?>">
+			<input name="address" value="<?php echo esc_attr( $address ); ?>">
 		</div>
 		<?php
 	}
 
-	function register() {
+	public function register() {
 		register_post_type(
 			$this->id . '_person',
 			array(

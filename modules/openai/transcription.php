@@ -1,5 +1,10 @@
 <?php
 
+//phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_setopt
+//phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_init
+//phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_exec
+//phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_close
+
 class POS_Transcription extends POS_Module {
 	public $id          = 'transcription';
 	public $name        = 'Transcription';
@@ -7,7 +12,7 @@ class POS_Transcription extends POS_Module {
 	private $openai     = null;
 	private $notes      = null;
 
-	function __construct( $openai, $notes ) {
+	public function __construct( $openai, $notes ) {
 		$this->openai = $openai;
 		$this->notes  = $notes;
 		$this->register_meta( 'pos_transcribe', 'attachment' );
@@ -20,7 +25,7 @@ class POS_Transcription extends POS_Module {
 		if ( $this->transcription_checks( $attachment_id ) !== true ) {
 			return;
 		}
-		error_log( 'Scheduling transcription for ' . $attachment_id );
+		$this->log( 'Scheduling transcription for ' . $attachment_id );
 		wp_schedule_single_event( time(), 'pos_' . $this->id, array( $attachment_id ) );
 	}
 
@@ -32,7 +37,7 @@ class POS_Transcription extends POS_Module {
 		}
 
 		if ( $last_transcription && is_numeric( $last_transcription ) && $last_transcription > 1000 ) {
-			return ( 'This file was already transcribed on ' . date( 'Y-m-d', $last_transcription ) );
+			return ( 'This file was already transcribed on ' . gmdate( 'Y-m-d', $last_transcription ) );
 		}
 
 		$file = wp_get_attachment_metadata( $attachment_id );
@@ -51,10 +56,10 @@ class POS_Transcription extends POS_Module {
 	}
 
 	public function transcribe( $attachment_id ) {
-		error_log( 'Transcribing ' . $attachment_id );
+		$this->log( 'Transcribing ' . $attachment_id );
 		$checks = $this->transcription_checks( $attachment_id );
 		if ( $checks !== true ) {
-			error_log( $checks );
+			$this->log( $checks );
 			return;
 		}
 		$file = wp_get_attachment_metadata( $attachment_id );
@@ -69,8 +74,8 @@ class POS_Transcription extends POS_Module {
 			)
 		);
 		curl_setopt( $ch, CURLOPT_POST, 1 );
-		$filePath = get_attached_file( $attachment_id );
-		$cfile    = new CURLFile( $filePath, $file['mime_type'] );
+		$file_path = get_attached_file( $attachment_id );
+		$cfile    = new CURLFile( $file_path, $file['mime_type'] );
 		curl_setopt(
 			$ch,
 			CURLOPT_POSTFIELDS,
@@ -90,7 +95,7 @@ class POS_Transcription extends POS_Module {
 		$response = json_decode( $response );
 
 		if ( ! $response || ! isset( $response->text ) ) {
-			error_log( 'Transcription: no response or bad response ' );
+			$this->log( 'Transcription: no response or bad response ' );
 			echo 'Transcription failed';
 			return;
 		}

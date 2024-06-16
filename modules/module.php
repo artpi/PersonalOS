@@ -1,4 +1,5 @@
 <?php
+//phpcs:disable Generic.Files.OneObjectStructurePerFile.MultipleFound
 
 class POS_Module {
 	public $id             = 'module_id';
@@ -7,36 +8,36 @@ class POS_Module {
 	public $rest_namespace = 'pos/v1';
 	public $settings       = array();
 
-	function get_module_description() {
+	public function get_module_description() {
 		return $this->description;
 	}
 
-	function get_settings_fields() {
+	public function get_settings_fields() {
 		return $this->settings;
 	}
 
-	function get_setting_option_name( $setting_id ) {
+	public function get_setting_option_name( $setting_id ) {
 		return $this->id . '_' . $setting_id;
 	}
 
-	function get_setting( $id ) {
+	public function get_setting( $id ) {
 		return get_option( $this->get_setting_option_name( $id ) );
 	}
 
-	function __construct() {
+	public function __construct() {
 		$this->register();
 	}
 
-	function register() {
+	public function register() {
 
 	}
 
-	function register_block( $blockname ) {
+	public function register_block( $blockname ) {
 		$dir = dirname( __DIR__ ) . "/build/{$this->id}/blocks/{$blockname}/";
 		register_block_type( $dir );
 	}
 
-	function register_post_type( $args = array() ) {
+	public function register_post_type( $args = array() ) {
 		$labels = array(
 			'name'          => $this->name,
 			'singular_name' => $this->name,
@@ -81,11 +82,11 @@ class POS_Module {
 		add_filter( 'rest_api_allowed_post_types', array( $this, 'jetpack_filter_whitelist_cpt_sync_with_dotcom' ) );
 	}
 
-	function meta_auth_callback() {
+	public function meta_auth_callback() {
 		return current_user_can( 'edit_posts' );
 	}
 
-	function register_meta( $key, $cpt = null ) {
+	public function register_meta( $key, $cpt = null ) {
 		register_post_meta(
 			$cpt ?? $this->id,
 			$key,
@@ -99,14 +100,14 @@ class POS_Module {
 		);
 	}
 
-	function log( $message, $level = 'DEBUG' ) {
+	public function log( $message, $level = 'DEBUG' ) {
 		$map = array(
 			E_USER_NOTICE  => 'NOTICE',
 			E_USER_WARNING => 'WARNING',
 			E_USER_ERROR   => 'ERROR',
 		);
 
-		if ( in_array( $level, $map ) ) {
+		if ( in_array( $level, $map, true ) ) {
 			$level = $map[ $level ];
 		} elseif ( ! is_string( $level ) ) {
 			$level = 'DEBUG';
@@ -132,11 +133,11 @@ class External_Service_Module extends POS_Module {
 	public $id   = 'external_service';
 	public $name = 'External Service';
 
-	function get_sync_hook_name() {
+	public function get_sync_hook_name() {
 		return 'pos_sync_' . $this->id;
 	}
 
-	function register_sync( $interal = 'hourly' ) {
+	public function register_sync( $interal = 'hourly' ) {
 		$hook_name = $this->get_sync_hook_name();
 		add_action( $hook_name, array( $this, 'sync' ) );
 		if ( ! wp_next_scheduled( $hook_name ) ) {
@@ -145,7 +146,7 @@ class External_Service_Module extends POS_Module {
 	}
 
 	public function sync() {
-		error_log( 'EMPTY SYNC' );
+		$this->log( 'EMPTY SYNC' );
 	}
 }
 

@@ -23,7 +23,7 @@ class Readwise extends External_Service_Module {
 
 	public $notes_module = null;
 
-	function __construct( $notes_module ) {
+	public function __construct( $notes_module ) {
 		$this->notes_module = $notes_module;
 		$this->register_sync( 'hourly' );
 
@@ -33,7 +33,7 @@ class Readwise extends External_Service_Module {
 		$this->register_block( 'book-summary' );
 	}
 
-	function setup_default_notebook() {
+	public function setup_default_notebook() {
 		$this->parent_notebook = get_term_by( 'slug', 'readwise', 'notebook' );
 		if ( $this->parent_notebook ) {
 			return;
@@ -42,8 +42,8 @@ class Readwise extends External_Service_Module {
 		$this->parent_notebook = get_term_by( 'slug', 'readwise', 'notebook' );
 	}
 
-	function sync() {
-		error_log( '[DEBUG] Syncing readwise triggering ' );
+	public function sync() {
+		$this->log( '[DEBUG] Syncing readwise triggering ' );
 
 		$token = $this->get_setting( 'token' );
 		if ( ! $token ) {
@@ -71,24 +71,26 @@ class Readwise extends External_Service_Module {
 			)
 		);
 		if ( is_wp_error( $request ) ) {
-			error_log( '[ERROR] Fetching readwise ' . $request->get_error_message() );
+			$this->log( '[ERROR] Fetching readwise ' . $request->get_error_message(), E_USER_WARNING );
 			return false; // Bail early
 		}
 
 		$body = wp_remote_retrieve_body( $request );
 		$data = json_decode( $body );
-		error_log( "[DEBUG] Readwise Syncing {$data->count} highlights" );
+		$this->log( "[DEBUG] Readwise Syncing {$data->count} highlights" );
 
+		//phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 		if ( ! empty( $data->nextPageCursor ) ) {
 			// We want to unschedule any regular sync events until we have initial sync complete.
 			wp_unschedule_hook( $this->get_sync_hook_name() );
 			// We will schedule ONE TIME sync event for the next page.
+			//phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 			update_option( $this->get_setting_option_name( 'page_cursor' ), $data->nextPageCursor );
 			wp_schedule_single_event( time() + 60, $this->get_sync_hook_name() );
-			error_log( "Scheduling next page sync with cursor {$data->nextPageCursor}" );
+			$this->log( "Scheduling next page sync with cursor {$data->nextPageCursor}" );
 		} else {
-			error_log( '[DEBUG] Full sync completed' );
-			update_option( $this->get_setting_option_name( 'last_sync' ), date( 'c' ) );
+			$this->log( '[DEBUG] Full sync completed' );
+			update_option( $this->get_setting_option_name( 'last_sync' ), gmdate( 'c' ) );
 			delete_option( $this->get_setting_option_name( 'page_cursor' ) );
 		}
 
@@ -97,7 +99,7 @@ class Readwise extends External_Service_Module {
 		}
 	}
 
-	function find_note_by_readwise_id( $readwise_id ) {
+	public function find_note_by_readwise_id( $readwise_id ) {
 		$posts = get_posts(
 			array(
 				'posts_per_page' => -1,
@@ -113,9 +115,9 @@ class Readwise extends External_Service_Module {
 		return $posts[0];
 	}
 
-	function sync_book( $book ) {
+	public function sync_book( $book ) {
 		$previous = $this->find_note_by_readwise_id( $book->user_book_id );
-		error_log( '[DEBUG] Readwise ' . ( $previous ? 'Updating' : 'Creating' ) . " {$book->title}" );
+		$this->log( '[DEBUG] Readwise ' . ( $previous ? 'Updating' : 'Creating' ) . " {$book->title}" );
 
 		$content = array_map(
 			function( $highlight ) {
@@ -196,7 +198,7 @@ class Readwise extends External_Service_Module {
 			}
 			$last_highlight = end( $book->highlights );
 			if ( $last_highlight ) {
-				$data['post_date'] = date( 'Y-m-d H:i:s', strtotime( $last_highlight->created_at ) );
+				$data['post_date'] = gmdate( 'Y-m-d H:i:s', strtotime( $last_highlight->created_at ) );
 			}
 			$post_id = wp_insert_post( $data );
 		}

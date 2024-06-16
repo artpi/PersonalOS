@@ -34,7 +34,8 @@ class POS {
 			'pos',
 			plugins_url( 'build/index.js', __FILE__ ),
 			$script_asset['dependencies'],
-			$script_asset['version']
+			$script_asset['version'],
+			true
 		);
 	}
 

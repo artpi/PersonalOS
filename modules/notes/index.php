@@ -4,7 +4,7 @@ class Notes_Module extends POS_Module {
 	public $id   = 'notes';
 	public $name = 'Notes';
 
-	function register() {
+	public function register() {
 		register_taxonomy(
 			'notebook',
 			array( $this->id, 'todo' ),
@@ -64,7 +64,7 @@ class Notes_Module extends POS_Module {
 		foreach ( $terms as $term ) {
 			$this->register_notebook_admin_widget( $term );
 		}
-		wp_enqueue_style( 'pos-notes-widgets-css', plugin_dir_url( __FILE__ ) . 'admin-widgets.css' );
+		wp_enqueue_style( 'pos-notes-widgets-css', plugin_dir_url( __FILE__ ) . 'admin-widgets.css', array(), '1.0' );
 
 		// TODO create widget
 		wp_add_dashboard_widget(
@@ -211,15 +211,15 @@ class Notes_Module extends POS_Module {
 			}
 		);
 		if ( count( $notes ) > 0 ) {
-			echo "<h3>{$conf['args']->name}: Notes</h3>";
+			echo '<h3>' . esc_html( $conf['args']->name ) . ': Notes</h3>';
 			$notes = array_map(
 				function( $note ) {
-					return "<li><a href='" . get_edit_post_link( $note->ID ) . "' aria-label='Edit “{$note->post_title}”'><h5>{$note->post_title}</h5><time datetime='{$note->post_date}'>" . date( 'F j, Y', strtotime( $note->post_date ) ) . '</time><p>' . get_the_excerpt( $note ) . '</p></a></li>';
+					return "<li><a href='" . get_edit_post_link( $note->ID ) . "' aria-label='Edit “{$note->post_title}”'><h5>{$note->post_title}</h5><time datetime='{$note->post_date}'>" . gmdate( 'F j, Y', strtotime( $note->post_date ) ) . '</time><p>' . get_the_excerpt( $note ) . '</p></a></li>';
 				},
 				$notes
 			);
 
-			echo '<ul class="pos_admin_widget_notes">' . implode( '', $notes ) . '</ul>';
+			echo '<ul class="pos_admin_widget_notes">' . esc_html( implode( '', $notes ) ) . '</ul>';
 		}
 		$notes = get_posts(
 			array(
@@ -244,7 +244,7 @@ class Notes_Module extends POS_Module {
 			}
 		);
 		if ( count( $notes ) > 0 ) {
-			echo "<h3>{$conf['args']->name}: TODOs</h3>";
+			echo '<h3>' . esc_html( $conf['args']->name ) . ': TODOs</h3>';
 			$notes = array_map(
 				function( $note ) use ( $check ) {
 					return "<li><a href='" . esc_url( wp_nonce_url( "post.php?action=trash&amp;post=$note->ID", 'trash-post_' . $note->ID ) ) . "'>{$check}<a style='font-weight:bold;margin: 0 5px 0 0 ' href='" . get_edit_post_link( $note->ID ) . "' aria-label='Edit “{$note->post_title}”'>{$note->post_title}</a></li>";
@@ -252,7 +252,7 @@ class Notes_Module extends POS_Module {
 				$notes
 			);
 
-			echo '<ul class ="pos_admin_widget_todos" >' . implode( '', $notes ) . '</ul>';
+			echo '<ul class ="pos_admin_widget_todos" >' . esc_html( implode( '', $notes ) ) . '</ul>';
 		}
 
 		//$term = get_term_by( 'slug', $conf['args']['notebook'], 'notebook' );

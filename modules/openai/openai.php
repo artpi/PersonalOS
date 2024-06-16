@@ -48,7 +48,7 @@ class OpenAI_Module extends POS_Module {
 					'Authorization' => 'Bearer ' . $api_key,
 					'Content-Type'  => 'application/json',
 				),
-				'body'    => json_encode( $data ),
+				'body'    => wp_json_encode( $data ),
 			)
 		);
 		$body     = wp_remote_retrieve_body( $response );

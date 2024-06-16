@@ -73,7 +73,7 @@ class Evernote extends External_Service_Module {
 		die();
 	}
 
-	function get_note_evernote_notebook_guid( int $id ) : array|false {
+	public function get_note_evernote_notebook_guid( int $id ) : array|false {
 		$notebooks = wp_get_post_terms(
 			$id,
 			'notebook',

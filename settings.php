@@ -21,7 +21,7 @@ class POS_Settings {
 					'pos_section_' . $module->id,
 					$module->name,
 					function( $args ) use ( $module ) {
-						echo '<p>' . $module->get_module_description() . '</p>';
+						echo '<p>' . esc_html( $module->get_module_description() ) . '</p>';
 					},
 					'pos'
 				);
@@ -38,9 +38,9 @@ class POS_Settings {
 							if ( $setting['type'] === 'text' ) {
 								printf(
 									'<input class="large-text" type="text" name="%1$s" id="pos_field_%1$s" value="%2$s"><br/><label for="pos_field_%1$s">%3$s</label>',
-									$option_name,
-									$value,
-									$setting['label'] ?? ''
+									esc_attr( $option_name ),
+									wp_kses_post( $value ),
+									wp_kses_post( $setting['label'] ) ?? ''
 								);
 							} elseif ( $setting['type'] === 'callback' && is_callable( $setting['callback'] ) ) {
 								call_user_func( $setting['callback'], $option_name, $value, $setting );
@@ -84,7 +84,7 @@ class POS_Settings {
 		// WordPress will add the "settings-updated" $_GET parameter to the url
 		if ( isset( $_GET['settings-updated'] ) ) {
 			// add settings saved message with the class of "updated"
-			add_settings_error( 'pos_messages', 'wporg_message', __( 'Settings Saved', 'wporg' ), 'updated' );
+			add_settings_error( 'pos_messages', 'wporg_message', __( 'Settings Saved', 'personalos' ), 'updated' );
 		}
 
 		// show error/update messages

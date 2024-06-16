@@ -4,7 +4,7 @@ class TODO_Module extends POS_Module {
 	public $id   = 'todo';
 	public $name = 'TODO';
 
-	function register() {
+	public function register() {
 		$this->register_post_type(
 			array(
 				'supports'   => array( 'title', 'excerpt', 'custom-fields' ),
@@ -15,12 +15,12 @@ class TODO_Module extends POS_Module {
 		add_filter( 'manage_edit-notebook_columns', array( $this, 'notebook_taxonomy_columns' ) );
 
 	}
-	function notebook_taxonomy_columns( $columns ) {
+	public function notebook_taxonomy_columns( $columns ) {
 		$columns['todos'] = 'TODOs';
 		$columns['posts'] = 'Notes';
 		return $columns;
 	}
-	function notebook_taxonomy_column( $output, $column_name, $term_id ) {
+	public function notebook_taxonomy_column( $output, $column_name, $term_id ) {
 		if ( $column_name === 'todos' ) {
 			$query = new WP_Query(
 				array(
