@@ -25,13 +25,13 @@ class POS {
 	}
 
 	public static function fix_versions() {
-		if( ! function_exists('get_plugin_data') ){
-			require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+		if ( ! function_exists( 'get_plugin_data' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
 		$data_version = get_option( 'pos_data_version', self::$version );
 		$plugin_data = get_plugin_data( __FILE__ );
-		self::$version = $plugin_data[ 'Version' ];
-		
+		self::$version = $plugin_data['Version'];
+
 		if ( version_compare( $data_version, self::$version, '>=' ) ) {
 			return;
 		}
