@@ -18,6 +18,7 @@ class Evernote_Module extends External_Service_Module {
 	public $advanced_client  = null;
 	private $token           = null;
 	public $synced_notebooks = array();
+	public $cached_data      = null;
 
 	// phpcs:disable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 	public $settings = array(
@@ -381,7 +382,6 @@ class Evernote_Module extends External_Service_Module {
 		if ( empty( $this->synced_notebooks ) || ! $this->advanced_client ) {
 			return array();
 		}
-		$this->fix_old_data();
 		$usn               = get_option( $this->get_setting_option_name( 'usn' ), 0 );
 		$last_sync         = get_option( $this->get_setting_option_name( 'last_sync' ), 0 );
 		$last_update_count = get_option( $this->get_setting_option_name( 'last_update_count' ), 0 );
@@ -389,7 +389,8 @@ class Evernote_Module extends External_Service_Module {
 		$sync_filter       = new \EDAM\NoteStore\SyncChunkFilter(
 			array(
 				'includeNotes'          => true,
-				'includeNotebooks'      => false,
+				'includeNotebooks'      => true,
+				'includeTags'           => true,
 				'includeNoteAttributes' => true,
 				'includeExpunged'       => false,
 				//'includeResources' => true,
@@ -427,6 +428,39 @@ class Evernote_Module extends External_Service_Module {
 			$this->log( 'Evernote: Full sync completed' );
 		}
 
+		$this->get_cached_data();
+		$updated_cache = false;
+		if ( ! empty ( $sync_chunk->notebooks ) ) {
+			foreach ( $sync_chunk->notebooks as $notebook ) {
+				$this->cached_data['notebooks'][ $notebook->guid ] = [
+					'name' => $notebook->name,
+					'stack' => $notebook->stack,
+				];
+				if ( !empty( $notebook->defaultNotebook ) && $notebook->defaultNotebook ) {
+					$this->cached_data['notebooks'][ $notebook->guid ]['default'] = true;
+				}
+			}
+			update_option( $this->get_setting_option_name( 'cached_data' ), json_encode( $this->cached_data ) );
+			$updated_cache = true;
+		}
+
+		if ( ! empty ( $sync_chunk->tags ) ) {
+			foreach ( $sync_chunk->tags as $tag ) {
+				$this->cached_data['tags'][ $tag->guid ] = [
+					'name' => $tag->name,
+				];
+				if ( ! empty( $notebook->parentGuid ) ) {
+					$this->cached_data['tags'][ $tag->guid ]['parent'] = $tag->parentGuid;
+				}
+			}
+			update_option( $this->get_setting_option_name( 'cached_data' ), json_encode( $this->cached_data ) );
+			$updated_cache = true;
+		}
+
+		if ( $updated_cache ) {
+			$this->log( 'Evernote: Updated cached objects ' . print_r( $this->cached_data, true ) );
+		}
+
 		if ( ! empty( $sync_chunk->notes ) ) {
 			// We are going to be updating notes and we don't want the hook to loop
 			remove_action( 'save_post_' . $this->notes_module->id, array( $this, 'sync_note_to_evernote' ), 10 );
@@ -436,7 +470,7 @@ class Evernote_Module extends External_Service_Module {
 			add_action( 'save_post_' . $this->notes_module->id, array( $this, 'sync_note_to_evernote' ), 10, 3 );
 		}
 
-		// Now that notes are synced, we are going to sync the resources
+		//Now that notes are synced, we are going to sync the resources
 		if ( ! empty( $sync_chunk->resources ) ) {
 			$this->log( 'Syncing resources' );
 			foreach ( $sync_chunk->resources as $resource ) {
@@ -444,6 +478,22 @@ class Evernote_Module extends External_Service_Module {
 			}
 		}
 
+	}
+
+	public function get_cached_data() {
+		if ( ! empty( $this->cached_data ) ) {
+			return $this->cached_data;
+		}
+		$data = get_option( $this->get_setting_option_name( 'cached_data' ), false );
+		if ( ! $data ) {
+			$this->cached_data = array(
+				'notebooks' => array(),
+				'tags'      => array(),
+			);
+			return $this->cached_data;
+		}
+		$this->cached_data = json_decode( $data, true );
+		return $this->cached_data;
 	}
 
 	/**
@@ -554,6 +604,7 @@ class Evernote_Module extends External_Service_Module {
 	 * @return int
 	 */
 	public function get_notebook_by_guid( string $guid, $type = 'notebook' ) {
+		$cached_data = $this->get_cached_data();
 		$args  = array(
 			'hide_empty' => false,
 			'meta_query' => array(
@@ -566,9 +617,17 @@ class Evernote_Module extends External_Service_Module {
 			'taxonomy'   => 'notebook',
 		);
 		$terms = get_terms( $args );
-
+		$term = $terms[0];
 		if ( count( $terms ) > 0 ) {
-			return $terms[0]->term_id;
+			if (
+				$type === 'tag' &&
+				$term->name === '#' . $guid &&
+				! empty( $cached_data['tags'][ $guid ] )
+			) {
+				$this->log( 'Correcting term: ' . $cached_data['tags'][ $guid ]['name'] );
+				wp_update_term( $term->term_id, 'notebook', array( 'name' => '#' . $cached_data['tags'][ $guid ]['name'] ) );
+			}
+			return $term->term_id;
 		}
 
 		// We have to create this notebook, under "Evernote" parent
@@ -579,9 +638,13 @@ class Evernote_Module extends External_Service_Module {
 			$this->log( 'Evernote Creating ' . print_r( $notebook, true ) );
 
 		} elseif ( $type === 'tag' ) {
-			$notebook = $this->advanced_client->getNoteStore()->getTag( $guid );
-			$name = $notebook->name;
-			$name = '#' . $name;
+			// We are forced to rely on this cached data because the official php evernote sdk does not allow for querying tags, so we have to reconcile it.
+			if ( ! empty( $cached_data['tags'][ $guid ] ) ) {
+				$name = $cached_data['tags'][ $guid ]['name'];
+			} else {
+				$name = $guid;
+			}
+			$name = '#' . $guid;
 		}
 
 		if ( ! $this->parent_notebook ) {
