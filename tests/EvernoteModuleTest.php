@@ -16,6 +16,8 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 
 	private $module     = null;
 	private $note_store = null;
+	private $test_notebook = null;
+	private $test_tag =null;
 
 	private function assert_enml_transformed_to_html_and_stored_unserializes_correctly( $enml ) {
 		// Fix for evernote putting end ; in styles.
@@ -109,6 +111,11 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$term2 = wp_insert_term( 'Evernote test notebook 2', 'notebook' );
 		update_term_meta( $term2['term_id'], 'evernote_notebook_guid', 'test-notebook-guid-2' );
 
+		$new_tag = wp_insert_term( 'Evernote test tag 2', 'notebook' );
+		update_term_meta( $new_tag['term_id'], 'evernote_notebook_guid', 'test-tag-2' );
+		update_term_meta( $new_tag['term_id'], 'evernote_type', 'tag' );
+
+
 		$module  = \POS::$modules[2];
 		$post_id = wp_insert_post(
 			array(
@@ -123,6 +130,7 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$note->title        = 'Evernote';
 		$note->guid         = 'potato';
 		$note->notebookGuid = 'test-notebook-guid';
+		$note->tagGuids	    = array( 'default-tag' );
 		$note->content      = $module::wrap_note( '<h1>Test</h1><div>First Test paragraph</div>' );
 		$note->contentHash  = md5( $note->content, true );
 		$note->created      = time() * 1000;
@@ -131,7 +139,11 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$updated_note = get_post( $post_id );
 		$this->assertEquals( 'Evernote', $updated_note->post_title );
 		$this->assertStringContainsString( 'First Test paragraph', $updated_note->post_content );
+		$assigned_taxonomies = wp_get_object_terms( $post_id, 'notebook', array( 'fields' => 'ids' ) );
+		$this->assertContains( $this->test_tag['term_id'], $assigned_taxonomies );
+		$this->assertContains( $term['term_id'], $assigned_taxonomies );
 
+		$note->tagGuids[] = 'test-tag-2';
 		$note->content      = $module::wrap_note( '<h1>Test</h1><div>Replaced Test Paragraph</div>' );
 		$note->notebookGuid = 'test-notebook-guid-2';
 		$module->update_note_from_evernote( $note, get_post( $post_id ) );
@@ -139,6 +151,9 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$updated_terms = wp_get_post_terms( $post_id, 'notebook', array( 'fields' => 'ids' ) );
 		$this->assertContains( $term2['term_id'], $updated_terms, 'New category should be present in: ' . print_r( $updated_terms, true ) );
 		$this->assertNotContains( $term['term_id'], $updated_terms, 'Old notebok is not assigned' );
+		$assigned_taxonomies = wp_get_object_terms( $post_id, 'notebook', array( 'fields' => 'ids' ) );
+		$this->assertContains( $new_tag['term_id'], $assigned_taxonomies );
+
 
 		$note->contentHash = md5( $note->content, true );
 		$module->update_note_from_evernote( $note, get_post( $post_id ) );
@@ -156,8 +171,13 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 			->method( 'getNoteStore' )
 			->will( $this->returnValue( $this->note_store ) );
 
-		$term = wp_insert_term( 'Evernote default notebook', 'notebook' );
-		update_term_meta( $term['term_id'], 'evernote_notebook_guid', 'default-notebook' );
+		$this->test_notebook = wp_insert_term( 'Evernote default notebook', 'notebook' );
+		update_term_meta( $this->test_notebook['term_id'], 'evernote_notebook_guid', 'default-notebook' );
+		update_term_meta( $this->test_notebook['term_id'], 'evernote_type', 'notebook' );
+
+		$this->test_tag = wp_insert_term( 'Evernote default tag', 'notebook' );
+		update_term_meta( $this->test_tag['term_id'], 'evernote_notebook_guid', 'default-tag' );
+		update_term_meta( $this->test_tag['term_id'], 'evernote_type', 'tag' );
 	}
 
 	function test_upload_file() {
@@ -209,6 +229,12 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$otherterm2 = wp_insert_term( 'Yet another notebook', 'notebook' );
 		$term       = wp_insert_term( 'Evernote test notebook', 'notebook' );
 		update_term_meta( $term['term_id'], 'evernote_notebook_guid', 'test-guid' );
+		update_term_meta( $term['term_id'], 'evernote_type', 'notebook' );
+
+
+		$tag_term       = wp_insert_term( 'Evernote test tag', 'notebook' );
+		update_term_meta( $tag_term['term_id'], 'evernote_notebook_guid', 'test-tag' );
+		update_term_meta( $tag_term['term_id'], 'evernote_type', 'tag' );
 
 		$post_id = wp_insert_post(
 			array(
@@ -221,9 +247,18 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 				),
 			)
 		);
-		wp_set_post_terms( $post_id, array( $otherterm1['term_id'], $otherterm2['term_id'], $term['term_id'] ), 'notebook' );
+		wp_set_post_terms( $post_id, array( $otherterm1['term_id'], $otherterm2['term_id'], $term['term_id'], $tag_term['term_id'] ), 'notebook' );
 		$notebook = $this->module->get_note_evernote_notebook_guid( $post_id );
-		$this->assertEquals( 'test-guid', $notebook['guid'] );
-		$this->assertEquals( $term['term_id'], $notebook['id'] );
+		$this->assertEquals( 1, count( $notebook ) );
+		$this->assertEquals( 'test-guid', array_values( $notebook )[0] );
+		$this->assertEquals( $term['term_id'], array_keys( $notebook )[0] );
+
+		$tag = $this->module->get_note_evernote_notebook_guid( $post_id, 'tag' );
+		$this->assertEquals( 1, count( $tag ) );
+		$this->assertEquals( 'test-tag', array_values( $tag )[0] );
+		$this->assertEquals( $tag_term['term_id'], array_keys( $tag )[0] );
+
+		$all = $this->module->get_note_evernote_notebook_guid( $post_id, 'all' );
+		$this->assertEquals( 2, count( $all ) );
 	}
 }

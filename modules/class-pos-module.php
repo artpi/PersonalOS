@@ -16,6 +16,9 @@ class POS_Module {
 		return $this->settings;
 	}
 
+	public function fix_old_data( $data_version ) {
+	}
+
 	public function get_setting_option_name( $setting_id ) {
 		return $this->id . '_' . $setting_id;
 	}

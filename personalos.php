@@ -3,7 +3,7 @@
 /**
  * Plugin Name:     Personal OS
  * Description:     Manage your life.
- * Version:         0.0.1
+ * Version:         0.0.2
  * Author:          Artur Piszek (artpi)
  * Author URI:      https://piszek.com
  * License:         GPL-2.0-or-later
@@ -16,11 +16,29 @@
 
 class POS {
 	public static $modules = array();
+	public static $version = '0.0.1';
 
 	public static function init() {
 		add_action( 'admin_menu', array( 'POS', 'admin_menu' ) );
 		self::load_modules();
 		add_action( 'enqueue_block_editor_assets', array( 'POS', 'enqueue_assets' ) );
+	}
+
+	public static function fix_versions() {
+		if( ! function_exists('get_plugin_data') ){
+			require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+		}
+		$data_version = get_option( 'pos_data_version', self::$version );
+		$plugin_data = get_plugin_data( __FILE__ );
+		self::$version = $plugin_data[ 'Version' ];
+		
+		if ( version_compare( $data_version, self::$version, '>=' ) ) {
+			return;
+		}
+		foreach ( self::$modules as $module ) {
+			$module->fix_old_data( $data_version );
+		}
+		update_option( 'pos_data_version', self::$version );
 	}
 
 	public static function admin_menu() {
@@ -62,6 +80,7 @@ class POS {
 			$openai,
 			new POS_Transcription( $openai, $notes ),
 		);
+		self::fix_versions();
 		require_once plugin_dir_path( __FILE__ ) . 'class-pos-settings.php';
 		$settings = new POS_Settings( self::$modules );
 	}

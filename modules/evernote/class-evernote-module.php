@@ -72,23 +72,63 @@ class Evernote_Module extends External_Service_Module {
 		die();
 	}
 
-	public function get_note_evernote_notebook_guid( int $id ) : array|false {
+	public function fix_old_data( $data_version ) {
+		if ( version_compare( $data_version, '0.0.2', "<" ) ) {
+			$notebooks_without_type = get_terms(
+				array(
+					'fields'   => 'ids',
+					'taxonomy' => 'notebook',
+					'meta_query' => array(
+						'relation' => 'AND',
+						array(
+							'key'     => 'evernote_notebook_guid',
+							'compare' => 'EXISTS',
+						),
+						array(
+							'key'     => 'evernote_type',
+							'compare' => 'NOT EXISTS',
+						)
+					),
+				),
+			);
+			foreach( $notebooks_without_type as $notebook ) {
+				$this->log( 'Fixing notebook ' . $notebook, E_USER_DEPRECATED );
+				update_term_meta( $notebook, 'evernote_type', 'notebook' );
+			}
+		}
+	}
+
+	public function get_note_evernote_notebook_guid( int $id, string $type = 'notebook' ) : array {
+		$query = array(
+			'fields'   => 'ids',
+			'meta_key' => 'evernote_notebook_guid',
+			'meta_query' => array(
+				'relation' => 'AND',
+				array(
+					'key'     => 'evernote_notebook_guid',
+					'compare' => 'EXISTS',
+				),
+			),
+		);
+		if( $type !== 'all' ) {
+			$query['meta_query'][] = array(
+				'key'     => 'evernote_type',
+				'value'   => $type,
+				'compare' => 'LIKE',
+			);
+		}
+
 		$notebooks = wp_get_post_terms(
 			$id,
 			'notebook',
-			array(
-				'fields'   => 'ids',
-				'meta_key' => 'evernote_notebook_guid',
-				//'meta_value' => $this->get_setting( 'synced_notebooks' ),
-			)
+			$query,
 		);
-		if ( empty( $notebooks ) ) {
-			return false;
+
+		$guids = [];
+		foreach ( $notebooks as $notebook ) {
+			$guids[ $notebook ] = get_term_meta( $notebook, 'evernote_notebook_guid', true );
 		}
-		return array(
-			'guid' => get_term_meta( $notebooks[0], 'evernote_notebook_guid', true ),
-			'id'   => $notebooks[0],
-		);
+		return $guids;
 	}
 
 	/**
@@ -126,7 +166,7 @@ class Evernote_Module extends External_Service_Module {
 
 		// There is something like "main category" in WordPress, but whatever
 		$notebook       = new \Evernote\Model\Notebook();
-		$notebook->guid = $this->get_note_evernote_notebook_guid( $post->ID )['guid'];
+		$notebook->guid = array_values( $this->get_note_evernote_notebook_guid( $post->ID, 'notebook' ) )[0];
 		if ( ! $notebook->guid || ! in_array( $notebook->guid, $this->get_setting( 'synced_notebooks' ), true ) ) {
 			return;
 		}
@@ -136,6 +176,12 @@ class Evernote_Module extends External_Service_Module {
 		$note->title        = $post->post_title;
 		$note->content      = self::html2enml( $post->post_content );
 		$note->notebookGuid = $notebook->guid;
+
+		$tags = $this->get_note_evernote_notebook_guid( $post->ID, 'tag' );
+		if ( ! empty( $tags ) ) {
+			$note->tagGuids = array_values( $tags);
+		}
+
 		try {
 			$result = $this->advanced_client->getNoteStore()->createNote( $note );
 			if ( $result ) {
@@ -204,13 +250,18 @@ class Evernote_Module extends External_Service_Module {
 			$update_array['meta_input']['url'] = $note->attributes->sourceURL;
 		}
 
-		$current_notebook = $this->get_note_evernote_notebook_guid( $post->ID );
-		if ( ! $current_notebook ) {
-			wp_set_object_terms( $post->ID, $this->get_notebook_by_guid( $note->notebookGuid ), 'notebook', true );
-		} elseif ( $current_notebook['guid'] !== $note->notebookGuid ) {
-			wp_remove_object_terms( $post->ID, $current_notebook['id'], 'notebook' );
-			wp_set_object_terms( $post->ID, $this->get_notebook_by_guid( $note->notebookGuid ), 'notebook', true );
-		}
+		$terms_in_wp = $this->get_note_evernote_notebook_guid( $post->ID, 'all' );
+		$terms_in_evernote = array_merge( [ $note->notebookGuid ], $note->tagGuids ?? [] );
+		$terms_to_remove = array_diff( $terms_in_wp, $terms_in_evernote );
+		$terms_to_add = array_diff( $terms_in_evernote, $terms_in_wp );
+
+		wp_remove_object_terms( $post->ID, array_keys( $terms_to_remove ), 'notebook' );
+		wp_set_object_terms( $post->ID, array_map( function ( $index, $guid ) {
+			// Evernote notebook is always first in our EV array. That is why a changed notebook can only have index 0.
+			$type = $index === 0 ? 'notebook' : 'tag';
+			return $this->get_notebook_by_guid( $guid, 'tag', $type );
+		}, array_keys( $terms_to_add ), array_values( $terms_to_add ) ), 'notebook', true );
+
 		// We are removing this filter so that kses wont strip the `evernote` scheme
 		//$post_kses_filter_removed = remove_filter( 'content_save_pre', 'wp_filter_post_kses' );
 		if ( count( $update_array ) > 0 ) {
@@ -330,6 +381,7 @@ class Evernote_Module extends External_Service_Module {
 		if ( empty( $this->synced_notebooks ) || ! $this->advanced_client ) {
 			return array();
 		}
+		$this->fix_old_data();
 		$usn               = get_option( $this->get_setting_option_name( 'usn' ), 0 );
 		$last_sync         = get_option( $this->get_setting_option_name( 'last_sync' ), 0 );
 		$last_update_count = get_option( $this->get_setting_option_name( 'last_update_count' ), 0 );
@@ -501,7 +553,7 @@ class Evernote_Module extends External_Service_Module {
 	 * @param string $guid
 	 * @return int
 	 */
-	public function get_notebook_by_guid( string $guid ) {
+	public function get_notebook_by_guid( string $guid, $type = 'notebook' ) {
 		$args  = array(
 			'hide_empty' => false,
 			'meta_query' => array(
@@ -514,15 +566,23 @@ class Evernote_Module extends External_Service_Module {
 			'taxonomy'   => 'notebook',
 		);
 		$terms = get_terms( $args );
+
 		if ( count( $terms ) > 0 ) {
 			return $terms[0]->term_id;
 		}
 
 		// We have to create this notebook, under "Evernote" parent
+		if ( $type === 'notebook' ) {
+			$notebook = $this->advanced_client->getNoteStore()->getNotebook( $guid );
+			$name = $notebook->name;
+			$name = '@' . $name;
+			$this->log( 'Evernote Creating ' . print_r( $notebook, true ) );
 
-		$notebook = $this->advanced_client->getNoteStore()->getNotebook( $guid );
-		$this->log( 'Evernote Creating ' . print_r( $notebook, true ) );
-		$name = $notebook->name;
+		} elseif ( $type === 'tag' ) {
+			$notebook = $this->advanced_client->getNoteStore()->getTag( $guid );
+			$name = $notebook->name;
+			$name = '#' . $name;
+		}
 
 		if ( ! $this->parent_notebook ) {
 			$this->parent_notebook = get_term_by( 'slug', 'evernote', 'notebook' );
@@ -531,8 +591,12 @@ class Evernote_Module extends External_Service_Module {
 			wp_insert_term( 'Evernote', 'notebook', array( 'slug' => 'evernote' ) );
 			$this->parent_notebook = get_term_by( 'slug', 'evernote', 'notebook' );
 		}
-		$term = wp_insert_term( $name, 'notebook', array( 'parent' => $this->parent_notebook->term_id ) );
+		$term = wp_insert_term( $name, 'notebook', array(
+			'parent' => $this->parent_notebook->term_id,
+			'slug' => 'ev-' . $guid
+		) );
 		update_term_meta( $term['term_id'], 'evernote_notebook_guid', $guid );
+		update_term_meta( $term['term_id'], 'evernote_type', $type );
 		return $term['term_id'];
 	}
 
