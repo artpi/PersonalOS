@@ -117,14 +117,6 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 
 
 		$module  = \POS::$modules[2];
-		$post_id = wp_insert_post(
-			array(
-				'post_title'   => 'WordPress',
-				'post_content' => 'Test WordPress content',
-				'post_status'  => 'publish',
-				'post_type'    => 'notes',
-			)
-		);
 
 		$note               = new \EDAM\Types\Note();
 		$note->title        = 'Evernote';
@@ -135,8 +127,9 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$note->contentHash  = md5( $note->content, true );
 		$note->created      = time() * 1000;
 
-		$module->update_note_from_evernote( $note, get_post( $post_id ) );
+		$post_id = $module->update_note_from_evernote( $note, new \WP_Post( (object)[] ) );
 		$updated_note = get_post( $post_id );
+
 		$this->assertEquals( 'Evernote', $updated_note->post_title );
 		$this->assertStringContainsString( 'First Test paragraph', $updated_note->post_content );
 		$assigned_taxonomies = wp_get_object_terms( $post_id, 'notebook', array( 'fields' => 'ids' ) );
@@ -185,13 +178,6 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$file_to_upload = ABSPATH . '/wp-admin/images/wordpress-logo.png';
 		$content        = file_get_contents( $file_to_upload );
 
-		$post_id            = wp_insert_post(
-			array(
-				'post_title'  => 'Placeholder',
-				'post_status' => 'publish',
-				'post_type'   => 'notes',
-			)
-		);
 		$note               = new \EDAM\Types\Note();
 		$note->title        = 'Note with file';
 		$note->guid         = 'potato';
@@ -202,7 +188,7 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		->with( 'test-resource' )
 		->will( $this->returnValue( $content ) );
 
-		$this->module->update_note_from_evernote( $note, get_post( $post_id ) );
+		$post_id = $this->module->update_note_from_evernote( $note, new \WP_Post( (object)[] ) );
 		$this->assertEquals( 'potato', get_post_meta( $post_id, 'evernote_guid', true ) );
 
 		$resource                       = new \EDAM\Types\Resource();

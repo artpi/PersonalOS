@@ -205,8 +205,22 @@ class Evernote_Module extends External_Service_Module {
 	 * @param \WP_Post $post
 	 * @param bool $sync_resources - If true, it will also upload note resources. We want this in most cases, EXCEPT when we are sending the data from WordPress and know the response will not have new resources for us.
 	 */
-	public function update_note_from_evernote( \EDAM\Types\Note $note, \WP_Post $post, $sync_resources = false ) {
+	public function update_note_from_evernote( \EDAM\Types\Note $note, \WP_Post $post, $sync_resources = false ): int {
 		remove_action( 'save_post_' . $this->notes_module->id, array( $this, 'sync_note_to_evernote' ), 10 );
+
+		if ( empty( $post->ID ) ) {
+			// We have to create new note
+			$post_id = wp_insert_post(
+				array(
+					'post_title'  => $note->title,
+					'post_slug'   => $note->guid,
+					'post_type'   => $this->notes_module->id,
+					'post_status' => 'publish',
+					'post_date'   => gmdate( 'Y-m-d H:i:s', floor( $note->created / 1000 ) ),
+				)
+			);
+			$post = get_post( $post_id );
+		}
 
 		$update_array          = array();
 		$force_rewrite_content = false;
@@ -284,6 +298,7 @@ class Evernote_Module extends External_Service_Module {
 		//     add_filter( 'content_save_pre', 'wp_filter_post_kses' );
 		// }
 		add_action( 'save_post_' . $this->notes_module->id, array( $this, 'sync_note_to_evernote' ), 10, 3 );
+		return $post->ID;
 	}
 
 	/**
@@ -1023,39 +1038,7 @@ class Evernote_Module extends External_Service_Module {
 			if ( ! in_array( $note->notebookGuid, $this->synced_notebooks, true ) ) {
 				return;
 			}
-
-			$data = array(
-				'post_title'   => $note->title,
-				'post_type'    => $this->notes_module->id,
-				'post_content' => $this->get_note_html( $note ),
-				'post_status'  => 'publish',
-				'post_date'    => gmdate( 'Y-m-d H:i:s', $note->created / 1000 ),
-				'meta_input'   => array(
-					'evernote_guid'         => $note->guid,
-					'evernote_content_hash' => bin2hex( $note->contentHash ),
-				),
-			);
-
-			if ( ! empty( $note->attributes->sourceURL ) ) {
-				$data['meta_input']['url'] = $note->attributes->sourceURL;
-			}
-
-			remove_action( 'save_post_' . $this->notes_module->id, array( $this, 'sync_note_to_evernote' ), 10 );
-
-			// we are removing this filter because we have already ran this through kses.
-			//$filter_removed = remove_filter( 'content_save_pre', 'wp_filter_post_kses' );
-			$post_id = wp_insert_post( $data );
-			// if ( $filter_removed ) {
-			//     add_filter( 'content_save_pre', 'wp_filter_post_kses' );
-			// }
-			//error_log( 'CONTENT AFTER SAVING:' . get_post($post_id)->post_content );
-
-			wp_set_post_terms( $post_id, array( $this->get_notebook_by_guid( $note->notebookGuid ) ), 'notebook', true );
-			add_action( 'save_post_' . $this->notes_module->id, array( $this, 'sync_note_to_evernote' ), 10, 3 );
-
-			if ( ! empty( $note->resources ) ) {
-				$this->update_note_from_evernote( $note, get_post( $post_id ), true );
-			}
+			$this->update_note_from_evernote( $note, new \WP_Post( (object) array() ), true );
 		}
 	}
 
