@@ -219,6 +219,8 @@ class Evernote_Module extends External_Service_Module {
 					'post_date'   => gmdate( 'Y-m-d H:i:s', floor( $note->created / 1000 ) ),
 				)
 			);
+			// By default we are marking this as "Evernote".
+			wp_set_post_terms( $post_id, $this->get_parent_notebook()->term_id, 'notebook', true );
 			$post = get_post( $post_id );
 			$this->log( 'New Post: ' . $post_id . ' ' . $note->title );
 		}
@@ -392,6 +394,7 @@ class Evernote_Module extends External_Service_Module {
 		require_once plugin_dir_path( __FILE__ ) . '/../../vendor/autoload.php';
 		$this->simple_client   = new \Evernote\Client( $this->token, false );
 		$this->advanced_client = new \Evernote\AdvancedClient( $this->token, false );
+
 		return $this->simple_client;
 	}
 
@@ -503,6 +506,21 @@ class Evernote_Module extends External_Service_Module {
 			}
 		}
 
+	}
+
+	public function get_parent_notebook() {
+		// Set up parent notebook.
+		if ( $this->parent_notebook ) {
+			return $this->parent_notebook;
+		}
+		$this->parent_notebook = get_term_by( 'slug', 'evernote', 'notebook' );
+
+		if ( ! $this->parent_notebook ) {
+			wp_insert_term( 'Evernote', 'notebook', array( 'slug' => 'evernote' ) );
+			$this->parent_notebook = get_term_by( 'slug', 'evernote', 'notebook' );
+		}
+
+		return $this->parent_notebook;
 	}
 
 	public function get_cached_data() {
@@ -672,18 +690,11 @@ class Evernote_Module extends External_Service_Module {
 			$name = '#' . $name;
 		}
 
-		if ( ! $this->parent_notebook ) {
-			$this->parent_notebook = get_term_by( 'slug', 'evernote', 'notebook' );
-		}
-		if ( ! $this->parent_notebook ) {
-			wp_insert_term( 'Evernote', 'notebook', array( 'slug' => 'evernote' ) );
-			$this->parent_notebook = get_term_by( 'slug', 'evernote', 'notebook' );
-		}
 		$term = wp_insert_term(
 			$name,
 			'notebook',
 			array(
-				'parent' => $this->parent_notebook->term_id,
+				'parent' => $this->get_parent_notebook()->slug,
 				'slug'   => 'ev-' . $guid,
 			)
 		);
