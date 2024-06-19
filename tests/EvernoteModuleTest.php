@@ -130,6 +130,7 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$post_id = $module->update_note_from_evernote( $note, new \WP_Post( (object)[] ) );
 		$updated_note = get_post( $post_id );
 
+		$this->assertEquals( $note->guid, $updated_note->post_name );
 		$this->assertEquals( 'Evernote', $updated_note->post_title );
 		$this->assertStringContainsString( 'First Test paragraph', $updated_note->post_content );
 		$assigned_taxonomies = wp_get_object_terms( $post_id, 'notebook', array( 'fields' => 'ids' ) );

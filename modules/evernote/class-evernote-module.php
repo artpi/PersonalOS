@@ -213,13 +213,14 @@ class Evernote_Module extends External_Service_Module {
 			$post_id = wp_insert_post(
 				array(
 					'post_title'  => $note->title,
-					'post_slug'   => $note->guid,
+					'post_name'   => $note->guid,
 					'post_type'   => $this->notes_module->id,
 					'post_status' => 'publish',
 					'post_date'   => gmdate( 'Y-m-d H:i:s', floor( $note->created / 1000 ) ),
 				)
 			);
 			$post = get_post( $post_id );
+			$this->log( 'New Post: ' . $post_id . ' ' . $note->title );
 		}
 
 		$update_array          = array();
