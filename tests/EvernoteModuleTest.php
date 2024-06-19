@@ -178,6 +178,7 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$this->test_tag = wp_insert_term( 'Evernote default tag', 'notebook' );
 		update_term_meta( $this->test_tag['term_id'], 'evernote_notebook_guid', 'default-tag' );
 		update_term_meta( $this->test_tag['term_id'], 'evernote_type', 'tag' );
+		$this->module->get_cached_data();
 	}
 
 	function test_upload_file() {
@@ -260,5 +261,33 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 
 		$all = $this->module->get_note_evernote_notebook_guid( $post_id, 'all' );
 		$this->assertEquals( 2, count( $all ) );
+	}
+
+
+	function test_get_notebook_by_guid() {
+
+		$notebook1 = $this->module->get_notebook_by_guid( 'default-notebook', 'notebook' );
+		$this->assertEquals( $this->test_notebook['term_id'], $notebook1 );
+
+		// Tag should auto create
+		$tag1 = get_term( $this->module->get_notebook_by_guid( 'new-tag', 'tag' ) );
+		$this->assertNotFalse( $tag1 );
+		// The placeholder is the guid because we do not have access to the name now.
+		$this->assertEquals( '#new-tag', $tag1->name );
+
+		// Lets get cached data
+		$this->module->cached_data['tags']['new-tag'] = [
+			'name' => 'New Name',
+		];
+
+		$tag1_updated = get_term( $this->module->get_notebook_by_guid( 'new-tag', 'tag' ) );
+		$this->assertEquals( '#New Name', $tag1_updated->name );
+
+		$this->module->cached_data['tags']['new-tag2'] = [
+			'name' => 'New Name 2',
+		];
+
+		$tag2 = get_term( $this->module->get_notebook_by_guid( 'new-tag2', 'tag' ) );
+		$this->assertEquals( '#New Name 2', $tag2->name );
 	}
 }

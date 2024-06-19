@@ -626,8 +626,8 @@ class Evernote_Module extends External_Service_Module {
 			'taxonomy'   => 'notebook',
 		);
 		$terms = get_terms( $args );
-		$term = $terms[0];
 		if ( count( $terms ) > 0 ) {
+			$term = $terms[0];
 			if (
 				$type === 'tag' &&
 				$term->name === '#' . $guid &&
@@ -653,7 +653,7 @@ class Evernote_Module extends External_Service_Module {
 			} else {
 				$name = $guid;
 			}
-			$name = '#' . $guid;
+			$name = '#' . $name;
 		}
 
 		if ( ! $this->parent_notebook ) {
@@ -1023,7 +1023,7 @@ class Evernote_Module extends External_Service_Module {
 			if ( ! in_array( $note->notebookGuid, $this->synced_notebooks, true ) ) {
 				return;
 			}
-			$this->log( "Evernote Creating {$note->title}" );
+
 			$data = array(
 				'post_title'   => $note->title,
 				'post_type'    => $this->notes_module->id,
@@ -1035,6 +1035,7 @@ class Evernote_Module extends External_Service_Module {
 					'evernote_content_hash' => bin2hex( $note->contentHash ),
 				),
 			);
+
 			if ( ! empty( $note->attributes->sourceURL ) ) {
 				$data['meta_input']['url'] = $note->attributes->sourceURL;
 			}
