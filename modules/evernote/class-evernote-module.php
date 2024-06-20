@@ -158,7 +158,7 @@ class Evernote_Module extends External_Service_Module {
 				} catch ( \EDAM\Error\EDAMSystemException $e ) {
 					// Silently fail because conflicts and stuff.
 					$this->log( 'Evernote: ' . $e->getMessage() . ' ' . print_r( $post, true ), E_USER_WARNING );
-				} catch ( \EdAM\Error\EDAMUserException $e ) {
+				} catch ( \EDAM\Error\EDAMUserException $e ) {
 					$this->log( 'Evernote ENML probably misformatted: ' . $e->getMessage() . ' While saving: ' . $note->content, E_USER_WARNING );
 				}
 			}
@@ -167,10 +167,12 @@ class Evernote_Module extends External_Service_Module {
 
 		// There is something like "main category" in WordPress, but whatever
 		$notebook       = new \Evernote\Model\Notebook();
-		$notebook->guid = array_values( $this->get_note_evernote_notebook_guid( $post->ID, 'notebook' ) )[0];
-		if ( ! $notebook->guid || ! in_array( $notebook->guid, $this->get_setting( 'synced_notebooks' ), true ) ) {
+		$evernote_notebooks = $this->get_note_evernote_notebook_guid( $post->ID, 'notebook' );
+		
+		if ( empty( $evernote_notebooks ) || ! in_array( array_values( $evernote_notebooks )[0], $this->get_setting( 'synced_notebooks' ), true ) ) {
 			return;
 		}
+		$notebook->guid = array_values( $evernote_notebooks )[0];
 
 		// edam note
 		$note               = new \EDAM\Types\Note();
