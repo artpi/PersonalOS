@@ -692,7 +692,7 @@ class Evernote_Module extends External_Service_Module {
 			$name,
 			'notebook',
 			array(
-				'parent' => $this->get_parent_notebook()->slug,
+				'parent' => $this->get_parent_notebook()->term_id,
 				'slug'   => $guid,
 			)
 		);
