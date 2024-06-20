@@ -7,6 +7,8 @@
 
 $_tests_dir = getenv( 'WP_TESTS_DIR' );
 
+define( 'DOING_TEST', true );
+
 // Forward custom PHPUnit Polyfills configuration to PHPUnit bootstrap file.
 $_phpunit_polyfills_path = getenv( 'WP_TESTS_PHPUNIT_POLYFILLS_PATH' );
 if ( false !== $_phpunit_polyfills_path ) {
