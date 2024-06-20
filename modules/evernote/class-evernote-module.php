@@ -280,7 +280,7 @@ class Evernote_Module extends External_Service_Module {
 				function ( $index, $guid ) {
 					// Evernote notebook is always first in our EV array. That is why a changed notebook can only have index 0.
 					$type = $index === 0 ? 'notebook' : 'tag';
-					return $this->get_notebook_by_guid( $guid, 'tag', $type );
+					return $this->get_notebook_by_guid( $guid, $type );
 				},
 				array_keys( $terms_to_add ),
 				array_values( $terms_to_add )
@@ -678,8 +678,6 @@ class Evernote_Module extends External_Service_Module {
 			$notebook = $this->advanced_client->getNoteStore()->getNotebook( $guid );
 			$name = $notebook->name;
 			$name = '@' . $name;
-			$this->log( 'Evernote Creating ' . print_r( $notebook, true ) );
-
 		} elseif ( $type === 'tag' ) {
 			// We are forced to rely on this cached data because the official php evernote sdk does not allow for querying tags, so we have to reconcile it.
 			if ( ! empty( $cached_data['tags'][ $guid ] ) ) {
@@ -689,13 +687,13 @@ class Evernote_Module extends External_Service_Module {
 			}
 			$name = '#' . $name;
 		}
-
+		$this->log( "Creating $type $name" );
 		$term = wp_insert_term(
 			$name,
 			'notebook',
 			array(
 				'parent' => $this->get_parent_notebook()->slug,
-				'slug'   => 'ev-' . $guid,
+				'slug'   => $guid,
 			)
 		);
 		update_term_meta( $term['term_id'], 'evernote_notebook_guid', $guid );
