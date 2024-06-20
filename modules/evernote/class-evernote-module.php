@@ -16,7 +16,7 @@ class Evernote_Module extends External_Service_Module {
 	public $parent_notebook  = null;
 	public $simple_client    = null;
 	public $advanced_client  = null;
-	private $token           = null;
+	public $token           = null;
 	public $synced_notebooks = array();
 	public $cached_data      = null;
 
@@ -392,7 +392,7 @@ class Evernote_Module extends External_Service_Module {
 	/**
 	 * Connect to Evernote and create a client
 	 */
-	protected function connect() {
+	public function connect() {
 		require_once plugin_dir_path( __FILE__ ) . '/../../vendor/autoload.php';
 		$this->simple_client   = new \Evernote\Client( $this->token, false );
 		$this->advanced_client = new \Evernote\AdvancedClient( $this->token, false );
