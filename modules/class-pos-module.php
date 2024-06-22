@@ -40,6 +40,12 @@ class POS_Module {
 		register_block_type( $dir, $args );
 	}
 
+	public function register_cli_command( $command, $method ) {
+		if ( defined('WP_CLI') && class_exists( 'WP_CLI' ) ) {
+			WP_CLI::add_command( "pos {$this->id} {$command}", array( $this, $method ) );
+		}
+	}
+
 	public function register_post_type( $args = array() ) {
 		$labels = array(
 			'name'          => $this->name,
@@ -118,6 +124,10 @@ class POS_Module {
 
         //phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( "[{$level}] [{$this->id}] {$message}" );
+
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			\WP_CLI::line( "[{$level}] [{$this->id}] {$message}" );
+		}
 	}
 }
 
@@ -140,11 +150,11 @@ class External_Service_Module extends POS_Module {
 		return 'pos_sync_' . $this->id;
 	}
 
-	public function register_sync( $interal = 'hourly' ) {
+	public function register_sync( $interval = 'hourly' ) {
 		$hook_name = $this->get_sync_hook_name();
 		add_action( $hook_name, array( $this, 'sync' ) );
 		if ( ! wp_next_scheduled( $hook_name ) ) {
-			wp_schedule_event( time(), $interal, $hook_name );
+			wp_schedule_event( time(), $interval, $hook_name );
 		}
 	}
 
