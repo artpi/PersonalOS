@@ -50,8 +50,26 @@ class Evernote_Module extends External_Service_Module {
 		add_action( 'save_post_' . $this->notes_module->id, array( $this, 'sync_note_to_evernote' ), 10, 3 );
 		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
 		add_action( 'admin_post_evernote_resource', array( $this, 'proxy_media' ) );
+		$this->register_cli_command( 'sync_note', 'cli' );
 	}
 
+    /**
+	 * This forces sync of the note from evernote
+	 * <guid>
+     * : GUID of the note to sync.
+     */
+	public function cli( $args ) {
+		$this->connect();
+		$note = $this->advanced_client->getNoteStore()->getNote(
+			$args[0],
+			false,
+			false,
+			false,
+			false
+		);
+		WP_CLI::line( 'Found note in Evernote: ' . $note->title );
+		$this->sync_note( $note );
+	}
 	public function proxy_media() {
 		//phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! isset( $_GET['evernote_guid'] ) ) {
@@ -726,6 +744,17 @@ class Evernote_Module extends External_Service_Module {
 			},
 			$content
 		);
+		// Format readwise highlights
+		$content = preg_replace_callback( '#<blockquote[^>]*?>(.*?)(<div>)?<a href=\"(https\:\/\/readwise\.io[^"]+)\"[^>]*?>[^<]+<\/a>(<\/div>?)<\/blockquote>(<div><br\s*?\/><\/div>)?#is', function( $match ) {
+			// TODO: Readwise block needs html syntax in the future.
+			$removed_divs = preg_replace( '/<div>(.*?)<\/div>/', "\\1\n", $match[1] );
+			$removed_divs = trim( $removed_divs );
+			return \Readwise::wrap_highlight( ( object ) [
+				'readwise_url' => $match[3],
+				'text' => $removed_divs,
+			] );
+		}, $content );
+
 		$content = preg_replace_callback(
 			'/<a(?P<prehref>[^>]*?)href=[\'"](?P<href>evernote\:[^\'"]+)[\'"](?P<posthref>[^>]*?)>/',
 			function( $match ) {
@@ -965,6 +994,16 @@ class Evernote_Module extends External_Service_Module {
 			},
 			$html
 		);
+
+		// Readwise blocks are turned into blockquotes.
+		$html = preg_replace_callback( '/<!-- wp:pos\/readwise \{"readwise_url":"(?<readwise_url>[^"]+)"\} --><p class="wp-block-pos-readwise">(?<text>[^<]+)<\/p><!-- \/wp:pos\/readwise -->/', function( $match ) {
+			$text = explode( "\n", $match['text'] );
+			$text = array_map( function( $line ) {
+				return "<div>$line</div>";
+			}, $text );
+			$text = implode( "\n", $text );
+			return "<blockquote>$text<div><a href=\"{$match['readwise_url']}\">(*)</a></div></blockquote><div><br/></div>";
+		}, $html );
 		$html = self::kses( $html );
 
 		$html = preg_replace( '/<p[^>]*>/', '<div>', $html );

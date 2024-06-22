@@ -277,4 +277,18 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$tag2 = get_term( $this->module->get_notebook_by_guid( 'new-tag2', 'tag' ) );
 		$this->assertEquals( '#New Name 2', $tag2->name );
 	}
+
+	public function test_readwise_blocks() {
+		$content = array_map(
+			[ '\Readwise', 'wrap_highlight' ],
+			[
+				(object) [ 'readwise_url' => 'https://readwise.io/open/1', 'text' => "First highlight" ],
+				(object) [ 'readwise_url' => 'https://readwise.io/open/2', 'text' => "Second highlight" ],
+			]
+		);
+		$content = join( "\n", $content );
+		$enml = \Evernote_Module::html2enml( $content );
+		$html_again = \Evernote_Module::enml2html( $enml );
+		$this->assertJsonStringEqualsJsonString( json_encode( parse_blocks( $content ) ), json_encode( parse_blocks( $html_again ) ), 'Block trees should match' );
+	}
 }

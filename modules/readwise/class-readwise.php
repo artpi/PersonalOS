@@ -115,20 +115,22 @@ class Readwise extends External_Service_Module {
 		return $posts[0];
 	}
 
+	static public function wrap_highlight( $highlight ) {
+		return get_comment_delimited_block_content(
+			'pos/readwise',
+			array(
+				'readwise_url' => $highlight->readwise_url,
+			),
+			'<p class="wp-block-pos-readwise">' . $highlight->text . '</p>'
+		);
+	}
+
 	public function sync_book( $book ) {
 		$previous = $this->find_note_by_readwise_id( $book->user_book_id );
 		$this->log( '[DEBUG] Readwise ' . ( $previous ? 'Updating' : 'Creating' ) . " {$book->title}" );
 
 		$content = array_map(
-			function( $highlight ) {
-				return get_comment_delimited_block_content(
-					'pos/readwise',
-					array(
-						'readwise_url' => $highlight->readwise_url,
-					),
-					'<p class="wp-block-pos-readwise">' . $highlight->text . '</p>'
-				);
-			},
+			array( __CLASS__, 'wrap_highlight' ),
 			$book->highlights
 		);
 
