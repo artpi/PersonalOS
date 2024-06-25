@@ -28,7 +28,7 @@ class Notes_Module extends POS_Module {
 		);
 		$this->register_post_type(
 			array(
-				'supports' => array( 'title', 'excerpt', 'editor', 'custom-fields', 'revisions' ),
+				'supports'   => array( 'title', 'excerpt', 'editor', 'custom-fields', 'revisions' ),
 				'taxonomies' => array( 'notebook', 'post_tag' ),
 			)
 		);

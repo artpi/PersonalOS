@@ -32,7 +32,7 @@ class Evernote_Module extends External_Service_Module {
 			'name'  => 'Synced notebooks',
 			'label' => 'Comma separated list of notebooks to sync',
 		),
-		'active' => array(
+		'active'           => array(
 			'type'  => 'bool',
 			'name'  => 'Evernote Sync Active',
 			'label' => 'If this is not checked, sync will be paused. Changes will still be pushed from WordPress to Evernote.',
@@ -60,11 +60,11 @@ class Evernote_Module extends External_Service_Module {
 		add_action( 'edited_notebook', array( $this, 'save_bound_notebook_taxonomy_setting' ) );
 	}
 
-    /**
+	/**
 	 * This forces sync of the note from evernote
 	 * <guid>
-     * : GUID of the note to sync.
-     */
+	 * : GUID of the note to sync.
+	 */
 	public function cli( $args ) {
 		$this->connect();
 		$note = $this->advanced_client->getNoteStore()->getNote(
@@ -193,7 +193,7 @@ class Evernote_Module extends External_Service_Module {
 		// There is something like "main category" in WordPress, but whatever
 		$notebook       = new \Evernote\Model\Notebook();
 		$evernote_notebooks = $this->get_note_evernote_notebook_guid( $post->ID, 'notebook' );
-		
+
 		if ( empty( $evernote_notebooks ) || ! in_array( array_values( $evernote_notebooks )[0], $this->get_setting( 'synced_notebooks' ), true ) ) {
 			return;
 		}
@@ -341,10 +341,10 @@ class Evernote_Module extends External_Service_Module {
 	}
 
 	public function save_bound_notebook_taxonomy_setting( int $term_id ) {
-		if ( ! isset( $_POST['evernote-notebook'], $_POST['evernote_notebook_edit_nonce'] ) ){
+		if ( ! isset( $_POST['evernote-notebook'], $_POST['evernote_notebook_edit_nonce'] ) ) {
 			return;
 		}
-		if( ! wp_verify_nonce( $_POST['evernote_notebook_edit_nonce'] ?? '', 'evernote_notebook_edit' ) ) {
+		if ( ! wp_verify_nonce( $_POST['evernote_notebook_edit_nonce'] ?? '', 'evernote_notebook_edit' ) ) {
 			return;
 		}
 
@@ -355,8 +355,8 @@ class Evernote_Module extends External_Service_Module {
 			$this->log( "Detaching term $term_id from Evernote guid $existing" );
 			delete_term_meta( $term_id, 'evernote_notebook_guid' );
 			delete_term_meta( $term_id, 'evernote_type' );
-		} else if (
-			in_array( $evernote_notebook[0], [ 'notebook', 'tag' ], true ) &&
+		} elseif (
+			in_array( $evernote_notebook[0], array( 'notebook', 'tag' ), true ) &&
 			! empty( $evernote_notebook[1] ) &&
 			$existing !== $evernote_notebook[1]
 		) {
@@ -367,7 +367,7 @@ class Evernote_Module extends External_Service_Module {
 	}
 
 	public function get_option_html_for_notebook_binding( $key, $data, $evernote_guid, $evernote_type ) {
-		$id =  $evernote_type . ':' . $key;
+		$id = $evernote_type . ':' . $key;
 		$type = $evernote_type === 'notebook' ? '' : '#';
 		$selected = selected( $key, $evernote_guid, false );
 		$disabled = '';
@@ -378,7 +378,7 @@ class Evernote_Module extends External_Service_Module {
 			$disabled = 'disabled';
 			$extra = ' (conn: ' . get_term( $existing )->name . ')';
 		}
-		$sync_status = in_array( $key, $this->get_setting( 'synced_notebooks' ), true ) ? '🔄 ': '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
+		$sync_status = in_array( $key, $this->get_setting( 'synced_notebooks' ), true ) ? '🔄 ' : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
 
 		return "<option $selected $disabled value='$id'>{$sync_status}{$type}{$data['name']}{$extra}</option>";
 	}
@@ -388,29 +388,39 @@ class Evernote_Module extends External_Service_Module {
 		$cached = $this->get_cached_data();
 
 		$notebooks = array_merge(
-			array_map( function ( $key, $data ) use ( $evernote_guid ) {
-				return $this->get_option_html_for_notebook_binding( $key, $data, $evernote_guid, 'notebook' );
-			}, array_keys( $cached['notebooks'] ), $cached['notebooks'] ),
-			array_map( function ( $key, $data ) use ( $evernote_guid ) {
-				return $this->get_option_html_for_notebook_binding( $key, $data, $evernote_guid, 'tag' );
-			}, array_keys( $cached['tags'] ), $cached['tags'] )
+			array_map(
+				function ( $key, $data ) use ( $evernote_guid ) {
+					return $this->get_option_html_for_notebook_binding( $key, $data, $evernote_guid, 'notebook' );
+				},
+				array_keys( $cached['notebooks'] ),
+				$cached['notebooks']
+			),
+			array_map(
+				function ( $key, $data ) use ( $evernote_guid ) {
+					return $this->get_option_html_for_notebook_binding( $key, $data, $evernote_guid, 'tag' );
+				},
+				array_keys( $cached['tags'] ),
+				$cached['tags']
+			)
 		);
 		$notebooks = implode( '', $notebooks );
 
-		echo <<<HTML
-		<table class="form-table" role="presentation"><tbody>
-			<tr class="form-field term-parent-wrap">
-			<th scope="row"><label>Connected Evernote Tag/Notebook</label></th>
-			<td>
-				<select name="evernote-notebook" class="postform">
-					<option value="-1">Detach this notebook from Evernote</option>
-					{$notebooks}
-				</select>
-				<p class="description" id="parent-description">This is the attached Evernote Notebook/Tag. Tag names are prepended with #. I highly recommend <b>pausing Evernote Sync</b> Before you edit this field. 🔄 emoji means that the notebook is a synced notebook.</p>
-			</td>
-			</tr>
-		</tbody></table>
-		HTML;
+		echo wp_kses_post(
+			<<<HTML
+			<table class="form-table" role="presentation"><tbody>
+				<tr class="form-field term-parent-wrap">
+				<th scope="row"><label>Connected Evernote Tag/Notebook</label></th>
+				<td>
+					<select name="evernote-notebook" class="postform">
+						<option value="-1">Detach this notebook from Evernote</option>
+						{$notebooks}
+					</select>
+					<p class="description" id="parent-description">This is the attached Evernote Notebook/Tag. Tag names are prepended with #. I highly recommend <b>pausing Evernote Sync</b> Before you edit this field. 🔄 emoji means that the notebook is a synced notebook.</p>
+				</td>
+				</tr>
+			</tbody></table>
+			HTML
+		);
 		wp_nonce_field( 'evernote_notebook_edit', 'evernote_notebook_edit_nonce' );
 	}
 
@@ -833,15 +843,21 @@ class Evernote_Module extends External_Service_Module {
 			$content
 		);
 		// Format readwise highlights
-		$content = preg_replace_callback( '#<blockquote[^>]*?>(.*?)(<div>)?<a href=\"(https\:\/\/readwise\.io[^"]+)\"[^>]*?>[^<]+<\/a>(<\/div>?)<\/blockquote>(<div><br\s*?\/><\/div>)?#is', function( $match ) {
-			// TODO: Readwise block needs html syntax in the future.
-			$removed_divs = preg_replace( '/<div>(.*?)<\/div>/', "\\1\n", $match[1] );
-			$removed_divs = trim( $removed_divs );
-			return \Readwise::wrap_highlight( ( object ) [
-				'readwise_url' => $match[3],
-				'text' => $removed_divs,
-			] );
-		}, $content );
+		$content = preg_replace_callback(
+			'#<blockquote[^>]*?>(.*?)(<div>)?<a href=\"(https\:\/\/readwise\.io[^"]+)\"[^>]*?>[^<]+<\/a>(<\/div>?)<\/blockquote>(<div><br\s*?\/><\/div>)?#is',
+			function( $match ) {
+				// TODO: Readwise block needs html syntax in the future.
+				$removed_divs = preg_replace( '/<div>(.*?)<\/div>/', "\\1\n", $match[1] );
+				$removed_divs = trim( $removed_divs );
+				return \Readwise::wrap_highlight(
+					(object) array(
+						'readwise_url' => $match[3],
+						'text'         => $removed_divs,
+					)
+				);
+			},
+			$content
+		);
 
 		$content = preg_replace_callback(
 			'/<a(?P<prehref>[^>]*?)href=[\'"](?P<href>evernote\:[^\'"]+)[\'"](?P<posthref>[^>]*?)>/',
@@ -1084,14 +1100,21 @@ class Evernote_Module extends External_Service_Module {
 		);
 
 		// Readwise blocks are turned into blockquotes.
-		$html = preg_replace_callback( '/<!-- wp:pos\/readwise \{"readwise_url":"(?<readwise_url>[^"]+)"\} -->\s*?<(p|div) class="wp-block-pos-readwise">(?<text>[^<]+)<\/(p|div)>\s*?<!-- \/wp:pos\/readwise -->/', function( $match ) {
-			$text = explode( "\n", $match['text'] );
-			$text = array_map( function( $line ) {
-				return "<div>$line</div>";
-			}, $text );
-			$text = implode( "\n", $text );
-			return "<blockquote>$text<div><a href=\"{$match['readwise_url']}\">(*)</a></div></blockquote><div><br/></div>";
-		}, $html );
+		$html = preg_replace_callback(
+			'/<!-- wp:pos\/readwise \{"readwise_url":"(?<readwise_url>[^"]+)"\} -->\s*?<(p|div) class="wp-block-pos-readwise">(?<text>[^<]+)<\/(p|div)>\s*?<!-- \/wp:pos\/readwise -->/',
+			function( $match ) {
+				$text = explode( "\n", $match['text'] );
+				$text = array_map(
+					function( $line ) {
+						return "<div>$line</div>";
+					},
+					$text
+				);
+				$text = implode( "\n", $text );
+				return "<blockquote>$text<div><a href=\"{$match['readwise_url']}\">(*)</a></div></blockquote><div><br/></div>";
+			},
+			$html
+		);
 		$html = self::kses( $html );
 
 		$html = preg_replace( '/<p[^>]*>/', '<div>', $html );

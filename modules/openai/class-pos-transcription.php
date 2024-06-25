@@ -56,11 +56,11 @@ class POS_Transcription extends POS_Module {
 		return true;
 	}
 
-    /**
+	/**
 	 * Force transcribe attachment ID
 	 * <id>
-     * : ID of the attachment to transcribe.
-     */
+	 * : ID of the attachment to transcribe.
+	 */
 	public function cli( $args ) {
 		return $this->transcribe( $args[0] );
 	}
@@ -132,10 +132,11 @@ class POS_Transcription extends POS_Module {
 			// We have to figure out where to insert the transcription to the post.
 			// Let's append for now.
 			$parent = get_post( $post->post_parent );
-			$new_content = $this->openai->chat_completion( [
-				[
-					'role' => 'system',
-					'content' => <<<EOF
+			$new_content = $this->openai->chat_completion(
+				array(
+					array(
+						'role'    => 'system',
+						'content' => <<<EOF
 					You are a helpful secretary.
 					You will get a html file with a template and a transcription of a recording.
 					Format the attached transcription as if it was dictated to you. Make complete sentences out of rambly speech, but otherwise try to keep it in bullet points.
@@ -146,18 +147,19 @@ class POS_Transcription extends POS_Module {
 					Return ONLY valid HTML to replace the template. DO NOT include any markdown.
 					Please use the language from the transcription.
 					EOF,
-				],
-				[
-					'role' => 'user',
-					'content' => $parent->post_content,
-				],
-				[
-					'role' => 'user',
-					'content' => "Transcription: \n\n" . $response->text,
-				]
-			] );
+					),
+					array(
+						'role'    => 'user',
+						'content' => $parent->post_content,
+					),
+					array(
+						'role'    => 'user',
+						'content' => "Transcription: \n\n" . $response->text,
+					),
+				)
+			);
 			if ( is_wp_error( $new_content ) ) {
-				$this->log( 'Chat completion failed [' .$attachment_id. ']: ' . $new_content->get_error_message(), E_USER_WARNING );
+				$this->log( 'Chat completion failed [' . $attachment_id . ']: ' . $new_content->get_error_message(), E_USER_WARNING );
 				return;
 			}
 			$parent->post_content = $new_content;

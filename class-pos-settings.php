@@ -42,7 +42,7 @@ class POS_Settings {
 									wp_kses_post( $value ),
 									wp_kses_post( $setting['label'] ) ?? ''
 								);
-							} elseif( $setting['type'] === 'bool' ) {
+							} elseif ( $setting['type'] === 'bool' ) {
 								printf(
 									'<label for="pos_field_%1$s"><input name="%1$s" type="checkbox" id="pos_field_%1$s" value="1" %3$s>%2$s</label>',
 									esc_attr( $option_name ),

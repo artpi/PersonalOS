@@ -115,7 +115,7 @@ class Readwise extends External_Service_Module {
 		return $posts[0];
 	}
 
-	static public function wrap_highlight( $highlight ) {
+	public static function wrap_highlight( $highlight ) {
 		return get_comment_delimited_block_content(
 			'pos/readwise',
 			array(
@@ -135,7 +135,7 @@ class Readwise extends External_Service_Module {
 		);
 
 		if ( count( $content ) === 0 ) {
-			$this->log( "Somehow no notes" );
+			$this->log( 'Somehow no notes' );
 			return;
 		}
 
@@ -179,7 +179,7 @@ class Readwise extends External_Service_Module {
 			$post_id = $previous->ID;
 			wp_update_post(
 				array(
-					'ID'      => $previous->ID,
+					'ID'           => $previous->ID,
 					'post_content' => $previous->post_content . "\n" . implode( "\n", $content ),
 				)
 			);
