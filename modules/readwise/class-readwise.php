@@ -135,6 +135,7 @@ class Readwise extends External_Service_Module {
 		);
 
 		if ( count( $content ) === 0 ) {
+			$this->log( "Somehow no notes" );
 			return;
 		}
 
@@ -179,7 +180,7 @@ class Readwise extends External_Service_Module {
 			wp_update_post(
 				array(
 					'ID'      => $previous->ID,
-					'content' => $previous->post_content . "\n" . implode( "\n", $content ),
+					'post_content' => $previous->post_content . "\n" . implode( "\n", $content ),
 				)
 			);
 		} else {
