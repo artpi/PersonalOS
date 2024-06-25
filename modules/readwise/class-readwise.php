@@ -121,7 +121,7 @@ class Readwise extends External_Service_Module {
 			array(
 				'readwise_url' => $highlight->readwise_url,
 			),
-			'<p class="wp-block-pos-readwise">' . $highlight->text . '</p>'
+			'<div class="wp-block-pos-readwise">' . $highlight->text . '</div>'
 		);
 	}
 

@@ -9,6 +9,6 @@ const Save = ( props ) => {
 	} = props;
 	const blockProps = useBlockProps.save();
 
-	return <RichText.Content { ...blockProps } tagName="p" value={ content } />;
+	return <RichText.Content { ...blockProps } tagName="div" value={ content } />;
 };
 export default Save;

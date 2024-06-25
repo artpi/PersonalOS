@@ -996,7 +996,7 @@ class Evernote_Module extends External_Service_Module {
 		);
 
 		// Readwise blocks are turned into blockquotes.
-		$html = preg_replace_callback( '/<!-- wp:pos\/readwise \{"readwise_url":"(?<readwise_url>[^"]+)"\} --><p class="wp-block-pos-readwise">(?<text>[^<]+)<\/p><!-- \/wp:pos\/readwise -->/', function( $match ) {
+		$html = preg_replace_callback( '/<!-- wp:pos\/readwise \{"readwise_url":"(?<readwise_url>[^"]+)"\} -->\s*?<(p|div) class="wp-block-pos-readwise">(?<text>[^<]+)<\/(p|div)>\s*?<!-- \/wp:pos\/readwise -->/', function( $match ) {
 			$text = explode( "\n", $match['text'] );
 			$text = array_map( function( $line ) {
 				return "<div>$line</div>";

@@ -9,7 +9,7 @@
 		"content": {
 			"type": "string",
 			"source": "html",
-			"selector": "p"
+			"selector": "p,div"
 		},
         "readwise_url": {
             "type": "string"
