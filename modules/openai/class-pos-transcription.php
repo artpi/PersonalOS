@@ -19,6 +19,7 @@ class POS_Transcription extends POS_Module {
 		add_action( 'pos_' . $this->id, array( $this, 'transcribe' ) );
 		add_action( 'add_attachment', array( $this, 'schedule_transcription' ), 100 );
 		add_action( 'edit_attachment', array( $this, 'schedule_transcription' ), 100 );
+		$this->register_cli_command( 'transcribe', 'cli' );
 	}
 
 	public function schedule_transcription( $attachment_id ) {
@@ -53,6 +54,15 @@ class POS_Transcription extends POS_Module {
 			return ( 'Transcription: file too big' );
 		}
 		return true;
+	}
+
+    /**
+	 * Force transcribe attachment ID
+	 * <id>
+     * : ID of the attachment to transcribe.
+     */
+	public function cli( $args ) {
+		return $this->transcribe( $args[0] );
 	}
 
 	public function transcribe( $attachment_id ) {
@@ -121,8 +131,36 @@ class POS_Transcription extends POS_Module {
 		} else {
 			// We have to figure out where to insert the transcription to the post.
 			// Let's append for now.
-			$parent                = get_post( $post->post_parent );
-			$parent->post_content .= "<p>{$response->text}</p>";
+			$parent = get_post( $post->post_parent );
+			$new_content = $this->openai->chat_completion( [
+				[
+					'role' => 'system',
+					'content' => <<<EOF
+					You are a helpful secretary.
+					You will get a html file with a template and a transcription of a recording.
+					Format the attached transcription as if it was dictated to you. Make complete sentences out of rambly speech, but otherwise try to keep it in bullet points.
+					Correct grammar and spelling, and break it into bullet points where needed.
+					Fit the different pieces of trascription into the template where appropriate.
+					Format for readability.
+					Do not delete any data from the HTML template.
+					Return ONLY valid HTML to replace the template. DO NOT include any markdown.
+					Please use the language from the transcription.
+					EOF,
+				],
+				[
+					'role' => 'user',
+					'content' => $parent->post_content,
+				],
+				[
+					'role' => 'user',
+					'content' => "Transcription: \n\n" . $response->text,
+				]
+			] );
+			if ( is_wp_error( $new_content ) ) {
+				$this->log( 'Chat completion failed [' .$attachment_id. ']: ' . $new_content->get_error_message(), E_USER_WARNING );
+				return;
+			}
+			$parent->post_content = $new_content;
 			wp_update_post( $parent );
 		}
 

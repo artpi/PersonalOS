@@ -36,9 +36,11 @@ class OpenAI_Module extends POS_Module {
 	}
 
 	public function chat_api( WP_REST_Request $request ) {
+		return $this->api_call( 'https://api.openai.com/v1/chat/completions', $request->get_json_params() );
+	}
+
+	public function api_call( $url, $data ) {
 		$api_key = $this->get_setting( 'api_key' );
-		$url     = 'https://api.openai.com/v1/chat/completions';
-		$data    = $request->get_json_params();
 
 		$response = wp_remote_post(
 			$url,
@@ -52,6 +54,24 @@ class OpenAI_Module extends POS_Module {
 			)
 		);
 		$body     = wp_remote_retrieve_body( $response );
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
 		return json_decode( $body );
+	}
+
+	public function chat_completion( $messages = [], $model = 'gpt-4o') {
+		$data = [
+			'model' => $model,
+			'messages' => $messages,
+		];
+		$response = $this->api_call( 'https://api.openai.com/v1/chat/completions', $data );
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		if	( empty( $response->choices[0]->message->content ) ) {
+			return new WP_Error( 'no-response', 'No response from OpenAI' );
+		} 
+		return $response->choices[0]->message->content;
 	}
 }
