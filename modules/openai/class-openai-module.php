@@ -60,18 +60,18 @@ class OpenAI_Module extends POS_Module {
 		return json_decode( $body );
 	}
 
-	public function chat_completion( $messages = [], $model = 'gpt-4o') {
-		$data = [
-			'model' => $model,
+	public function chat_completion( $messages = array(), $model = 'gpt-4o' ) {
+		$data = array(
+			'model'    => $model,
 			'messages' => $messages,
-		];
+		);
 		$response = $this->api_call( 'https://api.openai.com/v1/chat/completions', $data );
 		if ( is_wp_error( $response ) ) {
 			return $response;
 		}
-		if	( empty( $response->choices[0]->message->content ) ) {
+		if ( empty( $response->choices[0]->message->content ) ) {
 			return new WP_Error( 'no-response', 'No response from OpenAI' );
-		} 
+		}
 		return $response->choices[0]->message->content;
 	}
 }

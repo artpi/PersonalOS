@@ -41,7 +41,7 @@ class POS_Module {
 	}
 
 	public function register_cli_command( $command, $method ) {
-		if ( defined('WP_CLI') && class_exists( 'WP_CLI' ) ) {
+		if ( defined( 'WP_CLI' ) && class_exists( 'WP_CLI' ) ) {
 			WP_CLI::add_command( "pos {$this->id} {$command}", array( $this, $method ) );
 		}
 	}
