@@ -69,6 +69,7 @@ class POS {
 		require_once plugin_dir_path( __FILE__ ) . 'modules/openai/class-openai-module.php';
 		require_once plugin_dir_path( __FILE__ ) . 'modules/openai/class-pos-transcription.php';
 
+		// TODO: https://github.com/artpi/PersonalOS/issues/15 Introduce a setting to enable/disable modules. We don't want constructors to be fired when the module is not wanted.
 		$todo          = new TODO_Module();
 		$notes         = new Notes_Module();
 		$openai        = new OpenAI_Module();
