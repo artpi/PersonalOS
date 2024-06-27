@@ -14,10 +14,15 @@ class Readwise extends External_Service_Module {
 	);
 
 	public $settings = array(
-		'token' => array(
+		'token'   => array(
 			'type'  => 'text',
 			'name'  => 'Readwise API Token',
 			'label' => 'You can get it from <a href="https://readwise.io/access_token">here</a>',
+		),
+		'autotag' => array(
+			'type'  => 'callback',
+			'name'  => 'Notebook for incoming highlights',
+			'label' => 'Automatically add new highlights to this notebook. They will also be added to the "Readwise" notebook.',
 		),
 	);
 
@@ -25,12 +30,24 @@ class Readwise extends External_Service_Module {
 
 	public function __construct( $notes_module ) {
 		$this->notes_module = $notes_module;
+		$token = $this->get_setting( 'token' );
+		$this->settings['autotag']['callback'] = array( $this, 'autotag_setting_callback' );
+		if ( ! $token ) {
+			return false;
+		}
 		$this->register_sync( 'hourly' );
-
 		$this->register_meta( 'readwise_id', $this->notes_module->id );
 		$this->register_meta( 'readwise_category', $this->notes_module->id );
 		$this->register_block( 'readwise' );
 		$this->register_block( 'book-summary' );
+	}
+
+
+	public function autotag_setting_callback( string $option_name, $value, $setting ) {
+		if ( ! $value ) {
+			$value = 0;
+		}
+		\POS_Settings::wp_terms_select_form( 'notebook', $value, $option_name, 0, 'Don\'t autotag' );
 	}
 
 	public function setup_default_notebook() {
@@ -173,7 +190,11 @@ class Readwise extends External_Service_Module {
 		);
 
 		$term_ids   = array_filter( $term_ids );
-		$term_ids[] = get_term_by( 'slug', 'inbox', 'notebook' )->term_id;
+		$term_ids[] = $parent_notebook->term_id;
+
+		if ( $this->get_setting( 'autotag' ) > 0 ) {
+			$term_ids[] = $this->get_setting( 'autotag' );
+		}
 
 		if ( $previous ) {
 			$post_id = $previous->ID;

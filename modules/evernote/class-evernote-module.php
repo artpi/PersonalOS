@@ -404,23 +404,31 @@ class Evernote_Module extends External_Service_Module {
 			)
 		);
 		$notebooks = implode( '', $notebooks );
-
-		echo wp_kses_post(
-			<<<HTML
+		?>
 			<table class="form-table" role="presentation"><tbody>
 				<tr class="form-field term-parent-wrap">
 				<th scope="row"><label>Connected Evernote Tag/Notebook</label></th>
 				<td>
 					<select name="evernote-notebook" class="postform">
 						<option value="-1">Detach this notebook from Evernote</option>
-						{$notebooks}
+						<?php
+						echo wp_kses(
+							$notebooks,
+							array(
+								'option' => array(
+									'selected' => array(),
+									'disabled' => array(),
+									'value'    => array(),
+								),
+							)
+						);
+						?>
 					</select>
 					<p class="description" id="parent-description">This is the attached Evernote Notebook/Tag. Tag names are prepended with #. I highly recommend <b>pausing Evernote Sync</b> Before you edit this field. 🔄 emoji means that the notebook is a synced notebook.</p>
 				</td>
 				</tr>
 			</tbody></table>
-			HTML
-		);
+		<?php
 		wp_nonce_field( 'evernote_notebook_edit', 'evernote_notebook_edit_nonce' );
 	}
 

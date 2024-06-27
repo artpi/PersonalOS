@@ -115,4 +115,38 @@ class POS_Settings {
 		<?php
 	}
 
+	public static function wp_terms_select_form( $taxonomy, $selected, $select_name = '', $none_value = false, $none_label = 'Select a notebook' ) {
+		$terms = get_terms(
+			array(
+				'taxonomy'   => $taxonomy,
+				'hide_empty' => false,
+			)
+		);
+
+		if ( empty( $terms ) || is_wp_error( $terms ) ) {
+			return;
+		}
+
+		// Function to build nested terms
+
+		function build_terms_dropdown( $terms, $selected, $parent = 0, $level = 0 ) {
+			foreach ( $terms as $term ) {
+				if ( $term->parent === $parent ) {
+					echo '<option value="' . esc_attr( $term->term_id ) . '" ' . selected( $term->term_id, $selected, false ) . '>' . esc_html( str_repeat( '&nbsp;', $level * 4 ) ) . esc_html( $term->name ) . '</option>';
+					build_terms_dropdown( $terms, $selected, $term->term_id, $level + 1 );
+				}
+			}
+		}
+
+		echo '<select id="' . esc_attr( $select_name ) . '" name="' . esc_attr( $select_name ? $select_name : $taxonomy ) . '">';
+
+		if ( $none_value !== false ) {
+			echo '<option value="' . esc_html( $none_value ) . '">' . esc_html( $none_label ) . '</option>';
+		}
+
+		build_terms_dropdown( $terms, $selected );
+
+		echo '</select>';
+	}
+
 }
