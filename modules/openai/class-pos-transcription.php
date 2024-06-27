@@ -65,6 +65,23 @@ class POS_Transcription extends POS_Module {
 		return $this->transcribe( $args[0] );
 	}
 
+	public function get_common_terms() {
+		$terms = get_terms(
+			array(
+				'taxonomy'   => 'notebook',
+				'hide_empty' => false,
+				'fields'     => 'names',
+			)
+		);
+		$terms = array_map(
+			function ( $term ) {
+				return str_replace( array( '@', '#' ), '', $term );
+			},
+			$terms
+		);
+		return implode( ', ', $terms );
+	}
+
 	public function transcribe( $attachment_id ) {
 		$this->log( 'Transcribing ' . $attachment_id );
 		$checks = $this->transcription_checks( $attachment_id );
@@ -146,6 +163,7 @@ class POS_Transcription extends POS_Module {
 					Do not delete any data from the HTML template.
 					Return ONLY valid HTML to replace the template. DO NOT include any markdown.
 					Please use the language from the transcription.
+					Terms that I might use include: {$this->get_common_terms()}
 					EOF,
 					),
 					array(
