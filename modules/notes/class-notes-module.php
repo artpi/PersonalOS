@@ -3,6 +3,26 @@
 class Notes_Module extends POS_Module {
 	public $id   = 'notes';
 	public $name = 'Notes';
+	public $settings = array(
+		'user' => array(
+			'type'  => 'callback',
+			'callback' => 'user_setting_callback',
+			'name'  => 'User for sync jobs',
+			'label' => 'A user to run sync jobs as.',
+		),
+	);
+
+	public function switch_to_user() {
+		$user_id = $this->get_setting( 'user' );
+		if ( ! $user_id ) {
+			return;
+		}
+		$user = get_user_by( 'id', $user_id );
+		if ( ! $user ) {
+			return;
+		}
+		wp_set_current_user( $user_id, $user->user_login );
+	}
 
 	public function register() {
 		register_taxonomy(
@@ -41,6 +61,16 @@ class Notes_Module extends POS_Module {
 			'note',
 			array(
 				'render_callback' => array( $this, 'render_note_block' ),
+			)
+		);
+		$this->settings['synced_notebooks']['callback'] = array( $this, 'synced_notebooks_setting_callback' );
+	}
+
+	public function user_setting_callback( $option_name, $value, $setting ) {
+		wp_dropdown_users(
+			array(
+				'name'     => $option_name,
+				'selected' => $value,
 			)
 		);
 	}

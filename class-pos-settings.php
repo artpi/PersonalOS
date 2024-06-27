@@ -26,13 +26,16 @@ class POS_Settings {
 					'pos'
 				);
 				foreach ( $settings as $setting_id => $setting ) {
+					if ( empty( $setting['type'] ) || empty( $setting['name'] ) ) {
+						continue;
+					}
 					$option_name = $module->get_setting_option_name( $setting_id );
 					register_setting( 'pos', $option_name );
 
 					add_settings_field(
 						'pos_field_' . $setting['name'],
 						$setting['name'],
-						function() use ( $setting, $option_name ) {
+						function() use ( $setting, $option_name, $module ) {
 							$value = get_option( $option_name );
 
 							if ( $setting['type'] === 'text' ) {
@@ -49,8 +52,10 @@ class POS_Settings {
 									wp_kses_post( $setting['label'] ) ?? '',
 									$value ? 'checked' : ''
 								);
-							} elseif ( $setting['type'] === 'callback' && is_callable( $setting['callback'] ) ) {
+							} elseif ( $setting['type'] === 'callback' && ! empty( $setting['callback'] ) && is_callable( $setting['callback'] ) ) {
 								call_user_func( $setting['callback'], $option_name, $value, $setting );
+							} elseif ( $setting['type'] === 'callback' && ! empty( $setting['callback'] ) && is_callable( array( $module, $setting['callback'] ) ) ) {
+								call_user_func( array( $module, $setting['callback'] ), $option_name, $value, $setting );
 							}
 
 						},

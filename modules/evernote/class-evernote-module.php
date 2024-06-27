@@ -39,9 +39,9 @@ class Evernote_Module extends External_Service_Module {
 		),
 	);
 
-	public $notes_module = null;
+	public \Notes_Module|null $notes_module = null;
 
-	public function __construct( \POS_Module $notes_module ) {
+	public function __construct( \Notes_Module $notes_module ) {
 		$this->notes_module = $notes_module;
 		$this->token        = $this->get_setting( 'token' );
 		if ( ! $this->token ) {
@@ -526,6 +526,7 @@ class Evernote_Module extends External_Service_Module {
 		if ( ! $this->get_setting( 'active' ) ) {
 			return;
 		}
+		$this->notes_module->switch_to_user();
 		$this->log( 'Syncing Evernote triggering ' );
 		$this->connect();
 		$this->synced_notebooks = $this->get_setting( 'synced_notebooks' );

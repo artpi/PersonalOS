@@ -8,6 +8,10 @@ class MockedEvernoteNoteStore {
 	public function getResourceData( $a ) {
 		return 'b';
 	}
+
+	public function createNote( $note ) {
+		return 'potato';
+	}
 }
 /**
  * Sample test case.
@@ -290,5 +294,26 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$enml = \Evernote_Module::html2enml( $content );
 		$html_again = \Evernote_Module::enml2html( $enml );
 		$this->assertJsonStringEqualsJsonString( json_encode( parse_blocks( $content ) ), json_encode( parse_blocks( $html_again ) ), 'Block trees should match' );
+	}
+
+	public function test_tax_input() {
+		$this->markTestSkipped( 'This test has not been implemented yet.' );
+		$this->note_store->expects( $this->once() )
+		->method( 'createNote' )
+		->with( 'test-resource' )
+		->will( $this->returnValue( '' ) );
+
+		$post_id = wp_insert_post(
+			array(
+				'post_title'   => 'Test post',
+				'post_content' => 'Test WordPress content',
+				'post_status'  => 'publish',
+				'post_type'    => 'notes',
+				'tax_input' => array(
+					'notebook' => array( $this->test_notebook['term_id'] ),
+				),
+			)
+		);
+
 	}
 }

@@ -21,17 +21,17 @@ class Readwise extends External_Service_Module {
 		),
 		'autotag' => array(
 			'type'  => 'callback',
+			'callback' => 'autotag_setting_callback',
 			'name'  => 'Notebook for incoming highlights',
 			'label' => 'Automatically add new highlights to this notebook. They will also be added to the "Readwise" notebook.',
 		),
 	);
 
-	public $notes_module = null;
+	public Notes_Module|null $notes_module = null;
 
-	public function __construct( $notes_module ) {
+	public function __construct( Notes_Module $notes_module ) {
 		$this->notes_module = $notes_module;
 		$token = $this->get_setting( 'token' );
-		$this->settings['autotag']['callback'] = array( $this, 'autotag_setting_callback' );
 		if ( ! $token ) {
 			return false;
 		}
@@ -66,6 +66,7 @@ class Readwise extends External_Service_Module {
 		if ( ! $token ) {
 			return false;
 		}
+		$this->notes_module->switch_to_user();
 		$this->setup_default_notebook();
 
 		$query_args  = array();
@@ -197,11 +198,15 @@ class Readwise extends External_Service_Module {
 		}
 
 		if ( $previous ) {
-			$post_id = $previous->ID;
+			$existing_terms = wp_get_post_terms( $previous->ID, 'notebook', array( 'fields' => 'ids' ) );
+			$term_ids       = array_unique( array_merge( $term_ids, $existing_terms ) );
 			wp_update_post(
 				array(
 					'ID'           => $previous->ID,
 					'post_content' => $previous->post_content . "\n" . implode( "\n", $content ),
+					'tax_input'    => array(
+						'notebook' => $term_ids,
+					),
 				)
 			);
 		} else {
@@ -216,6 +221,9 @@ class Readwise extends External_Service_Module {
 					'readwise_author'   => $book->author,
 					'url'               => $book->source_url,
 				),
+				'tax_input'    => array(
+					'notebook' => $term_ids,
+				),
 			);
 			if ( $book->summary ) {
 				$data['post_excerpt'] = $book->summary;
@@ -225,9 +233,6 @@ class Readwise extends External_Service_Module {
 				$data['post_date'] = gmdate( 'Y-m-d H:i:s', strtotime( $last_highlight->created_at ) );
 			}
 			$post_id = wp_insert_post( $data );
-		}
-		if ( $post_id && count( $term_ids ) > 0 ) {
-			wp_set_post_terms( $post_id, $term_ids, 'notebook', true );
 		}
 	}
 }
