@@ -171,11 +171,17 @@ class Evernote_Module extends External_Service_Module {
 		$this->connect();
 		$guid = get_post_meta( $post->ID, 'evernote_guid', true );
 
+		$url = get_post_meta( $post->ID, 'url', true );
+
 		if ( $guid ) {
 			$note = $this->advanced_client->getNoteStore()->getNote( $guid, false, false, false, false );
 			if ( $note ) {
 				$note->title   = $post->post_title;
 				$note->content = self::html2enml( $post->post_content );
+
+				if ( $url && isset( $note->attributes ) ) {
+					$note->attributes->sourceURL = $url;
+				}
 
 				try {
 					$result = $this->advanced_client->getNoteStore()->updateNote( $note );
@@ -204,6 +210,11 @@ class Evernote_Module extends External_Service_Module {
 		$note->title        = $post->post_title;
 		$note->content      = self::html2enml( $post->post_content );
 		$note->notebookGuid = $notebook->guid;
+		$note->attributes   = new \EDAM\Types\NoteAttributes();
+
+		if ( $url && isset( $note->attributes ) ) {
+			$note->attributes->sourceURL = $url;
+		}
 
 		$tags = $this->get_note_evernote_notebook_guid( $post->ID, 'tag' );
 		if ( ! empty( $tags ) ) {
