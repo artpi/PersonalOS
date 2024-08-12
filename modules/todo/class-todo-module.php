@@ -14,6 +14,16 @@ class TODO_Module extends POS_Module {
 		add_filter( 'manage_notebook_custom_column', array( $this, 'notebook_taxonomy_column' ), 10, 3 );
 		add_filter( 'manage_edit-notebook_columns', array( $this, 'notebook_taxonomy_columns' ) );
 
+		//TODO: Restrict to only todo CPT.
+		register_meta(
+			'post',
+			'reminders_id',
+			array(
+				'type' => 'string',
+				'single' => true,
+				'show_in_rest' => true,
+			)
+		);
 	}
 	public function notebook_taxonomy_columns( $columns ) {
 		$columns['todos'] = 'TODOs';
