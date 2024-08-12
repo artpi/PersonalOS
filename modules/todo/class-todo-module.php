@@ -13,14 +13,17 @@ class TODO_Module extends POS_Module {
 		);
 		add_filter( 'manage_notebook_custom_column', array( $this, 'notebook_taxonomy_column' ), 10, 3 );
 		add_filter( 'manage_edit-notebook_columns', array( $this, 'notebook_taxonomy_columns' ) );
+		add_action( 'add_meta_boxes', array( $this, 'pos_add_todo_dependency_meta_box' ) );
+		add_action( 'save_post_todo', array( $this, 'pos_save_todo_dependency_meta' ), 10, 2 );
+		add_action( 'wp_trash_post', array( $this, 'unblock_todos_when_completing' ), 10, 1 );
 
 		//TODO: Restrict to only todo CPT.
 		register_meta(
 			'post',
 			'reminders_id',
 			array(
-				'type' => 'string',
-				'single' => true,
+				'type'         => 'string',
+				'single'       => true,
 				'show_in_rest' => true,
 			)
 		);
@@ -49,4 +52,123 @@ class TODO_Module extends POS_Module {
 		return $output;
 	}
 
+	public function pos_add_todo_dependency_meta_box() {
+		add_meta_box(
+			'pos_todo_dependency',
+			'TODO Dependency',
+			array( $this, 'pos_todo_dependency_meta_box_callback' ),
+			'todo',
+			'normal',
+			'default'
+		);
+	}
+	public function pos_todo_dependency_meta_box_callback( $post ) {
+		wp_nonce_field( 'pos_save_todo_dependency_meta', 'pos_todo_dependency_meta_nonce' );
+
+		$blocked_by = get_post_meta( $post->ID, 'pos_blocked_by', true );
+		$blocked_pending_term = get_post_meta( $post->ID, 'pos_blocked_pending_term', true );
+
+		$todos = get_posts(
+			array(
+				'post_type'      => 'todo',
+				'post_status'    => array( 'publish', 'private' ),
+				'posts_per_page' => -1,
+				'exclude'        => array( $post->ID ),
+			)
+		);
+
+		?>
+		<p>
+			<label for="pos_blocked_by">This TODO depends on:</label>
+			<select name="pos_blocked_by" id="pos_blocked_by">
+				<option value="">This task does not depend on any other</option>
+				<?php foreach ( $todos as $todo ) : ?>
+					<option value="<?php echo esc_attr( $todo->ID ); ?>" <?php selected( $blocked_by, $todo->ID ); ?>>
+						<?php echo esc_html( $todo->post_title ); ?>
+					</option>
+				<?php endforeach; ?>
+			</select>
+		</p>
+		<p>
+			<label for="pos_blocked_pending_term">When unblocked move to:</label>
+			<?php
+			$dropdown_args = array(
+				'taxonomy'          => 'notebook',
+				'hide_empty'        => 0,
+				'name'              => 'pos_blocked_pending_term',
+				'orderby'           => 'name',
+				'selected'          => empty( $blocked_pending_term ) ? 'now' : $blocked_pending_term,
+				'hierarchical'      => true,
+				'show_option_none'  => __( 'Select a notebook' ),
+				'option_none_value' => '',
+				'value_field'       => 'slug',
+			);
+			wp_dropdown_categories( $dropdown_args );
+			?>
+		</p>
+		<?php
+	}
+
+	public function pos_save_todo_dependency_meta( $post_id, $post ) {
+		if ( ! isset( $_POST['pos_todo_dependency_meta_nonce'] ) || ! wp_verify_nonce( $_POST['pos_todo_dependency_meta_nonce'], 'pos_save_todo_dependency_meta' ) ) {
+			return;
+		}
+
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+
+		if ( ! empty( $_POST['pos_blocked_by'] ) ) {
+			$blocked_by = sanitize_text_field( $_POST['pos_blocked_by'] );
+			update_post_meta( $post_id, 'pos_blocked_by', $blocked_by );
+
+			$blocked_pending_term = isset( $_POST['pos_blocked_pending_term'] ) ? sanitize_text_field( $_POST['pos_blocked_pending_term'] ) : '';
+			update_post_meta( $post_id, 'pos_blocked_pending_term', $blocked_pending_term );
+		} elseif ( ! empty( get_post_meta( $post_id, 'pos_blocked_pending_term' ) ) ) {
+			delete_post_meta( $post_id, 'pos_blocked_pending_term' );
+			delete_post_meta( $post_id, 'pos_blocked_by' );
+		}
+	}
+
+	public function unblock_todos_when_completing( $post_id ) {
+		$post = get_post( $post_id );
+
+		// Check if the trashed post is a 'todo'
+		if ( $post->post_type !== $this->id ) {
+			return;
+		}
+
+		// get todos blocked by this todo
+		$blocked_posts = get_posts(
+			array(
+				'post_type'      => $this->id,
+				'post_status'    => array( 'publish', 'private' ),
+				'posts_per_page' => -1,
+				'meta_key'       => 'pos_blocked_by',
+				'meta_value'     => $post_id,
+			)
+		);
+
+		foreach ( $blocked_posts as $blocked_post ) {
+			$blocked_pending_term_slug = get_post_meta( $blocked_post->ID, 'pos_blocked_pending_term', true );
+			if ( empty( $blocked_pending_term_slug ) ) {
+				continue;
+			}
+
+			$blocked_pending_term = get_term_by( 'slug', $blocked_pending_term_slug, 'notebook' );
+			if ( ! $blocked_pending_term ) {
+				continue;
+			}
+			wp_set_object_terms( $blocked_post->ID, array( $blocked_pending_term->term_id ), 'notebook', true );
+			$this->log( "TODO unblocked: {$blocked_post->ID} by completing {$post_id}. Moving now to {$blocked_pending_term_slug}" );
+			//Cleanup for the blocking todo
+			delete_post_meta( $blocked_post->ID, 'pos_blocked_pending_term' );
+			delete_post_meta( $blocked_post->ID, 'pos_blocked_by' );
+		}
+
+	}
 }
