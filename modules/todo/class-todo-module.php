@@ -16,6 +16,7 @@ class TODO_Module extends POS_Module {
 		add_action( 'add_meta_boxes', array( $this, 'pos_add_todo_dependency_meta_box' ) );
 		add_action( 'save_post_todo', array( $this, 'pos_save_todo_dependency_meta' ), 10, 2 );
 		add_action( 'wp_trash_post', array( $this, 'unblock_todos_when_completing' ), 10, 1 );
+		add_action( 'pos_todo_scheduled', array( $this, 'pos_todo_scheduled' ), 10, 1 );
 
 		//TODO: Restrict to only todo CPT.
 		register_meta(
@@ -122,16 +123,31 @@ class TODO_Module extends POS_Module {
 			return;
 		}
 
+		$todo_pending_action = false;
 		if ( ! empty( $_POST['pos_blocked_by'] ) ) {
 			$blocked_by = sanitize_text_field( $_POST['pos_blocked_by'] );
 			update_post_meta( $post_id, 'pos_blocked_by', $blocked_by );
-
-			$blocked_pending_term = isset( $_POST['pos_blocked_pending_term'] ) ? sanitize_text_field( $_POST['pos_blocked_pending_term'] ) : '';
-			update_post_meta( $post_id, 'pos_blocked_pending_term', $blocked_pending_term );
+			$todo_pending_action = true;
 		} elseif ( ! empty( get_post_meta( $post_id, 'pos_blocked_pending_term' ) ) ) {
 			delete_post_meta( $post_id, 'pos_blocked_pending_term' );
-			delete_post_meta( $post_id, 'pos_blocked_by' );
 		}
+
+		$time = strtotime( $post->post_date_gmt . ' GMT' );
+		if ( $time > time() && ! wp_next_scheduled( 'pos_todo_scheduled', array( $post_id ) ) ) {
+			$this->log( "TODO scheduled: {$post_id} at {$time}" );
+			wp_schedule_single_event( $time, 'pos_todo_scheduled', array( $post_id ) );
+			$todo_pending_action = true;
+		}
+
+		if ( $todo_pending_action ) {
+			$blocked_pending_term = isset( $_POST['pos_blocked_pending_term'] ) ? sanitize_text_field( $_POST['pos_blocked_pending_term'] ) : '';
+			update_post_meta( $post_id, 'pos_blocked_pending_term', $blocked_pending_term );
+		}
+	}
+
+	public function pos_todo_scheduled( $post_id ) {
+		$this->log( "TODO scheduled now: {$post_id}" );
+		$this->perform_pending_action( get_post( $post_id ) );
 	}
 
 	public function unblock_todos_when_completing( $post_id ) {
@@ -154,21 +170,25 @@ class TODO_Module extends POS_Module {
 		);
 
 		foreach ( $blocked_posts as $blocked_post ) {
-			$blocked_pending_term_slug = get_post_meta( $blocked_post->ID, 'pos_blocked_pending_term', true );
-			if ( empty( $blocked_pending_term_slug ) ) {
-				continue;
-			}
-
-			$blocked_pending_term = get_term_by( 'slug', $blocked_pending_term_slug, 'notebook' );
-			if ( ! $blocked_pending_term ) {
-				continue;
-			}
-			wp_set_object_terms( $blocked_post->ID, array( $blocked_pending_term->term_id ), 'notebook', true );
-			$this->log( "TODO unblocked: {$blocked_post->ID} by completing {$post_id}. Moving now to {$blocked_pending_term_slug}" );
-			//Cleanup for the blocking todo
-			delete_post_meta( $blocked_post->ID, 'pos_blocked_pending_term' );
-			delete_post_meta( $blocked_post->ID, 'pos_blocked_by' );
+			$this->perform_pending_action( $blocked_post );
 		}
 
+	}
+
+	private function perform_pending_action( $blocked_post ) {
+		$blocked_pending_term_slug = get_post_meta( $blocked_post->ID, 'pos_blocked_pending_term', true );
+		if ( empty( $blocked_pending_term_slug ) ) {
+			return;
+		}
+
+		$blocked_pending_term = get_term_by( 'slug', $blocked_pending_term_slug, 'notebook' );
+		if ( ! $blocked_pending_term ) {
+			return;
+		}
+		wp_set_object_terms( $blocked_post->ID, array( $blocked_pending_term->term_id ), 'notebook', true );
+		$this->log( "TODO unblocked: {$blocked_post->ID} by completing blocking post. Moving now to {$blocked_pending_term_slug}" );
+		//Cleanup for the blocking todo
+		delete_post_meta( $blocked_post->ID, 'pos_blocked_pending_term' );
+		delete_post_meta( $blocked_post->ID, 'pos_blocked_by' );
 	}
 }
