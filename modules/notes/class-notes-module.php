@@ -311,7 +311,7 @@ class Notes_Module extends POS_Module {
 			}
 		);
 		if ( count( $notes ) > 0 ) {
-			echo '<h3>' . esc_html( $conf['args']->name ) . ': Notes</h3>';
+			echo '<h3><a href="edit.php?notebook=' . $conf['args']->slug . '&post_type=notes">' . esc_html( $conf['args']->name ) . ': Notes</a></h3>';
 			$notes = array_map(
 				function( $note ) {
 					return "<li><a href='" . get_edit_post_link( $note->ID ) . "' aria-label='Edit “{$note->post_title}”'><h5>{$note->post_title}</h5><time datetime='{$note->post_date}'>" . gmdate( 'F j, Y', strtotime( $note->post_date ) ) . '</time><p>' . get_the_excerpt( $note ) . '</p></a></li>';
@@ -344,7 +344,7 @@ class Notes_Module extends POS_Module {
 			}
 		);
 		if ( count( $notes ) > 0 ) {
-			echo '<h3>' . esc_html( $conf['args']->name ) . ': TODOs</h3>';
+			echo '<h3><a href="edit.php?notebook=' . $conf['args']->slug . '&post_type=todo">' . esc_html( $conf['args']->name ) . ': TODOs</a></h3>';
 			$notes = array_map(
 				function( $note ) use ( $check ) {
 					return "<li><a href='" . esc_url( wp_nonce_url( "post.php?action=trash&amp;post=$note->ID", 'trash-post_' . $note->ID ) ) . "'>{$check}<a style='font-weight:bold;margin: 0 5px 0 0 ' href='" . get_edit_post_link( $note->ID ) . "' aria-label='Edit “{$note->post_title}”'>{$note->post_title}</a></li>";

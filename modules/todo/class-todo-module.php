@@ -35,6 +35,7 @@ class TODO_Module extends POS_Module {
 		return $columns;
 	}
 	public function notebook_taxonomy_column( $output, $column_name, $term_id ) {
+		$term = get_term( $term_id );
 		if ( $column_name === 'todos' ) {
 			$query = new WP_Query(
 				array(
@@ -48,7 +49,7 @@ class TODO_Module extends POS_Module {
 					),
 				)
 			);
-			return "<a href='edit.php?notebook=inbox&post_type={$this->id}'>{$query->found_posts}</a>";
+			return "<a href='edit.php?notebook={$term->slug}&post_type={$this->id}'>{$query->found_posts}</a>";
 		}
 		return $output;
 	}
