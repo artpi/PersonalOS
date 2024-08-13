@@ -264,7 +264,7 @@ class Notes_Module extends POS_Module {
 				$notes
 			);
 
-			echo '<ul class="pos_admin_widget_notes">' . esc_html( implode( '', $notes ) ) . '</ul>';
+			echo '<ul class="pos_admin_widget_notes">' . wp_kses_post( implode( '', $notes ) ) . '</ul>';
 		}
 		$notes = get_posts(
 			array(
