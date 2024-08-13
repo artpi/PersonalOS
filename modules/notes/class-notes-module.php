@@ -352,7 +352,7 @@ class Notes_Module extends POS_Module {
 				$notes
 			);
 
-			echo '<ul class ="pos_admin_widget_todos" >' . esc_html( implode( '', $notes ) ) . '</ul>';
+			echo '<ul class ="pos_admin_widget_todos" >' . ( implode( '', $notes ) ) . '</ul>';
 		}
 
 		//$term = get_term_by( 'slug', $conf['args']['notebook'], 'notebook' );
