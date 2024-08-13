@@ -64,6 +64,54 @@ class Notes_Module extends POS_Module {
 			)
 		);
 		$this->settings['synced_notebooks']['callback'] = array( $this, 'synced_notebooks_setting_callback' );
+		add_action( 'notebook_edit_form_fields', array( $this, 'notebook_edit_form_fields' ), 10, 2 );
+		add_action( 'edited_notebook', array( $this, 'save_notebook_settings' ) );
+
+		register_meta(
+			'term',
+			'flag',
+			array(
+				'object_subtype' => 'notebook',
+				'type'         => 'string',
+				'single'       => true,
+				'show_in_rest' => true,
+			)
+		);
+
+	}
+
+	public function notebook_edit_form_fields( $term, $taxonomy ) {
+		$value = get_term_meta( $term->term_id, 'flag', true );
+		$is_starred = ( $value === 'star' );
+		?>
+			<table class="form-table" role="presentation"><tbody>
+				<tr class="form-field term-parent-wrap">
+				<th scope="row"><label for="pos_flag_star">Star Notebook</label></th>
+				<td>
+					<input type="checkbox" name="pos_flag" id="pos_flag_star" value="star" <?php checked( $is_starred ); ?> />
+					<label for="pos_flag_star">Mark this notebook as starred</label>
+					<p class="description" id="parent-description">Check this box to mark the notebook as starred. Starred notebooks will be more accessible</p>
+				</td>
+				</tr>
+			</tbody></table>
+		<?php
+		wp_nonce_field( 'notebook_edit', 'notebook_edit_nonce' );
+	}
+
+	public function save_notebook_settings( int $term_id ) {
+		if ( ! isset( $_POST['notebook_edit_nonce'] ) ) {
+			return;
+		}
+		if ( ! wp_verify_nonce( $_POST['notebook_edit_nonce'] ?? '', 'notebook_edit' ) ) {
+			return;
+		}
+
+		if ( empty( $_POST['pos_flag'] ) ) {
+			delete_term_meta( $term_id, 'flag' );
+		} else {
+			$flag = sanitize_text_field( $_POST['pos_flag'] );
+			update_term_meta( $term_id, 'flag', $flag );
+		}
 	}
 
 	public function user_setting_callback( $option_name, $value, $setting ) {
@@ -104,6 +152,13 @@ class Notes_Module extends POS_Module {
 			array(
 				'taxonomy'   => 'notebook',
 				'hide_empty' => false,
+				'meta_query' => array(
+					array(
+						'key'     => 'flag',
+						'value'   => 'star',
+						'compare' => '=',
+					),
+				),
 			)
 		);
 		foreach ( $terms as $term ) {
@@ -169,7 +224,7 @@ class Notes_Module extends POS_Module {
 		?>
 		<form id="quicknote" method="get" class="initial-form hide-if-no-js">
 		<div class="textarea-wrap">
-			<textarea name="content" placeholder="What’s on your mind?" class="mceEditor" rows="3" cols="15" autocomplete="off" style="overflow: hidden; height: 170px;"></textarea>
+			<textarea name="content" placeholder="What's on your mind?" class="mceEditor" rows="3" cols="15" autocomplete="off" style="overflow: hidden; height: 170px;"></textarea>
 		</div>
 		<p class="submit">
 			<input type="submit" name="save" id="save-post" disabled class="button button-primary" value="Save Note" style="width:100%">
