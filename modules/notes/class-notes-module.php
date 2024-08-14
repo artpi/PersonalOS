@@ -78,6 +78,42 @@ class Notes_Module extends POS_Module {
 			)
 		);
 
+		register_meta(
+			'post',
+			'url',
+			array(
+				'type'         => 'string',
+				'single'       => true,
+				'show_in_rest' => true,
+			)
+		);
+		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
+	}
+
+	public function admin_menu() {
+		$terms = get_terms(
+			array(
+				'taxonomy'   => 'notebook',
+				'hide_empty' => false,
+				'meta_query' => array(
+					array(
+						'key'     => 'flag',
+						'value'   => 'star',
+						'compare' => '=',
+					),
+				),
+			)
+		);
+		foreach ( $terms as $term ) {
+			$count = count( get_posts( [ 'nopaging' => true, 'fields' => 'ids', 'post_type' => 'todo', 'post_status' => [ 'private', 'publish' ], 'tax_query' => [ [ 'taxonomy' => 'notebook', 'field' => 'slug', 'terms' => $term->slug ] ] ] ) );
+			if( $count > 0 ) {
+				add_submenu_page( 'personalos', $term->name, $term->name . ' todos ' . '<span class="awaiting-mod" style="background-color: #0073aa;"><span class="pending-count" aria-hidden="true">' . $count . '</span></span>', 'read', 'edit.php?post_type=todo&notebook=' . $term->slug );
+			}
+			$count = count( get_posts( [ 'nopaging' => true, 'fields' => 'ids', 'post_type' => 'notes', 'post_status' => [ 'private', 'publish' ], 'tax_query' => [ [ 'taxonomy' => 'notebook', 'field' => 'slug', 'terms' => $term->slug ] ] ] ) );
+			if ( $count > 0 ) {
+				add_submenu_page( 'personalos', $term->name, $term->name . ' notes ' . '<span class="awaiting-mod" style="background-color: #0073aa;"><span class="pending-count" aria-hidden="true">' . $count . '</span></span>', 'read', 'edit.php?post_type=notes&notebook=' . $term->slug );
+			}
+		}
 	}
 
 	public function notebook_edit_form_fields( $term, $taxonomy ) {
