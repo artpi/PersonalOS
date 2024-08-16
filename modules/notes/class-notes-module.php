@@ -12,6 +12,15 @@ class Notes_Module extends POS_Module {
 		),
 	);
 
+	public function get_notes( $args = [] ) {
+		return get_posts( array_merge( array(
+			'post_type' => $this->id,
+			'post_status' => array( 'publish', 'private' ),
+			'perm' => 'readable',
+			'posts_per_page' => -1,
+		), $args ) );
+	}
+
 	public function switch_to_user() {
 		$user_id = $this->get_setting( 'user' );
 		if ( ! $user_id ) {
