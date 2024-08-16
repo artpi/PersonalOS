@@ -18,6 +18,7 @@ class TODO_Module extends POS_Module {
 		add_action( 'wp_trash_post', array( $this, 'unblock_todos_when_completing' ), 10, 1 );
 		add_action( 'pos_todo_scheduled', array( $this, 'pos_todo_scheduled' ), 10, 1 );
 		add_action( 'post_updated', array( $this, 'save_todo_notes' ), 10, 3 );
+		add_action( 'set_object_terms', array( $this, 'save_todo_notes_terms' ), 10, 6 );
 
 		//TODO: Restrict to only todo CPT.
 		register_meta(
@@ -37,24 +38,72 @@ class TODO_Module extends POS_Module {
 		}
 		$changes = array();
 		if ( $old_post->post_title !== $post->post_title ) {
-			$changes[] = "Title changed from '{$old_post->post_title}' to '{$post->post_title}'";
+			$changes[] = "Title changed from '<b><i>{$old_post->post_title}</i></b>' to '<b><i>{$post->post_title}</i></b>'";
 		}
 
 		if ( $old_post->post_excerpt !== $post->post_excerpt ) {
-			$changes[] = "Excerpt changed\nOld: {$old_post->post_excerpt}\nNew: {$post->post_excerpt}";
+			if ( strlen( $old_post->post_excerpt ) > 0 ) {
+				$changes[] = "<strike>{$old_post->post_excerpt}</strike>";
+			}
+			$changes[] = "{$post->post_excerpt}";
+		}
+		$this->todo_notes( $post_id, $changes );
+	}
+
+	private function todo_notes( $post_id, array $changes ) {
+		if ( empty( $changes ) ) {
+			return;
+		}
+		$changes = array_map(
+			function( $change ) {
+				return '<li>' . $change . '</li>';
+			},
+			$changes
+		);
+
+		$comment_content = '<h4>' . wp_date( 'Y-m-d H:i:s', time() ) . '</h4><ul>' . implode( "\n\n", $changes ) . '</ul>';
+		wp_insert_comment(
+			array(
+				'comment_post_ID' => $post_id,
+				'comment_content' => $comment_content,
+				'user_id'         => get_current_user_id(),
+				'comment_type'    => 'todo_note',
+			)
+		);
+	}
+	public function save_todo_notes_terms( $object_id, $terms, $tt_ids, $taxonomy, $append, $old_tt_ids ) {
+		if ( $taxonomy !== 'notebook' ) {
+			return;
 		}
 
-		if ( ! empty( $changes ) ) {
-			$comment_content = implode( "\n\n", $changes );
-			wp_insert_comment(
-				array(
-					'comment_post_ID' => $post_id,
-					'comment_content' => $comment_content,
-					'user_id'         => get_current_user_id(),
-					'comment_type'    => 'todo_note',
-				)
-			);
+		$post = get_post( $object_id );
+		if ( ! $post || is_wp_error( $post ) || $post->post_type !== $this->id ) {
+			return;
 		}
+
+		$changes = array();
+		$added_terms = array_diff( $terms, $old_tt_ids );
+		$removed_terms = array_diff( $old_tt_ids, $terms );
+		if ( ! empty( $added_terms ) ) {
+			$added_terms_names = array_map(
+				function( $term_id ) {
+					return '<b>' . get_term( $term_id )->name . '</b>';
+				},
+				$added_terms
+			);
+			$changes[] = 'Added to notebook: ' . implode( ', ', $added_terms_names );
+		}
+		if ( ! empty( $removed_terms ) ) {
+			$removed_terms_names = array_map(
+				function( $term_id ) {
+					return '<b>' . get_term( $term_id )->name . '</b>';
+				},
+				$removed_terms
+			);
+			$changes[] = 'Removed from notebook: <strike>' . implode( ', ', $removed_terms_names ) . '</strike>';
+		}
+
+		$this->todo_notes( $object_id, $changes );
 	}
 
 	public function notebook_taxonomy_columns( $columns ) {
