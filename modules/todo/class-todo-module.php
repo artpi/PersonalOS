@@ -33,7 +33,7 @@ class TODO_Module extends POS_Module {
 	}
 
 	public function save_todo_notes( $post_id, $post, $old_post ) {
-		if ( $post->post_type !== $this->id || $old_post->post_type !== $this->id ) {
+		if ( ! $post || ! $old_post || $post->post_type !== $this->id || $old_post->post_type !== $this->id ) {
 			return;
 		}
 		$changes = array();
@@ -82,12 +82,16 @@ class TODO_Module extends POS_Module {
 		}
 
 		$changes = array();
-		$added_terms = array_diff( $terms, $old_tt_ids );
-		$removed_terms = array_diff( $old_tt_ids, $terms );
+		$added_terms = array_diff( $tt_ids, $old_tt_ids );
+		$removed_terms = array_diff( $old_tt_ids, $tt_ids );
 		if ( ! empty( $added_terms ) ) {
 			$added_terms_names = array_map(
 				function( $term_id ) {
-					return '<b>' . get_term( $term_id )->name . '</b>';
+					$term = get_term( $term_id );
+					if ( ! $term ) {
+						return $term_id;
+					}
+					return '<b>' . $term->name . '</b>';
 				},
 				$added_terms
 			);
@@ -96,7 +100,11 @@ class TODO_Module extends POS_Module {
 		if ( ! empty( $removed_terms ) ) {
 			$removed_terms_names = array_map(
 				function( $term_id ) {
-					return '<b>' . get_term( $term_id )->name . '</b>';
+					$term = get_term( $term_id );
+					if ( ! $term ) {
+						return $term_id;
+					}
+					return '<b>' . $term->name . '</b>';
 				},
 				$removed_terms
 			);
