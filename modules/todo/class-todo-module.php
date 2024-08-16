@@ -7,7 +7,7 @@ class TODO_Module extends POS_Module {
 	public function register() {
 		$this->register_post_type(
 			array(
-				'supports'   => array( 'title', 'excerpt', 'custom-fields' ),
+				'supports'   => array( 'title', 'excerpt', 'custom-fields', 'comments' ),
 				'taxonomies' => array( 'notebook' ),
 			)
 		);
@@ -17,6 +17,7 @@ class TODO_Module extends POS_Module {
 		add_action( 'save_post_todo', array( $this, 'pos_save_todo_dependency_meta' ), 10, 2 );
 		add_action( 'wp_trash_post', array( $this, 'unblock_todos_when_completing' ), 10, 1 );
 		add_action( 'pos_todo_scheduled', array( $this, 'pos_todo_scheduled' ), 10, 1 );
+		add_action( 'post_updated', array( $this, 'save_todo_notes' ), 10, 3 );
 
 		//TODO: Restrict to only todo CPT.
 		register_meta(
@@ -29,6 +30,33 @@ class TODO_Module extends POS_Module {
 			)
 		);
 	}
+
+	public function save_todo_notes( $post_id, $post, $old_post ) {
+		if ( $post->post_type !== $this->id || $old_post->post_type !== $this->id ) {
+			return;
+		}
+		$changes = array();
+		if ( $old_post->post_title !== $post->post_title ) {
+			$changes[] = "Title changed from '{$old_post->post_title}' to '{$post->post_title}'";
+		}
+
+		if ( $old_post->post_excerpt !== $post->post_excerpt ) {
+			$changes[] = "Excerpt changed\nOld: {$old_post->post_excerpt}\nNew: {$post->post_excerpt}";
+		}
+
+		if ( ! empty( $changes ) ) {
+			$comment_content = implode( "\n\n", $changes );
+			wp_insert_comment(
+				array(
+					'comment_post_ID' => $post_id,
+					'comment_content' => $comment_content,
+					'user_id'         => get_current_user_id(),
+					'comment_type'    => 'todo_note',
+				)
+			);
+		}
+	}
+
 	public function notebook_taxonomy_columns( $columns ) {
 		$columns['todos'] = 'TODOs';
 		$columns['posts'] = 'Notes';
