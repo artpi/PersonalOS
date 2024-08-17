@@ -49,15 +49,10 @@ class POS_Transcription extends POS_Module {
 	}
 
 	public function schedule_transcription( $attachment_id ) {
-		if ( $this->transcription_checks( $attachment_id ) !== true ) {
+		$checks = $this->transcription_checks( $attachment_id );
+		if ( $checks !== true ) {
+			//$this->log( 'Not scheduling transcription for ' . $attachment_id . ' ' . $checks );
 			return;
-		}
-
-		// If the transcription is marked to add for daily note and the attachment does not have a parent, add it to the daily note.
-		if ( 'daily' === get_post_meta( $attachment_id, 'pos_transcribe', true ) && ! wp_get_post_parent_id( $attachment_id ) ) {
-			// Add to daily note, whatever the id is.
-			$this->log( 'Adding transcription to daily note ' . $attachment_id );
-			$this->add_to_daily_note( $attachment_id );
 		}
 
 		$this->log( 'Scheduling transcription for ' . $attachment_id );
@@ -66,6 +61,14 @@ class POS_Transcription extends POS_Module {
 
 	public function transcription_checks( $attachment_id ) {
 		$last_transcription = get_post_meta( $attachment_id, 'pos_transcribe', true );
+		$post = get_post( $attachment_id );
+
+		// If the transcription is marked to add for daily note and the attachment does not have a parent, add it to the daily note.
+		if ( 'daily' === $last_transcription && empty( $post->post_parent ) ) {
+			// Add to daily note, whatever the id is.
+			$this->log( 'Adding transcription to daily note ' . $attachment_id );
+			$this->add_to_daily_note( $attachment_id );
+		}
 
 		if ( ! $last_transcription ) {
 			return 'This is not scheduled for transcription.';
