@@ -87,7 +87,7 @@ class TODO_Module extends POS_Module {
 		if ( ! empty( $added_terms ) ) {
 			$added_terms_names = array_map(
 				function( $term_id ) {
-					$term = get_term( $term_id );
+					$term = get_term_by( 'term_taxonomy_id', $term_id, 'notebook' );
 					if ( ! $term ) {
 						return $term_id;
 					}
@@ -100,7 +100,7 @@ class TODO_Module extends POS_Module {
 		if ( ! empty( $removed_terms ) ) {
 			$removed_terms_names = array_map(
 				function( $term_id ) {
-					$term = get_term( $term_id );
+					$term = get_term_by( 'term_taxonomy_id', $term_id, 'notebook' );
 					if ( ! $term ) {
 						return $term_id;
 					}

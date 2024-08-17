@@ -22,16 +22,53 @@ class POS_Transcription extends POS_Module {
 		$this->register_cli_command( 'transcribe', 'cli' );
 	}
 
-	public function schedule_transcription( $attachment_id ) {
-		if ( $this->transcription_checks( $attachment_id ) !== true ) {
+	private function add_to_daily_note( $attachment_id ) {
+		$daily = \POS::get_module_by_id( 'daily' );
+		if ( ! $daily ) {
 			return;
 		}
+		$daily_notes = $daily->get_daily_note_for_date( time() );
+		if ( empty( $daily_notes ) ) {
+			return;
+		}
+		$daily_note = $daily_notes[0];
+		wp_update_post(
+			array(
+				'ID'           => $attachment_id,
+				'post_parent'  => $daily_note->ID,
+			)
+		);
+
+		// Actual recording. I am reluctant to add it to the post content, as it can be problematic with evernote sync.
+		// wp_update_post(
+		// 	array(
+		// 		'ID'           => $daily_note->ID,
+		// 		'post_content' => $daily_note->post_content . "\n\n" . $this->get_audio_block( $attachment_id ),
+		// 	)
+		// );
+	}
+
+	public function schedule_transcription( $attachment_id ) {
+		$checks = $this->transcription_checks( $attachment_id );
+		if ( $checks !== true ) {
+			//$this->log( 'Not scheduling transcription for ' . $attachment_id . ' ' . $checks );
+			return;
+		}
+
 		$this->log( 'Scheduling transcription for ' . $attachment_id );
 		wp_schedule_single_event( time(), 'pos_' . $this->id, array( $attachment_id ) );
 	}
 
 	public function transcription_checks( $attachment_id ) {
 		$last_transcription = get_post_meta( $attachment_id, 'pos_transcribe', true );
+		$post = get_post( $attachment_id );
+
+		// If the transcription is marked to add for daily note and the attachment does not have a parent, add it to the daily note.
+		if ( 'daily' === $last_transcription && empty( $post->post_parent ) ) {
+			// Add to daily note, whatever the id is.
+			$this->log( 'Adding transcription to daily note ' . $attachment_id );
+			$this->add_to_daily_note( $attachment_id );
+		}
 
 		if ( ! $last_transcription ) {
 			return 'This is not scheduled for transcription.';
@@ -80,6 +117,16 @@ class POS_Transcription extends POS_Module {
 			$terms
 		);
 		return implode( ', ', $terms );
+	}
+
+	private function get_audio_block( $attachment_id ) {
+		return get_comment_delimited_block_content(
+			'audio',
+			array(
+				'id' => $attachment_id,
+			),
+			'<figure class="wp-block-audio"><audio controls src="' . wp_get_attachment_url( $attachment_id ) . '"></audio></figure>'
+		);
 	}
 
 	public function transcribe( $attachment_id ) {
@@ -135,13 +182,7 @@ class POS_Transcription extends POS_Module {
 		// Is this a child post?
 		if ( empty( $post->post_parent ) ) {
 			// Save a note.
-			$audio_block = get_comment_delimited_block_content(
-				'audio',
-				array(
-					'id' => $attachment_id,
-				),
-				'<figure class="wp-block-audio"><audio controls src="' . wp_get_attachment_url( $attachment_id ) . '"></audio></figure>'
-			);
+			$audio_block = $this->get_audio_block( $attachment_id );
 			$this->notes->create( 'Transcription', "{$audio_block}<p>{$response->text}</p>", true );
 			//TODO: Add recording as note child?
 			return;

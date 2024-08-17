@@ -41,6 +41,15 @@ class POS {
 		update_option( 'pos_data_version', self::$version );
 	}
 
+	public static function get_module_by_id( $id ) {
+		foreach ( self::$modules as $module ) {
+			if ( $module->id === $id ) {
+				return $module;
+			}
+		}
+		return null;
+	}
+
 	public static function admin_menu() {
 		add_menu_page( 'Personal OS', 'Personal OS', 'manage_options', 'personalos', false, 'dashicons-admin-generic', 3 );
 		add_submenu_page( 'personalos', 'Your Dashboard', 'Dashboard', 'manage_options', 'personalos-settings', array( 'POS', 'admin_page' ), 0 );
@@ -68,6 +77,7 @@ class POS {
 		require_once plugin_dir_path( __FILE__ ) . 'modules/todo/class-todo-module.php';
 		require_once plugin_dir_path( __FILE__ ) . 'modules/openai/class-openai-module.php';
 		require_once plugin_dir_path( __FILE__ ) . 'modules/openai/class-pos-transcription.php';
+		require_once plugin_dir_path( __FILE__ ) . 'modules/daily/class-daily-module.php';
 
 		// TODO: https://github.com/artpi/PersonalOS/issues/15 Introduce a setting to enable/disable modules. We don't want constructors to be fired when the module is not wanted.
 		$todo          = new TODO_Module();
@@ -80,6 +90,7 @@ class POS {
 			$todo,
 			$openai,
 			new POS_Transcription( $openai, $notes ),
+			new Daily_Module( $notes ),
 		);
 		self::fix_versions();
 		require_once plugin_dir_path( __FILE__ ) . 'class-pos-settings.php';
