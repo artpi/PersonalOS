@@ -30,9 +30,43 @@ class OpenAI_Module extends POS_Module {
 				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
+		register_rest_route(
+			$this->rest_namespace,
+			'/openai/media/describe/(?P<id>\d+)',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'media_describe' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
 	}
 	public function check_permission() {
 		return current_user_can( 'manage_options' );
+	}
+
+	public function media_describe( WP_REST_Request $request ) {
+		$id = $request->get_param( 'id' );
+		$media = wp_get_attachment_url( $id );
+		if ( ! $media ) {
+			return new WP_Error( 'no-media', 'Media not found' );
+		}
+		$result = $this->api_call( 'https://api.openai.com/v1/chat/completions', array(
+			'model' => 'gpt-4o',
+			'messages' => array(
+				array( 'role' => 'system', 'content' => 'You are a helpful assistant. Please describe the image in detail.' ),
+				array( 'role' => 'user', 'content' => [ [
+					'image_url' => $media,
+				] ] )
+			),
+		) );
+		$this->log( 'Media describe result: ' . print_r( $result, true ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		if ( isset( $result->error ) ) {
+			return new WP_Error( 'openai-error', $result->error->message );
+		}
+		return [ 'description' => $result->choices[0]->message->content ];
 	}
 
 	public function chat_api( WP_REST_Request $request ) {

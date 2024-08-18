@@ -3,6 +3,8 @@ import { useBlockProps, RichText, MediaUpload } from '@wordpress/block-editor';
 import { useEffect } from '@wordpress/element';
 import { Button, Placeholder } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
+import apiFetch from '@wordpress/api-fetch';
+
 
 registerBlockType('pos/img-describe', {
     edit: EditComponent,
@@ -51,13 +53,12 @@ function EditComponent({ attributes, setAttributes }) {
     const generateImageDescription = async (id) => {
         // Implement API call to AI service for image recognition
         // This is a placeholder and needs to be replaced with actual API call
-        // const response = await fetch('YOUR_AI_SERVICE_ENDPOINT', {
-        //     method: 'POST',
-        //     body: JSON.stringify({ imageUrl }),
-        // });
-        // const data = await response.json();
-        console.log( 'Generating image description', id );
-        setAttributes({ caption: 'potato', processed: Date.now()/1000 });
+        const response = await apiFetch( {
+			path: '/pos/v1/openai/media/describe/' + id,
+            method: 'POST',
+		} );
+        console.log( 'Generating image description', response );
+        setAttributes({ caption: response.description, processed: Math.floor(Date.now()/1000) });
     };
 
     return (
