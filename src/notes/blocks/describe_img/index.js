@@ -62,7 +62,7 @@ function EditComponent({ attributes, setAttributes }) {
     };
 
     return (
-        <div {...blockProps}>
+        <div {...blockProps} className="wp-block-pos-img-describe wp-block-image">
             { ! url && (
                 <Placeholder>
                     <MediaUpload
@@ -92,7 +92,7 @@ function SaveComponent({ attributes }) {
     const blockProps = useBlockProps.save();
 
     return (
-        <figure {...blockProps}>
+        <figure {...blockProps} className="wp-block-pos-img-describe wp-block-image">
             {url && <img src={url} alt={alt} />}
             {caption && <figcaption>{caption}</figcaption>}
         </figure>

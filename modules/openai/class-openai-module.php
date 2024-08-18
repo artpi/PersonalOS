@@ -53,10 +53,10 @@ class OpenAI_Module extends POS_Module {
 		$result = $this->api_call( 'https://api.openai.com/v1/chat/completions', array(
 			'model' => 'gpt-4o',
 			'messages' => array(
-				array( 'role' => 'system', 'content' => 'You are a helpful assistant. Please describe the image in detail.' ),
+				array( 'role' => 'system', 'content' => 'Please describe the image in detail. If there are items in the image, list them and describe them.' ),
 				array( 'role' => 'user', 'content' => [ [
 					'image_url' => $media,
-				] ] )
+				] ] ),
 			),
 		) );
 		$this->log( 'Media describe result: ' . print_r( $result, true ) );
@@ -66,6 +66,15 @@ class OpenAI_Module extends POS_Module {
 		if ( isset( $result->error ) ) {
 			return new WP_Error( 'openai-error', $result->error->message );
 		}
+		if ( ! isset( $result->choices[0]->message->content) ) {
+			return new WP_Error( 'no-response', 'No response from OpenAI' );
+		}
+		$description = $result->choices[0]->message->content;
+		wp_update_post( array(
+			'ID' => $id,
+			'post_content' => $description,
+		) );
+	
 		return [ 'description' => $result->choices[0]->message->content ];
 	}
 
