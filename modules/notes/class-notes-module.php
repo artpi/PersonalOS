@@ -72,6 +72,8 @@ class Notes_Module extends POS_Module {
 				'render_callback' => array( $this, 'render_note_block' ),
 			)
 		);
+		$this->register_block( 'describe_img' );
+
 		$this->settings['synced_notebooks']['callback'] = array( $this, 'synced_notebooks_setting_callback' );
 		add_action( 'notebook_edit_form_fields', array( $this, 'notebook_edit_form_fields' ), 10, 2 );
 		add_action( 'edited_notebook', array( $this, 'save_notebook_settings' ) );

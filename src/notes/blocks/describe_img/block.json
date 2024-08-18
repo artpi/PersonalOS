@@ -1,0 +1,42 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "pos/img-describe",
+    "title": "Image with Description",
+    "category": "media",
+    "attributes": {
+        "id": {
+            "type": "number"
+        },
+        "processed": {
+            "type": "number",
+            "default": 0
+        },
+        "url": {
+            "type": "string",
+            "source": "attribute",
+            "selector": "img",
+            "attribute": "src"
+        },
+        "alt": {
+            "type": "string",
+            "source": "attribute",
+            "selector": "img",
+            "attribute": "alt",
+            "default": ""
+        },
+        "caption": {
+            "type": "string",
+            "source": "html",
+            "selector": "figcaption"
+        }
+    },
+    "supports": {
+        "align": true
+    },
+    "textdomain": "pos",
+    "keywords": ["Image", "Description", "AI"],
+    "editorScript": "file:./index.js",
+    "editorStyle": "file:./index.css",
+    "style": "file:./style-index.css"
+}
