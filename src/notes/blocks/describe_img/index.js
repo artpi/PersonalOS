@@ -1,7 +1,7 @@
 import { registerBlockType, createBlock } from '@wordpress/blocks';
 import { useBlockProps, RichText, MediaUpload } from '@wordpress/block-editor';
 import { useEffect } from '@wordpress/element';
-import { Button, Placeholder } from '@wordpress/components';
+import { Button, Placeholder, Spinner } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 
@@ -32,12 +32,13 @@ registerBlockType('pos/img-describe', {
 function EditComponent({ attributes, setAttributes }) {
     const { id, url, alt, caption, processed } = attributes;
     const blockProps = useBlockProps();
+
     useEffect(() => {
-        if ( processed === 0 ) {
+        if ( id && processed === 0 ) {
             setAttributes( { processed: 1 } );
             generateImageDescription( id );
         }
-    }, [ processed ]);
+    }, [ id, processed ]);
 
     const onSelectImage = (media) => {
         setAttributes( {
@@ -53,6 +54,9 @@ function EditComponent({ attributes, setAttributes }) {
     const generateImageDescription = async (id) => {
         // Implement API call to AI service for image recognition
         // This is a placeholder and needs to be replaced with actual API call
+        if ( ! id ) {
+            return;
+        }
         const response = await apiFetch( {
 			path: '/pos/v1/openai/media/describe/' + id,
             method: 'POST',
@@ -69,15 +73,16 @@ function EditComponent({ attributes, setAttributes }) {
                         onSelect={onSelectImage}
                         allowedTypes={['image']}
                         render={({ open }) => (
-                            <Button onClick={open}>
-                                { __('Upload Image') }
+                            <Button variant="secondary" onClick={open}>
+                                { __('Choose an image for AI to describe') }
                             </Button>
                         )}
                     />
                 </Placeholder>
             ) }
             { url && <img src={url} alt={alt} /> }
-            { url &&<RichText
+            { url && processed === 1 && <Spinner /> }
+            { url && processed && <RichText
                 tagName="figcaption"
                 placeholder={__('Write caption…')}
                 value={caption}

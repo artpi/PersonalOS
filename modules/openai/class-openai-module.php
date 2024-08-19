@@ -10,6 +10,12 @@ class OpenAI_Module extends POS_Module {
 			'name'  => 'OpenAI API Key',
 			'label' => 'You can get it from <a href="https://platform.openai.com/account/api-keys">here</a>',
 		),
+		'prompt_describe_image' => array(
+			'type'  => 'textarea',
+			'name'  => 'Prompt for describing image',
+			'label' => 'This prompt will be used to describe the image.',
+			'default' => 'Please describe the image in detail. If there are items in the image, list them and describe them.',
+		),
 	);
 
 	public function is_configured() {
@@ -53,7 +59,7 @@ class OpenAI_Module extends POS_Module {
 		$result = $this->api_call( 'https://api.openai.com/v1/chat/completions', array(
 			'model' => 'gpt-4o',
 			'messages' => array(
-				array( 'role' => 'system', 'content' => 'Please describe the image in detail. If there are items in the image, list them and describe them.' ),
+				array( 'role' => 'system', 'content' => $this->get_setting( 'prompt_describe_image' ) ),
 				array( 'role' => 'user', 'content' => [ [
 					'image_url' => $media,
 				] ] ),

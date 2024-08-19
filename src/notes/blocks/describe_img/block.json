@@ -2,7 +2,8 @@
     "$schema": "https://schemas.wp.org/trunk/block.json",
     "apiVersion": 3,
     "name": "pos/img-describe",
-    "title": "Image with Description",
+    "icon": "format-image",
+    "title": "Image auto-describe",
     "category": "media",
     "attributes": {
         "id": {

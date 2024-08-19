@@ -24,7 +24,8 @@ class POS_Module {
 	}
 
 	public function get_setting( $id ) {
-		return get_option( $this->get_setting_option_name( $id ) );
+		$default = isset( $this->settings[ $id ]['default'] ) ? $this->settings[ $id ]['default'] : false;
+		return get_option( $this->get_setting_option_name( $id ), $default );
 	}
 
 	public function __construct() {
