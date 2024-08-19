@@ -14,7 +14,11 @@ class OpenAI_Module extends POS_Module {
 			'type'  => 'textarea',
 			'name'  => 'Prompt for describing image',
 			'label' => 'This prompt will be used to describe the image.',
-			'default' => 'Please describe the image in detail. If there are items in the image, list them and describe them.',
+			'default' => <<<EOF
+				Please describe the content of this image
+				- If Image presents some kind of assortment of items without people in it, assume that your role is to list everything present in the image. Do not describe the scene, but instead list every item in the image. Default to listing all individual items instead of whole groups.
+				- If the image presents a scene with people in it, describe what it's presenting.
+			EOF,
 		),
 	);
 

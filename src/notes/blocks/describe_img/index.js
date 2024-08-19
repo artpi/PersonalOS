@@ -80,6 +80,7 @@ function EditComponent({ attributes, setAttributes }) {
                     />
                 </Placeholder>
             ) }
+            { ( processed > 1 ) && <h3>{ new Date( processed * 1000 ).toLocaleString() }</h3> }
             { url && <img src={url} alt={alt} /> }
             { url && processed === 1 && <Spinner /> }
             { url && processed && <RichText
@@ -93,7 +94,7 @@ function EditComponent({ attributes, setAttributes }) {
 }
 
 function SaveComponent({ attributes }) {
-    const { url, alt, caption, description } = attributes;
+    const { url, alt, caption } = attributes;
     const blockProps = useBlockProps.save();
 
     return (

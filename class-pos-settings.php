@@ -47,10 +47,11 @@ class POS_Settings {
 								);
 							} elseif ( $setting['type'] === 'textarea' ) {
 								printf(
-									'<textarea class="large-text" name="%1$s" id="pos_field_%1$s">%2$s</textarea><br/><label for="pos_field_%1$s">%3$s</label>',
+									'<textarea class="large-text" name="%1$s" id="pos_field_%1$s" placeholder="%4$s">%2$s</textarea><br/><label for="pos_field_%1$s">%3$s</label>',
 									esc_attr( $option_name ),
 									wp_kses_post( $value ),
-									wp_kses_post( $setting['label'] ) ?? ''
+									wp_kses_post( $setting['label'] ) ?? '',
+									wp_kses_post( $setting['default'] ) ?? ''
 								);
 							} elseif ( $setting['type'] === 'bool' ) {
 								printf(
