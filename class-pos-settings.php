@@ -36,7 +36,7 @@ class POS_Settings {
 						'pos_field_' . $setting['name'],
 						$setting['name'],
 						function() use ( $setting, $option_name, $module ) {
-							$value = get_option( $option_name );
+							$value = get_option( $option_name, $setting['default'] ?? '' );
 
 							if ( $setting['type'] === 'text' ) {
 								printf(
@@ -44,6 +44,14 @@ class POS_Settings {
 									esc_attr( $option_name ),
 									wp_kses_post( $value ),
 									wp_kses_post( $setting['label'] ) ?? ''
+								);
+							} elseif ( $setting['type'] === 'textarea' ) {
+								printf(
+									'<textarea class="large-text" name="%1$s" id="pos_field_%1$s" placeholder="%4$s">%2$s</textarea><br/><label for="pos_field_%1$s">%3$s</label>',
+									esc_attr( $option_name ),
+									wp_kses_post( $value ),
+									wp_kses_post( $setting['label'] ) ?? '',
+									wp_kses_post( $setting['default'] ) ?? ''
 								);
 							} elseif ( $setting['type'] === 'bool' ) {
 								printf(

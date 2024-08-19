@@ -10,6 +10,16 @@ class OpenAI_Module extends POS_Module {
 			'name'  => 'OpenAI API Key',
 			'label' => 'You can get it from <a href="https://platform.openai.com/account/api-keys">here</a>',
 		),
+		'prompt_describe_image' => array(
+			'type'  => 'textarea',
+			'name'  => 'Prompt for describing image',
+			'label' => 'This prompt will be used to describe the image.',
+			'default' => <<<EOF
+				Please describe the content of this image
+				- If Image presents some kind of assortment of items without people in it, assume that your role is to list everything present in the image. Do not describe the scene, but instead list every item in the image. Default to listing all individual items instead of whole groups.
+				- If the image presents a scene with people in it, describe what it's presenting.
+			EOF,
+		),
 	);
 
 	public function is_configured() {
@@ -30,9 +40,52 @@ class OpenAI_Module extends POS_Module {
 				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
+		register_rest_route(
+			$this->rest_namespace,
+			'/openai/media/describe/(?P<id>\d+)',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'media_describe' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
 	}
 	public function check_permission() {
 		return current_user_can( 'manage_options' );
+	}
+
+	public function media_describe( WP_REST_Request $request ) {
+		$id = $request->get_param( 'id' );
+		$media = wp_get_attachment_url( $id );
+		if ( ! $media ) {
+			return new WP_Error( 'no-media', 'Media not found' );
+		}
+		$result = $this->api_call( 'https://api.openai.com/v1/chat/completions', array(
+			'model' => 'gpt-4o',
+			'messages' => array(
+				array( 'role' => 'system', 'content' => $this->get_setting( 'prompt_describe_image' ) ),
+				array( 'role' => 'user', 'content' => [ [
+					'image_url' => $media,
+				] ] ),
+			),
+		) );
+		$this->log( 'Media describe result: ' . print_r( $result, true ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		if ( isset( $result->error ) ) {
+			return new WP_Error( 'openai-error', $result->error->message );
+		}
+		if ( ! isset( $result->choices[0]->message->content) ) {
+			return new WP_Error( 'no-response', 'No response from OpenAI' );
+		}
+		$description = $result->choices[0]->message->content;
+		wp_update_post( array(
+			'ID' => $id,
+			'post_content' => $description,
+		) );
+	
+		return [ 'description' => $result->choices[0]->message->content ];
 	}
 
 	public function chat_api( WP_REST_Request $request ) {
