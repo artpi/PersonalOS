@@ -34,8 +34,8 @@ class POS_Transcription extends POS_Module {
 		$daily_note = $daily_notes[0];
 		wp_update_post(
 			array(
-				'ID'           => $attachment_id,
-				'post_parent'  => $daily_note->ID,
+				'ID'          => $attachment_id,
+				'post_parent' => $daily_note->ID,
 			)
 		);
 

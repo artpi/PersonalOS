@@ -1,6 +1,5 @@
-
 {
-    "$schema": "https://schemas.wp.org/trunk/block.json",
+	"$schema": "https://schemas.wp.org/trunk/block.json",
 	"apiVersion": 3,
 	"name": "pos/readwise",
 	"title": "Readwise",
@@ -11,9 +10,9 @@
 			"source": "html",
 			"selector": "p,div"
 		},
-        "readwise_url": {
-            "type": "string"
-        }
+		"readwise_url": {
+			"type": "string"
+		}
 	},
 	"textdomain": "pos",
 	"keywords": [ "Readwise" ],

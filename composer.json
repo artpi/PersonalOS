@@ -2,15 +2,15 @@
 	"name": "artpi/personalos",
 	"description": "Manage your life",
 	"repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/artpi/evernote-cloud-sdk-php"
-        }
-    ],
-    "require": {
-        "evernote/evernote-cloud-sdk-php": "dev-fix-curly-braces",
+		{
+			"type": "vcs",
+			"url": "https://github.com/artpi/evernote-cloud-sdk-php"
+		}
+	],
+	"require": {
+		"evernote/evernote-cloud-sdk-php": "dev-fix-curly-braces",
 		"symfony/css-selector": "v5.4.2"
-    },
+	},
 	"require-dev": {
 		"squizlabs/php_codesniffer": "^3.7.1",
 		"wp-coding-standards/wpcs": "^2.3.0",

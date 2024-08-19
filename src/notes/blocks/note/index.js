@@ -47,9 +47,13 @@ registerBlockType( metadata.name, {
 				type: 'block',
 				blocks: [ 'core/group' ],
 				transform: ( attributes, innerBlocks ) => {
-					return createBlock( metadata.name, {
-						note_id: 0,
-					}, innerBlocks );
+					return createBlock(
+						metadata.name,
+						{
+							note_id: 0,
+						},
+						innerBlocks
+					);
 				},
 			},
 			{
@@ -68,12 +72,12 @@ registerBlockType( metadata.name, {
 				transform: ( node ) => {
 					// TODO: Disallow embedding other post types
 					const match = node.textContent.match( regex );
-					const note_id = parseInt( match[1] );
+					const note_id = parseInt( match[ 1 ] );
 					return createBlock( metadata.name, {
 						note_id,
 					} );
 				},
 			},
-		]
-	}
+		],
+	},
 } );

@@ -5,20 +5,25 @@ class Notes_Module extends POS_Module {
 	public $name = 'Notes';
 	public $settings = array(
 		'user' => array(
-			'type'  => 'callback',
+			'type'     => 'callback',
 			'callback' => 'user_setting_callback',
-			'name'  => 'User for sync jobs',
-			'label' => 'A user to run sync jobs as.',
+			'name'     => 'User for sync jobs',
+			'label'    => 'A user to run sync jobs as.',
 		),
 	);
 
-	public function get_notes( $args = [] ) {
-		return get_posts( array_merge( array(
-			'post_type' => $this->id,
-			'post_status' => array( 'publish', 'private' ),
-			'perm' => 'readable',
-			'posts_per_page' => -1,
-		), $args ) );
+	public function get_notes( $args = array() ) {
+		return get_posts(
+			array_merge(
+				array(
+					'post_type'      => $this->id,
+					'post_status'    => array( 'publish', 'private' ),
+					'perm'           => 'readable',
+					'posts_per_page' => -1,
+				),
+				$args
+			)
+		);
 	}
 
 	public function switch_to_user() {
@@ -83,9 +88,9 @@ class Notes_Module extends POS_Module {
 			'flag',
 			array(
 				'object_subtype' => 'notebook',
-				'type'         => 'string',
-				'single'       => true,
-				'show_in_rest' => true,
+				'type'           => 'string',
+				'single'         => true,
+				'show_in_rest'   => true,
 			)
 		);
 
@@ -116,11 +121,43 @@ class Notes_Module extends POS_Module {
 			)
 		);
 		foreach ( $terms as $term ) {
-			$count = count( get_posts( [ 'nopaging' => true, 'fields' => 'ids', 'post_type' => 'todo', 'post_status' => [ 'private', 'publish' ], 'tax_query' => [ [ 'taxonomy' => 'notebook', 'field' => 'slug', 'terms' => $term->slug ] ] ] ) );
-			if( $count > 0 ) {
+			$count = count(
+				get_posts(
+					array(
+						'nopaging'    => true,
+						'fields'      => 'ids',
+						'post_type'   => 'todo',
+						'post_status' => array( 'private', 'publish' ),
+						'tax_query'   => array(
+							array(
+								'taxonomy' => 'notebook',
+								'field'    => 'slug',
+								'terms'    => $term->slug,
+							),
+						),
+					)
+				)
+			);
+			if ( $count > 0 ) {
 				add_submenu_page( 'personalos', $term->name, $term->name . ' todos ' . '<span class="awaiting-mod" style="background-color: #0073aa;"><span class="pending-count" aria-hidden="true">' . $count . '</span></span>', 'read', 'edit.php?post_type=todo&notebook=' . $term->slug );
 			}
-			$count = count( get_posts( [ 'nopaging' => true, 'fields' => 'ids', 'post_type' => 'notes', 'post_status' => [ 'private', 'publish' ], 'tax_query' => [ [ 'taxonomy' => 'notebook', 'field' => 'slug', 'terms' => $term->slug ] ] ] ) );
+			$count = count(
+				get_posts(
+					array(
+						'nopaging'    => true,
+						'fields'      => 'ids',
+						'post_type'   => 'notes',
+						'post_status' => array( 'private', 'publish' ),
+						'tax_query'   => array(
+							array(
+								'taxonomy' => 'notebook',
+								'field'    => 'slug',
+								'terms'    => $term->slug,
+							),
+						),
+					)
+				)
+			);
 			if ( $count > 0 ) {
 				add_submenu_page( 'personalos', $term->name, $term->name . ' notes ' . '<span class="awaiting-mod" style="background-color: #0073aa;"><span class="pending-count" aria-hidden="true">' . $count . '</span></span>', 'read', 'edit.php?post_type=notes&notebook=' . $term->slug );
 			}

@@ -3,7 +3,7 @@ import {
 	PluginDocumentSettingPanel,
 } from '@wordpress/edit-post';
 import { drafts } from '@wordpress/icons';
-import { TextControl, Popover,Draggable } from '@wordpress/components';
+import { TextControl, Popover, Draggable } from '@wordpress/components';
 import apiFetch from '@wordpress/api-fetch';
 import { useState, useEffect, RawHTML } from '@wordpress/element';
 import { useDebounce } from '@wordpress/compose';
@@ -19,15 +19,18 @@ const SearchResult = ( { post } ) => {
 			.replace( /(<([^>]+)>)/gi, '' )
 			.substring( 0, 100 ) + '...';
 	return (
-		<div id={ `note-sidebar-${post.id}` } style={ { borderBottom: '1px solid black' } }>
+		<div
+			id={ `note-sidebar-${ post.id }` }
+			style={ { borderBottom: '1px solid black' } }
+		>
 			<Draggable
-				elementId={ `note-sidebar-${post.id}` }
+				elementId={ `note-sidebar-${ post.id }` }
 				__experimentalTransferDataType="wp-blocks"
-				transferData={{}}
+				transferData={ {} }
 				onDragStart={ ( event ) => {
 					const block = createBlock( 'pos/note', {
 						note_id: post.id,
-					} )
+					} );
 					event.dataTransfer.setData(
 						'text/html',
 						serialize( [ block ] )
@@ -41,7 +44,7 @@ const SearchResult = ( { post } ) => {
 						onDragEnd={ onDraggableEnd }
 					>
 						<h2 onClick={ () => setModalOpen( ! modalOpen ) }>
-						{ post.title.rendered }
+							{ post.title.rendered }
 						</h2>
 						<p>{ textContent }</p>
 					</div>
@@ -49,7 +52,9 @@ const SearchResult = ( { post } ) => {
 			</Draggable>
 			{ modalOpen && (
 				<Popover>
-					<RawHTML style={{ minWidth: '500px'}}>{ post.content.rendered }</RawHTML>
+					<RawHTML style={ { minWidth: '500px' } }>
+						{ post.content.rendered }
+					</RawHTML>
 				</Popover>
 			) }
 		</div>
@@ -62,10 +67,9 @@ export default function NotesPlugin() {
 	const [ selectedTaxonomies, setSelectedTaxonomies ] = useState( [] );
 
 	const allTags = useSelect( ( select ) => {
-		return select( 'core' ).getEntityRecords(
-			'taxonomy',
-			'notebook'
-		) ?? [];
+		return (
+			select( 'core' ).getEntityRecords( 'taxonomy', 'notebook' ) ?? []
+		);
 	} );
 
 	const debouncedAPIFetch = useDebounce( ( search ) => {
@@ -111,7 +115,6 @@ export default function NotesPlugin() {
 	// 	}
 	// }, [ isAutosaving ] );
 
-
 	return (
 		<>
 			{ metaFields[ 'readwise_id' ] && (
@@ -140,7 +143,10 @@ export default function NotesPlugin() {
 					<p>
 						<a
 							target="_blank"
-							href={ '/?rest_route=/pos/v1/evernote-redirect/' + postId }
+							href={
+								'/?rest_route=/pos/v1/evernote-redirect/' +
+								postId
+							}
 						>
 							Open in an evernote app
 						</a>
@@ -194,4 +200,4 @@ export default function NotesPlugin() {
 			</PluginSidebar>{ ' ' }
 		</>
 	);
-};
+}
