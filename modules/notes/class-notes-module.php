@@ -43,7 +43,8 @@ class Notes_Module extends POS_Module {
 			'notebook',
 			array( $this->id, 'todo' ),
 			array(
-				'label'             => 'Notebook',
+				'label'             => 'Notebooks',
+				'singular_name'     => 'Notebook',
 				'public'            => false,
 				'hierarchical'      => true,
 				'show_ui'           => true,
