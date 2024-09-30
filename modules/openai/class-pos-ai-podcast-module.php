@@ -18,8 +18,13 @@ class POS_AI_Podcast_Module extends POS_Module {
 		$this->generate();
 	}
 
-	public function get_feed() {
-		$episodes = get_posts(
+	public function mark_podcast_as_private_for_itunes() {
+		echo "<itunes:block>yes</itunes:block>\r\n";
+	}
+	public function output_feed() {
+		global $wp_query;
+		//phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		$wp_query = new WP_Query(
 			array(
 				'post_type'   => 'attachment',
 				'post_status' => 'private, publish, inherit',
@@ -31,6 +36,11 @@ class POS_AI_Podcast_Module extends POS_Module {
 				),
 			)
 		);
+		$wp_query->is_feed = true;
+		// This will mark podcast as private
+		add_action( 'rss2_head', array( $this, 'mark_podcast_as_private_for_itunes' ) );
+		include ABSPATH . WPINC . '/feed-rss2.php';
+		die();
 	}
 
 	public function get_active_projects() {
