@@ -93,12 +93,12 @@ class POS_AI_Podcast_Module extends POS_Module {
 			<title><?php the_title_rss(); ?></title>
 			<itunes:author><?php echo get_bloginfo( 'name' ); ?></itunes:author>
 			<itunes:summary></itunes:summary>
-			<?php
+				<?php
 				$attachment_id = $post->ID;
 				$fileurl = wp_get_attachment_url( $attachment_id );
 				$filesize = filesize( get_attached_file( $attachment_id ) );
 				$dateformatstring = _x( 'D, d M Y H:i:s O', 'Date formating for iTunes feed.' );
-			?>
+				?>
 
 			<enclosure url="<?php echo esc_url( $fileurl ); ?>" length="<?php echo esc_attr( $filesize ); ?>" type="audio/mpeg" />
 			<guid><?php echo esc_url( $fileurl ); ?></guid>
@@ -169,6 +169,53 @@ class POS_AI_Podcast_Module extends POS_Module {
 		);
 	}
 
+	public function get_todos_now() {
+		$now = get_posts(
+			array(
+				'post_type'      => 'todo',
+				'post_status'    => array( 'publish', 'private' ),
+				'posts_per_page' => 25,
+				'tax_query'      => array(
+					array(
+						'taxonomy' => 'notebook',
+						'field'    => 'slug',
+						'terms'    => array( 'now' ),
+					),
+				),
+			)
+		);
+		return implode(
+			"\n\n",
+			array_map(
+				function( $post ) {
+					$output = '### ' . $post->post_title . "\n";
+					$tagged = get_the_terms( $post->ID, 'notebook' );
+					if ( $tagged ) {
+						$tagged = array_filter(
+							array_map(
+								function( $term ) {
+									$termmeta = get_term_meta( $term->term_id, 'flag' );
+									if ( ! in_array( 'project', $termmeta ) ) {
+										return '';
+									}
+									return '#' . $term->name;
+								},
+								$tagged
+							)
+						);
+						if ( ! empty( $tagged ) ) {
+							$output .= 'Marked as: ' . implode( ', ', $tagged ) . "\n";
+						}
+					}
+					if ( strlen( $post->post_excerpt ) > 0 ) {
+						$output .= "\n" . $post->post_excerpt;
+					}
+					return $output;
+				},
+				$now
+			)
+		);
+	}
 
 	public function generate() {
 		$this->log( 'Generating podcast episode' );
@@ -188,8 +235,10 @@ class POS_AI_Podcast_Module extends POS_Module {
                     1. Focus on getting me in a hyped-up state.
                     2. Shift my internal story into more hyped-up, actionable, full of energy
                     3. Help me develop a strategy for dealing with my important projects.
-                Projects I want to focus on right now:
+                # Projects I want to focus on right now:
                 {$this->get_active_projects()}
+                # Todos for today:
+                {$this->get_todos_now()}
                 EOF,
 				),
 			)
