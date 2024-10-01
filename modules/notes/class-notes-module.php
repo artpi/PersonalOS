@@ -89,7 +89,7 @@ class Notes_Module extends POS_Module {
 			array(
 				'object_subtype' => 'notebook',
 				'type'           => 'string',
-				'single'         => true,
+				'single'         => false,
 				'show_in_rest'   => true,
 			)
 		);
@@ -165,19 +165,27 @@ class Notes_Module extends POS_Module {
 	}
 
 	public function notebook_edit_form_fields( $term, $taxonomy ) {
-		$value = get_term_meta( $term->term_id, 'flag', true );
-		$is_starred = ( $value === 'star' );
+		$value = get_term_meta( $term->term_id, 'flag', false );
+		$possible_flags = array(
+			'star' => 'Starred, it will show up in menu.',
+			'project' => 'This is a currently active project.',
+		);
 		?>
-			<table class="form-table" role="presentation"><tbody>
-				<tr class="form-field term-parent-wrap">
-				<th scope="row"><label for="pos_flag_star">Star Notebook</label></th>
-				<td>
-					<input type="checkbox" name="pos_flag" id="pos_flag_star" value="star" <?php checked( $is_starred ); ?> />
-					<label for="pos_flag_star">Mark this notebook as starred</label>
-					<p class="description" id="parent-description">Check this box to mark the notebook as starred. Starred notebooks will be more accessible</p>
-				</td>
-				</tr>
-			</tbody></table>
+		<table class="form-table" role="presentation"><tbody>
+			<tr class="form-field term-parent-wrap">
+			<th scope="row"><label>Notebook Flags</label></th>
+			<td>
+				<?php foreach ( $possible_flags as $flag => $label ): ?>
+					<label style="display: block; margin-bottom: 5px;">
+						<input type="checkbox" name="pos_flag[]" value="<?php echo esc_attr($flag); ?>"
+							<?php checked( in_array( $flag, $value ) ); ?>>
+						<?php echo esc_html( $label ); ?>
+					</label>
+				<?php endforeach; ?>
+				<p class="description">Select one or more flags for this notebook. These flags determine how the notebook is treated in various contexts.</p>
+			</td>
+			</tr>
+		</tbody></table>
 		<?php
 		wp_nonce_field( 'notebook_edit', 'notebook_edit_nonce' );
 	}
@@ -193,8 +201,11 @@ class Notes_Module extends POS_Module {
 		if ( empty( $_POST['pos_flag'] ) ) {
 			delete_term_meta( $term_id, 'flag' );
 		} else {
-			$flag = sanitize_text_field( $_POST['pos_flag'] );
-			update_term_meta( $term_id, 'flag', $flag );
+			$flags = array_map( 'sanitize_text_field', $_POST['pos_flag'] );
+			delete_term_meta( $term_id, 'flag' );
+			foreach ( $flags as $flag ) {
+				add_term_meta( $term_id, 'flag', $flag );
+			}
 		}
 	}
 
