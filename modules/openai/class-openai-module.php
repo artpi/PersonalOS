@@ -172,6 +172,10 @@ class OpenAI_Module extends POS_Module {
 			return $response;
 		}
 
+		if ( ! function_exists( 'wp_tempnam' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+		}
+
 		$tempfile = wp_tempnam();
 		global $wp_filesystem;
 		WP_Filesystem();
