@@ -141,6 +141,30 @@ class POS_AI_Podcast_Module extends POS_Module {
 				},
 			)
 		);
+		register_rest_route(
+			$this->rest_namespace,
+			'/ai-podcast/generate',
+			array(
+				'params'              => array(
+					'token' => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+				),
+				'methods'             => 'POST',
+				'callback'            => function( $request ) {
+					$media_id = $this->generate();
+					$media_url = wp_get_attachment_url( $media_id );
+					return array(
+						'media_id' => $media_id,
+						'media_url' => $media_url,
+					);
+				},
+				'permission_callback' => function( $request ) {
+					return true;
+				},
+			)
+		);
 	}
 
 	public function get_active_projects() {
@@ -218,6 +242,22 @@ class POS_AI_Podcast_Module extends POS_Module {
 	}
 
 	public function generate() {
+		$episode_generated_today = get_posts(
+			array(
+				'post_type'      => 'attachment',
+				'post_status'    => 'private',
+				'meta_query'     => array(
+					array(
+						'key'     => 'pos_podcast',
+						'value'   => gmdate( 'Y-m-d' ),
+						'compare' => '=',
+					),
+				),
+			)
+		);
+		if ( $episode_generated_today ) {
+			return $episode_generated_today[0]->ID;
+		}
 		$this->log( 'Generating podcast episode' );
 
 		$new_content = $this->openai->chat_completion(
