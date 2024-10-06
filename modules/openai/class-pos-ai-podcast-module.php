@@ -6,6 +6,10 @@ class POS_AI_Podcast_Module extends POS_Module {
 	public $description = 'AI Podcast';
 	private $openai     = null;
 	private $hook_name = 'pos_generate_ai_podcast';
+	private $soundtracks = array(
+		'motivation-st-1.m4a',
+		'motivation-st-2.m4a',
+	);
 
 	public function __construct( $openai ) {
 		$this->openai = $openai;
@@ -27,9 +31,148 @@ class POS_AI_Podcast_Module extends POS_Module {
 				wp_schedule_event( time(), 'daily', $this->hook_name );
 			}
 		}
+		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 
 	}
 
+	public function admin_menu() {
+		add_submenu_page( 'personalos', 'Hype Me', 'Hype Me', 'read', 'pos-hype-me', array( $this, 'render_admin_player_page' ) );
+	}
+
+	public function render_admin_player_page() {
+		$soundtrack_url = plugins_url( 'podcast-assets/' . $this->soundtracks[ array_rand( $this->soundtracks ) ], __FILE__ );
+		$podcast = $this->generate();
+		$podcast_url = wp_get_attachment_url( $podcast );
+		?>
+		<section class="section section-about" id="about">
+	<div class="section-content large-text d-flex flex-column justify-content-center h-100">
+		<h1 class="big-title">PersonalOS Hype Player</h1>
+		<p class="text-description">
+			This will get your todos and create a motivational podcast for you.
+		</p>
+	</div>
+</section>
+<section id="player-loader">
+	<p>Loading the sounds</p>
+	<img src="<?php echo esc_url( get_admin_url() . 'images/spinner-2x.gif' ); ?>" />
+</section>
+<section id="hype-player" style="display: none;">
+	<button id="playButton" style="display: none;" class="button button-primary button-hero">Play Audio</button>
+	<button id="pauseButton" style="display: none;">Pause</button>
+	<div id="progressBar" style="margin-top: 20px;background-color: #f0f0f0;display: none;">
+		<div id="progress" style="height: 10px; background-color: #0073aa;width: 0%;"></div>
+	</div>
+	</section>
+
+	<script>
+		// Create an audio context
+		const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+		let audioBuffer1, audioBuffer2;
+		let source1, source2;
+		let progressInterval;
+
+		let startTime;
+		let pausedAt = 0;
+		let isPlaying = false;
+
+		// Load sounds and show play button when ready
+		async function loadSounds() {
+			const sound1 = await fetch( '<?php echo esc_url( $soundtrack_url ); ?>' ).then(response => response.arrayBuffer());
+			const sound2 = await fetch( '<?php echo esc_url( $podcast_url ); ?>' ).then(response => response.arrayBuffer());
+
+			audioBuffer1 = await audioContext.decodeAudioData(sound1);
+			audioBuffer2 = await audioContext.decodeAudioData(sound2);
+
+			// Show play button once audio is loaded
+			document.getElementById('playButton').style.display = 'inline-block';
+			document.getElementById('progressBar').style.display = 'block';
+			document.getElementById('hype-player').style.display = 'block';
+			document.getElementById('player-loader').style.display = 'none';
+		}
+
+		// Play the loaded sounds
+		function playSounds() {
+			if (isPlaying) return;
+
+			source1 = audioContext.createBufferSource();
+			source2 = audioContext.createBufferSource();
+
+			source1.buffer = audioBuffer1;
+			source2.buffer = audioBuffer2;
+
+			const gainNode1 = audioContext.createGain();
+			gainNode1.gain.setValueAtTime(0.2, audioContext.currentTime);
+
+			source1.connect(gainNode1);
+			gainNode1.connect(audioContext.destination);
+			source2.connect(audioContext.destination);
+
+			startTime = audioContext.currentTime - pausedAt;
+			source1.start(0, pausedAt);
+			source2.start(0, pausedAt);
+
+			updateProgressBar();
+
+			source2.onended = stopPlayback;
+
+			isPlaying = true;
+			document.getElementById('playButton').textContent = 'Resume';
+			document.getElementById('pauseButton').style.display = 'inline-block';
+		}
+
+		// Add pauseSounds function
+		function pauseSounds() {
+			if (!isPlaying) return;
+
+			source1.stop();
+			source2.stop();
+			pausedAt = audioContext.currentTime - startTime;
+			clearInterval(progressInterval);
+			isPlaying = false;
+			document.getElementById('playButton').textContent = 'Resume';
+		}
+
+		// Update progress bar
+		function updateProgressBar() {
+			const progressElement = document.getElementById('progress');
+			const duration = audioBuffer2.duration;
+
+			progressInterval = setInterval(() => {
+				const elapsedTime = audioContext.currentTime - startTime;
+				const progress = (elapsedTime / duration) * 100;
+				progressElement.style.width = `${Math.min(progress, 100)}%`;
+
+				if (progress >= 100) {
+					clearInterval(progressInterval);
+				}
+			}, 100);
+		}
+
+		// Stop playback
+		function stopPlayback() {
+			if (source1) {
+				source1.stop();
+			}
+			if (source2) {
+				source2.stop();
+			}
+			clearInterval(progressInterval);
+			document.getElementById('progress').style.width = '100%';
+			isPlaying = false;
+			pausedAt = 0;
+			document.getElementById('playButton').textContent = 'Play Audio';
+			document.getElementById('pauseButton').style.display = 'none';
+		}
+
+		// Load sounds when the page loads
+		window.addEventListener('load', loadSounds);
+
+		// Add event listeners to buttons
+		document.getElementById('playButton').addEventListener('click', playSounds);
+		document.getElementById('pauseButton').addEventListener('click', pauseSounds);
+	</script>
+		<?php
+	}
 	/**
 	 * Trigger generating a podcast episode
 	 */
@@ -156,7 +299,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 					$media_id = $this->generate();
 					$media_url = wp_get_attachment_url( $media_id );
 					return array(
-						'media_id' => $media_id,
+						'media_id'  => $media_id,
 						'media_url' => $media_url,
 					);
 				},
@@ -244,9 +387,9 @@ class POS_AI_Podcast_Module extends POS_Module {
 	public function generate() {
 		$episode_generated_today = get_posts(
 			array(
-				'post_type'      => 'attachment',
-				'post_status'    => 'private',
-				'meta_query'     => array(
+				'post_type'   => 'attachment',
+				'post_status' => 'private',
+				'meta_query'  => array(
 					array(
 						'key'     => 'pos_podcast',
 						'value'   => gmdate( 'Y-m-d' ),
