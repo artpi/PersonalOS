@@ -73,22 +73,11 @@ class POS_AI_Podcast_Module extends POS_Module {
 		wp_enqueue_script(
 			'hype-player',
 			plugins_url( 'hype-player.js', __FILE__ ),
-			array(),
+			array( 'wp-api-fetch' ),
 			filemtime( plugin_dir_path( __FILE__ ) . 'hype-player.js' ),
 			true
 		);
 
-		$soundtrack_url = plugins_url( 'podcast-assets/' . $this->soundtracks[ array_rand( $this->soundtracks ) ], __FILE__ );
-		$podcast_url = wp_get_attachment_url( $this->get_latest_podcast_id() );
-
-		wp_localize_script(
-			'hype-player',
-			'hypePlayerData',
-			array(
-				'soundtrackUrl' => $soundtrack_url,
-				'podcastUrl'    => $podcast_url,
-			)
-		);
 	}
 
 	private function get_latest_podcast_id() {
@@ -113,6 +102,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 		return array(
 			[
 				'title' => 'Tony Robbins State, Story, Strategy',
+				'id' => 'tony-robbins-1',
 				'prompt' => <<<EOF
 				Generate a motivational speech from Tony Robbins to start my day. The speech you generate will be read out by OpenAI speech generation models. so don't use any headings or titles.
 
@@ -350,12 +340,19 @@ class POS_AI_Podcast_Module extends POS_Module {
 			)
 		);
 		if ( $episode_generated_today ) {
-			return $episode_generated_today[0]->ID;
+			return [
+				'media_id' => $episode_generated_today[0]->ID,
+				'media_url' => wp_get_attachment_url( $episode_generated_today[0]->ID ),
+				'scenario' => get_post_meta( $episode_generated_today[0]->ID, 'scenario', true ),
+				'text' => $episode_generated_today[0]->post_content,
+				'soundtrack_url' => get_post_meta( $episode_generated_today[0]->ID, 'soundtrack', true ),
+			];
 		}
 		$this->log( 'Generating podcast episode' );
 
 		$scenarios = $this->get_scenarios();
-		$random_scenario = $scenarios[ array_rand( $scenarios ) ];
+		$scenario_index = array_rand( $scenarios );
+		$random_scenario = $scenarios[ $scenario_index ];
 		$todos = $this->get_todos_now();
 		$projects = $this->get_active_projects();
 
@@ -385,6 +382,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 			return;
 		}
 		$this->log( 'Generating audio for the podcast' );
+		$soundtrack_url = plugins_url( 'podcast-assets/' . $this->soundtracks[ array_rand( $this->soundtracks ) ], __FILE__ );
 
 		$file = $this->openai->tts(
 			$new_content,
@@ -393,6 +391,8 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'post_title' => 'Motivational Podcast',
 				'meta_input' => array(
 					'pos_podcast' => gmdate( 'Y-m-d' ),
+					'scenario' => $random_scenario['id'],
+					'soundtrack' => $soundtrack_url,
 				),
 			)
 		);
@@ -404,8 +404,9 @@ class POS_AI_Podcast_Module extends POS_Module {
 		return [
 			'media_id' => $file,
 			'media_url' => wp_get_attachment_url( $file ),
-			'scenario' => $scenario,
+			'scenario' => $random_scenario['id'],
 			'text' => $new_content,
+			'soundtrack_url' => $soundtrack_url,
 		];
 	}
 }

@@ -10,8 +10,11 @@ let isPlaying = false;
 
 // Load sounds and show play button when ready
 async function loadSounds() {
-	const sound1 = await fetch(hypePlayerData.soundtrackUrl).then(response => response.arrayBuffer());
-	const sound2 = await fetch(hypePlayerData.podcastUrl).then(response => response.arrayBuffer());
+	const response = await wp.apiFetch({ path: '/pos/v1/ai-podcast/generate', method: 'POST' });
+
+	console.log( 'Generated podcast, loading sounds', response);
+	const sound1 = await fetch(response.soundtrack_url).then(response => response.arrayBuffer());
+	const sound2 = await fetch(response.media_url).then(response => response.arrayBuffer());
 
 	audioBuffer1 = await audioContext.decodeAudioData(sound1);
 	audioBuffer2 = await audioContext.decodeAudioData(sound2);
