@@ -24,6 +24,27 @@ async function loadSounds() {
 	document.getElementById('progressBar').style.display = 'block';
 	document.getElementById('hype-player').style.display = 'block';
 	document.getElementById('player-loader').style.display = 'none';
+
+
+	// Add this code at the end of the file
+	if ('mediaSession' in navigator) {
+		navigator.mediaSession.metadata = new MediaMetadata({
+			title: 'Hype Podcast',
+			artist: 'Your Website Name',
+		});
+
+		navigator.mediaSession.setActionHandler('play', () => {
+			playSounds();
+		});
+
+		navigator.mediaSession.setActionHandler('pause', () => {
+			pauseSounds();
+		});
+
+		navigator.mediaSession.setActionHandler('stop', () => {
+			stopPlayback();
+		});
+	}
 }
 
 // Play the loaded sounds
@@ -53,6 +74,7 @@ function playSounds() {
 
 	isPlaying = true;
 	document.getElementById('playButton').textContent = 'Pause';
+	updateMediaSession();
 }
 
 // Add pauseSounds function
@@ -65,6 +87,7 @@ function pauseSounds() {
 	pausedAt = audioContext.currentTime - startTime;
 	clearInterval(progressInterval);
 	document.getElementById('playButton').textContent = 'Resume';
+	updateMediaSession();
 }
 
 // Update progress bar
@@ -101,6 +124,7 @@ function stopPlayback() {
 	pausedAt = 0;
 	document.getElementById('playButton').textContent = 'Play Audio';
 	document.getElementById('pauseButton').style.display = 'none';
+	updateMediaSession();
 }
 
 // Load sounds when the page loads
@@ -116,3 +140,11 @@ document.addEventListener('DOMContentLoaded', function() {
 		}
 	});
 });
+
+// Add this function to update media session state
+function updateMediaSession() {
+	if ('mediaSession' in navigator) {
+		navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+	}
+}
+
