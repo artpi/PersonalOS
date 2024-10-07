@@ -32,6 +32,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 			}
 		}
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 
 	}
 
@@ -40,139 +41,85 @@ class POS_AI_Podcast_Module extends POS_Module {
 	}
 
 	public function render_admin_player_page() {
-		$soundtrack_url = plugins_url( 'podcast-assets/' . $this->soundtracks[ array_rand( $this->soundtracks ) ], __FILE__ );
-		$podcast = $this->generate();
-		$podcast_url = wp_get_attachment_url( $podcast );
 		?>
 		<section class="section section-about" id="about">
-	<div class="section-content large-text d-flex flex-column justify-content-center h-100">
-		<h1 class="big-title">PersonalOS Hype Player</h1>
-		<p class="text-description">
-			This will get your todos and create a motivational podcast for you.
-		</p>
-	</div>
-</section>
-<section id="player-loader">
-	<p>Loading the sounds</p>
-	<img src="<?php echo esc_url( get_admin_url() . 'images/spinner-2x.gif' ); ?>" />
-</section>
-<section id="hype-player" style="display: none;">
-	<button id="playButton" style="display: none;" class="button button-primary button-hero">Play Audio</button>
-	<button id="pauseButton" style="display: none;">Pause</button>
-	<div id="progressBar" style="margin-top: 20px;background-color: #f0f0f0;display: none;">
-		<div id="progress" style="height: 10px; background-color: #0073aa;width: 0%;"></div>
-	</div>
-	</section>
-
-	<script>
-		// Create an audio context
-		const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-		let audioBuffer1, audioBuffer2;
-		let source1, source2;
-		let progressInterval;
-
-		let startTime;
-		let pausedAt = 0;
-		let isPlaying = false;
-
-		// Load sounds and show play button when ready
-		async function loadSounds() {
-			const sound1 = await fetch( '<?php echo esc_url( $soundtrack_url ); ?>' ).then(response => response.arrayBuffer());
-			const sound2 = await fetch( '<?php echo esc_url( $podcast_url ); ?>' ).then(response => response.arrayBuffer());
-
-			audioBuffer1 = await audioContext.decodeAudioData(sound1);
-			audioBuffer2 = await audioContext.decodeAudioData(sound2);
-
-			// Show play button once audio is loaded
-			document.getElementById('playButton').style.display = 'inline-block';
-			document.getElementById('progressBar').style.display = 'block';
-			document.getElementById('hype-player').style.display = 'block';
-			document.getElementById('player-loader').style.display = 'none';
-		}
-
-		// Play the loaded sounds
-		function playSounds() {
-			if (isPlaying) return;
-
-			source1 = audioContext.createBufferSource();
-			source2 = audioContext.createBufferSource();
-
-			source1.buffer = audioBuffer1;
-			source2.buffer = audioBuffer2;
-
-			const gainNode1 = audioContext.createGain();
-			gainNode1.gain.setValueAtTime(0.2, audioContext.currentTime);
-
-			source1.connect(gainNode1);
-			gainNode1.connect(audioContext.destination);
-			source2.connect(audioContext.destination);
-
-			startTime = audioContext.currentTime - pausedAt;
-			source1.start(0, pausedAt);
-			source2.start(0, pausedAt);
-
-			updateProgressBar();
-
-			source2.onended = stopPlayback;
-
-			isPlaying = true;
-			document.getElementById('playButton').textContent = 'Resume';
-			document.getElementById('pauseButton').style.display = 'inline-block';
-		}
-
-		// Add pauseSounds function
-		function pauseSounds() {
-			if (!isPlaying) return;
-
-			source1.stop();
-			source2.stop();
-			pausedAt = audioContext.currentTime - startTime;
-			clearInterval(progressInterval);
-			isPlaying = false;
-			document.getElementById('playButton').textContent = 'Resume';
-		}
-
-		// Update progress bar
-		function updateProgressBar() {
-			const progressElement = document.getElementById('progress');
-			const duration = audioBuffer2.duration;
-
-			progressInterval = setInterval(() => {
-				const elapsedTime = audioContext.currentTime - startTime;
-				const progress = (elapsedTime / duration) * 100;
-				progressElement.style.width = `${Math.min(progress, 100)}%`;
-
-				if (progress >= 100) {
-					clearInterval(progressInterval);
-				}
-			}, 100);
-		}
-
-		// Stop playback
-		function stopPlayback() {
-			if (source1) {
-				source1.stop();
-			}
-			if (source2) {
-				source2.stop();
-			}
-			clearInterval(progressInterval);
-			document.getElementById('progress').style.width = '100%';
-			isPlaying = false;
-			pausedAt = 0;
-			document.getElementById('playButton').textContent = 'Play Audio';
-			document.getElementById('pauseButton').style.display = 'none';
-		}
-
-		// Load sounds when the page loads
-		window.addEventListener('load', loadSounds);
-
-		// Add event listeners to buttons
-		document.getElementById('playButton').addEventListener('click', playSounds);
-		document.getElementById('pauseButton').addEventListener('click', pauseSounds);
-	</script>
+			<div class="section-content large-text d-flex flex-column justify-content-center h-100">
+				<h1 class="big-title">PersonalOS Hype Player</h1>
+				<p class="text-description">
+					This will get your todos and create a motivational podcast for you.
+				</p>
+			</div>
+		</section>
+		<section id="player-loader">
+			<p>Loading the sounds</p>
+			<img src="<?php echo esc_url( get_admin_url() . 'images/spinner-2x.gif' ); ?>" />
+		</section>
+		<section id="hype-player" style="display: none;">
+			<button id="playButton" style="display: none;" class="button button-primary button-hero">Play Audio</button>
+			<button id="pauseButton" style="display: none;">Pause</button>
+			<div id="progressBar" style="margin-top: 20px;background-color: #f0f0f0;display: none;">
+				<div id="progress" style="height: 10px; background-color: #0073aa;width: 0%;"></div>
+			</div>
+		</section>
 		<?php
 	}
+
+	public function enqueue_scripts() {
+		wp_enqueue_script(
+			'hype-player',
+			plugins_url( 'hype-player.js', __FILE__ ),
+			array(),
+			filemtime( plugin_dir_path( __FILE__ ) . 'hype-player.js' ),
+			true
+		);
+
+		$soundtrack_url = plugins_url( 'podcast-assets/' . $this->soundtracks[ array_rand( $this->soundtracks ) ], __FILE__ );
+		$podcast_url = wp_get_attachment_url( $this->get_latest_podcast_id() );
+
+		wp_localize_script(
+			'hype-player',
+			'hypePlayerData',
+			array(
+				'soundtrackUrl' => $soundtrack_url,
+				'podcastUrl'    => $podcast_url,
+			)
+		);
+	}
+
+	private function get_latest_podcast_id() {
+		$latest_podcast = get_posts(
+			array(
+				'post_type'   => 'attachment',
+				'post_status' => 'private, publish, inherit',
+				'numberposts' => 1,
+				'meta_query'  => array(
+					array(
+						'key'     => 'pos_podcast',
+						'compare' => 'EXISTS',
+					),
+				),
+			)
+		);
+
+		return $latest_podcast ? $latest_podcast[0]->ID : 0;
+	}
+
+	public function get_scenarios() {
+		return array(
+			[
+				'title' => 'Tony Robbins State, Story, Strategy',
+				'prompt' => <<<EOF
+				Generate a motivational speech from Tony Robbins to start my day. The speech you generate will be read out by OpenAI speech generation models. so don't use any headings or titles.
+
+				Use the following framework : State, Story, Strategy.
+				1. Focus on getting me in a hyped-up state.
+				2. Shift my internal story into more hyped-up, actionable, full of energy
+				3. Help me develop a strategy for dealing with my important projects.
+				EOF,
+			],
+		);
+	}
+
 	/**
 	 * Trigger generating a podcast episode
 	 */
@@ -293,15 +240,14 @@ class POS_AI_Podcast_Module extends POS_Module {
 						'type'     => 'string',
 						'required' => true,
 					),
+					'scenario' => array(
+						'type'     => 'integer',
+						'required' => false,
+					),
 				),
 				'methods'             => 'POST',
 				'callback'            => function( $request ) {
-					$media_id = $this->generate();
-					$media_url = wp_get_attachment_url( $media_id );
-					return array(
-						'media_id'  => $media_id,
-						'media_url' => $media_url,
-					);
+					return $this->generate();
 				},
 				'permission_callback' => function( $request ) {
 					return true;
@@ -403,28 +349,31 @@ class POS_AI_Podcast_Module extends POS_Module {
 		}
 		$this->log( 'Generating podcast episode' );
 
-		$new_content = $this->openai->chat_completion(
-			array(
-				array(
-					'role'    => 'system',
-					'content' => 'You are a motivational speech writer.',
-				),
-				array(
-					'role'    => 'user',
-					'content' => <<<EOF
-                    Generate a motivational speech from Tony Robbins to start my day. The speech you generate will be read out by OpenAI speech generation models. so don't use any headings or titles.
+		$scenarios = $this->get_scenarios();
+		$random_scenario = $scenarios[ array_rand( $scenarios ) ];
+		$todos = $this->get_todos_now();
+		$projects = $this->get_active_projects();
 
-                    Use the following framework : State, Story, Strategy.
-                    1. Focus on getting me in a hyped-up state.
-                    2. Shift my internal story into more hyped-up, actionable, full of energy
-                    3. Help me develop a strategy for dealing with my important projects.
-                # Projects I want to focus on right now:
-                {$this->get_active_projects()}
-                # Todos for today:
-                {$this->get_todos_now()}
-                EOF,
-				),
-			)
+		$payload = array(
+			array(
+				'role'    => 'system',
+				'content' => $random_scenario['prompt'],
+			),
+		);
+		if ( strlen( $todos ) > 0 ) {
+			$payload[] = array(
+				'role'    => 'user',
+				'content' => "My todos for today:\n" . $todos,
+			);
+		}
+		if ( strlen( $projects ) > 0 ) {
+			$payload[] = array(
+				'role'    => 'user',
+				'content' => "My active projects:\n" . $projects,
+			);
+		}
+		$new_content = $this->openai->chat_completion(
+			$payload
 		);
 		if ( is_wp_error( $new_content ) ) {
 			$this->log( 'Generating podcast episode failed: ' . $new_content->get_error_message(), E_USER_WARNING );
@@ -447,6 +396,11 @@ class POS_AI_Podcast_Module extends POS_Module {
 			return;
 		}
 		$this->log( 'Generating podcast episode succeeded: ' . $file );
-		return $file;
+		return [
+			'media_id' => $file,
+			'media_url' => wp_get_attachment_url( $file ),
+			'scenario' => $scenario,
+			'text' => $new_content,
+		];
 	}
 }
