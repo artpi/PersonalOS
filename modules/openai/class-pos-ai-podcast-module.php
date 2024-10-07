@@ -32,7 +32,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 			}
 		}
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
-		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ), 10, 1 );
 
 	}
 
@@ -64,7 +64,12 @@ class POS_AI_Podcast_Module extends POS_Module {
 		<?php
 	}
 
-	public function enqueue_scripts() {
+	public function enqueue_scripts( $hook ) {
+		// Only enqueue on the Hype Me page
+		if ( 'personal-os_page_pos-hype-me' !== $hook ) {
+			return;
+		}
+
 		wp_enqueue_script(
 			'hype-player',
 			plugins_url( 'hype-player.js', __FILE__ ),
