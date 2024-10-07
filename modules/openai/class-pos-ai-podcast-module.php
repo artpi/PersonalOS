@@ -110,6 +110,9 @@ class POS_AI_Podcast_Module extends POS_Module {
 				1. Focus on getting me in a hyped-up state.
 				2. Shift my internal story into more hyped-up, actionable, full of energy
 				3. Help me develop a strategy for dealing with my important projects.
+
+				In the first part, focus on getting me in a hyped-up state about my important projects.
+				Next, remind me about my TODOs, but just mention them, don't say too much about them.
 				EOF,
 			],
 		);
@@ -365,7 +368,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 		if ( strlen( $todos ) > 0 ) {
 			$payload[] = array(
 				'role'    => 'user',
-				'content' => "My todos for today:\n" . $todos,
+				'content' => "My todos for today. When reading those, translate them into English:\n" . $todos,
 			);
 		}
 		if ( strlen( $projects ) > 0 ) {
