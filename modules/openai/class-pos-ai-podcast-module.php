@@ -56,7 +56,6 @@ class POS_AI_Podcast_Module extends POS_Module {
 		</section>
 		<section id="hype-player" style="display: none;">
 			<button id="playButton" style="display: none;" class="button button-primary button-hero">Play Audio</button>
-			<button id="pauseButton" style="display: none;">Pause</button>
 			<div id="progressBar" style="margin-top: 20px;background-color: #f0f0f0;display: none;">
 				<div id="progress" style="height: 10px; background-color: #0073aa;width: 0%;"></div>
 			</div>

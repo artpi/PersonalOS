@@ -52,19 +52,18 @@ function playSounds() {
 	source2.onended = stopPlayback;
 
 	isPlaying = true;
-	document.getElementById('playButton').textContent = 'Resume';
-	document.getElementById('pauseButton').style.display = 'inline-block';
+	document.getElementById('playButton').textContent = 'Pause';
 }
 
 // Add pauseSounds function
 function pauseSounds() {
 	if (!isPlaying) return;
+	isPlaying = false;
 
 	source1.stop();
 	source2.stop();
 	pausedAt = audioContext.currentTime - startTime;
 	clearInterval(progressInterval);
-	isPlaying = false;
 	document.getElementById('playButton').textContent = 'Resume';
 }
 
@@ -86,6 +85,10 @@ function updateProgressBar() {
 
 // Stop playback
 function stopPlayback() {
+	if ( ! isPlaying ) {
+		return;
+	}
+
 	if (source1) {
 		source1.stop();
 	}
@@ -105,6 +108,11 @@ window.addEventListener('load', loadSounds);
 
 // Add event listeners to buttons
 document.addEventListener('DOMContentLoaded', function() {
-	document.getElementById('playButton').addEventListener('click', playSounds);
-	document.getElementById('pauseButton').addEventListener('click', pauseSounds);
+	document.getElementById('playButton').addEventListener('click', function() {
+		if ( isPlaying ) {
+			pauseSounds();
+		} else {
+			playSounds();
+		}
+	});
 });
