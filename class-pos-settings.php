@@ -23,14 +23,14 @@ class POS_Settings {
 					function( $args ) use ( $module ) {
 						echo '<p>' . esc_html( $module->get_module_description() ) . '</p>';
 					},
-					'pos'
+					'pos_' . $module->id
 				);
 				foreach ( $settings as $setting_id => $setting ) {
 					if ( empty( $setting['type'] ) || empty( $setting['name'] ) ) {
 						continue;
 					}
 					$option_name = $module->get_setting_option_name( $setting_id );
-					register_setting( 'pos', $option_name );
+					register_setting( 'pos_' . $module->id, $option_name );
 
 					add_settings_field(
 						'pos_field_' . $setting['name'],
@@ -82,7 +82,7 @@ class POS_Settings {
 							}
 
 						},
-						'pos',
+						'pos_' . $module->id,
 						'pos_section_' . $module->id,
 						array()
 					);
@@ -104,8 +104,7 @@ class POS_Settings {
 	 * Add the top level menu page.
 	 */
 	public function options_page() {
-		add_submenu_page(
-			'options-general.php',
+		add_options_page(
 			'Personal OS',
 			'PersonalOS',
 			'manage_options',
@@ -133,16 +132,31 @@ class POS_Settings {
 
 		// show error/update messages
 		settings_errors( 'pos_messages' );
+
+		$current_tab = isset( $_GET[ 'module' ] ) ? $_GET[ 'module' ] : 'notes';
 		?>
+
 		<div class="wrap">
 			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
+			<nav class="nav-tab-wrapper">
+				<?php
+				foreach( $this->modules as $mod ) {
+					// CSS class for a current tab
+					$current = $mod->id === $current_tab ? ' nav-tab-active' : '';
+					// URL
+					$url = add_query_arg( array( 'page' => 'pos', 'module' => $mod->id ), '' );
+					// printing the tab link
+					echo "<a class=\"nav-tab{$current}\" href=\"{$url}\">{$mod->name}</a>";
+				}
+				?>
+		</nav>
 			<form action="options.php" method="post">
 				<?php
 				// output security fields for the registered setting "wporg"
-				settings_fields( 'pos' );
+				settings_fields( 'pos_' . $current_tab );
 				// output setting sections and their fields
 				// (sections are registered for "wporg", each field is registered to a specific section)
-				do_settings_sections( 'pos' );
+				do_settings_sections( 'pos_' . $current_tab );
 				// output save settings button
 				submit_button( 'Save Settings' );
 				?>
