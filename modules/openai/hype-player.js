@@ -58,7 +58,7 @@ function playSounds() {
 	source2.buffer = audioBuffer2;
 
 	const gainNode1 = audioContext.createGain();
-	gainNode1.gain.setValueAtTime(0.2, audioContext.currentTime);
+	gainNode1.gain.setValueAtTime(0.1, audioContext.currentTime);
 
 	source1.connect(gainNode1);
 	gainNode1.connect(audioContext.destination);

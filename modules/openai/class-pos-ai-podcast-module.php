@@ -5,14 +5,16 @@ class POS_AI_Podcast_Module extends POS_Module {
 	public $name        = 'AI Podcast';
 	public $description = 'AI Podcast';
 	private $openai     = null;
+	private $elevenlabs = null;
 	private $hook_name = 'pos_generate_ai_podcast';
 	private $soundtracks = array(
 		'motivation-st-1.m4a',
 		'motivation-st-2.m4a',
 	);
 
-	public function __construct( $openai ) {
+	public function __construct( $openai, $elevenlabs ) {
 		$this->openai = $openai;
+		$this->elevenlabs = $elevenlabs;
 		$this->register_cli_command( 'generate', 'cli' );
 		add_action( 'rest_api_init', array( $this, 'rest_api_init' ) );
 		$token = $this->get_setting( 'token' );
@@ -23,7 +25,25 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'label'   => strlen( $token ) < 3 ? 'You need a token longer than 3 characters to enable the podcast feed' : 'Your feed is accessible <a href="' . add_query_arg( 'token', $token, get_rest_url( null, $this->rest_namespace . '/ai-podcast' ) ) . '" target="_blank">here</a>',
 				'default' => '0',
 			),
+			'tts_service' => array(
+				'type'    => 'select',
+				'name'    => 'TTS Service',
+				'label'   => 'Select the TTS service to use for the podcast.',
+				'default' => 'elevenlabs',
+				'options' => array(
+					'openai-ttsv1' => 'OpenAI TTS v1',
+				),
+			),
 		);
+		if ( $this->elevenlabs->is_configured() ) {
+			$this->settings['tts_service']['options']['elevenlabs'] = 'ElevenLabs';
+			$this->settings['elevenlabs_voice'] = array(
+				'type'    => 'text',
+				'name'    => 'ElevenLabs Voice ID',
+				'label'   => 'The voice to use for your motivational podcast. Add this voice to your account or paste another id <a href="https://elevenlabs.io/app/voice-lab/share/f441776f9bb056eb2295e030ffce576ee35583946b9d95b273731d9887cb51e9/jB108zg64sTcu1kCbN9L" target="_blank">here</a>',
+				'default' => 'jB108zg64sTcu1kCbN9L',
+			);
+		}
 
 		if ( strlen( $token ) > 3 ) {
 			add_action( $this->hook_name, array( $this, 'generate' ) );
@@ -386,18 +406,29 @@ class POS_AI_Podcast_Module extends POS_Module {
 		$this->log( 'Generating audio for the podcast' );
 		$soundtrack_url = plugins_url( 'podcast-assets/' . $this->soundtracks[ array_rand( $this->soundtracks ) ], __FILE__ );
 
-		$file = $this->openai->tts(
-			$new_content,
-			'onyx',
-			array(
-				'post_title' => 'Motivational Podcast',
-				'meta_input' => array(
-					'pos_podcast' => gmdate( 'Y-m-d' ),
-					'scenario' => $random_scenario['id'],
-					'soundtrack' => $soundtrack_url,
-				),
-			)
+		$data = array(
+			'post_title' => 'Motivational Podcast',
+			'meta_input' => array(
+				'pos_podcast' => gmdate( 'Y-m-d' ),
+				'scenario' => $random_scenario['id'],
+				'soundtrack' => $soundtrack_url,
+			),
 		);
+
+		if ( $this->elevenlabs->is_configured() && $this->get_setting( 'tts_service' ) === 'elevenlabs' ) {
+			$file = $this->elevenlabs->tts(
+				$new_content,
+				$this->get_setting( 'elevenlabs_voice' ),
+				$data,
+			);
+		} else if ( $this->openai->is_configured() && $this->get_setting( 'tts_service' ) === 'openai-ttsv1' ) {
+			$file = $this->openai->tts(
+				$new_content,
+				'onyx',
+				$data,
+			);
+		}
+
 		if ( is_wp_error( $file ) ) {
 			$this->log( 'Generating podcast episode failed: ' . $file->get_error_message(), E_USER_WARNING );
 			return;

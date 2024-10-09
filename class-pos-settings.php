@@ -53,6 +53,13 @@ class POS_Settings {
 									wp_kses_post( $setting['label'] ) ?? '',
 									wp_kses_post( $setting['default'] ) ?? ''
 								);
+							} elseif ( $setting['type'] === 'select' ) {
+								printf(
+									'<select name="%1$s" id="pos_field_%1$s">%2$s</select><br/><label for="pos_field_%1$s">%3$s</label>',
+									esc_attr( $option_name ),
+									wp_kses( $this->get_select_options( $setting['options'], $value ), array( 'option' => array( 'value' => array(), 'selected' => array() ) ) ),
+									wp_kses_post( $setting['label'] ) ?? ''
+								);
 							} elseif ( $setting['type'] === 'bool' ) {
 								printf(
 									'<label for="pos_field_%1$s"><input name="%1$s" type="checkbox" id="pos_field_%1$s" value="1" %3$s>%2$s</label>',
@@ -75,6 +82,14 @@ class POS_Settings {
 			}
 		}
 
+	}
+
+	public function get_select_options( $options, $value ) {
+		$html = '';
+		foreach ( $options as $option_value => $option_label ) {
+			$html .= sprintf( '<option value="%1$s" %2$s>%3$s</option>', esc_attr( $option_value ), selected( $option_value, $value, false ), esc_html( $option_label ) );
+		}
+		return $html;
 	}
 
 	/**
