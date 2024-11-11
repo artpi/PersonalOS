@@ -80,6 +80,26 @@ class POS_AI_Podcast_Module extends POS_Module {
 				<div id="progress" style="height: 10px; background-color: #0073aa;width: 0%;"></div>
 			</div>
 		</section>
+		<section>
+			<h2>Projects I want to focus on this week</h2>
+				<?php
+				$projects = $this->get_active_projects();
+				if ( strlen( $projects ) > 0 ) {
+					echo nl2br( $projects );
+				} else {
+					echo '<li>No projects found</li>';
+				}
+				?>
+			<h2>My TODOs for today</h2>
+				<?php
+				$todos = $this->get_todos_now();
+				if ( strlen( $todos ) > 0 ) {
+					echo nl2br( $todos );
+				} else {
+					echo '<li>No todos found</li>';
+				}
+				?>
+		</section>
 		<?php
 	}
 
