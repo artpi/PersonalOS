@@ -1,11 +1,20 @@
 # Notes Module
 
-Notes module introduces 2 concepts:
+WordPress is very close to a great note-taking app out of the box. PersonalOS makes sure the experience is ideal:
 
-- **Notebooks** which work like tags - collection of notes. They are also used for TODOs.
-- **Notes** which are the actual notes you create.
+- `note` is a fully **private** Custom Post Type
+- You can embed one note in the other via the Note Block
+- You can link notes using WordPress completer (`[[`)
+- Notes are easily accessible in the sidebar while writing a post
+- **Notebook** taxonomy to organize your notes. They are also used for TODOs.
 
-Notes serve as a base for Readwise notes and Evernote notes.
+Notes are used as a base for [Readwise](../readwise) and [Evernote](../evernote) sync.
+
+### Note block
+
+
+
+### Notes sidebar
 
 ### Organizing with Notebooks
 
