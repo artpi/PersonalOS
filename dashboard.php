@@ -21,9 +21,17 @@ $show_readme = '';
 		list-style: disc;
 		padding: 1rem;
 	}
+	#pos-app img {
+		margin: 1rem auto;
+		box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+		max-width: 90%;
+		height: auto;
+		border-radius: 8px;
+	}
 </style>
-<div id="pos-app"><h1>PersonalOS!</h1>
-<p>A personal operating system for managing your life.</p>
+<div id="pos-app"><h1>PersonalOS</h1>
+<p>PersonalOS is a personal operating system for managing your life, all based on WordPress.</p>
+<p>PersonalOS provides the following modules:</p>
 <h2 class="nav-tab-wrapper">
 	<?php
 	foreach ( $doc_tabs as $tab ) {
