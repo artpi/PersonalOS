@@ -12,6 +12,24 @@ class POS_Module {
 		return $this->description;
 	}
 
+	/**
+	 * Get the documentation for the module.
+	 * It will look for a README.md file in the module directory.
+	 *
+	 * @return string|false
+	 */
+	public function get_readme() {
+		$reflection = new ReflectionClass( $this );
+		$dir = dirname( $reflection->getFileName() );
+		if ( file_exists( $dir . '/README.md' ) ) {
+			$readme = file_get_contents( $dir . '/README.md' );
+			// Replace readme urls with module links
+			$readme = preg_replace( '/\(\.\.\/([a-z]+)\)/', '(?page=personalos-settings&module=$1)', $readme );
+			return $readme;
+		}
+		return false;
+	}
+
 	public function get_settings_fields() {
 		return $this->settings;
 	}
