@@ -166,9 +166,12 @@ class Notes_Module extends POS_Module {
 
 	public function notebook_edit_form_fields( $term, $taxonomy ) {
 		$value = get_term_meta( $term->term_id, 'flag', false );
-		$possible_flags = array(
-			'star' => 'Starred, it will show up in menu.',
-			'project' => 'This is a currently active project.',
+		$possible_flags = apply_filters(
+			'pos_notebook_flags',
+			array(
+				'star' => 'Starred, it will show up in menu.',
+				'project' => 'This is a currently active project.',
+			)
 		);
 		?>
 		<table class="form-table" role="presentation"><tbody>
