@@ -140,4 +140,60 @@ class OpenAI_Module extends POS_Module {
 		}
 		return $response->choices[0]->message->content;
 	}
+
+	public function tts( $text, $voice = 'shimmer', $data = array() ) {
+		$api_key = $this->get_setting( 'api_key' );
+		$file_name = 'speech-' . uniqid() . '.mp3';
+
+		$response = wp_remote_post(
+			'https://api.openai.com/v1/audio/speech',
+			array(
+				'timeout'  => 360,
+				'headers'  => array(
+					'Authorization' => 'Bearer ' . $api_key,
+					'Content-Type'  => 'application/json',
+				),
+				'body'     => wp_json_encode(
+					array(
+						'model' => 'tts-1',
+						'input' => $text,
+						'voice' => $voice,
+					)
+				),
+				'filename' => $file_name,
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/media.php';
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		$tempfile = wp_tempnam();
+		global $wp_filesystem;
+		WP_Filesystem();
+		$wp_filesystem->put_contents( $tempfile, wp_remote_retrieve_body( $response ) );
+
+		$file = array(
+			'name'     => wp_hash( time() ) . '-' . $file_name, // This hash is used to obfuscate the file names which should NEVER be exposed.
+			'type'     => 'audio/mpeg',
+			'tmp_name' => $tempfile,
+			'error'    => 0,
+			'size'     => filesize( $tempfile ),
+		);
+
+		$data['post_content'] = $text;
+		$data['post_status'] = 'private';
+
+		$media_id = media_handle_sideload( $file, 0, null, $data );
+
+		return $media_id;
+	}
 }
