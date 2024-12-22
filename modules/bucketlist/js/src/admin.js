@@ -3,12 +3,11 @@ import { useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import domReady from '@wordpress/dom-ready';
 import { createRoot } from '@wordpress/element';
-import { useSelect } from '@wordpress/data';
-import { store as coreStore } from '@wordpress/core-data';
+import { store as coreStore, useEntityRecords } from '@wordpress/core-data';
 import "./style.scss";
+import { Icon } from '@wordpress/components';
 
-
-import { trash, image, Icon, category } from '@wordpress/icons';
+import { trash, flag } from '@wordpress/icons';
 import {
 	Button,
 	__experimentalText as Text,
@@ -22,35 +21,17 @@ function BucketlistAdmin() {
 		search: '',
 		page: 1,
 		perPage: 10,
-		fields: [ 'title', 'description', 'categories' ],
+		fields: [ 'name', 'description', 'flags', 'count' ],
 		layout: {},
 		filters: [],
 	});
 
 	// Fetch notebooks taxonomy data
-	const { notebooks, hasResolved } = useSelect((select) => {
-		const query = {
-			per_page: -1,
-			hide_empty: false,
-		};
-		
-		return {
-			notebooks: select(coreStore).getEntityRecords(
-				'taxonomy',
-				'notebook',
-				query
-			),
-			hasResolved: select(coreStore).hasFinishedResolution(
-				'getEntityRecords',
-				['taxonomy', 'notebook', query]
-			),
-		};
-	}, []);
 
 	const fields = [
 		{
-			label: __('Title', 'your-textdomain'),
-			id: 'title',
+			label: __('Name', 'your-textdomain'),
+			id: 'name',
 			enableHiding: false,
 			enableGlobalSearch: true,
 			type: 'string',
@@ -63,43 +44,53 @@ function BucketlistAdmin() {
 			type: 'string',
 		},
 		{
-			label: __('Categories', 'your-textdomain'),
-			id: 'categories',
+			label: __('Flags', 'your-textdomain'),
+			id: 'flags',
 			header: (
 				<HStack spacing={1} justify="start">
-					<Icon icon={category} />
-					<span>{__('Categories', 'your-textdomain')}</span>
+					<Icon icon={flag} />
+					<span>{__('Flags', 'your-textdomain')}</span>
 				</HStack>
 			),
 			type: 'array',
 			render: ({ item }) => {
-				return item.categories?.join(', ') || '';
+				return item.meta?.flag?.join(', ') || '';
 			},
 			enableSorting: false,
 		},
+		{
+			label: __('Count', 'your-textdomain'),
+			id: 'count',
+			enableSorting: true,
+			enableGlobalSearch: false,
+			type: 'number',
+		},
 	];
+
+
+
+
+	const { records, isLoading, hasResolved } = useEntityRecords( 'taxonomy', 'notebook', {
+		per_page: view.perPage,
+		page: view.page,
+		hide_empty: false,
+	} );
+
+	console.log(records);
+	// Transform notebooks data for DataViews
 
 	if (!hasResolved) {
 		return <div>{__('Loading...', 'your-textdomain')}</div>;
 	}
 
-	// Transform notebooks data for DataViews
-	const items = notebooks?.map((notebook) => ({
-		id: notebook.id,
-		title: notebook.name,
-		description: notebook.description,
-		categories: notebook.meta?.categories || [],
-		slug: notebook.slug,
-	})) || [];
-
 	return (
 		<DataViews
 			getItemId={(item) => item.id.toString()}
 			paginationInfo={{
-				totalItems: items.length,
-				totalPages: Math.ceil(items.length / view.perPage),
+				totalItems: records.length,
+				totalPages: Math.ceil(records.length / view.perPage),
 			}}
-			data={items}
+			data={records}
 			view={view}
 			fields={fields}
 			onChangeView={setView}
