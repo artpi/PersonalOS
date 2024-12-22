@@ -1,0 +1,20 @@
+{
+	"name": "bucketlist",
+	"version": "1.0.0",
+	"description": "Bucketlist module for PersonalOS",
+	"scripts": {
+		"build": "wp-scripts build js/src/admin.js --output-path=js/build",
+		"start": "wp-scripts start js/src/admin.js --output-path=js/build"
+	},
+	"dependencies": {
+		"@wordpress/api-fetch": "^6.0.0",
+		"@wordpress/components": "^25.0.0",
+		"@wordpress/data": "^9.0.0",
+		"@wordpress/dataviews": "^4.10.0",
+		"@wordpress/element": "^5.0.0"
+	},
+	"devDependencies": {
+		"@wordpress/scripts": "^30.7.0",
+		"@wordpress/dependency-extraction-webpack-plugin": "^6.14.0"
+	}
+}
