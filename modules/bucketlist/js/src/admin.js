@@ -1,18 +1,15 @@
-import { DataViews } from '@wordpress/dataviews/wp';
+import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews/wp';
 import { useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import domReady from '@wordpress/dom-ready';
 import { createRoot } from '@wordpress/element';
-import { store as coreStore, useEntityRecords } from '@wordpress/core-data';
+import { useEntityRecords } from '@wordpress/core-data';
 import "./style.scss";
 import { Icon } from '@wordpress/components';
-
+import { useMemo } from '@wordpress/element';
 import { trash, flag } from '@wordpress/icons';
 import {
-	Button,
-	__experimentalText as Text,
 	__experimentalHStack as HStack,
-	__experimentalVStack as VStack,
 } from '@wordpress/components';
 
 function BucketlistAdmin() {
@@ -20,10 +17,14 @@ function BucketlistAdmin() {
 		type: 'table',
 		search: '',
 		page: 1,
-		perPage: 10,
+		perPage: 100,
 		fields: [ 'name', 'description', 'flags', 'count' ],
 		layout: {},
 		filters: [],
+		sort: {
+			order: 'asc',
+			orderby: 'name',
+		},
 	});
 
 	// Fetch notebooks taxonomy data
@@ -67,30 +68,24 @@ function BucketlistAdmin() {
 		},
 	];
 
-
-
-
-	const { records, isLoading, hasResolved } = useEntityRecords( 'taxonomy', 'notebook', {
-		per_page: view.perPage,
-		page: view.page,
+	const { records } = useEntityRecords( 'taxonomy', 'notebook', {
+		per_page: -1,
+		page: 1,
 		hide_empty: false,
 	} );
 
-	console.log(records);
-	// Transform notebooks data for DataViews
-
-	if (!hasResolved) {
-		return <div>{__('Loading...', 'your-textdomain')}</div>;
-	}
+	const {
+		data: shownData,
+		paginationInfo
+	  } = useMemo(() => {
+		return filterSortAndPaginate(records, view, fields);
+	  }, [view, records]);
 
 	return (
 		<DataViews
 			getItemId={(item) => item.id.toString()}
-			paginationInfo={{
-				totalItems: records.length,
-				totalPages: Math.ceil(records.length / view.perPage),
-			}}
-			data={records}
+			paginationInfo={paginationInfo}
+			data={shownData}
 			view={view}
 			fields={fields}
 			onChangeView={setView}
