@@ -2,6 +2,11 @@
 
 
 #bucketlist-root {
+	button {
+		background: transparent;
+		border: none;
+		cursor: pointer;
+	}
 	background: white;
 	.topic_photos {
 	  display: flex;
@@ -13,4 +18,8 @@
 		margin: 2px;
 	  }
 	}
+}
+.components-dropdown__content {
+	background: white;
+	z-index: 1000;
 }
