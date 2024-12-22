@@ -1,14 +1,13 @@
-import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews/wp';
-import { useState } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { Icon, __experimentalHStack as HStack } from '@wordpress/components';
 import domReady from '@wordpress/dom-ready';
-import { createRoot } from '@wordpress/element';
+import { useState, useMemo, createRoot } from '@wordpress/element';
+// Per https://github.com/WordPress/gutenberg/tree/trunk/packages/dataviews :
+// Important note If you're trying to use the DataViews component in a WordPress plugin or theme and you're building your scripts using the @wordpress/scripts package, you need to import the components from @wordpress/dataviews/wp instead of @wordpress/dataviews.
+import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews/wp';
+import { __ } from '@wordpress/i18n';
 import { useEntityRecords } from '@wordpress/core-data';
 import './style.scss';
-import { Icon } from '@wordpress/components';
-import { useMemo } from '@wordpress/element';
 import { trash, flag } from '@wordpress/icons';
-import { __experimentalHStack as HStack } from '@wordpress/components';
 
 function NotebookAdmin() {
 	const [ view, setView ] = useState( {
@@ -25,8 +24,7 @@ function NotebookAdmin() {
 		},
 	} );
 
-	// Fetch notebooks taxonomy data
-
+	// Our setup in this custom taxonomy.
 	const fields = [
 		{
 			label: __( 'Name', 'your-textdomain' ),
@@ -73,6 +71,7 @@ function NotebookAdmin() {
 		hide_empty: false,
 	} );
 
+	// filterSortAndPaginate works in memory. We theoretically could pass the parameters to backend to filter sort and paginate there.
 	const { data: shownData, paginationInfo } = useMemo( () => {
 		return filterSortAndPaginate( records, view, fields );
 	}, [ view, records ] );
