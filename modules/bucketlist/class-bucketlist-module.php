@@ -48,6 +48,13 @@ class Bucketlist_Module extends POS_Module {
 			false
 		);
 
+		wp_enqueue_style(
+			'bucketlist-admin',
+			plugin_dir_url( __FILE__ ) . 'js/build/style-admin.css',
+			array(),
+			$asset['version']
+		);
+
 		wp_set_script_translations( 'bucketlist-admin', 'personalos' );
 	}
 
