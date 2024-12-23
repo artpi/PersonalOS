@@ -1,5 +1,5 @@
 import { Icon, __experimentalHStack as HStack } from '@wordpress/components';
-import domReady from '@wordpress/dom-ready';
+//import domReady from '@wordpress/dom-ready';
 import { useState, useMemo, createRoot } from '@wordpress/element';
 // Per https://github.com/WordPress/gutenberg/tree/trunk/packages/dataviews :
 // Important note If you're trying to use the DataViews component in a WordPress plugin or theme and you're building your scripts using the @wordpress/scripts package, you need to import the components from @wordpress/dataviews/wp instead of @wordpress/dataviews.
@@ -106,7 +106,12 @@ function NotebookAdmin() {
 	);
 }
 
-domReady( () => {
-	const root = createRoot( document.getElementById( 'bucketlist-root' ) );
+window.renderNotebookAdmin = ( el ) => {
+	const root = createRoot( el );
 	root.render( <NotebookAdmin /> );
-} );
+};
+
+// export default () => domReady( () => {
+// 	const root = createRoot( document.getElementById( 'bucketlist-root' ) );
+// 	root.render( <NotebookAdmin /> );
+// } );

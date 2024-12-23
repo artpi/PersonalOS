@@ -7,7 +7,6 @@ class Bucketlist_Module extends POS_Module {
 	public function register() {
 		add_filter( 'pos_notebook_flags', array( $this, 'add_bucketlist_flag' ) );
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
-		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_scripts' ) );
 		$this->activate();
 
 	}
@@ -27,35 +26,12 @@ class Bucketlist_Module extends POS_Module {
 		?>
 		<div class="wrap">
 			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
-			<div id="bucketlist-root"></div>
+			<div id="bucketlist-root" class="pos__dataview"></div>
 		</div>
 		<?php
-	}
-
-	public function enqueue_admin_scripts( string $hook ): void {
-		if ( 'toplevel_page_bucketlist' !== $hook ) {
-			return;
-		}
-
-		$asset_file = plugin_dir_path( __FILE__ ) . 'js/build/admin.asset.php';
-		$asset = require $asset_file;
-
-		wp_enqueue_script(
-			'bucketlist-admin',
-			plugin_dir_url( __FILE__ ) . 'js/build/admin.js',
-			$asset['dependencies'],
-			$asset['version'],
-			false
-		);
-
-		wp_enqueue_style(
-			'bucketlist-admin',
-			plugin_dir_url( __FILE__ ) . 'js/build/style-admin.css',
-			array(),
-			$asset['version']
-		);
-
-		wp_set_script_translations( 'bucketlist-admin', 'personalos' );
+		wp_enqueue_script( 'pos' );
+		wp_enqueue_style( 'pos' );
+		wp_add_inline_script( 'pos', 'wp.domReady( () => { window.renderNotebookAdmin( document.getElementById( "bucketlist-root" ) ); } );', 'after' );
 	}
 
 	public function add_bucketlist_flag( $flags ) {

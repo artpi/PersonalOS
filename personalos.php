@@ -20,6 +20,21 @@ class POS {
 
 	public static function init() {
 		add_action( 'admin_menu', array( 'POS', 'admin_menu' ) );
+		$script_asset = require plugin_dir_path( __FILE__ ) . '/build/index.asset.php';
+		wp_register_script(
+			'pos',
+			plugins_url( 'build/index.js', __FILE__ ),
+			$script_asset['dependencies'],
+			$script_asset['version'],
+			true
+		);
+
+		wp_register_style(
+			'pos',
+			plugins_url( 'build/style-index.css', __FILE__ ),
+			array(),
+			$script_asset['version'],
+		);
 		self::load_modules();
 		add_action( 'enqueue_block_editor_assets', array( 'POS', 'enqueue_assets' ) );
 	}
@@ -56,14 +71,8 @@ class POS {
 		add_submenu_page( 'personalos', 'Notebooks', 'Notebooks', 'manage_options', 'edit-tags.php?taxonomy=notebook&post_type=notes' );
 	}
 	public static function enqueue_assets() {
-		$script_asset = require plugin_dir_path( __FILE__ ) . '/build/index.asset.php';
-		wp_enqueue_script(
-			'pos',
-			plugins_url( 'build/index.js', __FILE__ ),
-			$script_asset['dependencies'],
-			$script_asset['version'],
-			true
-		);
+		wp_enqueue_script( 'pos' );
+		wp_enqueue_style( 'pos' );
 	}
 
 	public static function admin_page() {
