@@ -9,20 +9,27 @@ import { useEntityRecords } from '@wordpress/core-data';
 import './style.scss';
 import { trash, flag } from '@wordpress/icons';
 
-function NotebookAdmin() {
-	const [ view, setView ] = useState( {
-		type: 'table',
-		search: '',
-		page: 1,
-		perPage: 100,
-		fields: [ 'name', 'description', 'flags', 'count' ],
-		layout: {},
-		filters: [],
-		sort: {
-			order: 'asc',
-			orderby: 'name',
-		},
-	} );
+const defaultView = {
+	type: 'table',
+	search: '',
+	page: 1,
+	perPage: 100,
+	fields: [ 'name', 'description', 'flags', 'count' ],
+	layout: {},
+	filters: [],
+	sort: {
+		order: 'asc',
+		orderby: 'name',
+	},
+};
+function NotebookAdmin( props ) {
+	let viewConfig = defaultView;
+
+	if ( props.view ) {
+		viewConfig = { ...defaultView, ...props.view };
+	}
+
+	const [ view, setView ] = useState( viewConfig );
 
 	// Our setup in this custom taxonomy.
 	const fields = [
@@ -51,9 +58,21 @@ function NotebookAdmin() {
 			),
 			type: 'array',
 			render: ( { item } ) => {
-				return item.meta?.flag?.join( ', ' ) || '';
+				return item?.meta?.flag?.join( ', ' ) || '';
 			},
 			enableSorting: false,
+			filterBy: {
+				operators: [ `isAny`, `isNone`, `isAll`, `isNotAll` ],
+			},
+			// elements: [
+			// 	{
+			// 		label: __( 'Bucketlist', 'your-textdomain' ),
+			// 		value: 'bucketlist',
+			// 	},
+			// ],
+			getValue: ( { item } ) => {
+				return item?.meta?.flag || [];
+			},
 		},
 		{
 			label: __( 'Count', 'your-textdomain' ),
@@ -106,7 +125,7 @@ function NotebookAdmin() {
 	);
 }
 
-window.renderNotebookAdmin = ( el ) => {
+window.renderNotebookAdmin = ( el, props = {} ) => {
 	const root = createRoot( el );
-	root.render( <NotebookAdmin /> );
+	root.render( <NotebookAdmin { ...props } /> );
 };

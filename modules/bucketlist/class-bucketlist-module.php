@@ -12,14 +12,7 @@ class Bucketlist_Module extends POS_Module {
 	}
 
 	public function add_admin_menu(): void {
-		add_menu_page(
-			'Bucketlist',
-			'Bucketlist',
-			'read',
-			'bucketlist',
-			array( $this, 'render_admin_page' ),
-			'dashicons-list-view'
-		);
+		add_submenu_page( 'personalos', 'Bucketlist', 'Bucketlist', 'read', 'pos-bucketlist', array( $this, 'render_admin_page' ) );
 	}
 
 	public function render_admin_page(): void {
@@ -31,7 +24,7 @@ class Bucketlist_Module extends POS_Module {
 		<?php
 		wp_enqueue_script( 'pos' );
 		wp_enqueue_style( 'pos' );
-		wp_add_inline_script( 'pos', 'wp.domReady( () => { window.renderNotebookAdmin( document.getElementById( "bucketlist-root" ) ); } );', 'after' );
+		wp_add_inline_script( 'pos', 'wp.domReady( () => { window.renderNotebookAdmin( document.getElementById( "bucketlist-root" ), { view: { filters: [ { field: "flags", operator: "isAny", value: ["bucketlist"] } ] } } ); } );', 'after' );
 	}
 
 	public function add_bucketlist_flag( $flags ) {
