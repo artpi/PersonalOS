@@ -1,5 +1,5 @@
 import { registerPlugin } from '@wordpress/plugins';
 import NotesPlugin from './notes/plugin';
-import '../modules/bucketlist/js/src/admin';
+import './notebooks/notebooks';
 
 registerPlugin( 'pos-notes', { render: NotesPlugin } );

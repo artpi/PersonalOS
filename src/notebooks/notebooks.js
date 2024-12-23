@@ -110,8 +110,3 @@ window.renderNotebookAdmin = ( el ) => {
 	const root = createRoot( el );
 	root.render( <NotebookAdmin /> );
 };
-
-// export default () => domReady( () => {
-// 	const root = createRoot( document.getElementById( 'bucketlist-root' ) );
-// 	root.render( <NotebookAdmin /> );
-// } );
