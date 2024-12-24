@@ -9,16 +9,19 @@ import { useState, useMemo, createRoot } from '@wordpress/element';
 // Important note If you're trying to use the DataViews component in a WordPress plugin or theme and you're building your scripts using the @wordpress/scripts package, you need to import the components from @wordpress/dataviews/wp instead of @wordpress/dataviews.
 import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews/wp';
 import { __ } from '@wordpress/i18n';
-import { useEntityRecords } from '@wordpress/core-data';
+import { useDispatch } from '@wordpress/data';
+import { useEntityRecords, store as coreStore } from '@wordpress/core-data';
 import '../notebooks/style.scss';
 import { trash, flag, swatch, check } from '@wordpress/icons';
 
 const defaultView = {
-	type: 'table',
+	type: 'list',
 	search: '',
 	page: 1,
 	perPage: 100,
-	fields: [ 'done', 'title', 'description', 'notebooks' ],
+	titleField: 'title',
+	descriptionField: 'description',
+	fields: [ 'notebooks' ],
 	layout: {},
 	filters: [],
 	sort: {
@@ -34,8 +37,9 @@ function TodoAdmin( props ) {
 	}
 
 	const [ view, setView ] = useState( viewConfig );
+	const { deleteEntityRecord } = useDispatch( coreStore );
 
-	const { records: notebooks } = useEntityRecords( 'taxonomy', 'notebook', {
+	const { records: notebooks, isLoading: notebooksLoading } = useEntityRecords( 'taxonomy', 'notebook', {
 		per_page: -1,
 		page: 1,
 		hide_empty: false,
@@ -101,6 +105,9 @@ function TodoAdmin( props ) {
 			render: ( { item } ) => {
 				return item?.title?.raw;
 			},
+			getValue: ( { item } ) => {
+				return item?.title?.raw;
+			},
 		},
 		{
 			label: __( 'Description', 'your-textdomain' ),
@@ -109,6 +116,9 @@ function TodoAdmin( props ) {
 			enableGlobalSearch: true,
 			type: 'string',
 			render: ( { item } ) => {
+				return item?.excerpt?.raw;
+			},
+			getValue: ( { item } ) => {
 				return item?.excerpt?.raw;
 			},
 		},
@@ -160,10 +170,10 @@ function TodoAdmin( props ) {
 	];
 
 	// We will use the entity records hook to fetch all the items from the "notebook" custom taxonomy
-	const { records } = useEntityRecords( 'postType', 'todo', {
+	const { records, isLoading: todoLoading } = useEntityRecords( 'postType', 'todo', {
 		per_page: -1,
 		context: 'edit',
-		status: [ 'publish', 'pending', 'draft', 'future', 'private', 'trash' ],
+		status: [ 'publish', 'pending', 'future', 'private' ],
 	} );
 
 	// filterSortAndPaginate works in memory. We theoretically could pass the parameters to backend to filter sort and paginate there.
@@ -173,6 +183,7 @@ function TodoAdmin( props ) {
 
 	return (
 		<DataViews
+			isLoading={ todoLoading || notebooksLoading }
 			getItemId={ ( item ) => item.id.toString() }
 			paginationInfo={ paginationInfo }
 			data={ shownData }
@@ -185,20 +196,11 @@ function TodoAdmin( props ) {
 					label: __( 'Complete', 'your-textdomain' ),
 					icon: check,
 					callback: async ( items ) => {
-						// Implement complete functionality
-						console.log( 'Complete items:', items );
+						// Completed items are in trash.
+						items.forEach( ( item ) => deleteEntityRecord( 'postType', 'todo', item.id ) );
 					},
 					isPrimary: true,
-				},
-				{
-					id: 'delete',
-					label: __( 'Delete', 'your-textdomain' ),
-					icon: trash,
-					callback: async ( items ) => {
-						// Implement delete functionality
-						console.log( 'Delete items:', items );
-					},
-				},
+				}
 			] }
 			defaultLayouts={ {
 				table: {
@@ -206,7 +208,12 @@ function TodoAdmin( props ) {
 					spacing: 'normal',
 					showHeader: true,
 				},
+				list: {
+					spacing: 'compact',
+					showHeader: true,
+				},
 			} }
+			isItemClickable={ () => false }
 		/>
 	);
 }
