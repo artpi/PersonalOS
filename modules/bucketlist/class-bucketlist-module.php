@@ -24,7 +24,9 @@ class Bucketlist_Module extends POS_Module {
 		<?php
 		wp_enqueue_script( 'pos' );
 		wp_enqueue_style( 'pos' );
-		wp_add_inline_script( 'pos', 'wp.domReady( () => { window.renderNotebookAdmin( document.getElementById( "bucketlist-root" ), { view: { filters: [ { field: "flags", operator: "isAny", value: ["bucketlist"] } ] } } ); } );', 'after' );
+		//wp_add_inline_script( 'pos', 'wp.domReady( () => { window.renderNotebookAdmin( document.getElementById( "bucketlist-root" ), { view: { filters: [ { field: "flags", operator: "isAny", value: ["bucketlist"] } ] } } ); } );', 'after' );
+		wp_add_inline_script( 'pos', 'wp.domReady( () => { window.renderTodoAdmin( document.getElementById( "bucketlist-root" ), {} ); } );', 'after' );
+
 	}
 
 	public function add_bucketlist_flag( $flags ) {
