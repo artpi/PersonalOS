@@ -1,4 +1,8 @@
-import { Icon, __experimentalHStack as HStack, Button } from '@wordpress/components';
+import {
+	Icon,
+	__experimentalHStack as HStack,
+	Button,
+} from '@wordpress/components';
 //import domReady from '@wordpress/dom-ready';
 import { useState, useMemo, createRoot } from '@wordpress/element';
 // Per https://github.com/WordPress/gutenberg/tree/trunk/packages/dataviews :
@@ -42,34 +46,38 @@ function TodoAdmin( props ) {
 	}
 
 	function filterByNotebook( noteBookId ) {
-		const existingNotebookFilter = view.filters.find( ( filter ) => filter.field === 'notebooks' );
+		const existingNotebookFilter = view.filters.find(
+			( filter ) => filter.field === 'notebooks'
+		);
 		let newFilters;
 
-		if (existingNotebookFilter) {
+		if ( existingNotebookFilter ) {
 			// If filter exists, toggle the notebookId in its values
 			const values = existingNotebookFilter.value || [];
-			const newValues = values.includes(noteBookId) 
-				? values.filter(id => id !== noteBookId)
-				: [...values, noteBookId];
+			const newValues = values.includes( noteBookId )
+				? values.filter( ( id ) => id !== noteBookId )
+				: [ ...values, noteBookId ];
 
-			newFilters = view.filters.map(filter => 
+			newFilters = view.filters.map( ( filter ) =>
 				filter.field === 'notebooks'
 					? { ...filter, value: newValues }
 					: filter
 			);
 		} else {
 			// If no filter exists, create new one
-			newFilters = [...view.filters, {
-				field: 'notebooks',
-				operator: 'isAll', 
-				value: [noteBookId]
-			}];
+			newFilters = [
+				...view.filters,
+				{
+					field: 'notebooks',
+					operator: 'isAll',
+					value: [ noteBookId ],
+				},
+			];
 		}
 
-		setView({ ...view, filters: newFilters });
+		setView( { ...view, filters: newFilters } );
 	}
 
-	console.log('FILTERZ', view.filters);
 	// Our setup in this custom taxonomy.
 	const fields = [
 		{
@@ -79,7 +87,9 @@ function TodoAdmin( props ) {
 			enableGlobalSearch: false,
 			type: 'boolean',
 			render: ( { item } ) => {
-				return <Icon icon={ item?.status === 'trash' ? check : swatch } />;
+				return (
+					<Icon icon={ item?.status === 'trash' ? check : swatch } />
+				);
 			},
 		},
 		{
@@ -128,7 +138,8 @@ function TodoAdmin( props ) {
 									filterByNotebook( notebook );
 								} }
 							>
-								{ getNotebook( notebook, notebooks )?.name || '' }
+								{ getNotebook( notebook, notebooks )?.name ||
+									'' }
 							</Button>
 						) ) }
 					</>
@@ -154,7 +165,6 @@ function TodoAdmin( props ) {
 		context: 'edit',
 		status: [ 'publish', 'pending', 'draft', 'future', 'private', 'trash' ],
 	} );
-
 
 	// filterSortAndPaginate works in memory. We theoretically could pass the parameters to backend to filter sort and paginate there.
 	const { data: shownData, paginationInfo } = useMemo( () => {
