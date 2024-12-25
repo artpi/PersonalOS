@@ -18,7 +18,7 @@ import {
 	TabPanel,
 } from '@wordpress/components';
 //import domReady from '@wordpress/dom-ready';
-import { useState, useMemo, createRoot } from '@wordpress/element';
+import { useState, useMemo, createRoot, useEffect } from '@wordpress/element';
 // Per https://github.com/WordPress/gutenberg/tree/trunk/packages/dataviews :
 // Important note If you're trying to use the DataViews component in a WordPress plugin or theme and you're building your scripts using the @wordpress/scripts package, you need to import the components from @wordpress/dataviews/wp instead of @wordpress/dataviews.
 import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews/wp';
@@ -81,10 +81,6 @@ function NotebookSelectorTabPanel( {
 										checked={ chosenNotebooks.includes(
 											notebook.id
 										) }
-										id={
-											'my-checkbox-with-custom-label-' +
-											notebook.id
-										}
 										onChange={ ( value ) =>
 											setNotebook( notebook, value )
 										}
@@ -116,26 +112,29 @@ function NotebookSelectorTabPanel( {
 	);
 }
 
-function TodoForm() {
+function TodoForm( { presetNotebooks = [] } ) {
 	const emptyTodo = {
 		status: 'private',
 		title: '',
 		excerpt: '',
 		notebook: [],
+		meta: {},
 	};
+
 	const [ newTodo, setNewTodo ] = useState( emptyTodo );
+
+	useEffect( () => {
+		setNewTodo( {
+			...newTodo,
+			notebook: newTodo.notebook.concat( presetNotebooks ),
+		} );
+	}, [ presetNotebooks ] );
+
 	const { saveEntityRecord } = useDispatch( coreStore );
 	const { records: notebooks } = useEntityRecords( 'taxonomy', 'notebook', {
 		per_page: -1,
 		hide_empty: false,
 	} );
-	const statuses = notebooks
-		?.filter( ( notebook ) => notebook?.meta?.flag?.includes( 'star' ) )
-		?.map( ( notebook ) => ( {
-			label: notebook.name,
-			value: notebook.id,
-			slug: notebook.slug,
-		} ) );
 
 	return (
 		<Card
@@ -201,29 +200,36 @@ function TodoForm() {
 								initialOpen={ false }
 							>
 								<PanelRow>
-									<SelectControl
-										label="Status to assign in the future"
-										value={
-											statuses?.find(
-												( status ) =>
-													status.slug === 'now'
-											)?.value
-										}
-										options={ statuses }
-										onChange={ () => {} }
-										help={
-											"TODO will automatically be transitioned to this status on a certain date. This works differently from the traditional 'due date' - its more of a 'show on' date."
-										}
+									<NotebookSelectorTabPanel
+										notebooks={ notebooks }
+										chosenNotebooks={ [
+											newTodo.meta.pos_blocked_pending_term,
+										] }
+										setNotebook={ ( notebook, value ) => {
+											if ( value ) {
+												setNewTodo( {
+													...newTodo,
+													meta: {
+														...newTodo.meta,
+														pos_blocked_pending_term: notebook.id,
+													},
+												} );
+											} else {
+												delete newTodo.meta.pos_blocked_pending_term;
+											}
+										} }
 									/>
 								</PanelRow>
 								<PanelRow>
 									<DatePicker
 										label="Show on"
 										currentDate={ new Date() }
-										onChange={ () => {} }
-										style={ {
-											width: '100%',
-										} }
+										onChange={ ( value ) =>
+											setNewTodo( {
+												...newTodo,
+												date: value,
+											} )
+										}
 									/>
 								</PanelRow>
 							</PanelBody>
@@ -421,9 +427,23 @@ function TodoAdmin( props ) {
 		return filterSortAndPaginate( records, view, fields );
 	}, [ view, records ] );
 
+	const notebookFilters = view.filters.reduce( ( acc, filter ) => {
+		if (
+			filter.field === 'notebooks' &&
+			( filter.operator === 'isAny' ||
+				filter.operator === 'isAll' )
+		) {
+			acc = acc.concat( filter.value );
+		}
+		return acc;
+	}, [] );
+
+
 	return (
 		<>
-			<TodoForm />
+			<TodoForm
+				presetNotebooks={ notebookFilters }
+			/>
 			<Card elevation={ 1 }>
 				<CardBody>
 					<DataViews

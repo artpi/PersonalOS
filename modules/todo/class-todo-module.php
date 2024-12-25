@@ -30,6 +30,16 @@ class TODO_Module extends POS_Module {
 				'show_in_rest' => true,
 			)
 		);
+
+		register_meta(
+			'post',
+			'pos_blocked_pending_term',
+			array(
+				'type'         => 'integer',
+				'single'       => true,
+				'show_in_rest' => true,
+			)
+		);
 	}
 
 	public function save_todo_notes( $post_id, $post, $old_post ) {
