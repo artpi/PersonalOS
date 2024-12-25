@@ -15,7 +15,7 @@ import {
 	PanelRow,
 	DatePicker,
 	CheckboxControl,
-	TabPanel
+	TabPanel,
 } from '@wordpress/components';
 //import domReady from '@wordpress/dom-ready';
 import { useState, useMemo, createRoot } from '@wordpress/element';
@@ -24,7 +24,11 @@ import { useState, useMemo, createRoot } from '@wordpress/element';
 import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews/wp';
 import { __ } from '@wordpress/i18n';
 import { useDispatch } from '@wordpress/data';
-import { useEntityRecords, store as coreStore, useEntityRecord } from '@wordpress/core-data';
+import {
+	useEntityRecords,
+	store as coreStore,
+	useEntityRecord,
+} from '@wordpress/core-data';
 import '../notebooks/style.scss';
 import { trash, flag, swatch, check } from '@wordpress/icons';
 
@@ -44,54 +48,71 @@ const defaultView = {
 	},
 };
 
-function NotebookSelectorTabPanel( { notebooks, chosenNotebooks, setNotebook } ) {
+function NotebookSelectorTabPanel( {
+	notebooks,
+	chosenNotebooks,
+	setNotebook,
+} ) {
 	return (
 		<TabPanel
-						children={ ( selectedTab ) => {
-							return (
-								<div
-									style={ {
-										maxHeight: '200px',
-										overflowY: 'auto',
-										padding: '20px',
-									} }
-								>
-									<VStack>
-										{
-											notebooks?.filter( ( notebook ) => selectedTab.name === 'all' || notebook?.meta?.flag?.includes( selectedTab.name ) )?.map( ( notebook ) => (
-												<CheckboxControl
-													key={ notebook.id }
-													__nextHasNoMarginBottom
-													label={ notebook.name }
-													checked={ chosenNotebooks.includes( notebook.id ) }
-													id={ "my-checkbox-with-custom-label-" + notebook.id }
-													onChange={( value ) => setNotebook( notebook, value ) }
-												/>
-											) )
-										}
-								</VStack>
-								</div>
-							);
+			children={ ( selectedTab ) => {
+				return (
+					<div
+						style={ {
+							maxHeight: '200px',
+							overflowY: 'auto',
+							padding: '20px',
 						} }
-						tabs={ [
-							{
-								name: 'star',
-								title: 'Starred'
-							},
-							{
-								name: 'project',
-								title: 'Projects'
-							},
-							{
-								name: 'bucketlist',
-								title: 'Bucketlist'
-							},
-							{
-								name: 'all',
-								title: 'All Notebooks'
-							}
-						] }
-					/>
+					>
+						<VStack>
+							{ notebooks
+								?.filter(
+									( notebook ) =>
+										selectedTab.name === 'all' ||
+										notebook?.meta?.flag?.includes(
+											selectedTab.name
+										)
+								)
+								?.map( ( notebook ) => (
+									<CheckboxControl
+										key={ notebook.id }
+										__nextHasNoMarginBottom
+										label={ notebook.name }
+										checked={ chosenNotebooks.includes(
+											notebook.id
+										) }
+										id={
+											'my-checkbox-with-custom-label-' +
+											notebook.id
+										}
+										onChange={ ( value ) =>
+											setNotebook( notebook, value )
+										}
+									/>
+								) ) }
+						</VStack>
+					</div>
+				);
+			} }
+			tabs={ [
+				{
+					name: 'star',
+					title: 'Starred',
+				},
+				{
+					name: 'project',
+					title: 'Projects',
+				},
+				{
+					name: 'bucketlist',
+					title: 'Bucketlist',
+				},
+				{
+					name: 'all',
+					title: 'All Notebooks',
+				},
+			] }
+		/>
 	);
 }
 
@@ -108,18 +129,18 @@ function TodoForm() {
 		per_page: -1,
 		hide_empty: false,
 	} );
-	const statuses = notebooks?.filter( ( notebook ) => notebook?.meta?.flag?.includes( 'star' ) )?.map( ( notebook ) => (
-		{
+	const statuses = notebooks
+		?.filter( ( notebook ) => notebook?.meta?.flag?.includes( 'star' ) )
+		?.map( ( notebook ) => ( {
 			label: notebook.name,
 			value: notebook.id,
 			slug: notebook.slug,
-		}
-	) );
+		} ) );
 
 	return (
-			<Card
-				style={ {
-					marginBottom: '10px',
+		<Card
+			style={ {
+				marginBottom: '10px',
 			} }
 			elevation={ newTodo.title.length > 0 ? 3 : 1 }
 			className="pos__todo-form"
@@ -127,60 +148,89 @@ function TodoForm() {
 			<CardBody>
 				<InputControl
 					// __next40pxDefaultSize = { true }
-					onChange={ ( value ) => setNewTodo( { ...newTodo, title: value } ) }
+					onChange={ ( value ) =>
+						setNewTodo( { ...newTodo, title: value } )
+					}
 					label={ newTodo.title.length > 0 ? 'New TODO' : null }
-					onValidate={() => true}
+					onValidate={ () => true }
 					value={ newTodo.title }
 					placeholder="New TODO"
 				/>
 			</CardBody>
-			{ newTodo.title.length > 0 && ( 
+			{ newTodo.title.length > 0 && (
 				<>
 					<CardBody>
 						<TextareaControl
 							__nextHasNoMarginBottom
 							label="Notes"
-							onChange={ ( value ) => setNewTodo( { ...newTodo, excerpt: value } ) }
+							onChange={ ( value ) =>
+								setNewTodo( { ...newTodo, excerpt: value } )
+							}
 							placeholder="Placeholder"
 							value={ newTodo.excerpt }
 						/>
 					</CardBody>
 					<CardBody>
 						<NotebookSelectorTabPanel
-						notebooks={ notebooks }
-						chosenNotebooks={ newTodo.notebook }
-						setNotebook={ ( notebook, value ) => {
+							notebooks={ notebooks }
+							chosenNotebooks={ newTodo.notebook }
+							setNotebook={ ( notebook, value ) => {
 								if ( value ) {
-									setNewTodo( { ...newTodo, notebook: [ ...newTodo.notebook, notebook.id ] } );
+									setNewTodo( {
+										...newTodo,
+										notebook: [
+											...newTodo.notebook,
+											notebook.id,
+										],
+									} );
 								} else {
-									setNewTodo( { ...newTodo, notebook: newTodo.notebook.filter( ( id ) => id !== notebook.id ) } );
+									setNewTodo( {
+										...newTodo,
+										notebook: newTodo.notebook.filter(
+											( id ) => id !== notebook.id
+										),
+									} );
 								}
-						} } />
+							} }
+						/>
 					</CardBody>
 					<CardBody>
 						<Panel>
-							<PanelBody title="Dont bother me before date" initialOpen={ false }>
-							<PanelRow>
+							<PanelBody
+								title="Dont bother me before date"
+								initialOpen={ false }
+							>
+								<PanelRow>
 									<SelectControl
 										label="Status to assign in the future"
-										value={ statuses?.find( ( status ) => status.slug === 'now' )?.value }
+										value={
+											statuses?.find(
+												( status ) =>
+													status.slug === 'now'
+											)?.value
+										}
 										options={ statuses }
-										onChange={() => {}}
-										help={ "TODO will automatically be transitioned to this status on a certain date. This works differently from the traditional 'due date' - its more of a 'show on' date." }
+										onChange={ () => {} }
+										help={
+											"TODO will automatically be transitioned to this status on a certain date. This works differently from the traditional 'due date' - its more of a 'show on' date."
+										}
 									/>
 								</PanelRow>
 								<PanelRow>
 									<DatePicker
 										label="Show on"
-										currentDate={new Date()}
-										onChange={() => {}}
+										currentDate={ new Date() }
+										onChange={ () => {} }
 										style={ {
 											width: '100%',
 										} }
 									/>
 								</PanelRow>
 							</PanelBody>
-							<PanelBody title="This TODO depends on" initialOpen={ false }>
+							<PanelBody
+								title="This TODO depends on"
+								initialOpen={ false }
+							>
 								<PanelRow>
 									<h1>Test</h1>
 								</PanelRow>
@@ -193,9 +243,20 @@ function TodoForm() {
 							justifyContent: 'flex-end',
 						} }
 					>
-						<Button shortcut={ 'CTRL+ENTER' } variant="primary" isPrimary  onClick={ () => {
-							saveEntityRecord( 'postType', 'todo', newTodo ).then( () => setNewTodo( emptyTodo ) );
-						} }>Add new TODO</Button>
+						<Button
+							shortcut={ 'CTRL+ENTER' }
+							variant="primary"
+							isPrimary
+							onClick={ () => {
+								saveEntityRecord(
+									'postType',
+									'todo',
+									newTodo
+								).then( () => setNewTodo( emptyTodo ) );
+							} }
+						>
+							Add new TODO
+						</Button>
 					</CardFooter>
 				</>
 			) }
@@ -213,11 +274,12 @@ function TodoAdmin( props ) {
 	const [ view, setView ] = useState( viewConfig );
 	const { deleteEntityRecord } = useDispatch( coreStore );
 
-	const { records: notebooks, isLoading: notebooksLoading } = useEntityRecords( 'taxonomy', 'notebook', {
-		per_page: -1,
-		page: 1,
-		hide_empty: false,
-	} );
+	const { records: notebooks, isLoading: notebooksLoading } =
+		useEntityRecords( 'taxonomy', 'notebook', {
+			per_page: -1,
+			page: 1,
+			hide_empty: false,
+		} );
 
 	function getNotebook( id, notebooks ) {
 		return notebooks.find( ( notebook ) => notebook.id === id );
@@ -344,11 +406,15 @@ function TodoAdmin( props ) {
 	];
 
 	// We will use the entity records hook to fetch all the items from the "notebook" custom taxonomy
-	const { records, isLoading: todoLoading } = useEntityRecords( 'postType', 'todo', {
-		per_page: -1,
-		context: 'edit',
-		status: [ 'publish', 'pending', 'future', 'private' ],
-	} );
+	const { records, isLoading: todoLoading } = useEntityRecords(
+		'postType',
+		'todo',
+		{
+			per_page: -1,
+			context: 'edit',
+			status: [ 'publish', 'pending', 'future', 'private' ],
+		}
+	);
 
 	// filterSortAndPaginate works in memory. We theoretically could pass the parameters to backend to filter sort and paginate there.
 	const { data: shownData, paginationInfo } = useMemo( () => {
@@ -357,44 +423,50 @@ function TodoAdmin( props ) {
 
 	return (
 		<>
-		<TodoForm />
-		<Card elevation={ 1 }>
-			<CardBody>
-				<DataViews
-					isLoading={ todoLoading || notebooksLoading }
-					getItemId={ ( item ) => item.id.toString() }
-					paginationInfo={ paginationInfo }
-					data={ shownData }
-					view={ view }
-					fields={ fields }
-				onChangeView={ setView }
-				actions={ [
-					{
-						id: 'complete',
-						label: __( 'Complete', 'your-textdomain' ),
-						icon: check,
-						callback: async ( items ) => {
-							// Completed items are in trash.
-							items.forEach( ( item ) => deleteEntityRecord( 'postType', 'todo', item.id ) );
-						},
-						isPrimary: true,
-					}
-				] }
-				defaultLayouts={ {
-					table: {
-						// Define default table layout settings
-						spacing: 'normal',
-						showHeader: true,
-					},
-					list: {
-						spacing: 'compact',
-						showHeader: true,
-					},
-				} }
-				isItemClickable={ () => false }
-				/>
-			</CardBody>
-		</Card>
+			<TodoForm />
+			<Card elevation={ 1 }>
+				<CardBody>
+					<DataViews
+						isLoading={ todoLoading || notebooksLoading }
+						getItemId={ ( item ) => item.id.toString() }
+						paginationInfo={ paginationInfo }
+						data={ shownData }
+						view={ view }
+						fields={ fields }
+						onChangeView={ setView }
+						actions={ [
+							{
+								id: 'complete',
+								label: __( 'Complete', 'your-textdomain' ),
+								icon: check,
+								callback: async ( items ) => {
+									// Completed items are in trash.
+									items.forEach( ( item ) =>
+										deleteEntityRecord(
+											'postType',
+											'todo',
+											item.id
+										)
+									);
+								},
+								isPrimary: true,
+							},
+						] }
+						defaultLayouts={ {
+							table: {
+								// Define default table layout settings
+								spacing: 'normal',
+								showHeader: true,
+							},
+							list: {
+								spacing: 'compact',
+								showHeader: true,
+							},
+						} }
+						isItemClickable={ () => false }
+					/>
+				</CardBody>
+			</Card>
 		</>
 	);
 }
