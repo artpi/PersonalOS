@@ -31,7 +31,7 @@ import {
 	useEntityRecord,
 } from '@wordpress/core-data';
 import '../notebooks/style.scss';
-import { flag, swatch, check, close } from '@wordpress/icons';
+import { flag, swatch, check, close, edit } from '@wordpress/icons';
 
 const defaultView = {
 	type: 'list',
@@ -477,6 +477,19 @@ function TodoAdmin( props ) {
 									);
 								},
 								isPrimary: true,
+							},
+							{
+								id: 'edit',
+								label: __( 'Edit', 'your-textdomain' ),
+								icon: edit,
+								callback: async ( items ) => {
+									if ( items.length === 1 ) {
+										window.open(
+											`/wp-admin/post.php?post=${ items[ 0 ].id }&action=edit`,
+											'_blank'
+										);
+									}
+								},
 							},
 						] }
 						defaultLayouts={ {
