@@ -7,7 +7,6 @@
 		border: none;
 		cursor: pointer;
 	}
-	background: white;
 }
 .components-dropdown__content {
 	background: white;
@@ -27,4 +26,8 @@
 .dataviews-view-table__actions-column  button.has-icon>svg {
 	width: 24px;
 	height: 24px;
+}
+
+.pos__todo-form .components-datetime__date, .pos__todo-form .components-base-control {
+	width: 100%;
 }

@@ -32,7 +32,9 @@ class POS {
 		wp_register_style(
 			'pos',
 			plugins_url( 'build/style-index.css', __FILE__ ),
-			array(),
+			array(
+				'wp-components',
+			),
 			$script_asset['version'],
 		);
 		self::load_modules();
