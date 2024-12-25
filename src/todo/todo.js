@@ -16,6 +16,7 @@ import {
 	DatePicker,
 	CheckboxControl,
 	TabPanel,
+	Snackbar,
 } from '@wordpress/components';
 //import domReady from '@wordpress/dom-ready';
 import { useState, useMemo, createRoot, useEffect } from '@wordpress/element';
@@ -30,7 +31,7 @@ import {
 	useEntityRecord,
 } from '@wordpress/core-data';
 import '../notebooks/style.scss';
-import { trash, flag, swatch, check } from '@wordpress/icons';
+import { flag, swatch, check, close } from '@wordpress/icons';
 
 const defaultView = {
 	type: 'list',
@@ -246,13 +247,19 @@ function TodoForm( { presetNotebooks = [] } ) {
 					<CardFooter
 						style={ {
 							display: 'flex',
-							justifyContent: 'flex-end',
+							justifyContent: 'space-between',
 						} }
 					>
+						<Button
+							variant="tertiary"
+							onClick={ () => setNewTodo( emptyTodo ) }
+							icon={ close }
+						/>
 						<Button
 							shortcut={ 'CTRL+ENTER' }
 							variant="primary"
 							isPrimary
+							icon={ check }
 							onClick={ () => {
 								saveEntityRecord(
 									'postType',
