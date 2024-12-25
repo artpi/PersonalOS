@@ -44,6 +44,57 @@ const defaultView = {
 	},
 };
 
+function NotebookSelectorTabPanel( { notebooks, chosenNotebooks, setNotebook } ) {
+	return (
+		<TabPanel
+						children={ ( selectedTab ) => {
+							return (
+								<div
+									style={ {
+										maxHeight: '200px',
+										overflowY: 'auto',
+										padding: '20px',
+									} }
+								>
+									<VStack>
+										{
+											notebooks?.filter( ( notebook ) => selectedTab.name === 'all' || notebook?.meta?.flag?.includes( selectedTab.name ) )?.map( ( notebook ) => (
+												<CheckboxControl
+													key={ notebook.id }
+													__nextHasNoMarginBottom
+													label={ notebook.name }
+													checked={ chosenNotebooks.includes( notebook.id ) }
+													id={ "my-checkbox-with-custom-label-" + notebook.id }
+													onChange={( value ) => setNotebook( notebook, value ) }
+												/>
+											) )
+										}
+								</VStack>
+								</div>
+							);
+						} }
+						tabs={ [
+							{
+								name: 'star',
+								title: 'Starred'
+							},
+							{
+								name: 'project',
+								title: 'Projects'
+							},
+							{
+								name: 'bucketlist',
+								title: 'Bucketlist'
+							},
+							{
+								name: 'all',
+								title: 'All Notebooks'
+							}
+						] }
+					/>
+	);
+}
+
 function TodoForm() {
 	const emptyTodo = {
 		status: 'private',
@@ -95,59 +146,16 @@ function TodoForm() {
 						/>
 					</CardBody>
 					<CardBody>
-					<TabPanel
-						children={ ( selectedTab ) => {
-							return (
-								<div
-									style={ {
-										maxHeight: '200px',
-										overflowY: 'auto',
-										padding: '20px',
-									} }
-								>
-									<VStack>
-										{
-											notebooks?.filter( ( notebook ) => selectedTab.name === 'all' || notebook?.meta?.flag?.includes( selectedTab.name ) )?.map( ( notebook ) => (
-												<CheckboxControl
-													key={ notebook.id }
-													__nextHasNoMarginBottom
-													label={ notebook.name }
-													checked={ newTodo.notebook.includes( notebook.id ) }
-													id={ "my-checkbox-with-custom-label-" + notebook.id }
-													onChange={( value ) => {
-														if ( value ) {
-															setNewTodo( { ...newTodo, notebook: [ ...newTodo.notebook, notebook.id ] } );
-														} else {
-															setNewTodo( { ...newTodo, notebook: newTodo.notebook.filter( ( id ) => id !== notebook.id ) } );
-														}
-													} }
-												/>
-											) )
-										}
-								</VStack>
-								</div>
-							);
-						} }
-						onSelect={() => {}}
-						tabs={ [
-							{
-								name: 'star',
-								title: 'Starred'
-							},
-							{
-								name: 'project',
-								title: 'Projects'
-							},
-							{
-								name: 'bucketlist',
-								title: 'Bucketlist'
-							},
-							{
-								name: 'all',
-								title: 'All Notebooks'
-							}
-						] }
-					/>
+						<NotebookSelectorTabPanel
+						notebooks={ notebooks }
+						chosenNotebooks={ newTodo.notebook }
+						setNotebook={ ( notebook, value ) => {
+								if ( value ) {
+									setNewTodo( { ...newTodo, notebook: [ ...newTodo.notebook, notebook.id ] } );
+								} else {
+									setNewTodo( { ...newTodo, notebook: newTodo.notebook.filter( ( id ) => id !== notebook.id ) } );
+								}
+						} } />
 					</CardBody>
 					<CardBody>
 						<Panel>
