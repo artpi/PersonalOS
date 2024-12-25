@@ -19,8 +19,12 @@
 	border-radius: 5px;
 	font-size: 0.75em;
 	background: #f0f0f0;
-	border: 0;
+	// border: 0;
 	cursor: pointer;
+}
+
+.pos__dataview .pos__notebook-badge:hover {
+	background: #e0e0e0;
 }
 
 .dataviews-view-table__actions-column  button.has-icon>svg {

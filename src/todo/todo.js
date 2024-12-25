@@ -4,19 +4,16 @@ import {
 	__experimentalVStack as VStack,
 	Button,
 	Card,
-	CardHeader,
 	CardBody,
 	CardFooter,
 	__experimentalInputControl as InputControl,
 	TextareaControl,
-	SelectControl,
 	PanelBody,
 	Panel,
 	PanelRow,
 	DatePicker,
 	CheckboxControl,
 	TabPanel,
-	Snackbar,
 } from '@wordpress/components';
 //import domReady from '@wordpress/dom-ready';
 import { useState, useMemo, createRoot, useEffect } from '@wordpress/element';
@@ -31,7 +28,7 @@ import {
 	useEntityRecord,
 } from '@wordpress/core-data';
 import '../notebooks/style.scss';
-import { flag, swatch, check, close, edit } from '@wordpress/icons';
+import { calendar, swatch, check, close, edit } from '@wordpress/icons';
 
 const defaultView = {
 	type: 'list',
@@ -376,7 +373,6 @@ function TodoAdmin( props ) {
 			id: 'notebooks',
 			header: (
 				<HStack spacing={ 1 } justify="start">
-					<Icon icon={ flag } />
 					<span>{ __( 'Notebooks', 'your-textdomain' ) }</span>
 				</HStack>
 			),
@@ -385,11 +381,25 @@ function TodoAdmin( props ) {
 				if ( ! notebooks ) {
 					return '';
 				}
+				const postDate = new Date( item.date );
 				return (
 					<>
-						{ item?.notebook?.map( ( notebook ) => (
+						{ postDate.getTime() > Date.now() && (
 							<Button
 								variant="secondary"
+								key={ 'future' }
+								size="small"
+								icon={ calendar }
+								className="pos__notebook-badge pos__notebook-badge--future"
+							>
+								{ getNotebook( item?.meta?.pos_blocked_pending_term, notebooks )?.name }
+								{ ' on ' }
+								{ postDate.toLocaleDateString() }
+							</Button>
+						) }
+						{ item?.notebook?.map( ( notebook ) => (
+							<Button
+								variant="tertiary"
 								key={ notebook }
 								size="small"
 								className="pos__notebook-badge"
@@ -416,6 +426,24 @@ function TodoAdmin( props ) {
 				return item?.notebook || [];
 			},
 		},
+		{
+			label: __( 'Date', 'your-textdomain' ),
+			id: 'date',
+			enableSorting: true,
+			enableGlobalSearch: true,
+			type: 'string',
+			// TODO: Add date filter before filterSortAndPaginate.
+			// filterBy: {
+			// 	operators: [ `is`, `isNot` ],
+			// },
+			render: ( { item } ) => {
+				return new Date( item.date ).toLocaleDateString();
+			},
+			getValue: ( { item } ) => {
+				return new Date( item.date ).toLocaleDateString();
+			},
+			elements: [],
+		},
 	];
 
 	// We will use the entity records hook to fetch all the items from the "notebook" custom taxonomy
@@ -431,6 +459,7 @@ function TodoAdmin( props ) {
 
 	// filterSortAndPaginate works in memory. We theoretically could pass the parameters to backend to filter sort and paginate there.
 	const { data: shownData, paginationInfo } = useMemo( () => {
+		// TODO: Add date filter before filterSortAndPaginate.
 		return filterSortAndPaginate( records, view, fields );
 	}, [ view, records ] );
 
