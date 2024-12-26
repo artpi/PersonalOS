@@ -40,6 +40,16 @@ class TODO_Module extends POS_Module {
 				'show_in_rest' => true,
 			)
 		);
+
+		register_meta(
+			'post',
+			'url',
+			array(
+				'type'         => 'string',
+				'single'       => true,
+				'show_in_rest' => true,
+			)
+		);
 	}
 
 	public function save_todo_notes( $post_id, $post, $old_post ) {

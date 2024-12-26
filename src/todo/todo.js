@@ -28,7 +28,8 @@ import {
 	useEntityRecord,
 } from '@wordpress/core-data';
 import '../notebooks/style.scss';
-import { calendar, swatch, check, close, edit } from '@wordpress/icons';
+import { calendar, swatch, check, close, edit, external } from '@wordpress/icons';
+import { RawHTML } from '@wordpress/element';
 
 const defaultView = {
 	type: 'list',
@@ -362,7 +363,7 @@ function TodoAdmin( props ) {
 			enableGlobalSearch: true,
 			type: 'string',
 			render: ( { item } ) => {
-				return item?.excerpt?.raw;
+				return <div className="pos__todo-description"><RawHTML>{ item?.excerpt?.rendered }</RawHTML></div>;
 			},
 			getValue: ( { item } ) => {
 				return item?.excerpt?.raw;
@@ -395,6 +396,19 @@ function TodoAdmin( props ) {
 								{ getNotebook( item?.meta?.pos_blocked_pending_term, notebooks )?.name }
 								{ ' on ' }
 								{ postDate.toLocaleDateString() }
+							</Button>
+						) }
+						{ item?.meta?.url && (
+							<Button
+								variant="secondary"
+								size="small"
+								className="pos__notebook-badge"
+								icon={ external }
+								onClick={ ( event ) => {
+									window.open( item?.meta?.url, '_blank' );
+								} }
+							>
+								{ ( new URL( item?.meta?.url ) ).hostname }
 							</Button>
 						) }
 						{ item?.notebook?.map( ( notebook ) => (
@@ -532,7 +546,6 @@ function TodoAdmin( props ) {
 								showHeader: true,
 							},
 						} }
-						isItemClickable={ () => false }
 					/>
 				</CardBody>
 			</Card>

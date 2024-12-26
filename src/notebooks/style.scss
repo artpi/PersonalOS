@@ -26,6 +26,20 @@
 .pos__dataview .pos__notebook-badge:hover {
 	background: #e0e0e0;
 }
+.pos__dataview .pos__notebook-badge--future {
+	background: #f0f0f0;
+}
+
+.pos__todo-description {
+	overflow: auto;
+	max-height: 100px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.dataviews-view-list li.is-selected .pos__todo-description {
+	max-height: none;
+}
 
 .dataviews-view-table__actions-column  button.has-icon>svg {
 	width: 24px;
