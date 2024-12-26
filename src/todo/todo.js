@@ -506,6 +506,15 @@ function TodoAdmin( props ) {
 						onChangeView={ setView }
 						actions={ [
 							{
+								id: 'open-url',
+								label: 'Open URL',
+								icon: external,
+								isEligible: ( item ) => item.meta?.url,
+								callback: async ( items ) => {
+									window.open( items[ 0 ].meta?.url, '_blank' );
+								},
+							},
+							{
 								id: 'complete',
 								label: __( 'Complete', 'your-textdomain' ),
 								icon: check,
