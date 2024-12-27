@@ -16,6 +16,7 @@ import {
 	TabPanel,
 	__experimentalToggleGroupControl as ToggleGroupControl,
 	__experimentalToggleGroupControlOption as ToggleGroupControlOption,
+	DropdownMenu
 } from '@wordpress/components';
 //import domReady from '@wordpress/dom-ready';
 import { useState, useMemo, createRoot, useEffect } from '@wordpress/element';
@@ -30,7 +31,7 @@ import {
 	useEntityRecord,
 } from '@wordpress/core-data';
 import '../notebooks/style.scss';
-import { calendar, swatch, check, close, edit, external } from '@wordpress/icons';
+import { calendar, swatch, check, close, edit, external, starFilled } from '@wordpress/icons';
 import { RawHTML } from '@wordpress/element';
 
 const defaultView = {
@@ -506,42 +507,35 @@ function TodoAdmin( props ) {
 			/>
 			<Card elevation={ 1 }>
 				<CardBody>
-					<ToggleGroupControl
-						value={ notebookFilters[0] || 'all' }
-						isAdaptiveWidth={ true }
-						onChange={ ( value ) => {
-							filterByNotebook( value, true );
-						} }
-						style={ {
-							width: '100%',
-						} }
-					>
-						<ToggleGroupControlOption
-							key={ 'all' }
-							value={ 'all' }
-							label={ 'All Notebooks' }
-						/>
-						{ notebooks
-								?.filter(
-									( notebook ) =>
-										notebook?.meta?.flag?.includes(
-											'star'
-										)
-								)
-								?.map( ( notebook ) => (
-									<ToggleGroupControlOption
-										key={ notebook.id }
-										value={ notebook.id }
-										label={ notebook.name }
-									/>
-								) ) }
-					</ToggleGroupControl>
-				</CardBody>
-				<CardBody>
 					<DataViews
 						isLoading={ todoLoading || notebooksLoading }
 						getItemId={ ( item ) => item.id.toString() }
 						paginationInfo={ paginationInfo }
+						header={
+							<DropdownMenu
+								controls={
+									[
+										{
+											onClick: () => filterByNotebook( 'all', true ),
+											title: 'All',
+										},
+									].concat(
+										notebooks
+										?.filter(
+											(notebook) =>
+											notebook?.meta?.flag?.includes(
+												'star'
+											)
+									).map((notebook) => ({
+										onClick: () => filterByNotebook(notebook.id, true),
+											title: notebook.name,
+										}))
+									)
+								}
+								icon={starFilled}
+								label="Filter by a starred notebook"
+							/>
+						}
 						data={ shownData }
 						view={ view }
 						fields={ fields }
