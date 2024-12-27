@@ -155,7 +155,7 @@ function TodoForm( { presetNotebooks = [] } ) {
 					label={ newTodo.title.length > 0 ? 'New TODO' : null }
 					onValidate={ () => true }
 					value={ newTodo.title }
-					placeholder="New TODO"
+					placeholder={ "New TODO in " + ( notebooks ? notebooks.filter( notebook => presetNotebooks.includes( notebook.id ) ).map( notebook => notebook.name ).join( ', ' ) : 'Inbox' ) }
 				/>
 			</CardBody>
 			{ newTodo.title.length > 0 && (
@@ -266,7 +266,8 @@ function TodoForm( { presetNotebooks = [] } ) {
 									'postType',
 									'todo',
 									newTodo
-								).then( () => setNewTodo( emptyTodo ) );
+								);
+								setNewTodo( emptyTodo );
 							} }
 						>
 							Add new TODO
