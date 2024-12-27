@@ -9,8 +9,11 @@ class TODO_Module extends POS_Module {
 			array(
 				'supports'   => array( 'title', 'excerpt', 'custom-fields', 'comments' ),
 				'taxonomies' => array( 'notebook' ),
+				'show_in_menu' => false,
 			)
 		);
+		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
+
 		add_filter( 'manage_notebook_custom_column', array( $this, 'notebook_taxonomy_column' ), 10, 3 );
 		add_filter( 'manage_edit-notebook_columns', array( $this, 'notebook_taxonomy_columns' ) );
 		add_action( 'add_meta_boxes', array( $this, 'pos_add_todo_dependency_meta_box' ) );
@@ -50,6 +53,22 @@ class TODO_Module extends POS_Module {
 				'show_in_rest' => true,
 			)
 		);
+	}
+
+	public function add_admin_menu(): void {
+		add_submenu_page( 'personalos', 'TODO', 'TODO', 'read', 'pos-todo', array( $this, 'render_admin_page' ) );
+	}
+
+	public function render_admin_page(): void {
+		?>
+		<div class="wrap">
+			<div id="todo-root" class="pos__dataview"></div>
+		</div>
+		<?php
+		wp_enqueue_script( 'pos' );
+		wp_enqueue_style( 'pos' );
+		wp_add_inline_script( 'pos', 'wp.domReady( () => { window.renderTodoAdmin( document.getElementById( "todo-root" ), {} ); } );', 'after' );
+
 	}
 
 	public function save_todo_notes( $post_id, $post, $old_post ) {

@@ -562,6 +562,13 @@ function TodoAdmin( props ) {
 										onClick: () => filterByNotebook(notebook.id, true),
 											title: notebook.name,
 										}))
+									).concat(
+										[
+											{
+												onClick: () => window.open( `/wp-admin/edit.php?post_type=todo`),
+												title: 'Classic WP-Admin',
+											},
+										]
 									)
 								}
 								icon={starFilled}
