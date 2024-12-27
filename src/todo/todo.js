@@ -14,6 +14,8 @@ import {
 	DatePicker,
 	CheckboxControl,
 	TabPanel,
+	__experimentalToggleGroupControl as ToggleGroupControl,
+	__experimentalToggleGroupControlOption as ToggleGroupControlOption,
 } from '@wordpress/components';
 //import domReady from '@wordpress/dom-ready';
 import { useState, useMemo, createRoot, useEffect } from '@wordpress/element';
@@ -296,7 +298,15 @@ function TodoAdmin( props ) {
 		return notebooks.find( ( notebook ) => notebook.id === id );
 	}
 
-	function filterByNotebook( noteBookId ) {
+	function filterByNotebook( noteBookId, override = false ) {
+		if ( override ) {
+			if ( noteBookId === 'all' ) {
+				setView( { ...view, filters: [] } );
+			} else {
+				setView( { ...view, filters: [ { field: 'notebooks', operator: 'isAll', value: [ noteBookId ] } ] } );
+			}
+			return;
+		}
 		const existingNotebookFilter = view.filters.find(
 			( filter ) => filter.field === 'notebooks'
 		);
@@ -495,6 +505,38 @@ function TodoAdmin( props ) {
 				presetNotebooks={ notebookFilters }
 			/>
 			<Card elevation={ 1 }>
+				<CardBody>
+					<ToggleGroupControl
+						value={ notebookFilters[0] || 'all' }
+						isAdaptiveWidth={ true }
+						onChange={ ( value ) => {
+							filterByNotebook( value, true );
+						} }
+						style={ {
+							width: '100%',
+						} }
+					>
+						<ToggleGroupControlOption
+							key={ 'all' }
+							value={ 'all' }
+							label={ 'All Notebooks' }
+						/>
+						{ notebooks
+								?.filter(
+									( notebook ) =>
+										notebook?.meta?.flag?.includes(
+											'star'
+										)
+								)
+								?.map( ( notebook ) => (
+									<ToggleGroupControlOption
+										key={ notebook.id }
+										value={ notebook.id }
+										label={ notebook.name }
+									/>
+								) ) }
+					</ToggleGroupControl>
+				</CardBody>
 				<CardBody>
 					<DataViews
 						isLoading={ todoLoading || notebooksLoading }
