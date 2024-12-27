@@ -287,7 +287,7 @@ function TodoAdmin( props ) {
 	}
 
 	const [ view, setView ] = useState( viewConfig );
-	const { deleteEntityRecord } = useDispatch( coreStore );
+	const { deleteEntityRecord, saveEntityRecord } = useDispatch( coreStore );
 
 	const { records: notebooks, isLoading: notebooksLoading } =
 		useEntityRecords( 'taxonomy', 'notebook', {
@@ -532,6 +532,71 @@ function TodoAdmin( props ) {
 		//window.addEventListener( "hashchange", filterByHash );
 	}, [ notebookFilters ] );
 
+	const actions = [
+		{
+			id: 'open-url',
+			label: 'Open URL',
+			icon: external,
+			isEligible: ( item ) => item.meta?.url,
+			callback: async ( items ) => {
+				window.open( items[ 0 ].meta?.url, '_blank' );
+			},
+		},
+		{
+			id: 'complete',
+			label: __( 'Complete', 'your-textdomain' ),
+			icon: check,
+			isEligible: () => true,
+			callback: async ( items ) => {
+				// Completed items are in trash.
+				items.forEach( ( item ) =>
+					deleteEntityRecord(
+						'postType',
+						'todo',
+						item.id
+					)
+				);
+			},
+			isPrimary: true,
+		},
+		{
+			id: 'edit',
+			label: __( 'Edit', 'your-textdomain' ),
+			icon: edit,
+			isEligible: () =>true,
+			callback: async ( items ) => {
+				if ( items.length === 1 ) {
+					window.open(
+						`/wp-admin/post.php?post=${ items[ 0 ].id }&action=edit`,
+						'_blank'
+					);
+				}
+			},
+		},
+	];
+
+	if ( notebooks && ! notebooksLoading ) {
+		notebooks.forEach( ( notebook ) => {
+			if( notebook.meta?.flag?.includes( 'star' ) ) {
+				actions.push( {
+					id: 'move-notebook-' + notebook.id,
+					label: 'To ' + notebook.name,
+					icon: edit,
+					isEligible: ( item ) => true,
+					callback: async ( items ) => {
+						items.forEach( ( item ) => {
+							const changes = { id: item.id, notebook: [ notebook.id, ...item.notebook.filter( ( id ) => ! notebookFilters.includes( id ) ) ] };
+							saveEntityRecord(
+								'postType',
+								'todo',
+								changes,
+							);
+						} );
+					},
+				} );
+			}
+		} );
+	}
 	return (
 		<>
 			<TodoForm
@@ -579,46 +644,7 @@ function TodoAdmin( props ) {
 						view={ view }
 						fields={ fields }
 						onChangeView={ setView }
-						actions={ [
-							{
-								id: 'open-url',
-								label: 'Open URL',
-								icon: external,
-								isEligible: ( item ) => item.meta?.url,
-								callback: async ( items ) => {
-									window.open( items[ 0 ].meta?.url, '_blank' );
-								},
-							},
-							{
-								id: 'complete',
-								label: __( 'Complete', 'your-textdomain' ),
-								icon: check,
-								callback: async ( items ) => {
-									// Completed items are in trash.
-									items.forEach( ( item ) =>
-										deleteEntityRecord(
-											'postType',
-											'todo',
-											item.id
-										)
-									);
-								},
-								isPrimary: true,
-							},
-							{
-								id: 'edit',
-								label: __( 'Edit', 'your-textdomain' ),
-								icon: edit,
-								callback: async ( items ) => {
-									if ( items.length === 1 ) {
-										window.open(
-											`/wp-admin/post.php?post=${ items[ 0 ].id }&action=edit`,
-											'_blank'
-										);
-									}
-								},
-							},
-						] }
+						actions={ actions }
 						defaultLayouts={ {
 							table: {
 								// Define default table layout settings
