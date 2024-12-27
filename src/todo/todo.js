@@ -279,7 +279,7 @@ function TodoForm( { presetNotebooks = [] } ) {
 }
 
 function TodoAdmin( props ) {
-	let viewConfig = defaultView;
+	let viewConfig = defaultView;	
 
 	if ( props.view ) {
 		viewConfig = { ...defaultView, ...props.view };
@@ -295,30 +295,49 @@ function TodoAdmin( props ) {
 			hide_empty: false,
 		} );
 
+	function filterByHash() {	
+		if ( window.location.hash.length > 1 ) {
+			const notebookIds = window.location.hash.replace( '#', '' ).split( ',' ).map( ( id ) => parseInt( id ) );
+			filterByNotebook( notebookIds, true );
+		}
+	}
+
 	function getNotebook( id, notebooks ) {
 		return notebooks.find( ( notebook ) => notebook.id === id );
 	}
 
-	function filterByNotebook( noteBookId, override = false ) {
+	function filterByNotebook( noteBookIds, override = false ) {
+		if ( ! Array.isArray( noteBookIds ) ) {
+			noteBookIds = [ noteBookIds ];
+		}
+		const existingNotebookFilter = new Set( view.filters.find(
+			( filter ) => filter.field === 'notebooks'
+		)?.value || [] );
+
+		const newNotebookFilter = new Set( noteBookIds );
+
+		// Bail if sets the same
+		if ( existingNotebookFilter.size === newNotebookFilter.size && Array.from(existingNotebookFilter).every( ( id ) => newNotebookFilter.has( id ) ) ) {
+			return;
+		}
+
+		let newFilters;
+
 		if ( override ) {
-			if ( noteBookId === 'all' ) {
-				setView( { ...view, filters: [] } );
+			if ( noteBookIds.includes( 'all' ) ) {
+				setView( old => ( { ...old, filters: [] } ) );
 			} else {
-				setView( { ...view, filters: [ { field: 'notebooks', operator: 'isAll', value: [ noteBookId ] } ] } );
+				setView( old => ( { ...old, filters: [ { field: 'notebooks', operator: 'isAll', value: noteBookIds } ] } ) );
 			}
 			return;
 		}
-		const existingNotebookFilter = view.filters.find(
-			( filter ) => filter.field === 'notebooks'
-		);
-		let newFilters;
 
-		if ( existingNotebookFilter ) {
+		if ( existingNotebookFilter.size > 0 ) {
 			// If filter exists, toggle the notebookId in its values
-			const values = existingNotebookFilter.value || [];
-			const newValues = values.includes( noteBookId )
-				? values.filter( ( id ) => id !== noteBookId )
-				: [ ...values, noteBookId ];
+			const values = Array.from( existingNotebookFilter );
+			const newValues = noteBookIds.every( id => values.includes( id ) )
+				? values.filter( id => !noteBookIds.includes( id ) )
+				: [ ...new Set( [ ...values, ...noteBookIds ] ) ];
 
 			newFilters = view.filters.map( ( filter ) =>
 				filter.field === 'notebooks'
@@ -332,12 +351,12 @@ function TodoAdmin( props ) {
 				{
 					field: 'notebooks',
 					operator: 'isAll',
-					value: [ noteBookId ],
+					value: Array.from( newNotebookFilter ),
 				},
 			];
 		}
 
-		setView( { ...view, filters: newFilters } );
+		setView( (old) => ( { ...old, filters: newFilters } ) );
 	}
 
 	// Our setup in this custom taxonomy.
@@ -499,6 +518,18 @@ function TodoAdmin( props ) {
 		return acc;
 	}, [] );
 
+	useEffect( () => {
+		if ( ! notebooksLoading && ! todoLoading ) {
+			filterByHash();
+			window.addEventListener( "hashchange", filterByHash );
+		}
+	}, [ notebooksLoading, todoLoading ] );
+
+	useEffect( () => {
+		//window.removeEventListener( "hashchange", filterByHash );
+		window.location.hash = notebookFilters.join( ',' );
+		//window.addEventListener( "hashchange", filterByHash );
+	}, [ notebookFilters ] );
 
 	return (
 		<>
