@@ -31,12 +31,14 @@
 		"@wordpress/data": "^9.20.0",
 		"@wordpress/edit-post": "^7.27.2",
 		"@wordpress/icons": "^9.46.0",
-		"@wordpress/plugins": "^6.18.0"
+		"@wordpress/plugins": "^6.18.0",
+		"@wordpress/dataviews": "^4.10.0"
 	},
 	"devDependencies": {
 		"@wordpress/env": "^9.2.0",
-		"@wordpress/scripts": "^27.0.0",
+		"@wordpress/scripts": "^30.7.0",
 		"eslint": "^8.56.0",
-		"prettier": "npm:wp-prettier@3.0.3"
+		"prettier": "npm:wp-prettier@3.0.3",
+		"@wordpress/dependency-extraction-webpack-plugin": "^6.14.0"
 	}
 }
