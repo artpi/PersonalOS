@@ -306,7 +306,10 @@ class TODO_Module extends POS_Module {
 			return;
 		}
 
-		$blocked_pending_term = get_term_by( 'slug', $blocked_pending_term_slug, 'notebook' );
+		$blocked_pending_term = get_term_by( 'id', $blocked_pending_term_slug, 'notebook' );
+		if ( ! $blocked_pending_term ) {
+			$blocked_pending_term = get_term_by( 'slug', $blocked_pending_term_slug, 'notebook' );
+		}
 		if ( ! $blocked_pending_term ) {
 			return;
 		}

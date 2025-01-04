@@ -304,7 +304,7 @@ function TodoAdmin( props ) {
 	}
 
 	function getNotebook( id, notebooks ) {
-		return notebooks.find( ( notebook ) => notebook.id === id );
+		return notebooks.find( ( notebook ) => ( notebook.id === id || notebook.slug == id ) );
 	}
 
 	function filterByNotebook( noteBookIds, override = false ) {
@@ -424,9 +424,7 @@ function TodoAdmin( props ) {
 								icon={ calendar }
 								className="pos__notebook-badge pos__notebook-badge--future"
 							>
-								{ getNotebook( item?.meta?.pos_blocked_pending_term, notebooks )?.name }
-								{ ' on ' }
-								{ postDate.toLocaleDateString() }
+								{ ( getNotebook( item?.meta?.pos_blocked_pending_term, notebooks )?.name || 'Pending' ) + ' on ' + postDate.toLocaleDateString() }
 							</Button>
 						) }
 						{ item?.meta?.url && (
