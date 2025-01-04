@@ -162,13 +162,23 @@ function TodoForm( { presetNotebooks = [] } ) {
 				<>
 					<CardBody>
 						<TextareaControl
-							__nextHasNoMarginBottom
 							label="Notes"
 							onChange={ ( value ) =>
 								setNewTodo( { ...newTodo, excerpt: value } )
 							}
 							placeholder="Placeholder"
 							value={ newTodo.excerpt }
+						/>
+						<InputControl
+							__nextHasNoMarginBottom
+							onChange={ ( value ) =>
+								setNewTodo( { ...newTodo, meta: { ...newTodo.meta, url: value } } )
+							}
+							label={ 'Action URL' }
+							onValidate={ () => true }
+							value={ newTodo.meta?.url }
+							help={ 'A URL associated with the task. For example tel://500500500 or http://website-of-thing-to-buy' }
+							placeholder={ 'https://...' }
 						/>
 					</CardBody>
 					<CardBody>
