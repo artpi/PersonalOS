@@ -54,8 +54,8 @@ function NotebookSelectorTabPanel( {
 	notebooks,
 	chosenNotebooks,
 	setNotebook,
+	possibleFlags,
 } ) {
-	console.log( 'Chosen notebooks', chosenNotebooks );
 	return (
 		<TabPanel
 			children={ ( selectedTab ) => {
@@ -94,18 +94,10 @@ function NotebookSelectorTabPanel( {
 				);
 			} }
 			tabs={ [
-				{
-					name: 'star',
-					title: 'Starred',
-				},
-				{
-					name: 'project',
-					title: 'Projects',
-				},
-				{
-					name: 'bucketlist',
-					title: 'Bucketlist',
-				},
+				...possibleFlags.map( flag => ( {
+					name: flag.id,
+					title: flag.name,
+				} ) ),
 				{
 					name: 'all',
 					title: 'All Notebooks',
@@ -115,7 +107,7 @@ function NotebookSelectorTabPanel( {
 	);
 }
 
-function TodoForm( { presetNotebooks = [] } ) {
+function TodoForm( { presetNotebooks = [], possibleFlags = [] } ) {
 	const emptyTodo = {
 		status: 'private',
 		title: '',
@@ -184,6 +176,7 @@ function TodoForm( { presetNotebooks = [] } ) {
 					</CardBody>
 					<CardBody>
 						<NotebookSelectorTabPanel
+							possibleFlags={ possibleFlags }
 							notebooks={ notebooks }
 							chosenNotebooks={ newTodo.notebook }
 							setNotebook={ ( notebook, value ) => {
@@ -215,6 +208,7 @@ function TodoForm( { presetNotebooks = [] } ) {
 								<PanelRow>
 									<NotebookSelectorTabPanel
 										notebooks={ notebooks }
+										possibleFlags={ possibleFlags }
 										chosenNotebooks={ [
 											newTodo.meta.pos_blocked_pending_term,
 										] }
@@ -292,6 +286,7 @@ function TodoForm( { presetNotebooks = [] } ) {
 
 function TodoAdmin( props ) {
 	let viewConfig = defaultView;
+	const possibleFlags = props.possibleFlags;
 
 	if ( props.view ) {
 		viewConfig = { ...defaultView, ...props.view };
@@ -614,6 +609,7 @@ function TodoAdmin( props ) {
 		<>
 			<TodoForm
 				presetNotebooks={ notebookFilters }
+				possibleFlags={ possibleFlags }
 			/>
 			<Card elevation={ 1 }>
 				<CardBody>
