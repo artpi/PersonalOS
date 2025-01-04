@@ -139,7 +139,7 @@ class Notes_Module extends POS_Module {
 				)
 			);
 			if ( $count > 0 ) {
-				add_submenu_page( 'personalos', $term->name, $term->name . ' todos ' . '<span class="awaiting-mod" style="background-color: #0073aa;"><span class="pending-count" aria-hidden="true">' . $count . '</span></span>', 'read', 'edit.php?post_type=todo&notebook=' . $term->slug );
+				add_submenu_page( 'personalos', $term->name, $term->name . ' todos ' . '<span class="awaiting-mod" style="background-color: #0073aa;"><span class="pending-count" aria-hidden="true">' . $count . '</span></span>', 'read', 'admin.php?page=pos-todo#' . $term->term_id );
 			}
 			$count = count(
 				get_posts(
@@ -166,9 +166,12 @@ class Notes_Module extends POS_Module {
 
 	public function notebook_edit_form_fields( $term, $taxonomy ) {
 		$value = get_term_meta( $term->term_id, 'flag', false );
-		$possible_flags = array(
-			'star' => 'Starred, it will show up in menu.',
-			'project' => 'This is a currently active project.',
+		$possible_flags = apply_filters(
+			'pos_notebook_flags',
+			array(
+				'star' => 'Starred, it will show up in menu.',
+				'project' => 'This is a currently active project.',
+			)
 		);
 		?>
 		<table class="form-table" role="presentation"><tbody>

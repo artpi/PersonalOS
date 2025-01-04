@@ -20,6 +20,23 @@ class POS {
 
 	public static function init() {
 		add_action( 'admin_menu', array( 'POS', 'admin_menu' ) );
+		$script_asset = require plugin_dir_path( __FILE__ ) . '/build/index.asset.php';
+		wp_register_script(
+			'pos',
+			plugins_url( 'build/index.js', __FILE__ ),
+			$script_asset['dependencies'],
+			$script_asset['version'],
+			true
+		);
+
+		wp_register_style(
+			'pos',
+			plugins_url( 'build/style-index.css', __FILE__ ),
+			array(
+				'wp-components',
+			),
+			$script_asset['version'],
+		);
 		self::load_modules();
 		add_action( 'enqueue_block_editor_assets', array( 'POS', 'enqueue_assets' ) );
 	}
@@ -56,14 +73,8 @@ class POS {
 		add_submenu_page( 'personalos', 'Notebooks', 'Notebooks', 'manage_options', 'edit-tags.php?taxonomy=notebook&post_type=notes' );
 	}
 	public static function enqueue_assets() {
-		$script_asset = require plugin_dir_path( __FILE__ ) . '/build/index.asset.php';
-		wp_enqueue_script(
-			'pos',
-			plugins_url( 'build/index.js', __FILE__ ),
-			$script_asset['dependencies'],
-			$script_asset['version'],
-			true
-		);
+		wp_enqueue_script( 'pos' );
+		wp_enqueue_style( 'pos' );
 	}
 
 	public static function admin_page() {
@@ -79,6 +90,7 @@ class POS {
 		require_once plugin_dir_path( __FILE__ ) . 'modules/openai/class-pos-transcription.php';
 		require_once plugin_dir_path( __FILE__ ) . 'modules/daily/class-daily-module.php';
 		require_once plugin_dir_path( __FILE__ ) . 'modules/openai/class-pos-ai-podcast-module.php';
+		require_once plugin_dir_path( __FILE__ ) . 'modules/bucketlist/class-bucketlist-module.php';
 
 		// TODO: https://github.com/artpi/PersonalOS/issues/15 Introduce a setting to enable/disable modules. We don't want constructors to be fired when the module is not wanted.
 		$todo          = new TODO_Module();
@@ -93,6 +105,7 @@ class POS {
 			new POS_Transcription( $openai, $notes ),
 			new Daily_Module( $notes ),
 			new POS_AI_Podcast_Module( $openai ),
+			new Bucketlist_Module(),
 		);
 		self::fix_versions();
 		require_once plugin_dir_path( __FILE__ ) . 'class-pos-settings.php';
