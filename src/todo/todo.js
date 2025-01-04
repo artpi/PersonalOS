@@ -55,6 +55,7 @@ function NotebookSelectorTabPanel( {
 	chosenNotebooks,
 	setNotebook,
 } ) {
+	console.log( 'Chosen notebooks', chosenNotebooks );
 	return (
 		<TabPanel
 			children={ ( selectedTab ) => {
@@ -119,7 +120,7 @@ function TodoForm( { presetNotebooks = [] } ) {
 		status: 'private',
 		title: '',
 		excerpt: '',
-		notebook: [],
+		notebook: presetNotebooks,
 		meta: {},
 	};
 
@@ -128,7 +129,7 @@ function TodoForm( { presetNotebooks = [] } ) {
 	useEffect( () => {
 		setNewTodo( {
 			...newTodo,
-			notebook: newTodo.notebook.concat( presetNotebooks ),
+			notebook: presetNotebooks,//newTodo.notebook.concat( presetNotebooks ),
 		} );
 	}, [ presetNotebooks ] );
 
