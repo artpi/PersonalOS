@@ -11,7 +11,8 @@
 		"settings.php",
 		"personalos.php",
 		"dashboard.php",
-		"vendor"
+		"vendor",
+		"class-pos-settings.php"
 	],
 	"scripts": {
 		"build": "wp-scripts build",

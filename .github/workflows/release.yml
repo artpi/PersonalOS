@@ -1,0 +1,44 @@
+name: Build and Upload Plugin ZIP
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-and-zip:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20 # Use Node.js v20
+
+    - name: Install Node.js Dependencies
+      run: npm install
+
+    - name: Set up PHP and Composer
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2' # Adjust PHP version as needed
+        extensions: mbstring, zip
+    - name: Install Composer Dependencies (Production Only)
+      run: composer install --no-dev --optimize-autoloader
+
+    - name: Build Plugin
+      run: npm run build
+
+    - name: Create Plugin ZIP
+      run: npm run plugin-zip
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./wp-personal-os.zip
+        asset_name: wp-personal-os.zip
+        asset_content_type: application/zip
