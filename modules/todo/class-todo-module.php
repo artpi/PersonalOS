@@ -67,7 +67,8 @@ class TODO_Module extends POS_Module {
 		<?php
 		wp_enqueue_script( 'pos' );
 		wp_enqueue_style( 'pos' );
-		wp_add_inline_script( 'pos', 'wp.domReady( () => { window.renderTodoAdmin( document.getElementById( "todo-root" ), {} ); } );', 'after' );
+		$default_notebook = get_term_by( 'slug', 'inbox', 'notebook' );
+		wp_add_inline_script( 'pos', 'wp.domReady( () => { window.renderTodoAdmin( document.getElementById( "todo-root" ), { defaultNotebook: ' . $default_notebook->term_id . ' } ); } );', 'after' );
 
 	}
 

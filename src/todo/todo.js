@@ -291,7 +291,7 @@ function TodoForm( { presetNotebooks = [] } ) {
 }
 
 function TodoAdmin( props ) {
-	let viewConfig = defaultView;	
+	let viewConfig = defaultView;
 
 	if ( props.view ) {
 		viewConfig = { ...defaultView, ...props.view };
@@ -311,7 +311,9 @@ function TodoAdmin( props ) {
 		if ( window.location.hash.length > 1 ) {
 			const notebookIds = window.location.hash.replace( '#', '' ).split( ',' ).map( ( id ) => parseInt( id ) );
 			filterByNotebook( notebookIds, true );
+			return true;
 		}
+		return false;
 	}
 
 	function getNotebook( id, notebooks ) {
@@ -530,7 +532,9 @@ function TodoAdmin( props ) {
 
 	useEffect( () => {
 		if ( ! notebooksLoading && ! todoLoading ) {
-			filterByHash();
+			if ( ! filterByHash() ) {
+				filterByNotebook( props.defaultNotebook );
+			}
 			window.addEventListener( "hashchange", filterByHash );
 		}
 	}, [ notebooksLoading, todoLoading ] );
