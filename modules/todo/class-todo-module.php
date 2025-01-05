@@ -46,6 +46,16 @@ class TODO_Module extends POS_Module {
 
 		register_meta(
 			'post',
+			'pos_blocked_by',
+			array(
+				'type'         => 'integer',
+				'single'       => true,
+				'show_in_rest' => true,
+			)
+		);
+
+		register_meta(
+			'post',
 			'url',
 			array(
 				'type'         => 'string',
@@ -65,11 +75,17 @@ class TODO_Module extends POS_Module {
 			<div id="todo-root" class="pos__dataview"></div>
 		</div>
 		<?php
+		$inbox = get_term_by( 'slug', 'inbox', 'notebook' );
+		$now = get_term_by( 'slug', 'now', 'notebook' );
+		if ( ! $now ) {
+			$now = $inbox;
+		}
 		wp_enqueue_script( 'pos' );
 		wp_enqueue_style( 'pos' );
 		$data = json_encode(
 			array(
-				'defaultNotebook' => get_term_by( 'slug', 'inbox', 'notebook' )->term_id,
+				'defaultNotebook' => $inbox->term_id,
+				'nowNotebook' => $now->term_id,
 				'possibleFlags' => apply_filters( 'pos_notebook_flags', [] ),
 			)
 		);

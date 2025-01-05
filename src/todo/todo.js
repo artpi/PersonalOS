@@ -16,7 +16,9 @@ import {
 	TabPanel,
 	__experimentalToggleGroupControl as ToggleGroupControl,
 	__experimentalToggleGroupControlOption as ToggleGroupControlOption,
-	DropdownMenu
+	DropdownMenu,
+	ComboboxControl,
+	Tooltip,
 } from '@wordpress/components';
 //import domReady from '@wordpress/dom-ready';
 import { useState, useMemo, createRoot, useEffect } from '@wordpress/element';
@@ -107,7 +109,7 @@ function NotebookSelectorTabPanel( {
 	);
 }
 
-function TodoForm( { presetNotebooks = [], possibleFlags = [] } ) {
+function TodoForm( { presetNotebooks = [], possibleFlags = [], nowNotebook = null } ) {
 	const emptyTodo = {
 		status: 'private',
 		title: '',
@@ -130,6 +132,15 @@ function TodoForm( { presetNotebooks = [], possibleFlags = [] } ) {
 		per_page: -1,
 		hide_empty: false,
 	} );
+	const { records: todos } = useEntityRecords(
+		'postType',
+		'todo',
+		{
+			per_page: -1,
+			context: 'edit',
+			status: [ 'publish', 'pending', 'future', 'private' ],
+		}
+	);
 
 	return (
 		<Card
@@ -204,11 +215,34 @@ function TodoForm( { presetNotebooks = [], possibleFlags = [] } ) {
 							<PanelBody
 								title="Dont bother me before date"
 								initialOpen={ false }
+								onToggle={ ( open ) => setNewTodo( { ...newTodo, date: open ? newTodo.date : undefined } ) }
 							>
 								<PanelRow>
-									<NotebookSelectorTabPanel
-										notebooks={ notebooks }
-										possibleFlags={ possibleFlags }
+									<DatePicker
+										label="Show on"
+										currentDate={ newTodo.date ? new Date( newTodo.date ) : new Date() }
+										onChange={ ( value ) => {
+											const newData = {
+												...newTodo,
+												date: value,
+											}
+											if ( ! newData?.meta?.pos_blocked_pending_term ) {
+												newData.meta.pos_blocked_pending_term = nowNotebook;
+											}
+											setNewTodo( newData );
+										} }
+									/>
+								</PanelRow>
+								{ newTodo.date && (<>
+									<PanelRow
+										className='wide'
+									>
+										<h4>{`On ${ new Date( newTodo.date ).toLocaleDateString() } move to:`}</h4>
+									</PanelRow>
+									<PanelRow className='wide'>
+										<NotebookSelectorTabPanel
+											notebooks={ notebooks }
+											possibleFlags={ possibleFlags }
 										chosenNotebooks={ [
 											newTodo.meta.pos_blocked_pending_term,
 										] }
@@ -227,26 +261,67 @@ function TodoForm( { presetNotebooks = [], possibleFlags = [] } ) {
 										} }
 									/>
 								</PanelRow>
-								<PanelRow>
-									<DatePicker
-										label="Show on"
-										currentDate={ new Date() }
-										onChange={ ( value ) =>
-											setNewTodo( {
-												...newTodo,
-												date: value,
-											} )
-										}
-									/>
-								</PanelRow>
+								</>) }
 							</PanelBody>
 							<PanelBody
 								title="This TODO depends on"
 								initialOpen={ false }
+								onToggle={ ( open ) => setNewTodo( { ...newTodo, meta: { ...newTodo.meta, pos_blocked_by: open ? newTodo.meta?.pos_blocked_by : undefined } } ) }
 							>
-								<PanelRow>
-									<h1>Test</h1>
+								<PanelRow
+									className='wide'
+								>
+									<ComboboxControl
+										label="This TODO is blocked by"
+										value={ newTodo.meta?.pos_blocked_by }
+										options={ todos.map( todo => ( {
+											label: '#' + todo.id + ' ' + todo.title.raw + ' (' + todo.notebook.map( n => notebooks.find( notebook => notebook.id === n )?.name ).join( ', ' ) + ')',
+											value: todo.id,
+										} ) ) }
+										help={ 'Chose a TODO that is blocking the current one.' }
+										onChange={ ( value ) => {
+											const newData = {
+												...newTodo,
+												meta: {
+													...newTodo.meta,
+													pos_blocked_by: value,
+												},
+											}
+											if ( ! newData?.meta?.pos_blocked_pending_term ) {
+												newData.meta.pos_blocked_pending_term = nowNotebook;
+											}
+											setNewTodo( newData );
+										} }
+									/>
 								</PanelRow>
+								{ newTodo.meta?.pos_blocked_by && ( <>
+
+									<PanelRow className='wide'>
+										<h4>After unblocking, move to:</h4>
+									</PanelRow>
+									<PanelRow className='wide'>
+										<NotebookSelectorTabPanel
+											notebooks={ notebooks }
+										possibleFlags={ possibleFlags }
+										chosenNotebooks={ [
+											newTodo.meta?.pos_blocked_pending_term,
+										] }
+										setNotebook={ ( notebook, value ) => {
+											if ( value ) {
+												setNewTodo( {
+													...newTodo,
+													meta: {
+														...newTodo.meta,
+														pos_blocked_pending_term: notebook.id,
+													},
+												} );
+											} else {
+												delete newTodo.meta.pos_blocked_pending_term;
+												}
+											} }
+										/>
+									</PanelRow>
+								</> ) }
 							</PanelBody>
 						</Panel>
 					</CardBody>
@@ -312,7 +387,7 @@ function TodoAdmin( props ) {
 	}
 
 	function getNotebook( id, notebooks ) {
-		return notebooks.find( ( notebook ) => ( notebook.id === id || notebook.slug == id ) );
+		return notebooks.find( ( notebook ) => ( notebook.id == id || notebook.slug == id ) );
 	}
 
 	function filterByNotebook( noteBookIds, override = false ) {
@@ -433,6 +508,20 @@ function TodoAdmin( props ) {
 								className="pos__notebook-badge pos__notebook-badge--future"
 							>
 								{ ( getNotebook( item?.meta?.pos_blocked_pending_term, notebooks )?.name || 'Pending' ) + ' on ' + postDate.toLocaleDateString() }
+							</Button>
+						) }
+						{ item.meta?.pos_blocked_by > 0 && (
+							<Button
+								variant="secondary"
+								key={ 'blocked' }
+								size="small"
+								icon={ calendar }
+								className="pos__notebook-badge pos__notebook-badge--future"
+								onClick={ ( event ) => {
+									window.open( `/wp-admin/post.php?post=${ item?.meta?.pos_blocked_by }&action=edit`, '_blank' );
+								} }
+							>
+								{ ( getNotebook( item?.meta?.pos_blocked_pending_term, notebooks )?.name || item?.meta?.pos_blocked_pending_term ||'Pending' ) + ' after #' + item?.meta?.pos_blocked_by }
 							</Button>
 						) }
 						{ item?.meta?.url && (
@@ -610,6 +699,7 @@ function TodoAdmin( props ) {
 			<TodoForm
 				presetNotebooks={ notebookFilters }
 				possibleFlags={ possibleFlags }
+				nowNotebook={ props.nowNotebook }
 			/>
 			<Card elevation={ 1 }>
 				<CardBody>
