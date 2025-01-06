@@ -153,7 +153,7 @@ class Notes_Module extends POS_Module {
 				)
 			);
 			if ( $count > 0 ) {
-				add_submenu_page( 'personalos', $term->name, $term->name . ' todos ' . '<span class="awaiting-mod" style="background-color: #0073aa;"><span class="pending-count" aria-hidden="true">' . $count . '</span></span>', 'read', 'admin.php?page=pos-todo#' . $term->term_id );
+				add_submenu_page( 'personalos', $term->name, $term->name . ' todos ' . '<span class="awaiting-mod" style="background-color: #0073aa;"><span class="pending-count" aria-hidden="true">' . $count . '</span></span>', 'read', 'admin.php?page=pos-todo#' . $term->slug );
 			}
 			$count = count(
 				get_posts(

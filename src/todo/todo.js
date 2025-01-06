@@ -252,7 +252,6 @@ function TodoForm( { presetNotebooks = [], possibleFlags = [], nowNotebook = nul
 												newTodo.meta.pos_blocked_pending_term,
 											] }
 										setNotebook={ ( notebook, value ) => {
-											console.log( notebook, value );
 											setNewTodo( {
 												...newTodo,
 												meta: {
@@ -377,7 +376,7 @@ function TodoAdmin( props ) {
 
 	function filterByHash() {	
 		if ( window.location.hash.length > 1 ) {
-			const notebookIds = window.location.hash.replace( '#', '' ).split( ',' ).map( ( id ) => parseInt( id ) );
+			const notebookIds = window.location.hash.replace( '#', '' ).split( ',' ).map( ( slug ) => getNotebook( slug, notebooks )?.id );
 			filterByNotebook( notebookIds, true );
 			return true;
 		}
@@ -609,19 +608,21 @@ function TodoAdmin( props ) {
 	}, [] );
 
 	useEffect( () => {
-		if ( ! notebooksLoading && ! todoLoading ) {
+		if ( notebooks && notebooks.length > 0 ) {
 			if ( ! filterByHash() ) {
 				filterByNotebook( props.defaultNotebook );
 			}
 			window.addEventListener( "hashchange", filterByHash );
 		}
-	}, [ notebooksLoading, todoLoading ] );
+	}, [ notebooks ] );
 
 	useEffect( () => {
-		//window.removeEventListener( "hashchange", filterByHash );
-		window.location.hash = notebookFilters.join( ',' );
-		//window.addEventListener( "hashchange", filterByHash );
-	}, [ notebookFilters ] );
+		if ( notebooks && notebooks.length > 0 && notebookFilters.length > 0 ) {
+			//window.removeEventListener( "hashchange", filterByHash );
+			window.location.hash = notebookFilters.map( notebook => getNotebook( notebook, notebooks )?.slug ).join( ',' );
+			//window.addEventListener( "hashchange", filterByHash );
+		}
+	}, [ notebookFilters, notebooks ] );
 
 	const actions = [
 		{
