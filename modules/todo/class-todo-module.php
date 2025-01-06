@@ -38,7 +38,7 @@ class TODO_Module extends POS_Module {
 			'post',
 			'pos_blocked_pending_term',
 			array(
-				'type'         => 'integer',
+				'type'         => 'string',
 				'single'       => true,
 				'show_in_rest' => true,
 			)

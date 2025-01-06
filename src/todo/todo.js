@@ -52,6 +52,11 @@ const defaultView = {
 	},
 };
 
+
+function getNotebook( id, notebooks ) {
+	return notebooks.find( ( notebook ) => ( notebook.id == id || notebook.slug == id ) );
+}
+
 function NotebookSelectorTabPanel( {
 	notebooks,
 	chosenNotebooks,
@@ -85,7 +90,7 @@ function NotebookSelectorTabPanel( {
 										label={ notebook.name }
 										checked={ chosenNotebooks.includes(
 											notebook.id
-										) }
+										) || chosenNotebooks.includes( notebook.slug ) }
 										onChange={ ( value ) =>
 											setNotebook( notebook, value )
 										}
@@ -243,21 +248,18 @@ function TodoForm( { presetNotebooks = [], possibleFlags = [], nowNotebook = nul
 										<NotebookSelectorTabPanel
 											notebooks={ notebooks }
 											possibleFlags={ possibleFlags }
-										chosenNotebooks={ [
-											newTodo.meta.pos_blocked_pending_term,
-										] }
+											chosenNotebooks={ [
+												newTodo.meta.pos_blocked_pending_term,
+											] }
 										setNotebook={ ( notebook, value ) => {
-											if ( value ) {
-												setNewTodo( {
-													...newTodo,
-													meta: {
-														...newTodo.meta,
-														pos_blocked_pending_term: notebook.id,
-													},
-												} );
-											} else {
-												delete newTodo.meta.pos_blocked_pending_term;
-											}
+											console.log( notebook, value );
+											setNewTodo( {
+												...newTodo,
+												meta: {
+													...newTodo.meta,
+													pos_blocked_pending_term: value ? notebook.slug : undefined,
+												},
+											} );
 										} }
 									/>
 								</PanelRow>
@@ -275,7 +277,7 @@ function TodoForm( { presetNotebooks = [], possibleFlags = [], nowNotebook = nul
 										label="This TODO is blocked by"
 										value={ newTodo.meta?.pos_blocked_by }
 										options={ todos.map( todo => ( {
-											label: '#' + todo.id + ' ' + todo.title.raw + ' (' + todo.notebook.map( n => notebooks.find( notebook => notebook.id === n )?.name ).join( ', ' ) + ')',
+											label: '#' + todo.id + ' ' + todo.title.raw + ' (' + todo.notebook.map( n => getNotebook( n, notebooks )?.name ).join( ', ' ) + ')',
 											value: todo.id,
 										} ) ) }
 										help={ 'Chose a TODO that is blocking the current one.' }
@@ -288,7 +290,7 @@ function TodoForm( { presetNotebooks = [], possibleFlags = [], nowNotebook = nul
 												},
 											}
 											if ( ! newData?.meta?.pos_blocked_pending_term ) {
-												newData.meta.pos_blocked_pending_term = nowNotebook;
+												newData.meta.pos_blocked_pending_term = getNotebook( nowNotebook, notebooks )?.slug;
 											}
 											setNewTodo( newData );
 										} }
@@ -307,20 +309,16 @@ function TodoForm( { presetNotebooks = [], possibleFlags = [], nowNotebook = nul
 											newTodo.meta?.pos_blocked_pending_term,
 										] }
 										setNotebook={ ( notebook, value ) => {
-											if ( value ) {
-												setNewTodo( {
-													...newTodo,
-													meta: {
-														...newTodo.meta,
-														pos_blocked_pending_term: notebook.id,
-													},
-												} );
-											} else {
-												delete newTodo.meta.pos_blocked_pending_term;
-												}
-											} }
-										/>
-									</PanelRow>
+											setNewTodo( {
+												...newTodo,
+												meta: {
+													...newTodo.meta,
+													pos_blocked_pending_term: value ? notebook.slug : undefined,
+												},
+											} );
+										} }
+									/>
+								</PanelRow>
 								</> ) }
 							</PanelBody>
 						</Panel>
@@ -384,10 +382,6 @@ function TodoAdmin( props ) {
 			return true;
 		}
 		return false;
-	}
-
-	function getNotebook( id, notebooks ) {
-		return notebooks.find( ( notebook ) => ( notebook.id == id || notebook.slug == id ) );
 	}
 
 	function filterByNotebook( noteBookIds, override = false ) {
@@ -521,7 +515,7 @@ function TodoAdmin( props ) {
 									window.open( `/wp-admin/post.php?post=${ item?.meta?.pos_blocked_by }&action=edit`, '_blank' );
 								} }
 							>
-								{ ( getNotebook( item?.meta?.pos_blocked_pending_term, notebooks )?.name || item?.meta?.pos_blocked_pending_term ||'Pending' ) + ' after #' + item?.meta?.pos_blocked_by }
+								{ ( getNotebook( item?.meta?.pos_blocked_pending_term, notebooks )?.name ||'Pending' ) + ' after #' + item?.meta?.pos_blocked_by }
 							</Button>
 						) }
 						{ item?.meta?.url && (
