@@ -546,6 +546,19 @@ function TodoAdmin( props ) {
 	// Our setup in this custom taxonomy.
 	const fields = [
 		{
+			label: __( 'ID', 'your-textdomain' ),
+			id: 'id',
+			enableHiding: true,
+			enableGlobalSearch: true,
+			type: 'string',
+			render: ( { item } ) => {
+				return '#' + item?.id;
+			},
+			getValue: ( { item } ) => {
+				return '' + item?.id;
+			},
+		},
+		{
 			label: __( 'Done', 'your-textdomain' ),
 			id: 'done',
 			enableHiding: true,
