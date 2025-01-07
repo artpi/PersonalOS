@@ -41,6 +41,10 @@ import {
 	edit,
 	external,
 	starFilled,
+	replace,
+	scheduled,
+	pending,
+	notAllowed,
 } from '@wordpress/icons';
 import { RawHTML } from '@wordpress/element';
 
@@ -274,7 +278,10 @@ function TodoForm( {
 													?.pos_blocked_pending_term
 											) {
 												newData.meta.pos_blocked_pending_term =
-													nowNotebook;
+													getNotebook(
+														nowNotebook,
+														notebooks
+													)?.slug;
 											}
 											setNewTodo( newData );
 										} }
@@ -621,7 +628,7 @@ function TodoAdmin( props ) {
 								variant="secondary"
 								key={ 'future' }
 								size="small"
-								icon={ calendar }
+								icon={ scheduled }
 								className="pos__notebook-badge pos__notebook-badge--future"
 							>
 								{ ( getNotebook(
@@ -637,7 +644,7 @@ function TodoAdmin( props ) {
 								variant="secondary"
 								key={ 'blocked' }
 								size="small"
-								icon={ calendar }
+								icon={ pending }
 								className="pos__notebook-badge pos__notebook-badge--future"
 								onClick={ ( event ) => {
 									window.open(
@@ -667,6 +674,24 @@ function TodoAdmin( props ) {
 								{ new URL( item?.meta?.url ).hostname }
 							</Button>
 						) }
+						{ item?.blocking?.map( ( todo ) => (
+							<Button
+								variant="secondary"
+								key={ todo }
+								size="small"
+								className="pos__notebook-badge"
+								icon={ notAllowed }
+								onClick={ ( event ) => {
+									window.open(
+										`/wp-admin/post.php?post=${ todo }&action=edit`,
+										'_blank'
+									);
+								} }
+							>
+								{ `Blocking #${ todo }` }
+							</Button>
+						) ) }
+
 						{ item?.notebook?.map( ( notebook ) => (
 							<Button
 								variant="tertiary"

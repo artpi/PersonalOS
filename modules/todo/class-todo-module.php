@@ -63,6 +63,35 @@ class TODO_Module extends POS_Module {
 				'show_in_rest' => true,
 			)
 		);
+
+		register_rest_field(
+			'todo',
+			'blocking',
+			array(
+				'get_callback'    => function( $todo ) {
+					$blocked_todos = get_posts(
+						array(
+							'post_type'      => 'todo',
+							'post_status'    => array( 'publish', 'private', 'pending' ),
+							'posts_per_page' => -1,
+							'fields'         => 'ids',
+							'meta_query'     => array(
+								array(
+									'key'   => 'pos_blocked_by',
+									'value' => $todo['id'],
+								),
+							),
+						)
+					);
+					return $blocked_todos;
+				},
+				'schema'          => array(
+					'description' => __( 'TODOs that are blocked by this TODO.' ),
+					'type'        => 'array',
+					'context'     => array( 'view', 'edit' ),
+				),
+			)
+		);
 	}
 
 	public function add_admin_menu(): void {
