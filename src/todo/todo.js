@@ -57,7 +57,7 @@ const defaultView = {
 	perPage: 100,
 	titleField: 'title',
 	descriptionField: 'description',
-	fields: [ 'notebooks' ],
+	fields: [ 'flags', 'notebooks' ],
 	layout: {},
 	filters: [],
 	sort: {
@@ -668,11 +668,11 @@ function TodoAdmin( props ) {
 			},
 		},
 		{
-			label: __( 'Notebooks', 'your-textdomain' ),
-			id: 'notebooks',
+			label: __( 'Flags', 'your-textdomain' ),
+			id: 'flags',
 			header: (
 				<HStack spacing={ 1 } justify="start">
-					<span>{ __( 'Notebooks', 'your-textdomain' ) }</span>
+					<span>{ __( 'Flags', 'your-textdomain' ) }</span>
 				</HStack>
 			),
 			type: 'array',
@@ -762,7 +762,53 @@ function TodoAdmin( props ) {
 								{ `Blocking #${ todo }` }
 							</Button>
 						) ) }
-
+					</>
+				);
+			},
+			enableSorting: false,
+			filterBy: {
+				operators: [ `isAny`, `isNone`, `isAll`, `isNotAll` ],
+			},
+			elements: [
+				{
+					label: 'Future',
+					value: 'future',
+				},
+				{
+					label: 'Blocked',
+					value: 'blocked',
+				},
+				{
+					label: 'Recurring',
+					value: 'recurring',
+				},
+				{
+					label: 'Blocking',
+					value: 'blocking',
+				},
+			],
+			getValue: ( { item } ) => [
+				( new Date( item.date ) > Date.now() ) && 'future',
+				( item.meta?.pos_blocked_by > 0 ) && 'blocked',
+				( item.meta?.pos_recurring_days > 0 ) && 'recurring',
+				( item.blocking?.length > 0 ) && 'blocking',
+			].filter( Boolean ),
+		},
+		{
+			label: __( 'Notebooks', 'your-textdomain' ),
+			id: 'notebooks',
+			header: (
+				<HStack spacing={ 1 } justify="start">
+					<span>{ __( 'Notebooks', 'your-textdomain' ) }</span>
+				</HStack>
+			),
+			type: 'array',
+			render: ( { item } ) => {
+				if ( ! notebooks ) {
+					return '';
+				}
+				return (
+					<>
 						{ item?.notebook?.map( ( notebook ) => (
 							<Button
 								variant="tertiary"
