@@ -53,3 +53,12 @@
 .components-panel__row.wide>div {
 	width: 100%;
 }
+
+.pos__todo-form-recurring .components-input-control__prefix, .pos__todo-form-recurring .components-input-control__suffix {
+	display: flex;
+	color: rgb(117, 117, 117);
+}
+.pos__todo-form-recurring input {
+	flex-basis: 60%;
+	text-align: center;
+}

@@ -19,6 +19,7 @@ import {
 	DropdownMenu,
 	ComboboxControl,
 	Tooltip,
+	__experimentalInputControlPrefixWrapper as InputControlPrefixWrapper,
 } from '@wordpress/components';
 //import domReady from '@wordpress/dom-ready';
 import { useState, useMemo, createRoot, useEffect } from '@wordpress/element';
@@ -251,7 +252,7 @@ function TodoForm( {
 					<CardBody>
 						<Panel>
 							<PanelBody
-								title="Dont bother me before date"
+								title="Schedule task"
 								initialOpen={ false }
 								onToggle={ ( open ) =>
 									setNewTodo( {
@@ -293,6 +294,64 @@ function TodoForm( {
 											<h4>{ `On ${ new Date(
 												newTodo.date
 											).toLocaleDateString() } move to:` }</h4>
+										</PanelRow>
+										<PanelRow className="wide">
+											<NotebookSelectorTabPanel
+												notebooks={ notebooks }
+												possibleFlags={ possibleFlags }
+												chosenNotebooks={ [
+													newTodo.meta
+														.pos_blocked_pending_term,
+												] }
+												setNotebook={ (
+													notebook,
+													value
+												) => {
+													setNewTodo( {
+														...newTodo,
+														meta: {
+															...newTodo.meta,
+															pos_blocked_pending_term:
+																value
+																	? notebook.slug
+																	: undefined,
+														},
+													} );
+												} }
+											/>
+										</PanelRow>
+									</>
+								) }
+							</PanelBody>
+							<PanelBody
+								title="Recurring"
+								initialOpen={ false }
+								onToggle={ ( open ) => setNewTodo( { ...newTodo, meta: { ...newTodo.meta, pos_recurring_days: open ? newTodo.meta?.pos_recurring_days : undefined } } ) }
+							>
+								<PanelRow>
+									<InputControl
+										className="pos__todo-form-recurring"
+										__next40pxDefaultSize = { true }
+										type="number"
+										onChange={ ( value ) =>
+											setNewTodo( { ...newTodo, meta: {
+												...newTodo.meta,
+												pos_recurring_days: value,
+												pos_blocked_pending_term: newTodo.meta?.pos_blocked_pending_term || getNotebook( nowNotebook, notebooks )?.slug,
+											} } )
+										}
+										prefix={ <InputControlPrefixWrapper>schedule</InputControlPrefixWrapper> }
+										suffix={ <InputControlPrefixWrapper>days after completion</InputControlPrefixWrapper> }
+										label={ 'After completion, duplicate this task and' }
+										onValidate={ () => true }
+										help={ 'When you complete this task, it will be duplicated and scheduled x days from completion time.' }
+										value={ newTodo.meta?.pos_recurring_days || 0 }
+									/>
+								</PanelRow>
+								{ newTodo.meta?.pos_recurring_days && (
+									<>
+										<PanelRow className="wide">
+											<h4>{ `${ newTodo.meta?.pos_recurring_days } days after completion, move to:` }</h4>
 										</PanelRow>
 										<PanelRow className="wide">
 											<NotebookSelectorTabPanel
