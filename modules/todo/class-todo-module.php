@@ -441,7 +441,7 @@ class TODO_Module extends POS_Module {
 		wp_set_object_terms( $blocked_post->ID, array( $blocked_pending_term->term_id ), 'notebook', true );
 		$this->log( "TODO unblocked: {$blocked_post->ID} by completing blocking post. Moving now to {$blocked_pending_term_slug}" );
 		//Cleanup for the blocking todo
-		delete_post_meta( $blocked_post->ID, 'pos_blocked_pending_term' );
+		// delete_post_meta( $blocked_post->ID, 'pos_blocked_pending_term' );
 		delete_post_meta( $blocked_post->ID, 'pos_blocked_by' );
 	}
 }

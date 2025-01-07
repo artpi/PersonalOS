@@ -46,6 +46,7 @@ import {
 	scheduled,
 	pending,
 	notAllowed,
+	rotateLeft
 } from '@wordpress/icons';
 import { RawHTML } from '@wordpress/element';
 
@@ -720,6 +721,17 @@ function TodoAdmin( props ) {
 									item?.meta?.pos_blocked_by }
 							</Button>
 						) }
+						{ item?.meta?.pos_recurring_days > 0 && (
+							<Button
+								key={ 'recurring' }
+								variant="secondary"
+								size="small"
+								className="pos__notebook-badge"
+								icon={ rotateLeft }
+							>
+								{ `Every ${ item?.meta?.pos_recurring_days } days` }
+							</Button>
+						) }
 						{ item?.meta?.url && (
 							<Button
 								variant="secondary"
@@ -866,6 +878,26 @@ function TodoAdmin( props ) {
 				items.forEach( ( item ) =>
 					deleteEntityRecord( 'postType', 'todo', item.id )
 				);
+			},
+			isPrimary: true,
+		},
+		{
+			id: 'kill',
+			label: __( 'Complete and stop recurring', 'your-textdomain' ),
+			icon: check,
+			isEligible: ( item ) => ( item.meta?.pos_recurring_days > 0 ),
+			callback: async ( items ) => {
+				// Completed items are in trash.
+				items.forEach( ( item ) => {
+					saveEntityRecord( 'postType', 'todo', {
+						id: item.id,
+						meta: {
+							pos_recurring_days: 0,
+						},
+					} ).then( ( response ) => {
+						deleteEntityRecord( 'postType', 'todo', item.id );
+					} );
+				} );
 			},
 			isPrimary: true,
 		},
