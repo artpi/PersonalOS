@@ -7,9 +7,10 @@ class TODO_Module extends POS_Module {
 	public function register() {
 		$this->register_post_type(
 			array(
-				'supports'   => array( 'title', 'excerpt', 'custom-fields', 'comments' ),
+				'supports'   => array( 'title', 'excerpt', 'custom-fields', 'comments'/*, 'page-attributes' */),
 				'taxonomies' => array( 'notebook' ),
 				'show_in_menu' => false,
+				// 'hierarchical' => true,
 			)
 		);
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
@@ -18,7 +19,7 @@ class TODO_Module extends POS_Module {
 		add_filter( 'manage_edit-notebook_columns', array( $this, 'notebook_taxonomy_columns' ) );
 		add_action( 'add_meta_boxes', array( $this, 'pos_add_todo_dependency_meta_box' ) );
 		add_action( 'save_post_todo', array( $this, 'pos_save_todo_dependency_meta' ), 10, 2 );
-		add_action( 'wp_trash_post', array( $this, 'unblock_todos_when_completing' ), 10, 1 );
+		add_action( 'wp_trash_post', array( $this, 'unblock_todos_when_completing' ), 10, 2 );
 		add_action( 'pos_todo_scheduled', array( $this, 'pos_todo_scheduled' ), 10, 1 );
 		add_action( 'post_updated', array( $this, 'save_todo_notes' ), 10, 3 );
 		add_action( 'set_object_terms', array( $this, 'save_todo_notes_terms' ), 10, 6 );
@@ -38,6 +39,26 @@ class TODO_Module extends POS_Module {
 			'post',
 			'pos_blocked_pending_term',
 			array(
+				'type'         => 'string',
+				'single'       => true,
+				'show_in_rest' => true,
+			)
+		);
+
+		register_meta(
+			'post',
+			'pos_blocked_by',
+			array(
+				'type'         => 'integer',
+				'single'       => true,
+				'show_in_rest' => true,
+			)
+		);
+
+		register_meta(
+			'post',
+			'pos_recurring_days',
+			array(
 				'type'         => 'integer',
 				'single'       => true,
 				'show_in_rest' => true,
@@ -53,6 +74,35 @@ class TODO_Module extends POS_Module {
 				'show_in_rest' => true,
 			)
 		);
+
+		register_rest_field(
+			'todo',
+			'blocking',
+			array(
+				'get_callback'    => function( $todo ) {
+					$blocked_todos = get_posts(
+						array(
+							'post_type'      => 'todo',
+							'post_status'    => array( 'publish', 'private', 'pending' ),
+							'posts_per_page' => -1,
+							'fields'         => 'ids',
+							'meta_query'     => array(
+								array(
+									'key'   => 'pos_blocked_by',
+									'value' => $todo['id'],
+								),
+							),
+						)
+					);
+					return $blocked_todos;
+				},
+				'schema'          => array(
+					'description' => __( 'TODOs that are blocked by this TODO.' ),
+					'type'        => 'array',
+					'context'     => array( 'view', 'edit' ),
+				),
+			)
+		);
 	}
 
 	public function add_admin_menu(): void {
@@ -65,9 +115,21 @@ class TODO_Module extends POS_Module {
 			<div id="todo-root" class="pos__dataview"></div>
 		</div>
 		<?php
+		$inbox = get_term_by( 'slug', 'inbox', 'notebook' );
+		$now = get_term_by( 'slug', 'now', 'notebook' );
+		if ( ! $now ) {
+			$now = $inbox;
+		}
 		wp_enqueue_script( 'pos' );
 		wp_enqueue_style( 'pos' );
-		wp_add_inline_script( 'pos', 'wp.domReady( () => { window.renderTodoAdmin( document.getElementById( "todo-root" ), {} ); } );', 'after' );
+		$data = json_encode(
+			array(
+				'defaultNotebook' => $inbox->term_id,
+				'nowNotebook' => $now->term_id,
+				'possibleFlags' => apply_filters( 'pos_notebook_flags', [] ),
+			)
+		);
+		wp_add_inline_script( 'pos', 'wp.domReady( () => { window.renderTodoAdmin( document.getElementById( "todo-root" ), ' . $data . ' ); } );', 'after' );
 
 	}
 
@@ -275,12 +337,75 @@ class TODO_Module extends POS_Module {
 		$this->perform_pending_action( get_post( $post_id ) );
 	}
 
-	public function unblock_todos_when_completing( $post_id ) {
+	// TODO: tests
+	private function duplicate_todo( $post, $changes ) {
+		$blocked_pending_term = get_post_meta( $post->ID, 'pos_blocked_pending_term', true );
+		if ( empty( $blocked_pending_term ) ) {
+			$this->log( "TODO recurring: {$post->ID} but no pending term" );
+			return;
+		}
+
+		// By default we will duplicate all meta except private ones.
+		$meta = array_filter(
+			get_post_meta( $post->ID ),
+			function( $key ) {
+				return substr( $key, 0, 1 ) !== '_';
+			},
+			ARRAY_FILTER_USE_KEY
+		);
+		$meta = array_map(
+			function( $value ) {
+				if ( is_array( $value ) && count( $value ) === 1 ) {
+					return $value[0];
+				}
+				return $value;
+			},
+			$meta
+		);
+
+		$current_notebooks = wp_get_object_terms( $post->ID, 'notebook', array( 'fields' => 'ids' ) );
+		$current_notebooks_minus_pending = array_diff( $current_notebooks, array( get_term_by( 'slug', $blocked_pending_term, 'notebook' )->term_id ) );
+
+		$new_post_defaults = [
+			'post_title' => $post->post_title,
+			'post_excerpt' => $post->post_excerpt,
+			'post_date' => $post->post_date,
+			'post_status' => 'private',
+			'post_type' => $post->post_type,
+			'meta_input' => $meta,
+			//'post_parent' => $post->ID,
+			'tax_input' => array(
+				'notebook' => $current_notebooks_minus_pending,
+			),
+		];
+
+		$new_post_data = wp_parse_args( $changes, $new_post_defaults );
+		$new_post = wp_insert_post( $new_post_data );
+		wp_insert_comment(
+			array(
+				'comment_post_ID' => $new_post,
+				'comment_content' => 'Duplicated from ' . $post->ID,
+				'user_id'         => get_current_user_id(),
+				'comment_type'    => 'todo_note',
+			)
+		);
+
+	}
+
+	public function unblock_todos_when_completing( $post_id, $previous_status ) {
 		$post = get_post( $post_id );
 
 		// Check if the trashed post is a 'todo'
 		if ( $post->post_type !== $this->id ) {
 			return;
+		}
+
+		$recurring_days = get_post_meta( $post_id, 'pos_recurring_days', true );
+		if ( $recurring_days && $recurring_days > 0 ) {
+			$this->duplicate_todo( $post, [
+				'post_date' => gmdate( 'Y-m-d H:i:s', strtotime( '+ ' . $recurring_days . ' days' ) ),
+				'post_status' => $previous_status,
+			] );
 		}
 
 		// get todos blocked by this todo
@@ -316,7 +441,7 @@ class TODO_Module extends POS_Module {
 		wp_set_object_terms( $blocked_post->ID, array( $blocked_pending_term->term_id ), 'notebook', true );
 		$this->log( "TODO unblocked: {$blocked_post->ID} by completing blocking post. Moving now to {$blocked_pending_term_slug}" );
 		//Cleanup for the blocking todo
-		delete_post_meta( $blocked_post->ID, 'pos_blocked_pending_term' );
+		// delete_post_meta( $blocked_post->ID, 'pos_blocked_pending_term' );
 		delete_post_meta( $blocked_post->ID, 'pos_blocked_by' );
 	}
 }

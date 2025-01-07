@@ -16,7 +16,10 @@ import {
 	TabPanel,
 	__experimentalToggleGroupControl as ToggleGroupControl,
 	__experimentalToggleGroupControlOption as ToggleGroupControlOption,
-	DropdownMenu
+	DropdownMenu,
+	ComboboxControl,
+	Tooltip,
+	__experimentalInputControlPrefixWrapper as InputControlPrefixWrapper,
 } from '@wordpress/components';
 //import domReady from '@wordpress/dom-ready';
 import { useState, useMemo, createRoot, useEffect } from '@wordpress/element';
@@ -31,7 +34,20 @@ import {
 	useEntityRecord,
 } from '@wordpress/core-data';
 import '../notebooks/style.scss';
-import { calendar, swatch, check, close, edit, external, starFilled } from '@wordpress/icons';
+import {
+	calendar,
+	swatch,
+	check,
+	close,
+	edit,
+	external,
+	starFilled,
+	replace,
+	scheduled,
+	pending,
+	notAllowed,
+	rotateLeft
+} from '@wordpress/icons';
 import { RawHTML } from '@wordpress/element';
 
 const defaultView = {
@@ -41,7 +57,7 @@ const defaultView = {
 	perPage: 100,
 	titleField: 'title',
 	descriptionField: 'description',
-	fields: [ 'notebooks' ],
+	fields: [ 'flags', 'notebooks' ],
 	layout: {},
 	filters: [],
 	sort: {
@@ -50,10 +66,17 @@ const defaultView = {
 	},
 };
 
+function getNotebook( id, notebooks ) {
+	return notebooks.find(
+		( notebook ) => notebook.id == id || notebook.slug == id
+	);
+}
+
 function NotebookSelectorTabPanel( {
 	notebooks,
 	chosenNotebooks,
 	setNotebook,
+	possibleFlags,
 } ) {
 	return (
 		<TabPanel
@@ -80,9 +103,14 @@ function NotebookSelectorTabPanel( {
 										key={ notebook.id }
 										__nextHasNoMarginBottom
 										label={ notebook.name }
-										checked={ chosenNotebooks.includes(
-											notebook.id
-										) }
+										checked={
+											chosenNotebooks.includes(
+												notebook.id
+											) ||
+											chosenNotebooks.includes(
+												notebook.slug
+											)
+										}
 										onChange={ ( value ) =>
 											setNotebook( notebook, value )
 										}
@@ -93,18 +121,10 @@ function NotebookSelectorTabPanel( {
 				);
 			} }
 			tabs={ [
-				{
-					name: 'star',
-					title: 'Starred',
-				},
-				{
-					name: 'project',
-					title: 'Projects',
-				},
-				{
-					name: 'bucketlist',
-					title: 'Bucketlist',
-				},
+				...possibleFlags.map( ( flag ) => ( {
+					name: flag.id,
+					title: flag.name,
+				} ) ),
 				{
 					name: 'all',
 					title: 'All Notebooks',
@@ -114,12 +134,16 @@ function NotebookSelectorTabPanel( {
 	);
 }
 
-function TodoForm( { presetNotebooks = [] } ) {
+function TodoForm( {
+	presetNotebooks = [],
+	possibleFlags = [],
+	nowNotebook = null,
+} ) {
 	const emptyTodo = {
 		status: 'private',
 		title: '',
 		excerpt: '',
-		notebook: [],
+		notebook: presetNotebooks,
 		meta: {},
 	};
 
@@ -128,7 +152,7 @@ function TodoForm( { presetNotebooks = [] } ) {
 	useEffect( () => {
 		setNewTodo( {
 			...newTodo,
-			notebook: newTodo.notebook.concat( presetNotebooks ),
+			notebook: presetNotebooks, //newTodo.notebook.concat( presetNotebooks ),
 		} );
 	}, [ presetNotebooks ] );
 
@@ -136,6 +160,11 @@ function TodoForm( { presetNotebooks = [] } ) {
 	const { records: notebooks } = useEntityRecords( 'taxonomy', 'notebook', {
 		per_page: -1,
 		hide_empty: false,
+	} );
+	const { records: todos } = useEntityRecords( 'postType', 'todo', {
+		per_page: -1,
+		context: 'edit',
+		status: [ 'publish', 'pending', 'future', 'private' ],
 	} );
 
 	return (
@@ -155,14 +184,23 @@ function TodoForm( { presetNotebooks = [] } ) {
 					label={ newTodo.title.length > 0 ? 'New TODO' : null }
 					onValidate={ () => true }
 					value={ newTodo.title }
-					placeholder={ "New TODO in " + ( notebooks ? notebooks.filter( notebook => presetNotebooks.includes( notebook.id ) ).map( notebook => notebook.name ).join( ', ' ) : 'Inbox' ) }
+					placeholder={
+						'New TODO in ' +
+						( notebooks
+							? notebooks
+									.filter( ( notebook ) =>
+										presetNotebooks.includes( notebook.id )
+									)
+									.map( ( notebook ) => notebook.name )
+									.join( ', ' )
+							: 'Inbox' )
+					}
 				/>
 			</CardBody>
 			{ newTodo.title.length > 0 && (
 				<>
 					<CardBody>
 						<TextareaControl
-							__nextHasNoMarginBottom
 							label="Notes"
 							onChange={ ( value ) =>
 								setNewTodo( { ...newTodo, excerpt: value } )
@@ -170,9 +208,26 @@ function TodoForm( { presetNotebooks = [] } ) {
 							placeholder="Placeholder"
 							value={ newTodo.excerpt }
 						/>
+						<InputControl
+							__nextHasNoMarginBottom
+							onChange={ ( value ) =>
+								setNewTodo( {
+									...newTodo,
+									meta: { ...newTodo.meta, url: value },
+								} )
+							}
+							label={ 'Action URL' }
+							onValidate={ () => true }
+							value={ newTodo.meta?.url }
+							help={
+								'A URL associated with the task. For example tel://500500500 or http://website-of-thing-to-buy'
+							}
+							placeholder={ 'https://...' }
+						/>
 					</CardBody>
 					<CardBody>
 						<NotebookSelectorTabPanel
+							possibleFlags={ possibleFlags }
 							notebooks={ notebooks }
 							chosenNotebooks={ newTodo.notebook }
 							setNotebook={ ( notebook, value ) => {
@@ -198,50 +253,230 @@ function TodoForm( { presetNotebooks = [] } ) {
 					<CardBody>
 						<Panel>
 							<PanelBody
-								title="Dont bother me before date"
+								title="Schedule task"
 								initialOpen={ false }
+								onToggle={ ( open ) =>
+									setNewTodo( {
+										...newTodo,
+										date: open ? newTodo.date : undefined,
+									} )
+								}
 							>
-								<PanelRow>
-									<NotebookSelectorTabPanel
-										notebooks={ notebooks }
-										chosenNotebooks={ [
-											newTodo.meta.pos_blocked_pending_term,
-										] }
-										setNotebook={ ( notebook, value ) => {
-											if ( value ) {
-												setNewTodo( {
-													...newTodo,
-													meta: {
-														...newTodo.meta,
-														pos_blocked_pending_term: notebook.id,
-													},
-												} );
-											} else {
-												delete newTodo.meta.pos_blocked_pending_term;
-											}
-										} }
-									/>
-								</PanelRow>
 								<PanelRow>
 									<DatePicker
 										label="Show on"
-										currentDate={ new Date() }
-										onChange={ ( value ) =>
-											setNewTodo( {
+										currentDate={
+											newTodo.date
+												? new Date( newTodo.date )
+												: new Date()
+										}
+										onChange={ ( value ) => {
+											const newData = {
 												...newTodo,
 												date: value,
-											} )
-										}
+											};
+											if (
+												! newData?.meta
+													?.pos_blocked_pending_term
+											) {
+												newData.meta.pos_blocked_pending_term =
+													getNotebook(
+														nowNotebook,
+														notebooks
+													)?.slug;
+											}
+											setNewTodo( newData );
+										} }
 									/>
 								</PanelRow>
+								{ newTodo.date && (
+									<>
+										<PanelRow className="wide">
+											<h4>{ `On ${ new Date(
+												newTodo.date
+											).toLocaleDateString() } move to:` }</h4>
+										</PanelRow>
+										<PanelRow className="wide">
+											<NotebookSelectorTabPanel
+												notebooks={ notebooks }
+												possibleFlags={ possibleFlags }
+												chosenNotebooks={ [
+													newTodo.meta
+														.pos_blocked_pending_term,
+												] }
+												setNotebook={ (
+													notebook,
+													value
+												) => {
+													setNewTodo( {
+														...newTodo,
+														meta: {
+															...newTodo.meta,
+															pos_blocked_pending_term:
+																value
+																	? notebook.slug
+																	: undefined,
+														},
+													} );
+												} }
+											/>
+										</PanelRow>
+									</>
+								) }
+							</PanelBody>
+							<PanelBody
+								title="Recurring"
+								initialOpen={ false }
+								onToggle={ ( open ) => setNewTodo( { ...newTodo, meta: { ...newTodo.meta, pos_recurring_days: open ? newTodo.meta?.pos_recurring_days : undefined } } ) }
+							>
+								<PanelRow>
+									<InputControl
+										className="pos__todo-form-recurring"
+										__next40pxDefaultSize = { true }
+										type="number"
+										onChange={ ( value ) =>
+											setNewTodo( { ...newTodo, meta: {
+												...newTodo.meta,
+												pos_recurring_days: value,
+												pos_blocked_pending_term: newTodo.meta?.pos_blocked_pending_term || getNotebook( nowNotebook, notebooks )?.slug,
+											} } )
+										}
+										prefix={ <InputControlPrefixWrapper>schedule</InputControlPrefixWrapper> }
+										suffix={ <InputControlPrefixWrapper>days after completion</InputControlPrefixWrapper> }
+										label={ 'After completion, duplicate this task and' }
+										onValidate={ () => true }
+										help={ 'When you complete this task, it will be duplicated and scheduled x days from completion time.' }
+										value={ newTodo.meta?.pos_recurring_days || 0 }
+									/>
+								</PanelRow>
+								{ newTodo.meta?.pos_recurring_days && (
+									<>
+										<PanelRow className="wide">
+											<h4>{ `${ newTodo.meta?.pos_recurring_days } days after completion, move to:` }</h4>
+										</PanelRow>
+										<PanelRow className="wide">
+											<NotebookSelectorTabPanel
+												notebooks={ notebooks }
+												possibleFlags={ possibleFlags }
+												chosenNotebooks={ [
+													newTodo.meta
+														.pos_blocked_pending_term,
+												] }
+												setNotebook={ (
+													notebook,
+													value
+												) => {
+													setNewTodo( {
+														...newTodo,
+														meta: {
+															...newTodo.meta,
+															pos_blocked_pending_term:
+																value
+																	? notebook.slug
+																	: undefined,
+														},
+													} );
+												} }
+											/>
+										</PanelRow>
+									</>
+								) }
 							</PanelBody>
 							<PanelBody
 								title="This TODO depends on"
 								initialOpen={ false }
+								onToggle={ ( open ) =>
+									setNewTodo( {
+										...newTodo,
+										meta: {
+											...newTodo.meta,
+											pos_blocked_by: open
+												? newTodo.meta?.pos_blocked_by
+												: undefined,
+										},
+									} )
+								}
 							>
-								<PanelRow>
-									<h1>Test</h1>
+								<PanelRow className="wide">
+									<ComboboxControl
+										label="This TODO is blocked by"
+										value={ newTodo.meta?.pos_blocked_by }
+										options={ todos.map( ( todo ) => ( {
+											label:
+												'#' +
+												todo.id +
+												' ' +
+												todo.title.raw +
+												' (' +
+												todo.notebook
+													.map(
+														( n ) =>
+															getNotebook(
+																n,
+																notebooks
+															)?.name
+													)
+													.join( ', ' ) +
+												')',
+											value: todo.id,
+										} ) ) }
+										help={
+											'Chose a TODO that is blocking the current one.'
+										}
+										onChange={ ( value ) => {
+											const newData = {
+												...newTodo,
+												meta: {
+													...newTodo.meta,
+													pos_blocked_by: value,
+												},
+											};
+											if (
+												! newData?.meta
+													?.pos_blocked_pending_term
+											) {
+												newData.meta.pos_blocked_pending_term =
+													getNotebook(
+														nowNotebook,
+														notebooks
+													)?.slug;
+											}
+											setNewTodo( newData );
+										} }
+									/>
 								</PanelRow>
+								{ newTodo.meta?.pos_blocked_by && (
+									<>
+										<PanelRow className="wide">
+											<h4>After unblocking, move to:</h4>
+										</PanelRow>
+										<PanelRow className="wide">
+											<NotebookSelectorTabPanel
+												notebooks={ notebooks }
+												possibleFlags={ possibleFlags }
+												chosenNotebooks={ [
+													newTodo.meta
+														?.pos_blocked_pending_term,
+												] }
+												setNotebook={ (
+													notebook,
+													value
+												) => {
+													setNewTodo( {
+														...newTodo,
+														meta: {
+															...newTodo.meta,
+															pos_blocked_pending_term:
+																value
+																	? notebook.slug
+																	: undefined,
+														},
+													} );
+												} }
+											/>
+										</PanelRow>
+									</>
+								) }
 							</PanelBody>
 						</Panel>
 					</CardBody>
@@ -262,11 +497,7 @@ function TodoForm( { presetNotebooks = [] } ) {
 							isPrimary
 							icon={ check }
 							onClick={ () => {
-								saveEntityRecord(
-									'postType',
-									'todo',
-									newTodo
-								);
+								saveEntityRecord( 'postType', 'todo', newTodo );
 								setNewTodo( emptyTodo );
 							} }
 						>
@@ -280,7 +511,8 @@ function TodoForm( { presetNotebooks = [] } ) {
 }
 
 function TodoAdmin( props ) {
-	let viewConfig = defaultView;	
+	let viewConfig = defaultView;
+	const possibleFlags = props.possibleFlags;
 
 	if ( props.view ) {
 		viewConfig = { ...defaultView, ...props.view };
@@ -296,29 +528,36 @@ function TodoAdmin( props ) {
 			hide_empty: false,
 		} );
 
-	function filterByHash() {	
+	function filterByHash() {
 		if ( window.location.hash.length > 1 ) {
-			const notebookIds = window.location.hash.replace( '#', '' ).split( ',' ).map( ( id ) => parseInt( id ) );
+			const notebookIds = window.location.hash
+				.replace( '#', '' )
+				.split( ',' )
+				.map( ( slug ) => getNotebook( slug, notebooks )?.id );
 			filterByNotebook( notebookIds, true );
+			return true;
 		}
-	}
-
-	function getNotebook( id, notebooks ) {
-		return notebooks.find( ( notebook ) => ( notebook.id === id || notebook.slug == id ) );
+		return false;
 	}
 
 	function filterByNotebook( noteBookIds, override = false ) {
 		if ( ! Array.isArray( noteBookIds ) ) {
 			noteBookIds = [ noteBookIds ];
 		}
-		const existingNotebookFilter = new Set( view.filters.find(
-			( filter ) => filter.field === 'notebooks'
-		)?.value || [] );
+		const existingNotebookFilter = new Set(
+			view.filters.find( ( filter ) => filter.field === 'notebooks' )
+				?.value || []
+		);
 
 		const newNotebookFilter = new Set( noteBookIds );
 
 		// Bail if sets the same
-		if ( existingNotebookFilter.size === newNotebookFilter.size && Array.from(existingNotebookFilter).every( ( id ) => newNotebookFilter.has( id ) ) ) {
+		if (
+			existingNotebookFilter.size === newNotebookFilter.size &&
+			Array.from( existingNotebookFilter ).every( ( id ) =>
+				newNotebookFilter.has( id )
+			)
+		) {
 			return;
 		}
 
@@ -326,9 +565,18 @@ function TodoAdmin( props ) {
 
 		if ( override ) {
 			if ( noteBookIds.includes( 'all' ) ) {
-				setView( old => ( { ...old, filters: [] } ) );
+				setView( ( old ) => ( { ...old, filters: [] } ) );
 			} else {
-				setView( old => ( { ...old, filters: [ { field: 'notebooks', operator: 'isAll', value: noteBookIds } ] } ) );
+				setView( ( old ) => ( {
+					...old,
+					filters: [
+						{
+							field: 'notebooks',
+							operator: 'isAll',
+							value: noteBookIds,
+						},
+					],
+				} ) );
 			}
 			return;
 		}
@@ -336,8 +584,10 @@ function TodoAdmin( props ) {
 		if ( existingNotebookFilter.size > 0 ) {
 			// If filter exists, toggle the notebookId in its values
 			const values = Array.from( existingNotebookFilter );
-			const newValues = noteBookIds.every( id => values.includes( id ) )
-				? values.filter( id => !noteBookIds.includes( id ) )
+			const newValues = noteBookIds.every( ( id ) =>
+				values.includes( id )
+			)
+				? values.filter( ( id ) => ! noteBookIds.includes( id ) )
 				: [ ...new Set( [ ...values, ...noteBookIds ] ) ];
 
 			newFilters = view.filters.map( ( filter ) =>
@@ -357,11 +607,24 @@ function TodoAdmin( props ) {
 			];
 		}
 
-		setView( (old) => ( { ...old, filters: newFilters } ) );
+		setView( ( old ) => ( { ...old, filters: newFilters } ) );
 	}
 
 	// Our setup in this custom taxonomy.
 	const fields = [
+		{
+			label: __( 'ID', 'your-textdomain' ),
+			id: 'id',
+			enableHiding: true,
+			enableGlobalSearch: true,
+			type: 'string',
+			render: ( { item } ) => {
+				return '#' + item?.id;
+			},
+			getValue: ( { item } ) => {
+				return '' + item?.id;
+			},
+		},
 		{
 			label: __( 'Done', 'your-textdomain' ),
 			id: 'done',
@@ -394,18 +657,22 @@ function TodoAdmin( props ) {
 			enableGlobalSearch: true,
 			type: 'string',
 			render: ( { item } ) => {
-				return <div className="pos__todo-description"><RawHTML>{ item?.excerpt?.rendered }</RawHTML></div>;
+				return (
+					<div className="pos__todo-description">
+						<RawHTML>{ item?.excerpt?.rendered }</RawHTML>
+					</div>
+				);
 			},
 			getValue: ( { item } ) => {
 				return item?.excerpt?.raw;
 			},
 		},
 		{
-			label: __( 'Notebooks', 'your-textdomain' ),
-			id: 'notebooks',
+			label: __( 'Flags', 'your-textdomain' ),
+			id: 'flags',
 			header: (
 				<HStack spacing={ 1 } justify="start">
-					<span>{ __( 'Notebooks', 'your-textdomain' ) }</span>
+					<span>{ __( 'Flags', 'your-textdomain' ) }</span>
 				</HStack>
 			),
 			type: 'array',
@@ -421,10 +688,48 @@ function TodoAdmin( props ) {
 								variant="secondary"
 								key={ 'future' }
 								size="small"
-								icon={ calendar }
+								icon={ scheduled }
 								className="pos__notebook-badge pos__notebook-badge--future"
 							>
-								{ ( getNotebook( item?.meta?.pos_blocked_pending_term, notebooks )?.name || 'Pending' ) + ' on ' + postDate.toLocaleDateString() }
+								{ ( getNotebook(
+									item?.meta?.pos_blocked_pending_term,
+									notebooks
+								)?.name || 'Pending' ) +
+									' on ' +
+									postDate.toLocaleDateString() }
+							</Button>
+						) }
+						{ item.meta?.pos_blocked_by > 0 && (
+							<Button
+								variant="secondary"
+								key={ 'blocked' }
+								size="small"
+								icon={ pending }
+								className="pos__notebook-badge pos__notebook-badge--future"
+								onClick={ ( event ) => {
+									window.open(
+										`/wp-admin/post.php?post=${ item?.meta?.pos_blocked_by }&action=edit`,
+										'_blank'
+									);
+								} }
+							>
+								{ ( getNotebook(
+									item?.meta?.pos_blocked_pending_term,
+									notebooks
+								)?.name || 'Pending' ) +
+									' after #' +
+									item?.meta?.pos_blocked_by }
+							</Button>
+						) }
+						{ item?.meta?.pos_recurring_days > 0 && (
+							<Button
+								key={ 'recurring' }
+								variant="secondary"
+								size="small"
+								className="pos__notebook-badge"
+								icon={ rotateLeft }
+							>
+								{ `Every ${ item?.meta?.pos_recurring_days } days` }
 							</Button>
 						) }
 						{ item?.meta?.url && (
@@ -437,9 +742,73 @@ function TodoAdmin( props ) {
 									window.open( item?.meta?.url, '_blank' );
 								} }
 							>
-								{ ( new URL( item?.meta?.url ) ).hostname }
+								{ new URL( item?.meta?.url ).hostname }
 							</Button>
 						) }
+						{ item?.blocking?.map( ( todo ) => (
+							<Button
+								variant="secondary"
+								key={ todo }
+								size="small"
+								className="pos__notebook-badge"
+								icon={ notAllowed }
+								onClick={ ( event ) => {
+									window.open(
+										`/wp-admin/post.php?post=${ todo }&action=edit`,
+										'_blank'
+									);
+								} }
+							>
+								{ `Blocking #${ todo }` }
+							</Button>
+						) ) }
+					</>
+				);
+			},
+			enableSorting: false,
+			filterBy: {
+				operators: [ `isAny`, `isNone`, `isAll`, `isNotAll` ],
+			},
+			elements: [
+				{
+					label: 'Future',
+					value: 'future',
+				},
+				{
+					label: 'Blocked',
+					value: 'blocked',
+				},
+				{
+					label: 'Recurring',
+					value: 'recurring',
+				},
+				{
+					label: 'Blocking',
+					value: 'blocking',
+				},
+			],
+			getValue: ( { item } ) => [
+				( new Date( item.date ) > Date.now() ) && 'future',
+				( item.meta?.pos_blocked_by > 0 ) && 'blocked',
+				( item.meta?.pos_recurring_days > 0 ) && 'recurring',
+				( item.blocking?.length > 0 ) && 'blocking',
+			].filter( Boolean ),
+		},
+		{
+			label: __( 'Notebooks', 'your-textdomain' ),
+			id: 'notebooks',
+			header: (
+				<HStack spacing={ 1 } justify="start">
+					<span>{ __( 'Notebooks', 'your-textdomain' ) }</span>
+				</HStack>
+			),
+			type: 'array',
+			render: ( { item } ) => {
+				if ( ! notebooks ) {
+					return '';
+				}
+				return (
+					<>
 						{ item?.notebook?.map( ( notebook ) => (
 							<Button
 								variant="tertiary"
@@ -509,8 +878,7 @@ function TodoAdmin( props ) {
 	const notebookFilters = view.filters.reduce( ( acc, filter ) => {
 		if (
 			filter.field === 'notebooks' &&
-			( filter.operator === 'isAny' ||
-				filter.operator === 'isAll' )
+			( filter.operator === 'isAny' || filter.operator === 'isAll' )
 		) {
 			acc = acc.concat( filter.value );
 		}
@@ -518,17 +886,23 @@ function TodoAdmin( props ) {
 	}, [] );
 
 	useEffect( () => {
-		if ( ! notebooksLoading && ! todoLoading ) {
-			filterByHash();
-			window.addEventListener( "hashchange", filterByHash );
+		if ( notebooks && notebooks.length > 0 ) {
+			if ( ! filterByHash() ) {
+				filterByNotebook( props.defaultNotebook );
+			}
+			window.addEventListener( 'hashchange', filterByHash );
 		}
-	}, [ notebooksLoading, todoLoading ] );
+	}, [ notebooks ] );
 
 	useEffect( () => {
-		//window.removeEventListener( "hashchange", filterByHash );
-		window.location.hash = notebookFilters.join( ',' );
-		//window.addEventListener( "hashchange", filterByHash );
-	}, [ notebookFilters ] );
+		if ( notebooks && notebooks.length > 0 && notebookFilters.length > 0 ) {
+			//window.removeEventListener( "hashchange", filterByHash );
+			window.location.hash = notebookFilters
+				.map( ( notebook ) => getNotebook( notebook, notebooks )?.slug )
+				.join( ',' );
+			//window.addEventListener( "hashchange", filterByHash );
+		}
+	}, [ notebookFilters, notebooks ] );
 
 	const actions = [
 		{
@@ -548,12 +922,28 @@ function TodoAdmin( props ) {
 			callback: async ( items ) => {
 				// Completed items are in trash.
 				items.forEach( ( item ) =>
-					deleteEntityRecord(
-						'postType',
-						'todo',
-						item.id
-					)
+					deleteEntityRecord( 'postType', 'todo', item.id )
 				);
+			},
+			isPrimary: true,
+		},
+		{
+			id: 'kill',
+			label: __( 'Complete and stop recurring', 'your-textdomain' ),
+			icon: check,
+			isEligible: ( item ) => ( item.meta?.pos_recurring_days > 0 ),
+			callback: async ( items ) => {
+				// Completed items are in trash.
+				items.forEach( ( item ) => {
+					saveEntityRecord( 'postType', 'todo', {
+						id: item.id,
+						meta: {
+							pos_recurring_days: 0,
+						},
+					} ).then( ( response ) => {
+						deleteEntityRecord( 'postType', 'todo', item.id );
+					} );
+				} );
 			},
 			isPrimary: true,
 		},
@@ -561,7 +951,7 @@ function TodoAdmin( props ) {
 			id: 'edit',
 			label: __( 'Edit', 'your-textdomain' ),
 			icon: edit,
-			isEligible: () =>true,
+			isEligible: () => true,
 			callback: async ( items ) => {
 				if ( items.length === 1 ) {
 					window.open(
@@ -575,7 +965,7 @@ function TodoAdmin( props ) {
 
 	if ( notebooks && ! notebooksLoading ) {
 		notebooks.forEach( ( notebook ) => {
-			if( notebook.meta?.flag?.includes( 'star' ) ) {
+			if ( notebook.meta?.flag?.includes( 'star' ) ) {
 				actions.push( {
 					id: 'move-notebook-' + notebook.id,
 					label: 'To ' + notebook.name,
@@ -583,12 +973,17 @@ function TodoAdmin( props ) {
 					isEligible: ( item ) => true,
 					callback: async ( items ) => {
 						items.forEach( ( item ) => {
-							const changes = { id: item.id, notebook: [ notebook.id, ...item.notebook.filter( ( id ) => ! notebookFilters.includes( id ) ) ] };
-							saveEntityRecord(
-								'postType',
-								'todo',
-								changes,
-							);
+							const changes = {
+								id: item.id,
+								notebook: [
+									notebook.id,
+									...item.notebook.filter(
+										( id ) =>
+											! notebookFilters.includes( id )
+									),
+								],
+							};
+							saveEntityRecord( 'postType', 'todo', changes );
 						} );
 					},
 				} );
@@ -599,6 +994,8 @@ function TodoAdmin( props ) {
 		<>
 			<TodoForm
 				presetNotebooks={ notebookFilters }
+				possibleFlags={ possibleFlags }
+				nowNotebook={ props.nowNotebook }
 			/>
 			<Card elevation={ 1 }>
 				<CardBody>
@@ -608,33 +1005,39 @@ function TodoAdmin( props ) {
 						paginationInfo={ paginationInfo }
 						header={
 							<DropdownMenu
-								controls={
-									[
-										{
-											onClick: () => filterByNotebook( 'all', true ),
-											title: 'All',
-										},
-									].concat(
+								controls={ [
+									{
+										onClick: () =>
+											filterByNotebook( 'all', true ),
+										title: 'All',
+									},
+								]
+									.concat(
 										notebooks
-										?.filter(
-											(notebook) =>
-											notebook?.meta?.flag?.includes(
-												'star'
+											?.filter( ( notebook ) =>
+												notebook?.meta?.flag?.includes(
+													'star'
+												)
 											)
-									).map((notebook) => ({
-										onClick: () => filterByNotebook(notebook.id, true),
-											title: notebook.name,
-										}))
-									).concat(
-										[
-											{
-												onClick: () => window.open( `/wp-admin/edit.php?post_type=todo`),
-												title: 'Classic WP-Admin',
-											},
-										]
+											.map( ( notebook ) => ( {
+												onClick: () =>
+													filterByNotebook(
+														notebook.id,
+														true
+													),
+												title: notebook.name,
+											} ) )
 									)
-								}
-								icon={starFilled}
+									.concat( [
+										{
+											onClick: () =>
+												window.open(
+													`/wp-admin/edit.php?post_type=todo`
+												),
+											title: 'Classic WP-Admin',
+										},
+									] ) }
+								icon={ starFilled }
 								label="Filter by a starred notebook"
 							/>
 						}
