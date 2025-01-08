@@ -2,12 +2,30 @@
 
 class TodoModuleTest extends WP_UnitTestCase {
 	private $module = null;
+	private $now_term_id = null;
+	private $test_term_id = null;
+	private $inbox_term_id = null;
 
 	public function set_up() {
 		parent::set_up();
 		$this->module = \POS::get_module_by_id( 'todo' );
 		wp_set_current_user( 1 );
-		wp_insert_term( 'now', 'notebook' );
+
+		if ( ! term_exists( 'now', 'notebook' ) ) {
+			$this->now_term_id = wp_insert_term( 'now', 'notebook' )['term_id'];
+		} else {
+			$this->now_term_id = get_term_by( 'slug', 'now', 'notebook' )->term_id;
+		}
+		if ( ! term_exists( 'test', 'notebook' ) ) {
+			$this->test_term_id = wp_insert_term( 'test', 'notebook' )['term_id'];
+		} else {
+			$this->test_term_id = get_term_by( 'slug', 'test', 'notebook' )->term_id;
+		}
+		if ( ! term_exists( 'inbox', 'notebook' ) ) {
+			$this->inbox_term_id = wp_insert_term( 'inbox', 'notebook' )['term_id'];
+		} else {
+			$this->inbox_term_id = get_term_by( 'slug', 'inbox', 'notebook' )->term_id;
+		}
 	}
 
 
@@ -25,7 +43,7 @@ class TodoModuleTest extends WP_UnitTestCase {
 				'pos_blocked_pending_term' => '',
 			),
 			'tax_input' => array(
-				'notebook' => array( get_term_by( 'slug', 'inbox', 'notebook' )->term_id ),
+				'notebook' => array( $this->inbox_term_id ),
 			),
 		);
 		$data = wp_parse_args( $data, $default_data );
@@ -55,14 +73,14 @@ class TodoModuleTest extends WP_UnitTestCase {
 		$blocking = $this->create_todo( [
 			'post_title' => 'Test Todo Blocking',
 			'tax_input' => [
-				'notebook' => [ get_term_by( 'slug', 'now', 'notebook' )->term_id ],
+				'notebook' => [ $this->now_term_id ],
 			],
 		] );
 
 		$blocked = $this->create_todo( [
 			'post_title' => 'Test Todo Blocked',
 			'tax_input' => [
-				'notebook' => [ get_term_by( 'slug', 'inbox', 'notebook' )->term_id ],
+				'notebook' => [ $this->inbox_term_id ],
 			],
 			'meta_input' => [
 				'pos_blocked_by' => $blocking,
@@ -117,6 +135,52 @@ class TodoModuleTest extends WP_UnitTestCase {
 
 		$notebooks = wp_list_pluck( wp_get_object_terms( $scheduled, 'notebook' ), 'slug' );
 		$this->assertContains( 'now', $notebooks, 'TODO is in now after scheduled time' );
+	}
+
+	public function test_recurring_todo() {
+		$recurring = $this->create_todo( [
+			'post_title' => 'Test Recurring',
+			'meta_input' => [
+				'pos_recurring_days' => 2,
+				'pos_blocked_pending_term' => 'now',
+			],
+			'tax_input' => [
+				'notebook' => [
+					$this->test_term_id,
+					get_term_by( 'slug', 'inbox', 'notebook' )->term_id,
+					$this->now_term_id,
+				],
+			],
+		] );
+
+		$all_posts = get_posts( [
+			'post_title' => 'Test Recurring',
+			'post_type' => $this->module->id,
+			'post_status' => 'private, publish, future',
+		] );
+
+		$this->assertEquals( $recurring, $all_posts[0]->ID, 'Recurring todo is created' );
+		$notebooks = wp_list_pluck( wp_get_object_terms( $all_posts[0]->ID, 'notebook' ), 'slug' );
+		$this->assertContains( 'now', $notebooks, 'Recurring todo is in now' );
+		$this->assertContains( 'inbox', $notebooks, 'Recurring todo is in inbox' );
+		$this->assertContains( 'test', $notebooks, 'Recurring todo is in test' );
+
+		wp_trash_post( $recurring );
+		$all_posts = get_posts( [
+			'post_title' => 'Test Recurring',
+			'post_type' => $this->module->id,
+			'post_status' => 'private, publish, future',
+		] );
+		$this->assertNotEquals( $recurring, $all_posts[0]->ID, 'Recurring todo is created as a copy' );
+		$this->assertGreaterThan( time() + 2 * DAY_IN_SECONDS - 10, strtotime( $all_posts[0]->post_date ), 'Recurring todo is created with a future date' );
+		$cron_id = wp_next_scheduled( 'pos_todo_scheduled', array( $all_posts[0]->ID ) );
+		$this->assertNotEmpty( $cron_id, 'TODO is actually scheduled' );
+		$this->assertEquals( 'now', get_post_meta( $all_posts[0]->ID, 'pos_blocked_pending_term', true ), 'Recurring todo has pending now transition' );
+
+		$notebooks = wp_list_pluck( wp_get_object_terms( $all_posts[0]->ID, 'notebook' ), 'slug' );
+		$this->assertNotContains( 'now', $notebooks, 'Recurring todo is not in now, because the pending term is removed when copying recurring todos' );
+		$this->assertContains( 'inbox', $notebooks, 'Recurring todo is in inbox' );
+		$this->assertContains( 'test', $notebooks, 'Recurring todo is in test' );
 	}
 }
 
