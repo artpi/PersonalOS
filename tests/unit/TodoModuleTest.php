@@ -29,7 +29,16 @@ class TodoModuleTest extends WP_UnitTestCase {
 			),
 		);
 		$data = wp_parse_args( $data, $default_data );
-		return wp_insert_post( $data );
+		$id = wp_insert_post( $data );
+		return $id;
+	}
+
+	private function api_request( $path, $params = array() ) {
+		$request = new WP_REST_Request( 'GET', $path );
+		foreach ( $params as $key => $value ) {
+			$request->set_param( $key, $value );
+		}
+		return rest_do_request( $request )->get_data();
 	}
 
 	public function test_todo_creation() {
@@ -61,15 +70,53 @@ class TodoModuleTest extends WP_UnitTestCase {
 			],
 		] );
 
+
+		$api_response = $this->api_request( '/pos/v1/todo/' . $blocking );
+
+		// TODO: For some reason, meta is empty.
+		//$blocked_api_response = $this->api_request( '/pos/v1/todo/' . $blocked );
+		//$this->assertEquals( $blocking, $blocked_api_response['meta']['pos_blocked_by'], 'API response contains pos_blocked_by meta' );
+		//$this->assertEquals( 'now', $blocked_api_response['meta']['pos_blocked_pending_term'], 'API response contains pos_blocked_pending_term meta' );
+
+
+		$this->assertEquals( $blocked, $api_response['blocking'][0], 'API response contains a list of blocked todos' );
+
+		// Check unblocking:
 		$notebooks = wp_list_pluck( wp_get_object_terms( $blocked, 'notebook' ), 'slug' );
 		$this->assertContains( 'inbox', $notebooks );
 
-		$this->assertNotContains( 'now', $notebooks );
+		$this->assertNotContains( 'now', $notebooks, 'TODO is not in now before unblocking' );
 
 		wp_trash_post( $blocking );
 		$notebooks = wp_list_pluck( wp_get_object_terms( $blocked, 'notebook' ), 'slug' );
-		$this->assertContains( 'now', $notebooks );
+		$this->assertContains( 'now', $notebooks, 'TODO is in now after unblocking' );
 
+	}
+
+	public function test_scheduled_todo() {
+		$scheduled = $this->create_todo( [
+			'post_date' => date( 'Y-m-d H:i:s', strtotime( '+2 day' ) ),
+			'meta_input' => [
+				'pos_blocked_pending_term' => 'now',
+				'pos_recurring_days' => 2,
+			],
+		] );
+
+
+		$notebooks = wp_list_pluck( wp_get_object_terms( $scheduled, 'notebook' ), 'slug' );
+		$this->assertNotContains( 'now', $notebooks, 'TODO is not in now before unblocking' );
+
+		$cron_id = wp_next_scheduled( 'pos_todo_scheduled', array( $scheduled ) );
+		$this->assertNotEmpty( $cron_id, 'TODO is scheduled' );
+
+		$api_response = $this->api_request( '/pos/v1/todo/' . $scheduled );
+		$this->assertEquals( $cron_id, $api_response['scheduled'], 'API response contains scheduled time' );
+
+		// Trigger the scheduled event
+		do_action( 'pos_todo_scheduled', $scheduled );
+
+		$notebooks = wp_list_pluck( wp_get_object_terms( $scheduled, 'notebook' ), 'slug' );
+		$this->assertContains( 'now', $notebooks, 'TODO is in now after scheduled time' );
 	}
 }
 
