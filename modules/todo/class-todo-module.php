@@ -24,9 +24,8 @@ class TODO_Module extends POS_Module {
 		add_action( 'post_updated', array( $this, 'save_todo_notes' ), 10, 3 );
 		add_action( 'set_object_terms', array( $this, 'save_todo_notes_terms' ), 10, 6 );
 
-		//TODO: Restrict to only todo CPT.
 		register_meta(
-			'post',
+			'todo',
 			'reminders_id',
 			array(
 				'type'         => 'string',
@@ -36,7 +35,7 @@ class TODO_Module extends POS_Module {
 		);
 
 		register_meta(
-			'post',
+			'todo',
 			'pos_blocked_pending_term',
 			array(
 				'type'         => 'string',
@@ -46,7 +45,7 @@ class TODO_Module extends POS_Module {
 		);
 
 		register_meta(
-			'post',
+			'todo',
 			'pos_blocked_by',
 			array(
 				'type'         => 'integer',
@@ -56,7 +55,7 @@ class TODO_Module extends POS_Module {
 		);
 
 		register_meta(
-			'post',
+			'todo',
 			'pos_recurring_days',
 			array(
 				'type'         => 'integer',
@@ -66,7 +65,7 @@ class TODO_Module extends POS_Module {
 		);
 
 		register_meta(
-			'post',
+			'todo',
 			'url',
 			array(
 				'type'         => 'string',
@@ -103,6 +102,21 @@ class TODO_Module extends POS_Module {
 				),
 			)
 		);
+
+		register_rest_field(
+			'todo',
+			'scheduled',
+			array(
+				'get_callback'    => function( $todo ) {
+					return wp_next_scheduled( 'pos_todo_scheduled', array( $todo['id'] ) );
+				},
+				'schema'          => array(
+					'description' => __( 'Scheduled time for this TODO.' ),
+					'type'        => 'integer',
+					'context'     => array( 'view', 'edit' ),
+				),
+			)
+		);
 	}
 
 	public function add_admin_menu(): void {
@@ -134,10 +148,25 @@ class TODO_Module extends POS_Module {
 	}
 
 	public function save_todo_notes( $post_id, $post, $old_post ) {
-		if ( ! $post || ! $old_post || $post->post_type !== $this->id || $old_post->post_type !== $this->id ) {
+		if ( $post->post_type !== $this->id || $old_post->post_type !== $this->id || ! $post ) {
 			return;
 		}
+
 		$changes = array();
+
+		// $time = strtotime( $post->post_date_gmt . ' GMT' );
+		// if ( $time > time() && ! wp_next_scheduled( 'pos_todo_scheduled', array( $post_id ) ) && $post->post_status !== 'trash' ) {
+		// 	$this->log( "TODO scheduled: {$post_id} at {$time}" );
+		// 	$scheduled = wp_schedule_single_event( $time, 'pos_todo_scheduled', array( $post_id ) );
+		// 	if ( $scheduled ) {
+		// 		$changes[] = 'Scheduled at ' . wp_date( 'Y-m-d H:i:s', $time );
+		// 	}
+		// }
+
+		if ( ! $old_post ) {
+			return;
+		}
+
 		if ( $old_post->post_title !== $post->post_title ) {
 			$changes[] = "Title changed from '<b><i>{$old_post->post_title}</i></b>' to '<b><i>{$post->post_title}</i></b>'";
 		}
@@ -298,10 +327,7 @@ class TODO_Module extends POS_Module {
 	}
 
 	public function pos_save_todo_dependency_meta( $post_id, $post ) {
-		if ( ! isset( $_POST['pos_todo_dependency_meta_nonce'] ) || ! wp_verify_nonce( $_POST['pos_todo_dependency_meta_nonce'], 'pos_save_todo_dependency_meta' ) ) {
-			return;
-		}
-
+		$todo_pending_action = false;
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
 			return;
 		}
@@ -310,25 +336,31 @@ class TODO_Module extends POS_Module {
 			return;
 		}
 
-		$todo_pending_action = false;
-		if ( ! empty( $_POST['pos_blocked_by'] ) ) {
+		if ( isset( $_POST['pos_todo_dependency_meta_nonce'] ) && ! wp_verify_nonce( $_POST['pos_todo_dependency_meta_nonce'], 'pos_save_todo_dependency_meta' ) ) {
+			// We are saving data from the meta box.
 			$blocked_by = sanitize_text_field( $_POST['pos_blocked_by'] );
 			update_post_meta( $post_id, 'pos_blocked_by', $blocked_by );
 			$todo_pending_action = true;
-		} elseif ( ! empty( get_post_meta( $post_id, 'pos_blocked_pending_term' ) ) ) {
-			delete_post_meta( $post_id, 'pos_blocked_pending_term' );
 		}
 
+		// This change can come from API or even from code.
 		$time = strtotime( $post->post_date_gmt . ' GMT' );
-		if ( $time > time() && ! wp_next_scheduled( 'pos_todo_scheduled', array( $post_id ) ) ) {
+		if ( $time > time() && ! wp_next_scheduled( 'pos_todo_scheduled', array( $post_id ) ) && $post->post_status !== 'trash' ) {
 			$this->log( "TODO scheduled: {$post_id} at {$time}" );
-			wp_schedule_single_event( $time, 'pos_todo_scheduled', array( $post_id ) );
+			$scheduled = wp_schedule_single_event( $time, 'pos_todo_scheduled', array( $post_id ) );
+			wp_insert_comment(
+				array(
+					'comment_post_ID' => $post_id,
+					'comment_content' => 'Scheduled at ' . wp_date( 'Y-m-d H:i:s', $scheduled ),
+					'user_id'         => get_current_user_id(),
+					'comment_type'    => 'todo_note',
+				)
+			);
 			$todo_pending_action = true;
 		}
 
-		if ( $todo_pending_action ) {
-			$blocked_pending_term = isset( $_POST['pos_blocked_pending_term'] ) ? sanitize_text_field( $_POST['pos_blocked_pending_term'] ) : '';
-			update_post_meta( $post_id, 'pos_blocked_pending_term', $blocked_pending_term );
+		if ( $todo_pending_action && isset( $_POST['pos_blocked_pending_term'] ) ) {
+			update_post_meta( $post_id, 'pos_blocked_pending_term', sanitize_text_field( $_POST['pos_blocked_pending_term'] ) );
 		}
 	}
 
@@ -423,11 +455,18 @@ class TODO_Module extends POS_Module {
 			$this->perform_pending_action( $blocked_post );
 		}
 
+		// Is this a scheduled todo that needs to be unscheduled?
+		$scheduled = wp_next_scheduled( 'pos_todo_scheduled', array( $post_id ) );
+		$this->log( "Unscheduling {$scheduled}" );
+		if ( $scheduled ) {
+			wp_unschedule_event( $scheduled, 'pos_todo_scheduled', array( $post_id ) );
+		}
 	}
 
 	private function perform_pending_action( $blocked_post ) {
 		$blocked_pending_term_slug = get_post_meta( $blocked_post->ID, 'pos_blocked_pending_term', true );
 		if ( empty( $blocked_pending_term_slug ) ) {
+			$this->log( "TODO unblocked: {$blocked_post->ID}. No pending term", E_USER_ERROR );
 			return;
 		}
 
@@ -436,6 +475,7 @@ class TODO_Module extends POS_Module {
 			$blocked_pending_term = get_term_by( 'slug', $blocked_pending_term_slug, 'notebook' );
 		}
 		if ( ! $blocked_pending_term ) {
+			$this->log( "TODO unblocked: {$blocked_post->ID}. Moving to {$blocked_pending_term_slug} but term not found", E_USER_ERROR );
 			return;
 		}
 		wp_set_object_terms( $blocked_post->ID, array( $blocked_pending_term->term_id ), 'notebook', true );
