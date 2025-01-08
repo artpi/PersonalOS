@@ -25,47 +25,51 @@ class TODO_Module extends POS_Module {
 		add_action( 'set_object_terms', array( $this, 'save_todo_notes_terms' ), 10, 6 );
 
 		register_meta(
-			'todo',
+			'post',
 			'reminders_id',
 			array(
 				'type'         => 'string',
 				'single'       => true,
 				'show_in_rest' => true,
+				'object_subtype' => $this->id,
 			)
 		);
 
 		register_meta(
-			'todo',
+			'post',
 			'pos_blocked_pending_term',
 			array(
 				'type'         => 'string',
 				'single'       => true,
 				'show_in_rest' => true,
+				'object_subtype' => $this->id,
 			)
 		);
 
 		register_meta(
-			'todo',
+			'post',
 			'pos_blocked_by',
 			array(
 				'type'         => 'integer',
 				'single'       => true,
 				'show_in_rest' => true,
+				'object_subtype' => $this->id,
 			)
 		);
 
 		register_meta(
-			'todo',
+			'post',
 			'pos_recurring_days',
 			array(
 				'type'         => 'integer',
 				'single'       => true,
 				'show_in_rest' => true,
+				'object_subtype' => $this->id,
 			)
 		);
 
 		register_meta(
-			'todo',
+			'post',
 			'url',
 			array(
 				'type'         => 'string',
