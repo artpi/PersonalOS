@@ -148,21 +148,25 @@ class TODO_Module extends POS_Module {
 	}
 
 	public function save_todo_notes( $post_id, $post, $old_post ) {
-		if ( $post->post_type !== $this->id || $old_post->post_type !== $this->id ) {
+		if ( $post->post_type !== $this->id || $old_post->post_type !== $this->id || ! $post ) {
 			return;
 		}
+
+		$changes = array();
 
 		$time = strtotime( $post->post_date_gmt . ' GMT' );
 		if ( $time > time() && ! wp_next_scheduled( 'pos_todo_scheduled', array( $post_id ) ) ) {
 			$this->log( "TODO scheduled: {$post_id} at {$time}" );
-			wp_schedule_single_event( $time, 'pos_todo_scheduled', array( $post_id ) );
-			// $todo_pending_action = true;
+			$scheduled = wp_schedule_single_event( $time, 'pos_todo_scheduled', array( $post_id ) );
+			if ( $scheduled ) {
+				$changes[] = 'Scheduled at ' . wp_date( 'Y-m-d H:i:s', $time );
+			}
 		}
 
-		if ( ! $post || ! $old_post ) {
+		if ( ! $old_post ) {
 			return;
 		}
-		$changes = array();
+
 		if ( $old_post->post_title !== $post->post_title ) {
 			$changes[] = "Title changed from '<b><i>{$old_post->post_title}</i></b>' to '<b><i>{$post->post_title}</i></b>'";
 		}
