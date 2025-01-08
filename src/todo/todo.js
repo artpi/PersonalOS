@@ -680,10 +680,9 @@ function TodoAdmin( props ) {
 				if ( ! notebooks ) {
 					return '';
 				}
-				const postDate = new Date( item.date );
 				return (
 					<>
-						{ postDate.getTime() > Date.now() && (
+						{ item.scheduled && (
 							<Button
 								variant="secondary"
 								key={ 'future' }
@@ -696,7 +695,7 @@ function TodoAdmin( props ) {
 									notebooks
 								)?.name || 'Pending' ) +
 									' on ' +
-									postDate.toLocaleDateString() }
+									new Date( item.scheduled * 1000 ).toLocaleDateString() }
 							</Button>
 						) }
 						{ item.meta?.pos_blocked_by > 0 && (
@@ -788,7 +787,7 @@ function TodoAdmin( props ) {
 				},
 			],
 			getValue: ( { item } ) => [
-				( new Date( item.date ) > Date.now() ) && 'future',
+				( item.scheduled ) && 'future',
 				( item.meta?.pos_blocked_by > 0 ) && 'blocked',
 				( item.meta?.pos_recurring_days > 0 ) && 'recurring',
 				( item.blocking?.length > 0 ) && 'blocking',

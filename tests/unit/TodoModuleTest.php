@@ -135,6 +135,17 @@ class TodoModuleTest extends WP_UnitTestCase {
 
 		$notebooks = wp_list_pluck( wp_get_object_terms( $scheduled, 'notebook' ), 'slug' );
 		$this->assertContains( 'now', $notebooks, 'TODO is in now after scheduled time' );
+
+		$scheduled2 = $this->create_todo( [
+			'post_date' => date( 'Y-m-d H:i:s', strtotime( '+2 day' ) ),
+			'meta_input' => [
+				'pos_blocked_pending_term' => 'now',
+				'pos_recurring_days' => 2,
+			],
+		] );
+		$this->assertNotEmpty( wp_next_scheduled( 'pos_todo_scheduled', array( $scheduled2 ) ), 'TODO is scheduled' );
+		wp_trash_post( $scheduled2 );
+		$this->assertEmpty( wp_next_scheduled( 'pos_todo_scheduled', array( $scheduled2 ) ), 'TODO is not scheduled after trashing the post' );	
 	}
 
 	public function test_recurring_todo() {

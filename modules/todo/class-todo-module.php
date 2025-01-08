@@ -154,14 +154,14 @@ class TODO_Module extends POS_Module {
 
 		$changes = array();
 
-		$time = strtotime( $post->post_date_gmt . ' GMT' );
-		if ( $time > time() && ! wp_next_scheduled( 'pos_todo_scheduled', array( $post_id ) ) ) {
-			$this->log( "TODO scheduled: {$post_id} at {$time}" );
-			$scheduled = wp_schedule_single_event( $time, 'pos_todo_scheduled', array( $post_id ) );
-			if ( $scheduled ) {
-				$changes[] = 'Scheduled at ' . wp_date( 'Y-m-d H:i:s', $time );
-			}
-		}
+		// $time = strtotime( $post->post_date_gmt . ' GMT' );
+		// if ( $time > time() && ! wp_next_scheduled( 'pos_todo_scheduled', array( $post_id ) ) && $post->post_status !== 'trash' ) {
+		// 	$this->log( "TODO scheduled: {$post_id} at {$time}" );
+		// 	$scheduled = wp_schedule_single_event( $time, 'pos_todo_scheduled', array( $post_id ) );
+		// 	if ( $scheduled ) {
+		// 		$changes[] = 'Scheduled at ' . wp_date( 'Y-m-d H:i:s', $time );
+		// 	}
+		// }
 
 		if ( ! $old_post ) {
 			return;
@@ -345,9 +345,17 @@ class TODO_Module extends POS_Module {
 
 		// This change can come from API or even from code.
 		$time = strtotime( $post->post_date_gmt . ' GMT' );
-		if ( $time > time() && ! wp_next_scheduled( 'pos_todo_scheduled', array( $post_id ) ) ) {
+		if ( $time > time() && ! wp_next_scheduled( 'pos_todo_scheduled', array( $post_id ) ) && $post->post_status !== 'trash' ) {
 			$this->log( "TODO scheduled: {$post_id} at {$time}" );
-			wp_schedule_single_event( $time, 'pos_todo_scheduled', array( $post_id ) );
+			$scheduled = wp_schedule_single_event( $time, 'pos_todo_scheduled', array( $post_id ) );
+			wp_insert_comment(
+				array(
+					'comment_post_ID' => $post_id,
+					'comment_content' => 'Scheduled at ' . wp_date( 'Y-m-d H:i:s', $scheduled ),
+					'user_id'         => get_current_user_id(),
+					'comment_type'    => 'todo_note',
+				)
+			);
 			$todo_pending_action = true;
 		}
 
@@ -447,6 +455,12 @@ class TODO_Module extends POS_Module {
 			$this->perform_pending_action( $blocked_post );
 		}
 
+		// Is this a scheduled todo that needs to be unscheduled?
+		$scheduled = wp_next_scheduled( 'pos_todo_scheduled', array( $post_id ) );
+		$this->log( "Unscheduling {$scheduled}" );
+		if ( $scheduled ) {
+			wp_unschedule_event( $scheduled, 'pos_todo_scheduled', array( $post_id ) );
+		}
 	}
 
 	private function perform_pending_action( $blocked_post ) {
