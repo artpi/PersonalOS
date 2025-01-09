@@ -5,6 +5,7 @@ import {
 	Card,
 	CardBody,
 	DropdownMenu,
+	Modal,
 } from '@wordpress/components';
 import { useState, useMemo, createRoot, useEffect } from '@wordpress/element';
 import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews/wp';
@@ -55,6 +56,7 @@ function TodoAdmin( props ) {
 	}
 
 	const [ view, setView ] = useState( viewConfig );
+	const [ editedTodo, setEditedTodo ] = useState( null );
 	const { deleteEntityRecord, saveEntityRecord } = useDispatch( coreStore );
 
 	const { records: notebooks, isLoading: notebooksLoading } =
@@ -489,10 +491,7 @@ function TodoAdmin( props ) {
 			isEligible: () => true,
 			callback: async ( items ) => {
 				if ( items.length === 1 ) {
-					window.open(
-						`/wp-admin/post.php?post=${ items[ 0 ].id }&action=edit`,
-						'_blank'
-					);
+					setEditedTodo( items[ 0 ] );
 				}
 			},
 		},
@@ -527,11 +526,37 @@ function TodoAdmin( props ) {
 	}
 	return (
 		<>
-			<TodoForm
-				presetNotebooks={ notebookFilters }
-				possibleFlags={ possibleFlags }
-				nowNotebook={ props.nowNotebook }
-			/>
+			{
+				editedTodo && (
+					<Modal
+						title="Edit Todo"
+						onRequestClose={ () => setEditedTodo( null ) }
+					>
+						<TodoForm
+							presetNotebooks={ notebookFilters }
+							possibleFlags={ possibleFlags }
+							nowNotebook={ props.nowNotebook }
+							editedTodo={ editedTodo }
+							onSave={ () => setEditedTodo( null ) }
+							full={ true }
+						/>
+					</Modal>
+				)
+			}
+			<Card
+				className="pos__todo-form"
+				elevation={ 3 }
+			>
+				<CardBody>
+					<TodoForm
+						presetNotebooks={ notebookFilters }
+						possibleFlags={ possibleFlags }
+						nowNotebook={ props.nowNotebook }
+						editedTodo={ null }
+						full={ false }
+					/>
+				</CardBody>
+			</Card>
 			<Card elevation={ 1 }>
 				<CardBody>
 					<DataViews

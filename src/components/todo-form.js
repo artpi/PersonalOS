@@ -1,6 +1,6 @@
 import {
 	Card,
-	CardBody,
+	div,
 	CardFooter,
 	__experimentalInputControl as InputControl,
 	TextareaControl,
@@ -26,6 +26,9 @@ export default function TodoForm( {
 	presetNotebooks = [],
 	possibleFlags = [],
 	nowNotebook = null,
+	editedTodo = null,
+	full = false,
+	onSave = null,
 } ) {
 	const emptyTodo = {
 		status: 'private',
@@ -35,7 +38,14 @@ export default function TodoForm( {
 		meta: {},
 	};
 
-	const [ newTodo, setNewTodo ] = useState( emptyTodo );
+	const [ newTodo, setNewTodo ] = useState( editedTodo ? {
+		id: editedTodo?.id,
+		title: editedTodo?.title?.raw,
+		excerpt: editedTodo?.excerpt?.raw,
+		notebook: editedTodo?.notebook,
+		meta: editedTodo?.meta,
+		date: editedTodo?.date,
+	} : emptyTodo );
 
 	useEffect( () => {
 		setNewTodo( {
@@ -55,17 +65,22 @@ export default function TodoForm( {
 		status: [ 'publish', 'pending', 'future', 'private' ],
 	} );
 
+	if ( ! onSave ) {
+		onSave = () => setNewTodo( emptyTodo );
+    }
+
 	return (
-		<Card
+		<div
 			style={ {
 				marginBottom: '10px',
 			} }
 			elevation={ newTodo.title.length > 0 ? 3 : 1 }
 			className="pos__todo-form"
 		>
-			<CardBody>
+			<div>
 				<InputControl
 					// __next40pxDefaultSize = { true }
+					style={ { marginBottom: '10px' } }
 					onChange={ ( value ) =>
 						setNewTodo( { ...newTodo, title: value } )
 					}
@@ -84,10 +99,9 @@ export default function TodoForm( {
 							: 'Inbox' )
 					}
 				/>
-			</CardBody>
-			{ newTodo.title.length > 0 && (
-				<>
-					<CardBody>
+			</div>
+			{ ( full || newTodo.title.length > 0 ) && ( <>
+					<div>
 						<TextareaControl
 							label="Notes"
 							onChange={ ( value ) =>
@@ -112,8 +126,8 @@ export default function TodoForm( {
 							}
 							placeholder={ 'https://...' }
 						/>
-					</CardBody>
-					<CardBody>
+					</div>
+					<div>
 						<NotebookSelectorTabPanel
 							possibleFlags={ possibleFlags }
 							notebooks={ notebooks }
@@ -137,18 +151,21 @@ export default function TodoForm( {
 								}
 							} }
 						/>
-					</CardBody>
-					<CardBody>
+					</div>
+					<div>
 						<Panel>
 							<PanelBody
 								title="Schedule task"
-								initialOpen={ false }
-								onToggle={ ( open ) =>
+								initialOpen={ editedTodo && editedTodo?.scheduled && editedTodo?.scheduled > 0 }
+								onToggle={ ( open ) => {
+									if( editedTodo ) {
+										return
+									}
 									setNewTodo( {
 										...newTodo,
 										date: open ? newTodo.date : undefined,
 									} )
-								}
+								} }
 							>
 								<PanelRow>
 									<DatePicker
@@ -214,8 +231,13 @@ export default function TodoForm( {
 							</PanelBody>
 							<PanelBody
 								title="Recurring"
-								initialOpen={ false }
-								onToggle={ ( open ) => setNewTodo( { ...newTodo, meta: { ...newTodo.meta, pos_recurring_days: open ? newTodo.meta?.pos_recurring_days : undefined } } ) }
+								initialOpen={ newTodo.meta?.pos_recurring_days > 0 }
+								onToggle={ ( open ) => {
+									if ( editedTodo ) {
+										return
+									}
+									setNewTodo( { ...newTodo, meta: { ...newTodo.meta, pos_recurring_days: open ? newTodo.meta?.pos_recurring_days : undefined } } )
+								} }
 							>
 								<PanelRow>
 									<InputControl
@@ -272,8 +294,11 @@ export default function TodoForm( {
 							</PanelBody>
 							<PanelBody
 								title="This TODO depends on"
-								initialOpen={ false }
-								onToggle={ ( open ) =>
+								initialOpen={ newTodo.meta?.pos_blocked_by > 0 }
+								onToggle={ ( open ) => {
+									if( editedTodo ) {
+										return
+									}
 									setNewTodo( {
 										...newTodo,
 										meta: {
@@ -283,13 +308,13 @@ export default function TodoForm( {
 												: undefined,
 										},
 									} )
-								}
+								} }
 							>
 								<PanelRow className="wide">
 									<ComboboxControl
 										label="This TODO is blocked by"
 										value={ newTodo.meta?.pos_blocked_by }
-										options={ todos.map( ( todo ) => ( {
+										options={ todos && notebooks&& todos.map( ( todo ) => ( {
 											label:
 												'#' +
 												todo.id +
@@ -367,33 +392,35 @@ export default function TodoForm( {
 								) }
 							</PanelBody>
 						</Panel>
-					</CardBody>
-					<CardFooter
+					</div>
+					<div
 						style={ {
+							marginTop: '20px',
 							display: 'flex',
 							justifyContent: 'space-between',
 						} }
 					>
 						<Button
 							variant="tertiary"
-							onClick={ () => setNewTodo( emptyTodo ) }
+							onClick={ onSave }
 							icon={ close }
 						/>
 						<Button
 							shortcut={ 'CTRL+ENTER' }
 							variant="primary"
-							isPrimary
-							icon={ check }
-							onClick={ () => {
-								saveEntityRecord( 'postType', 'todo', newTodo );
-								setNewTodo( emptyTodo );
-							} }
-						>
-							Add new TODO
+						isPrimary
+						icon={ check }
+						onClick={ () => {
+							saveEntityRecord( 'postType', 'todo', newTodo );
+							onSave();
+							setNewTodo( emptyTodo );
+						} }
+					>
+							Save
 						</Button>
-					</CardFooter>
+					</div>
 				</>
 			) }
-		</Card>
+		</div>
 	);
 } 
