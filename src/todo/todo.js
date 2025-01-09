@@ -13,6 +13,7 @@ import { __ } from '@wordpress/i18n';
 import { useDispatch } from '@wordpress/data';
 import {
 	useEntityRecords,
+	useEntityRecord,
 	store as coreStore,
 } from '@wordpress/core-data';
 import '../notebooks/style.scss';
@@ -25,7 +26,8 @@ import {
 	scheduled,
 	pending,
 	notAllowed,
-	rotateLeft
+	rotateLeft,
+	wordpress,
 } from '@wordpress/icons';
 import { RawHTML } from '@wordpress/element';
 import TodoForm from '../components/todo-form';
@@ -529,8 +531,24 @@ function TodoAdmin( props ) {
 			{
 				editedTodo && (
 					<Modal
-						title="Edit Todo"
+						title={ 'Edit ' + editedTodo.title.raw }
 						onRequestClose={ () => setEditedTodo( null ) }
+						headerActions={ [
+							// <Button
+							// 	variant="tertiary"
+							// 	onClick={ () => {
+							// 		window.open( `/wp-admin/post.php?post_type=todo&post=${ editedTodo.id }&action=edit`, '_blank' );
+							// 	} }
+							// 	icon={ wordpress }
+							// />,
+							<Button
+								variant="tertiary"
+								onClick={ () => {
+									window.open( `/wp-admin/admin.php?page=pos-todo&edit=${ editedTodo.id }`, '_blank' );
+								} }
+								icon={ external }
+							/>
+						] }
 					>
 						<TodoForm
 							presetNotebooks={ notebookFilters }
@@ -624,7 +642,36 @@ function TodoAdmin( props ) {
 	);
 }
 
+function TodoEdit( props ) {
+	const { record, isLoading } = useEntityRecord( 'postType', 'todo', props.id );
+	if ( isLoading || ! record ) {
+		return <div>Loading...</div>;
+	}
+
+	return (
+		<Card
+			className="pos__todo-form"
+			elevation={ 3 }
+		>
+			<CardBody>
+				<TodoForm
+					presetNotebooks={ [] }
+					possibleFlags={ props.possibleFlags }
+					nowNotebook={ props.nowNotebook }
+					editedTodo={ record }
+					full={ true }
+				/>
+			</CardBody>
+		</Card>
+	);
+}
+
 window.renderTodoAdmin = ( el, props = {} ) => {
 	const root = createRoot( el );
 	root.render( <TodoAdmin { ...props } /> );
+};
+
+window.renderTodoEdit = ( el, props = {} ) => {
+	const root = createRoot( el );
+	root.render( <TodoEdit { ...props } /> );
 };

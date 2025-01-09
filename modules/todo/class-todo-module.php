@@ -128,6 +128,8 @@ class TODO_Module extends POS_Module {
 	}
 
 	public function render_admin_page(): void {
+		$id = isset( $_GET['edit'] ) ? sanitize_text_field( wp_unslash( $_GET['edit'] ) ) : null;
+
 		?>
 		<div class="wrap">
 			<div id="todo-root" class="pos__dataview"></div>
@@ -138,17 +140,22 @@ class TODO_Module extends POS_Module {
 		if ( ! $now ) {
 			$now = $inbox;
 		}
+		$data = array(
+			'defaultNotebook' => $inbox->term_id,
+			'nowNotebook' => $now->term_id,
+			'possibleFlags' => apply_filters( 'pos_notebook_flags', [] ),
+		);
+
 		wp_enqueue_script( 'pos' );
 		wp_enqueue_style( 'pos' );
-		$data = json_encode(
-			array(
-				'defaultNotebook' => $inbox->term_id,
-				'nowNotebook' => $now->term_id,
-				'possibleFlags' => apply_filters( 'pos_notebook_flags', [] ),
-			)
-		);
-		wp_add_inline_script( 'pos', 'wp.domReady( () => { window.renderTodoAdmin( document.getElementById( "todo-root" ), ' . $data . ' ); } );', 'after' );
 
+		if ( $id ) {
+			$data['id'] = $id;
+			wp_add_inline_script( 'pos', 'wp.domReady( () => { window.renderTodoEdit( document.getElementById( "todo-root" ), ' . wp_json_encode( $data ) . ' ); } );', 'after' );
+		} else {
+			wp_add_inline_script( 'pos', 'wp.domReady( () => { window.renderTodoAdmin( document.getElementById( "todo-root" ), ' . wp_json_encode( $data ) . ' ); } );', 'after' );
+
+		}
 	}
 
 	public function save_todo_notes( $post_id, $post, $old_post ) {

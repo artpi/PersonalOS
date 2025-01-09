@@ -48,6 +48,9 @@ export default function TodoForm( {
 	} : emptyTodo );
 
 	useEffect( () => {
+		if ( presetNotebooks.length === 0 ) {
+			return;
+		}
 		setNewTodo( {
 			...newTodo,
 			notebook: presetNotebooks, //newTodo.notebook.concat( presetNotebooks ),
@@ -65,9 +68,6 @@ export default function TodoForm( {
 		status: [ 'publish', 'pending', 'future', 'private' ],
 	} );
 
-	if ( ! onSave ) {
-		onSave = () => setNewTodo( emptyTodo );
-    }
 
 	return (
 		<div
@@ -398,26 +398,41 @@ export default function TodoForm( {
 							marginTop: '20px',
 							display: 'flex',
 							justifyContent: 'space-between',
+							flexDirection: 'row',
 						} }
 					>
-						<Button
-							variant="tertiary"
-							onClick={ onSave }
-							icon={ close }
-						/>
-						<Button
-							shortcut={ 'CTRL+ENTER' }
-							variant="primary"
-						isPrimary
-						icon={ check }
-						onClick={ () => {
-							saveEntityRecord( 'postType', 'todo', newTodo );
-							onSave();
-							setNewTodo( emptyTodo );
-						} }
-					>
+						<div
+							style={ {
+								flex: 1,
+								textAlign: 'left',
+							} }
+						>
+							{ onSave && ( <Button
+								variant="tertiary"
+								onClick={ onSave }
+								icon={ close }
+							/> ) }
+						</div>
+						<div
+							style={ {
+								flex: 1,
+								textAlign: 'right',
+							} }
+						>
+							<Button
+								shortcut={ 'CTRL+ENTER' }
+								variant="primary"
+								isPrimary
+								icon={ check }
+								onClick={ () => {
+									saveEntityRecord( 'postType', 'todo', newTodo );
+									onSave && onSave();
+									setNewTodo( emptyTodo );
+								} }
+							>
 							Save
 						</Button>
+						</div>
 					</div>
 				</>
 			) }
