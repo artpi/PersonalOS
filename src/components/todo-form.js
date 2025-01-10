@@ -29,6 +29,7 @@ export default function TodoForm( {
 	editedTodo = null,
 	full = false,
 	onSave = null,
+	onClose = null,
 } ) {
 	const emptyTodo = {
 		status: 'private',
@@ -46,6 +47,10 @@ export default function TodoForm( {
 		meta: editedTodo?.meta,
 		date: editedTodo?.date,
 	} : emptyTodo );
+
+	if ( ! onClose && ! editedTodo ) {
+		onClose = () => setNewTodo( emptyTodo );
+	}
 
 	useEffect( () => {
 		if ( presetNotebooks.length === 0 ) {
@@ -407,9 +412,9 @@ export default function TodoForm( {
 								textAlign: 'left',
 							} }
 						>
-							{ onSave && ( <Button
+							{ onClose && ( <Button
 								variant="tertiary"
-								onClick={ onSave }
+								onClick={ onClose }
 								icon={ close }
 							/> ) }
 						</div>

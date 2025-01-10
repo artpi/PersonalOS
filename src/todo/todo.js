@@ -526,6 +526,7 @@ function TodoAdmin( props ) {
 			}
 		} );
 	}
+	const onClose = () => setEditedTodo( null );
 	return (
 		<>
 			{
@@ -534,17 +535,10 @@ function TodoAdmin( props ) {
 						title={ 'Edit ' + editedTodo.title.raw }
 						onRequestClose={ () => setEditedTodo( null ) }
 						headerActions={ [
-							// <Button
-							// 	variant="tertiary"
-							// 	onClick={ () => {
-							// 		window.open( `/wp-admin/post.php?post_type=todo&post=${ editedTodo.id }&action=edit`, '_blank' );
-							// 	} }
-							// 	icon={ wordpress }
-							// />,
 							<Button
 								variant="tertiary"
 								onClick={ () => {
-									window.open( `/wp-admin/admin.php?page=pos-todo&edit=${ editedTodo.id }`, '_blank' );
+							 		window.open( `/wp-admin/post.php?post_type=todo&post=${ editedTodo.id }&action=edit`, '_blank' );
 								} }
 								icon={ external }
 							/>
@@ -555,7 +549,8 @@ function TodoAdmin( props ) {
 							possibleFlags={ possibleFlags }
 							nowNotebook={ props.nowNotebook }
 							editedTodo={ editedTodo }
-							onSave={ () => setEditedTodo( null ) }
+							onClose={ onClose }
+							onSave={ onClose }
 							full={ true }
 						/>
 					</Modal>
@@ -660,6 +655,7 @@ function TodoEdit( props ) {
 					nowNotebook={ props.nowNotebook }
 					editedTodo={ record }
 					full={ true }
+					onClose={ () => props.onClose() }
 				/>
 			</CardBody>
 		</Card>
@@ -671,7 +667,16 @@ window.renderTodoAdmin = ( el, props = {} ) => {
 	root.render( <TodoAdmin { ...props } /> );
 };
 
-window.renderTodoEdit = ( el, props = {} ) => {
+window.renderTodoEdit = ( el, props = {}, previousEditor ) => {
 	const root = createRoot( el );
-	root.render( <TodoEdit { ...props } /> );
+	let onClose = null;
+
+	if ( previousEditor ) {
+		onClose = () => {
+			previousEditor.style.display = 'block';
+			el.remove();
+		};
+	}
+	root.render( <TodoEdit { ...props } onClose={ onClose } /> );
+
 };

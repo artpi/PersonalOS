@@ -450,7 +450,7 @@ class Notes_Module extends POS_Module {
 			}
 		);
 		if ( count( $notes ) > 0 ) {
-			echo '<h3><a href="edit.php?notebook=' . $conf['args']->slug . '&post_type=todo">' . esc_html( $conf['args']->name ) . ': TODOs</a></h3>';
+			echo '<h3><a href="admin.php?page=pos-todo#' . $conf['args']->slug . '">' . esc_html( $conf['args']->name ) . ': TODOs</a></h3>';
 			$notes = array_map(
 				function( $note ) use ( $check ) {
 					return "<li><a href='" . esc_url( wp_nonce_url( "post.php?action=trash&amp;post=$note->ID", 'trash-post_' . $note->ID ) ) . "'>{$check}<a style='font-weight:bold;margin: 0 5px 0 0 ' href='" . get_edit_post_link( $note->ID ) . "' aria-label='Edit “{$note->post_title}”'>{$note->post_title}</a></li>";
