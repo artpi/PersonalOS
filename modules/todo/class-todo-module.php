@@ -23,6 +23,7 @@ class TODO_Module extends POS_Module {
 		add_action( 'pos_todo_scheduled', array( $this, 'pos_todo_scheduled' ), 10, 1 );
 		add_action( 'post_updated', array( $this, 'save_todo_notes' ), 10, 3 );
 		add_action( 'set_object_terms', array( $this, 'save_todo_notes_terms' ), 10, 6 );
+		add_action( 'load-post.php', array( $this, 'load_todo_edit_page' ) );
 
 		register_meta(
 			'post',
@@ -123,11 +124,43 @@ class TODO_Module extends POS_Module {
 		);
 	}
 
+	public function load_todo_edit_page() {
+		global $typenow;
+
+		if ( $typenow === $this->id ) {
+			$inbox = get_term_by( 'slug', 'inbox', 'notebook' );
+			$now = get_term_by( 'slug', 'now', 'notebook' );
+			if ( ! $now ) {
+				$now = $inbox;
+			}
+			$data = array(
+				'defaultNotebook' => $inbox->term_id,
+				'nowNotebook' => $now->term_id,
+				'possibleFlags' => apply_filters( 'pos_notebook_flags', [] ),
+				'id' => sanitize_text_field( wp_unslash( $_GET['post'] ) ),
+			);
+			wp_add_inline_script( 'pos', 'wp.domReady( () => {
+				const currentEditor = document.querySelector("#wpbody-content");
+				currentEditor.style.display = "none";
+				const todoRoot = document.createElement("div");
+				todoRoot.id = "todo-root";
+				todoRoot.classList.add( "pos__todo-edit" );
+				document.querySelector( "#wpbody" ).appendChild( todoRoot );
+				window.renderTodoEdit( todoRoot, ' . wp_json_encode( $data ) . ', currentEditor );
+			} );', 'after' );
+
+			wp_enqueue_script( 'pos' );
+			wp_enqueue_style( 'pos' );
+		}
+	}
+
 	public function add_admin_menu(): void {
 		add_submenu_page( 'personalos', 'TODO', 'TODO', 'read', 'pos-todo', array( $this, 'render_admin_page' ) );
 	}
 
 	public function render_admin_page(): void {
+		$id = isset( $_GET['edit'] ) ? sanitize_text_field( wp_unslash( $_GET['edit'] ) ) : null;
+
 		?>
 		<div class="wrap">
 			<div id="todo-root" class="pos__dataview"></div>
@@ -138,17 +171,22 @@ class TODO_Module extends POS_Module {
 		if ( ! $now ) {
 			$now = $inbox;
 		}
+		$data = array(
+			'defaultNotebook' => $inbox->term_id,
+			'nowNotebook' => $now->term_id,
+			'possibleFlags' => apply_filters( 'pos_notebook_flags', [] ),
+		);
+
 		wp_enqueue_script( 'pos' );
 		wp_enqueue_style( 'pos' );
-		$data = json_encode(
-			array(
-				'defaultNotebook' => $inbox->term_id,
-				'nowNotebook' => $now->term_id,
-				'possibleFlags' => apply_filters( 'pos_notebook_flags', [] ),
-			)
-		);
-		wp_add_inline_script( 'pos', 'wp.domReady( () => { window.renderTodoAdmin( document.getElementById( "todo-root" ), ' . $data . ' ); } );', 'after' );
 
+		if ( $id ) {
+			$data['id'] = $id;
+			wp_add_inline_script( 'pos', 'wp.domReady( () => { window.renderTodoEdit( document.getElementById( "todo-root" ), ' . wp_json_encode( $data ) . ' ); } );', 'after' );
+		} else {
+			wp_add_inline_script( 'pos', 'wp.domReady( () => { window.renderTodoAdmin( document.getElementById( "todo-root" ), ' . wp_json_encode( $data ) . ' ); } );', 'after' );
+
+		}
 	}
 
 	public function save_todo_notes( $post_id, $post, $old_post ) {

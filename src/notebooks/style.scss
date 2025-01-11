@@ -45,6 +45,9 @@
 	width: 24px;
 	height: 24px;
 }
+.pos__todo-form {
+	margin-bottom: 10px;
+}
 
 .pos__todo-form .components-datetime__date, .pos__todo-form .components-base-control {
 	width: 100%;
@@ -61,4 +64,9 @@
 .pos__todo-form-recurring input {
 	flex-basis: 60%;
 	text-align: center;
+}
+.pos__todo-edit {
+	background: #f0f0f0;
+	padding-top: 20px;
+	padding-right: 20px;
 }

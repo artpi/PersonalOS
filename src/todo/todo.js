@@ -1,54 +1,37 @@
 import {
 	Icon,
 	__experimentalHStack as HStack,
-	__experimentalVStack as VStack,
 	Button,
 	Card,
 	CardBody,
-	CardFooter,
-	__experimentalInputControl as InputControl,
-	TextareaControl,
-	PanelBody,
-	Panel,
-	PanelRow,
-	DatePicker,
-	CheckboxControl,
-	TabPanel,
-	__experimentalToggleGroupControl as ToggleGroupControl,
-	__experimentalToggleGroupControlOption as ToggleGroupControlOption,
 	DropdownMenu,
-	ComboboxControl,
-	Tooltip,
-	__experimentalInputControlPrefixWrapper as InputControlPrefixWrapper,
+	Modal,
 } from '@wordpress/components';
-//import domReady from '@wordpress/dom-ready';
 import { useState, useMemo, createRoot, useEffect } from '@wordpress/element';
-// Per https://github.com/WordPress/gutenberg/tree/trunk/packages/dataviews :
-// Important note If you're trying to use the DataViews component in a WordPress plugin or theme and you're building your scripts using the @wordpress/scripts package, you need to import the components from @wordpress/dataviews/wp instead of @wordpress/dataviews.
 import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews/wp';
 import { __ } from '@wordpress/i18n';
 import { useDispatch } from '@wordpress/data';
 import {
 	useEntityRecords,
-	store as coreStore,
 	useEntityRecord,
+	store as coreStore,
 } from '@wordpress/core-data';
 import '../notebooks/style.scss';
 import {
-	calendar,
 	swatch,
 	check,
-	close,
 	edit,
 	external,
 	starFilled,
-	replace,
 	scheduled,
 	pending,
 	notAllowed,
-	rotateLeft
+	rotateLeft,
+	wordpress,
 } from '@wordpress/icons';
 import { RawHTML } from '@wordpress/element';
+import TodoForm from '../components/todo-form';
+import { getNotebook } from '../utils/notebook';
 
 const defaultView = {
 	type: 'list',
@@ -66,450 +49,6 @@ const defaultView = {
 	},
 };
 
-function getNotebook( id, notebooks ) {
-	return notebooks.find(
-		( notebook ) => notebook.id == id || notebook.slug == id
-	);
-}
-
-function NotebookSelectorTabPanel( {
-	notebooks,
-	chosenNotebooks,
-	setNotebook,
-	possibleFlags,
-} ) {
-	return (
-		<TabPanel
-			children={ ( selectedTab ) => {
-				return (
-					<div
-						style={ {
-							maxHeight: '200px',
-							overflowY: 'auto',
-							padding: '20px',
-						} }
-					>
-						<VStack>
-							{ notebooks
-								?.filter(
-									( notebook ) =>
-										selectedTab.name === 'all' ||
-										notebook?.meta?.flag?.includes(
-											selectedTab.name
-										)
-								)
-								?.map( ( notebook ) => (
-									<CheckboxControl
-										key={ notebook.id }
-										__nextHasNoMarginBottom
-										label={ notebook.name }
-										checked={
-											chosenNotebooks.includes(
-												notebook.id
-											) ||
-											chosenNotebooks.includes(
-												notebook.slug
-											)
-										}
-										onChange={ ( value ) =>
-											setNotebook( notebook, value )
-										}
-									/>
-								) ) }
-						</VStack>
-					</div>
-				);
-			} }
-			tabs={ [
-				...possibleFlags.map( ( flag ) => ( {
-					name: flag.id,
-					title: flag.name,
-				} ) ),
-				{
-					name: 'all',
-					title: 'All Notebooks',
-				},
-			] }
-		/>
-	);
-}
-
-function TodoForm( {
-	presetNotebooks = [],
-	possibleFlags = [],
-	nowNotebook = null,
-} ) {
-	const emptyTodo = {
-		status: 'private',
-		title: '',
-		excerpt: '',
-		notebook: presetNotebooks,
-		meta: {},
-	};
-
-	const [ newTodo, setNewTodo ] = useState( emptyTodo );
-
-	useEffect( () => {
-		setNewTodo( {
-			...newTodo,
-			notebook: presetNotebooks, //newTodo.notebook.concat( presetNotebooks ),
-		} );
-	}, [ presetNotebooks ] );
-
-	const { saveEntityRecord } = useDispatch( coreStore );
-	const { records: notebooks } = useEntityRecords( 'taxonomy', 'notebook', {
-		per_page: -1,
-		hide_empty: false,
-	} );
-	const { records: todos } = useEntityRecords( 'postType', 'todo', {
-		per_page: -1,
-		context: 'edit',
-		status: [ 'publish', 'pending', 'future', 'private' ],
-	} );
-
-	return (
-		<Card
-			style={ {
-				marginBottom: '10px',
-			} }
-			elevation={ newTodo.title.length > 0 ? 3 : 1 }
-			className="pos__todo-form"
-		>
-			<CardBody>
-				<InputControl
-					// __next40pxDefaultSize = { true }
-					onChange={ ( value ) =>
-						setNewTodo( { ...newTodo, title: value } )
-					}
-					label={ newTodo.title.length > 0 ? 'New TODO' : null }
-					onValidate={ () => true }
-					value={ newTodo.title }
-					placeholder={
-						'New TODO in ' +
-						( notebooks
-							? notebooks
-									.filter( ( notebook ) =>
-										presetNotebooks.includes( notebook.id )
-									)
-									.map( ( notebook ) => notebook.name )
-									.join( ', ' )
-							: 'Inbox' )
-					}
-				/>
-			</CardBody>
-			{ newTodo.title.length > 0 && (
-				<>
-					<CardBody>
-						<TextareaControl
-							label="Notes"
-							onChange={ ( value ) =>
-								setNewTodo( { ...newTodo, excerpt: value } )
-							}
-							placeholder="Placeholder"
-							value={ newTodo.excerpt }
-						/>
-						<InputControl
-							__nextHasNoMarginBottom
-							onChange={ ( value ) =>
-								setNewTodo( {
-									...newTodo,
-									meta: { ...newTodo.meta, url: value },
-								} )
-							}
-							label={ 'Action URL' }
-							onValidate={ () => true }
-							value={ newTodo.meta?.url }
-							help={
-								'A URL associated with the task. For example tel://500500500 or http://website-of-thing-to-buy'
-							}
-							placeholder={ 'https://...' }
-						/>
-					</CardBody>
-					<CardBody>
-						<NotebookSelectorTabPanel
-							possibleFlags={ possibleFlags }
-							notebooks={ notebooks }
-							chosenNotebooks={ newTodo.notebook }
-							setNotebook={ ( notebook, value ) => {
-								if ( value ) {
-									setNewTodo( {
-										...newTodo,
-										notebook: [
-											...newTodo.notebook,
-											notebook.id,
-										],
-									} );
-								} else {
-									setNewTodo( {
-										...newTodo,
-										notebook: newTodo.notebook.filter(
-											( id ) => id !== notebook.id
-										),
-									} );
-								}
-							} }
-						/>
-					</CardBody>
-					<CardBody>
-						<Panel>
-							<PanelBody
-								title="Schedule task"
-								initialOpen={ false }
-								onToggle={ ( open ) =>
-									setNewTodo( {
-										...newTodo,
-										date: open ? newTodo.date : undefined,
-									} )
-								}
-							>
-								<PanelRow>
-									<DatePicker
-										label="Show on"
-										currentDate={
-											newTodo.date
-												? new Date( newTodo.date )
-												: new Date()
-										}
-										onChange={ ( value ) => {
-											const newData = {
-												...newTodo,
-												date: value,
-											};
-											if (
-												! newData?.meta
-													?.pos_blocked_pending_term
-											) {
-												newData.meta.pos_blocked_pending_term =
-													getNotebook(
-														nowNotebook,
-														notebooks
-													)?.slug;
-											}
-											setNewTodo( newData );
-										} }
-									/>
-								</PanelRow>
-								{ newTodo.date && (
-									<>
-										<PanelRow className="wide">
-											<h4>{ `On ${ new Date(
-												newTodo.date
-											).toLocaleDateString() } move to:` }</h4>
-										</PanelRow>
-										<PanelRow className="wide">
-											<NotebookSelectorTabPanel
-												notebooks={ notebooks }
-												possibleFlags={ possibleFlags }
-												chosenNotebooks={ [
-													newTodo.meta
-														.pos_blocked_pending_term,
-												] }
-												setNotebook={ (
-													notebook,
-													value
-												) => {
-													setNewTodo( {
-														...newTodo,
-														meta: {
-															...newTodo.meta,
-															pos_blocked_pending_term:
-																value
-																	? notebook.slug
-																	: undefined,
-														},
-													} );
-												} }
-											/>
-										</PanelRow>
-									</>
-								) }
-							</PanelBody>
-							<PanelBody
-								title="Recurring"
-								initialOpen={ false }
-								onToggle={ ( open ) => setNewTodo( { ...newTodo, meta: { ...newTodo.meta, pos_recurring_days: open ? newTodo.meta?.pos_recurring_days : undefined } } ) }
-							>
-								<PanelRow>
-									<InputControl
-										className="pos__todo-form-recurring"
-										__next40pxDefaultSize = { true }
-										type="number"
-										onChange={ ( value ) =>
-											setNewTodo( { ...newTodo, meta: {
-												...newTodo.meta,
-												pos_recurring_days: value,
-												pos_blocked_pending_term: newTodo.meta?.pos_blocked_pending_term || getNotebook( nowNotebook, notebooks )?.slug,
-											} } )
-										}
-										prefix={ <InputControlPrefixWrapper>schedule</InputControlPrefixWrapper> }
-										suffix={ <InputControlPrefixWrapper>days after completion</InputControlPrefixWrapper> }
-										label={ 'After completion, duplicate this task and' }
-										onValidate={ () => true }
-										help={ 'When you complete this task, it will be duplicated and scheduled x days from completion time.' }
-										value={ newTodo.meta?.pos_recurring_days || 0 }
-									/>
-								</PanelRow>
-								{ newTodo.meta?.pos_recurring_days && (
-									<>
-										<PanelRow className="wide">
-											<h4>{ `${ newTodo.meta?.pos_recurring_days } days after completion, move to:` }</h4>
-										</PanelRow>
-										<PanelRow className="wide">
-											<NotebookSelectorTabPanel
-												notebooks={ notebooks }
-												possibleFlags={ possibleFlags }
-												chosenNotebooks={ [
-													newTodo.meta
-														.pos_blocked_pending_term,
-												] }
-												setNotebook={ (
-													notebook,
-													value
-												) => {
-													setNewTodo( {
-														...newTodo,
-														meta: {
-															...newTodo.meta,
-															pos_blocked_pending_term:
-																value
-																	? notebook.slug
-																	: undefined,
-														},
-													} );
-												} }
-											/>
-										</PanelRow>
-									</>
-								) }
-							</PanelBody>
-							<PanelBody
-								title="This TODO depends on"
-								initialOpen={ false }
-								onToggle={ ( open ) =>
-									setNewTodo( {
-										...newTodo,
-										meta: {
-											...newTodo.meta,
-											pos_blocked_by: open
-												? newTodo.meta?.pos_blocked_by
-												: undefined,
-										},
-									} )
-								}
-							>
-								<PanelRow className="wide">
-									<ComboboxControl
-										label="This TODO is blocked by"
-										value={ newTodo.meta?.pos_blocked_by }
-										options={ todos.map( ( todo ) => ( {
-											label:
-												'#' +
-												todo.id +
-												' ' +
-												todo.title.raw +
-												' (' +
-												todo.notebook
-													.map(
-														( n ) =>
-															getNotebook(
-																n,
-																notebooks
-															)?.name
-													)
-													.join( ', ' ) +
-												')',
-											value: todo.id,
-										} ) ) }
-										help={
-											'Chose a TODO that is blocking the current one.'
-										}
-										onChange={ ( value ) => {
-											const newData = {
-												...newTodo,
-												meta: {
-													...newTodo.meta,
-													pos_blocked_by: value,
-												},
-											};
-											if (
-												! newData?.meta
-													?.pos_blocked_pending_term
-											) {
-												newData.meta.pos_blocked_pending_term =
-													getNotebook(
-														nowNotebook,
-														notebooks
-													)?.slug;
-											}
-											setNewTodo( newData );
-										} }
-									/>
-								</PanelRow>
-								{ newTodo.meta?.pos_blocked_by && (
-									<>
-										<PanelRow className="wide">
-											<h4>After unblocking, move to:</h4>
-										</PanelRow>
-										<PanelRow className="wide">
-											<NotebookSelectorTabPanel
-												notebooks={ notebooks }
-												possibleFlags={ possibleFlags }
-												chosenNotebooks={ [
-													newTodo.meta
-														?.pos_blocked_pending_term,
-												] }
-												setNotebook={ (
-													notebook,
-													value
-												) => {
-													setNewTodo( {
-														...newTodo,
-														meta: {
-															...newTodo.meta,
-															pos_blocked_pending_term:
-																value
-																	? notebook.slug
-																	: undefined,
-														},
-													} );
-												} }
-											/>
-										</PanelRow>
-									</>
-								) }
-							</PanelBody>
-						</Panel>
-					</CardBody>
-					<CardFooter
-						style={ {
-							display: 'flex',
-							justifyContent: 'space-between',
-						} }
-					>
-						<Button
-							variant="tertiary"
-							onClick={ () => setNewTodo( emptyTodo ) }
-							icon={ close }
-						/>
-						<Button
-							shortcut={ 'CTRL+ENTER' }
-							variant="primary"
-							isPrimary
-							icon={ check }
-							onClick={ () => {
-								saveEntityRecord( 'postType', 'todo', newTodo );
-								setNewTodo( emptyTodo );
-							} }
-						>
-							Add new TODO
-						</Button>
-					</CardFooter>
-				</>
-			) }
-		</Card>
-	);
-}
-
 function TodoAdmin( props ) {
 	let viewConfig = defaultView;
 	const possibleFlags = props.possibleFlags;
@@ -519,6 +58,7 @@ function TodoAdmin( props ) {
 	}
 
 	const [ view, setView ] = useState( viewConfig );
+	const [ editedTodo, setEditedTodo ] = useState( null );
 	const { deleteEntityRecord, saveEntityRecord } = useDispatch( coreStore );
 
 	const { records: notebooks, isLoading: notebooksLoading } =
@@ -953,10 +493,7 @@ function TodoAdmin( props ) {
 			isEligible: () => true,
 			callback: async ( items ) => {
 				if ( items.length === 1 ) {
-					window.open(
-						`/wp-admin/post.php?post=${ items[ 0 ].id }&action=edit`,
-						'_blank'
-					);
+					setEditedTodo( items[ 0 ] );
 				}
 			},
 		},
@@ -989,13 +526,50 @@ function TodoAdmin( props ) {
 			}
 		} );
 	}
+	const onClose = () => setEditedTodo( null );
 	return (
 		<>
-			<TodoForm
-				presetNotebooks={ notebookFilters }
-				possibleFlags={ possibleFlags }
-				nowNotebook={ props.nowNotebook }
-			/>
+			{
+				editedTodo && (
+					<Modal
+						title={ 'Edit ' + editedTodo.title.raw }
+						onRequestClose={ () => setEditedTodo( null ) }
+						headerActions={ [
+							<Button
+								variant="tertiary"
+								onClick={ () => {
+							 		window.open( `/wp-admin/post.php?post_type=todo&post=${ editedTodo.id }&action=edit`, '_blank' );
+								} }
+								icon={ external }
+							/>
+						] }
+					>
+						<TodoForm
+							presetNotebooks={ notebookFilters }
+							possibleFlags={ possibleFlags }
+							nowNotebook={ props.nowNotebook }
+							editedTodo={ editedTodo }
+							onClose={ onClose }
+							onSave={ onClose }
+							full={ true }
+						/>
+					</Modal>
+				)
+			}
+			<Card
+				className="pos__todo-form"
+				elevation={ 3 }
+			>
+				<CardBody>
+					<TodoForm
+						presetNotebooks={ notebookFilters }
+						possibleFlags={ possibleFlags }
+						nowNotebook={ props.nowNotebook }
+						editedTodo={ null }
+						full={ false }
+					/>
+				</CardBody>
+			</Card>
 			<Card elevation={ 1 }>
 				<CardBody>
 					<DataViews
@@ -1063,7 +637,46 @@ function TodoAdmin( props ) {
 	);
 }
 
+function TodoEdit( props ) {
+	const { record, isLoading } = useEntityRecord( 'postType', 'todo', props.id );
+	if ( isLoading || ! record ) {
+		return <div>Loading...</div>;
+	}
+
+	return (
+		<Card
+			className="pos__todo-form"
+			elevation={ 3 }
+		>
+			<CardBody>
+				<TodoForm
+					presetNotebooks={ [] }
+					possibleFlags={ props.possibleFlags }
+					nowNotebook={ props.nowNotebook }
+					editedTodo={ record }
+					full={ true }
+					onClose={ () => props.onClose() }
+				/>
+			</CardBody>
+		</Card>
+	);
+}
+
 window.renderTodoAdmin = ( el, props = {} ) => {
 	const root = createRoot( el );
 	root.render( <TodoAdmin { ...props } /> );
+};
+
+window.renderTodoEdit = ( el, props = {}, previousEditor ) => {
+	const root = createRoot( el );
+	let onClose = null;
+
+	if ( previousEditor ) {
+		onClose = () => {
+			previousEditor.style.display = 'block';
+			el.remove();
+		};
+	}
+	root.render( <TodoEdit { ...props } onClose={ onClose } /> );
+
 };
