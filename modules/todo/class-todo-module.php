@@ -7,12 +7,13 @@ class TODO_Module extends POS_Module {
 	public function register() {
 		$this->register_post_type(
 			array(
-				'supports'   => array( 'title', 'excerpt', 'custom-fields', 'comments'/*, 'page-attributes' */),
-				'taxonomies' => array( 'notebook' ),
+				'supports'     => array( 'title', 'excerpt', 'custom-fields', 'comments'/*, 'page-attributes' */ ),
+				'taxonomies'   => array( 'notebook' ),
 				'show_in_menu' => false,
 				// 'hierarchical' => true,
 			)
 		);
+
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
 
 		add_filter( 'manage_notebook_custom_column', array( $this, 'notebook_taxonomy_column' ), 10, 3 );
@@ -29,9 +30,9 @@ class TODO_Module extends POS_Module {
 			'post',
 			'reminders_id',
 			array(
-				'type'         => 'string',
-				'single'       => true,
-				'show_in_rest' => true,
+				'type'           => 'string',
+				'single'         => true,
+				'show_in_rest'   => true,
 				'object_subtype' => $this->id,
 			)
 		);
@@ -40,9 +41,9 @@ class TODO_Module extends POS_Module {
 			'post',
 			'pos_blocked_pending_term',
 			array(
-				'type'         => 'string',
-				'single'       => true,
-				'show_in_rest' => true,
+				'type'           => 'string',
+				'single'         => true,
+				'show_in_rest'   => true,
 				'object_subtype' => $this->id,
 			)
 		);
@@ -51,9 +52,9 @@ class TODO_Module extends POS_Module {
 			'post',
 			'pos_blocked_by',
 			array(
-				'type'         => 'integer',
-				'single'       => true,
-				'show_in_rest' => true,
+				'type'           => 'integer',
+				'single'         => true,
+				'show_in_rest'   => true,
 				'object_subtype' => $this->id,
 			)
 		);
@@ -62,9 +63,9 @@ class TODO_Module extends POS_Module {
 			'post',
 			'pos_recurring_days',
 			array(
-				'type'         => 'integer',
-				'single'       => true,
-				'show_in_rest' => true,
+				'type'           => 'integer',
+				'single'         => true,
+				'show_in_rest'   => true,
 				'object_subtype' => $this->id,
 			)
 		);
@@ -83,7 +84,7 @@ class TODO_Module extends POS_Module {
 			'todo',
 			'blocking',
 			array(
-				'get_callback'    => function( $todo ) {
+				'get_callback' => function( $todo ) {
 					$blocked_todos = get_posts(
 						array(
 							'post_type'      => 'todo',
@@ -100,10 +101,13 @@ class TODO_Module extends POS_Module {
 					);
 					return $blocked_todos;
 				},
-				'schema'          => array(
+				'schema'       => array(
 					'description' => __( 'TODOs that are blocked by this TODO.' ),
 					'type'        => 'array',
 					'context'     => array( 'view', 'edit' ),
+					'items'       => array(
+						'type' => 'integer',
+					),
 				),
 			)
 		);
@@ -112,10 +116,10 @@ class TODO_Module extends POS_Module {
 			'todo',
 			'scheduled',
 			array(
-				'get_callback'    => function( $todo ) {
+				'get_callback' => function( $todo ) {
 					return wp_next_scheduled( 'pos_todo_scheduled', array( $todo['id'] ) );
 				},
-				'schema'          => array(
+				'schema'       => array(
 					'description' => __( 'Scheduled time for this TODO.' ),
 					'type'        => 'integer',
 					'context'     => array( 'view', 'edit' ),
@@ -135,11 +139,13 @@ class TODO_Module extends POS_Module {
 			}
 			$data = array(
 				'defaultNotebook' => $inbox->term_id,
-				'nowNotebook' => $now->term_id,
-				'possibleFlags' => apply_filters( 'pos_notebook_flags', [] ),
-				'id' => sanitize_text_field( wp_unslash( $_GET['post'] ) ),
+				'nowNotebook'     => $now->term_id,
+				'possibleFlags'   => apply_filters( 'pos_notebook_flags', array() ),
+				'id'              => sanitize_text_field( wp_unslash( $_GET['post'] ) ),
 			);
-			wp_add_inline_script( 'pos', 'wp.domReady( () => {
+			wp_add_inline_script(
+				'pos',
+				'wp.domReady( () => {
 				const currentEditor = document.querySelector("#wpbody-content");
 				currentEditor.style.display = "none";
 				const todoRoot = document.createElement("div");
@@ -147,7 +153,9 @@ class TODO_Module extends POS_Module {
 				todoRoot.classList.add( "pos__todo-edit" );
 				document.querySelector( "#wpbody" ).appendChild( todoRoot );
 				window.renderTodoEdit( todoRoot, ' . wp_json_encode( $data ) . ', currentEditor );
-			} );', 'after' );
+			} );',
+				'after'
+			);
 
 			wp_enqueue_script( 'pos' );
 			wp_enqueue_style( 'pos' );
@@ -173,8 +181,8 @@ class TODO_Module extends POS_Module {
 		}
 		$data = array(
 			'defaultNotebook' => $inbox->term_id,
-			'nowNotebook' => $now->term_id,
-			'possibleFlags' => apply_filters( 'pos_notebook_flags', [] ),
+			'nowNotebook'     => $now->term_id,
+			'possibleFlags'   => apply_filters( 'pos_notebook_flags', array() ),
 		);
 
 		wp_enqueue_script( 'pos' );
@@ -440,18 +448,18 @@ class TODO_Module extends POS_Module {
 		$current_notebooks = wp_get_object_terms( $post->ID, 'notebook', array( 'fields' => 'ids' ) );
 		$current_notebooks_minus_pending = array_diff( $current_notebooks, array( get_term_by( 'slug', $blocked_pending_term, 'notebook' )->term_id ) );
 
-		$new_post_defaults = [
-			'post_title' => $post->post_title,
+		$new_post_defaults = array(
+			'post_title'   => $post->post_title,
 			'post_excerpt' => $post->post_excerpt,
-			'post_date' => $post->post_date,
-			'post_status' => 'private',
-			'post_type' => $post->post_type,
-			'meta_input' => $meta,
+			'post_date'    => $post->post_date,
+			'post_status'  => 'private',
+			'post_type'    => $post->post_type,
+			'meta_input'   => $meta,
 			//'post_parent' => $post->ID,
-			'tax_input' => array(
+			'tax_input'    => array(
 				'notebook' => $current_notebooks_minus_pending,
 			),
-		];
+		);
 
 		$new_post_data = wp_parse_args( $changes, $new_post_defaults );
 		$new_post = wp_insert_post( $new_post_data );
@@ -476,10 +484,13 @@ class TODO_Module extends POS_Module {
 
 		$recurring_days = get_post_meta( $post_id, 'pos_recurring_days', true );
 		if ( $recurring_days && $recurring_days > 0 ) {
-			$this->duplicate_todo( $post, [
-				'post_date' => gmdate( 'Y-m-d H:i:s', strtotime( '+ ' . $recurring_days . ' days' ) ),
-				'post_status' => $previous_status,
-			] );
+			$this->duplicate_todo(
+				$post,
+				array(
+					'post_date'   => gmdate( 'Y-m-d H:i:s', strtotime( '+ ' . $recurring_days . ' days' ) ),
+					'post_status' => $previous_status,
+				)
+			);
 		}
 
 		// get todos blocked by this todo
