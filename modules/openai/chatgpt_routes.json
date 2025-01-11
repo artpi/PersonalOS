@@ -6,15 +6,15 @@
 	},
 	"servers": [
 	  {
-		"url": "https://a492-94-172-23-89.ngrok-free.app/index.php?rest_route=/"
+		"url": "https://a492-94-172-23-89.ngrok-free.app/index.php?rest_route="
 	  }
 	],
 	"paths": {
 	  "/pos/v1/todo": {
 		"get": {
 		  "operationId": "todo_get_items",
-		  "summary": "",
-		  "description": "",
+		  "summary": "Lists TODO items",
+		  "description": "Lists TODO items",
 		  "parameters": [
 			{
 			  "name": "context",
@@ -23,13 +23,11 @@
 			  "schema": {
 				"type": "string",
 				"enum": [
-				  "view",
-				  "embed",
 				  "edit"
 				],
-				"default": "view"
+				"default": "edit"
 			  },
-			  "description": "Scope under which the request is made; determines fields present in response."
+			  "description": "Scope under which the request is made; determines fields present in response. Always use edit."
 			},
 			{
 			  "name": "page",
@@ -121,18 +119,6 @@
 				"default": []
 			  },
 			  "description": "Limit result set to specific IDs."
-			},
-			{
-			  "name": "search_semantics",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "exact"
-				]
-			  },
-			  "description": "How to interpret the search input."
 			},
 			{
 			  "name": "offset",
@@ -234,10 +220,10 @@
 				  ]
 				},
 				"default": [
-				  "publish"
+				  "private"
 				]
 			  },
-			  "description": "Limit result set to posts assigned one or more statuses."
+			  "description": "Limit result set to posts assigned one or more statuses. Valid todos are either private or publish."
 			},
 			{
 			  "name": "tax_relation",
@@ -257,7 +243,10 @@
 			  "in": "query",
 			  "required": false,
 			  "schema": {
-				"type": "object"
+				"type": "array",
+				"items": {
+					"type": "integer"
+				}
 			  },
 			  "description": "Limit result set to items with specific terms assigned in the notebook taxonomy."
 			},
@@ -266,7 +255,10 @@
 			  "in": "query",
 			  "required": false,
 			  "schema": {
-				"type": "object"
+				"type": "array",
+				"items": {
+					"type": "integer"
+				}
 			  },
 			  "description": "Limit result set to items except those with specific terms assigned in the notebook taxonomy."
 			}
@@ -282,157 +274,8 @@
 		},
 		"post": {
 		  "operationId": "todo_create_item",
-		  "summary": "",
-		  "description": "",
-		  "parameters": [
-			{
-			  "name": "date",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The date the post was published, in the site's timezone."
-			},
-			{
-			  "name": "date_gmt",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The date the post was published, as GMT."
-			},
-			{
-			  "name": "slug",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "An alphanumeric identifier for the post unique to its type."
-			},
-			{
-			  "name": "status",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "publish",
-				  "future",
-				  "draft",
-				  "pending",
-				  "private"
-				]
-			  },
-			  "description": "A named status for the post."
-			},
-			{
-			  "name": "password",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "A password to protect access to the content and excerpt."
-			},
-			{
-			  "name": "title",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The title for the post."
-			},
-			{
-			  "name": "excerpt",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The excerpt for the post."
-			},
-			{
-			  "name": "comment_status",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "open",
-				  "closed"
-				]
-			  },
-			  "description": "Whether or not comments are open on the post."
-			},
-			{
-			  "name": "ping_status",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "open",
-				  "closed"
-				]
-			  },
-			  "description": "Whether or not the post can be pinged."
-			},
-			{
-			  "name": "meta",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "Meta fields."
-			},
-			{
-			  "name": "template",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The theme file to use to display the post."
-			},
-			{
-			  "name": "notebook",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				}
-			  },
-			  "description": "The terms assigned to the post in the notebook taxonomy."
-			},
-			{
-			  "name": "blocking",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				}
-			  },
-			  "description": "TODOs that are blocked by this TODO."
-			},
-			{
-			  "name": "scheduled",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Scheduled time for this TODO."
-			}
-		  ],
+		  "summary": "Creates a TODO item",
+		  "description": "Creates a TODO item",
 		  "responses": {
 			"200": {
 			  "description": "Successful response"
@@ -450,62 +293,34 @@
 				  "properties": {
 					"date": {
 					  "type": "string",
-					  "description": "The date the post was published, in the site's timezone."
-					},
-					"date_gmt": {
-					  "type": "string",
-					  "description": "The date the post was published, as GMT."
-					},
-					"slug": {
-					  "type": "string",
-					  "description": "An alphanumeric identifier for the post unique to its type."
+					  "description": "The date the TODO was/should be created. Use when scheduling a todo in the futue. It will appear in the active list on that future date. This is NOT a due date, but more of a date when you shouuld start looking into this todo."
 					},
 					"status": {
 					  "type": "string",
 					  "enum": [
 						"publish",
-						"future",
-						"draft",
-						"pending",
 						"private"
 					  ],
-					  "description": "A named status for the post."
-					},
-					"password": {
-					  "type": "string",
-					  "description": "A password to protect access to the content and excerpt."
+					  "description": "A named status for the post. Use private unless you want to explicitly have this todo visible for other users."
 					},
 					"title": {
-					  "type": "object",
-					  "description": "The title for the post."
+					  "type": "string",
+					  "description": "The title for the todo."
 					},
 					"excerpt": {
-					  "type": "object",
-					  "description": "The excerpt for the post."
-					},
-					"comment_status": {
 					  "type": "string",
-					  "enum": [
-						"open",
-						"closed"
-					  ],
-					  "description": "Whether or not comments are open on the post."
-					},
-					"ping_status": {
-					  "type": "string",
-					  "enum": [
-						"open",
-						"closed"
-					  ],
-					  "description": "Whether or not the post can be pinged."
+					  "description": "Detailed description and notes."
 					},
 					"meta": {
 					  "type": "object",
-					  "description": "Meta fields."
-					},
-					"template": {
-					  "type": "string",
-					  "description": "The theme file to use to display the post."
+					  "description": "Meta fields.",
+					  "properties": {
+						"pos_blocked_by": {
+						  "type": "string",
+						  "description": "A comma separated list of todo ids that this todo is blocked by."
+						}
+					  },
+					  "required": ["pos_blocked_by"]
 					},
 					"notebook": {
 					  "type": "array",
@@ -513,17 +328,6 @@
 						"type": "integer"
 					  },
 					  "description": "The terms assigned to the post in the notebook taxonomy."
-					},
-					"blocking": {
-					  "type": "array",
-					  "items": {
-						"type": "integer"
-					  },
-					  "description": "TODOs that are blocked by this TODO."
-					},
-					"scheduled": {
-					  "type": "integer",
-					  "description": "Scheduled time for this TODO."
 					}
 				  }
 				}
@@ -535,60 +339,8 @@
 	  "/pos/v1/todo/{id}": {
 		"get": {
 		  "operationId": "todo_get_item",
-		  "summary": "",
-		  "description": "",
-		  "parameters": [
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "id",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Unique identifier for the post."
-			},
-			{
-			  "name": "context",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "view",
-				  "embed",
-				  "edit"
-				],
-				"default": "view"
-			  },
-			  "description": "Scope under which the request is made; determines fields present in response."
-			},
-			{
-			  "name": "excerpt_length",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Override the default excerpt length."
-			},
-			{
-			  "name": "password",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The password for the post if it is password protected."
-			}
-		  ],
+		  "summary": "Gets a TODO item",
+		  "description": "Gets a TODO item",
 		  "responses": {
 			"200": {
 			  "description": "Successful response"
@@ -602,172 +354,6 @@
 		  "operationId": "todo_update_item",
 		  "summary": "",
 		  "description": "",
-		  "parameters": [
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "id",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Unique identifier for the post."
-			},
-			{
-			  "name": "date",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The date the post was published, in the site's timezone."
-			},
-			{
-			  "name": "date_gmt",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The date the post was published, as GMT."
-			},
-			{
-			  "name": "slug",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "An alphanumeric identifier for the post unique to its type."
-			},
-			{
-			  "name": "status",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "publish",
-				  "future",
-				  "draft",
-				  "pending",
-				  "private"
-				]
-			  },
-			  "description": "A named status for the post."
-			},
-			{
-			  "name": "password",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "A password to protect access to the content and excerpt."
-			},
-			{
-			  "name": "title",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The title for the post."
-			},
-			{
-			  "name": "excerpt",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The excerpt for the post."
-			},
-			{
-			  "name": "comment_status",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "open",
-				  "closed"
-				]
-			  },
-			  "description": "Whether or not comments are open on the post."
-			},
-			{
-			  "name": "ping_status",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "open",
-				  "closed"
-				]
-			  },
-			  "description": "Whether or not the post can be pinged."
-			},
-			{
-			  "name": "meta",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "Meta fields."
-			},
-			{
-			  "name": "template",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The theme file to use to display the post."
-			},
-			{
-			  "name": "notebook",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				}
-			  },
-			  "description": "The terms assigned to the post in the notebook taxonomy."
-			},
-			{
-			  "name": "blocking",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				}
-			  },
-			  "description": "TODOs that are blocked by this TODO."
-			},
-			{
-			  "name": "scheduled",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Scheduled time for this TODO."
-			}
-		  ],
 		  "responses": {
 			"200": {
 			  "description": "Successful response"
@@ -783,17 +369,9 @@
 				"schema": {
 				  "type": "object",
 				  "properties": {
-					"id": {
-					  "type": "integer",
-					  "description": "Unique identifier for the post."
-					},
 					"date": {
 					  "type": "string",
 					  "description": "The date the post was published, in the site's timezone."
-					},
-					"date_gmt": {
-					  "type": "string",
-					  "description": "The date the post was published, as GMT."
 					},
 					"slug": {
 					  "type": "string",
@@ -810,10 +388,6 @@
 					  ],
 					  "description": "A named status for the post."
 					},
-					"password": {
-					  "type": "string",
-					  "description": "A password to protect access to the content and excerpt."
-					},
 					"title": {
 					  "type": "object",
 					  "description": "The title for the post."
@@ -822,29 +396,9 @@
 					  "type": "object",
 					  "description": "The excerpt for the post."
 					},
-					"comment_status": {
-					  "type": "string",
-					  "enum": [
-						"open",
-						"closed"
-					  ],
-					  "description": "Whether or not comments are open on the post."
-					},
-					"ping_status": {
-					  "type": "string",
-					  "enum": [
-						"open",
-						"closed"
-					  ],
-					  "description": "Whether or not the post can be pinged."
-					},
 					"meta": {
 					  "type": "object",
 					  "description": "Meta fields."
-					},
-					"template": {
-					  "type": "string",
-					  "description": "The theme file to use to display the post."
 					},
 					"notebook": {
 					  "type": "array",
@@ -852,561 +406,6 @@
 						"type": "integer"
 					  },
 					  "description": "The terms assigned to the post in the notebook taxonomy."
-					},
-					"blocking": {
-					  "type": "array",
-					  "items": {
-						"type": "integer"
-					  },
-					  "description": "TODOs that are blocked by this TODO."
-					},
-					"scheduled": {
-					  "type": "integer",
-					  "description": "Scheduled time for this TODO."
-					}
-				  }
-				}
-			  }
-			}
-		  }
-		},
-		"put": {
-		  "operationId": "todo_update_item",
-		  "summary": "",
-		  "description": "",
-		  "parameters": [
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "id",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Unique identifier for the post."
-			},
-			{
-			  "name": "date",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The date the post was published, in the site's timezone."
-			},
-			{
-			  "name": "date_gmt",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The date the post was published, as GMT."
-			},
-			{
-			  "name": "slug",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "An alphanumeric identifier for the post unique to its type."
-			},
-			{
-			  "name": "status",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "publish",
-				  "future",
-				  "draft",
-				  "pending",
-				  "private"
-				]
-			  },
-			  "description": "A named status for the post."
-			},
-			{
-			  "name": "password",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "A password to protect access to the content and excerpt."
-			},
-			{
-			  "name": "title",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The title for the post."
-			},
-			{
-			  "name": "excerpt",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The excerpt for the post."
-			},
-			{
-			  "name": "comment_status",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "open",
-				  "closed"
-				]
-			  },
-			  "description": "Whether or not comments are open on the post."
-			},
-			{
-			  "name": "ping_status",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "open",
-				  "closed"
-				]
-			  },
-			  "description": "Whether or not the post can be pinged."
-			},
-			{
-			  "name": "meta",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "Meta fields."
-			},
-			{
-			  "name": "template",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The theme file to use to display the post."
-			},
-			{
-			  "name": "notebook",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				}
-			  },
-			  "description": "The terms assigned to the post in the notebook taxonomy."
-			},
-			{
-			  "name": "blocking",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				}
-			  },
-			  "description": "TODOs that are blocked by this TODO."
-			},
-			{
-			  "name": "scheduled",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Scheduled time for this TODO."
-			}
-		  ],
-		  "responses": {
-			"200": {
-			  "description": "Successful response"
-			},
-			"401": {
-			  "description": "Unauthorized"
-			}
-		  },
-		  "requestBody": {
-			"required": true,
-			"content": {
-			  "application/json": {
-				"schema": {
-				  "type": "object",
-				  "properties": {
-					"id": {
-					  "type": "integer",
-					  "description": "Unique identifier for the post."
-					},
-					"date": {
-					  "type": "string",
-					  "description": "The date the post was published, in the site's timezone."
-					},
-					"date_gmt": {
-					  "type": "string",
-					  "description": "The date the post was published, as GMT."
-					},
-					"slug": {
-					  "type": "string",
-					  "description": "An alphanumeric identifier for the post unique to its type."
-					},
-					"status": {
-					  "type": "string",
-					  "enum": [
-						"publish",
-						"future",
-						"draft",
-						"pending",
-						"private"
-					  ],
-					  "description": "A named status for the post."
-					},
-					"password": {
-					  "type": "string",
-					  "description": "A password to protect access to the content and excerpt."
-					},
-					"title": {
-					  "type": "object",
-					  "description": "The title for the post."
-					},
-					"excerpt": {
-					  "type": "object",
-					  "description": "The excerpt for the post."
-					},
-					"comment_status": {
-					  "type": "string",
-					  "enum": [
-						"open",
-						"closed"
-					  ],
-					  "description": "Whether or not comments are open on the post."
-					},
-					"ping_status": {
-					  "type": "string",
-					  "enum": [
-						"open",
-						"closed"
-					  ],
-					  "description": "Whether or not the post can be pinged."
-					},
-					"meta": {
-					  "type": "object",
-					  "description": "Meta fields."
-					},
-					"template": {
-					  "type": "string",
-					  "description": "The theme file to use to display the post."
-					},
-					"notebook": {
-					  "type": "array",
-					  "items": {
-						"type": "integer"
-					  },
-					  "description": "The terms assigned to the post in the notebook taxonomy."
-					},
-					"blocking": {
-					  "type": "array",
-					  "items": {
-						"type": "integer"
-					  },
-					  "description": "TODOs that are blocked by this TODO."
-					},
-					"scheduled": {
-					  "type": "integer",
-					  "description": "Scheduled time for this TODO."
-					}
-				  }
-				}
-			  }
-			}
-		  }
-		},
-		"patch": {
-		  "operationId": "todo_update_item",
-		  "summary": "",
-		  "description": "",
-		  "parameters": [
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "id",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Unique identifier for the post."
-			},
-			{
-			  "name": "date",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The date the post was published, in the site's timezone."
-			},
-			{
-			  "name": "date_gmt",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The date the post was published, as GMT."
-			},
-			{
-			  "name": "slug",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "An alphanumeric identifier for the post unique to its type."
-			},
-			{
-			  "name": "status",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "publish",
-				  "future",
-				  "draft",
-				  "pending",
-				  "private"
-				]
-			  },
-			  "description": "A named status for the post."
-			},
-			{
-			  "name": "password",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "A password to protect access to the content and excerpt."
-			},
-			{
-			  "name": "title",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The title for the post."
-			},
-			{
-			  "name": "excerpt",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The excerpt for the post."
-			},
-			{
-			  "name": "comment_status",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "open",
-				  "closed"
-				]
-			  },
-			  "description": "Whether or not comments are open on the post."
-			},
-			{
-			  "name": "ping_status",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "open",
-				  "closed"
-				]
-			  },
-			  "description": "Whether or not the post can be pinged."
-			},
-			{
-			  "name": "meta",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "Meta fields."
-			},
-			{
-			  "name": "template",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The theme file to use to display the post."
-			},
-			{
-			  "name": "notebook",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				}
-			  },
-			  "description": "The terms assigned to the post in the notebook taxonomy."
-			},
-			{
-			  "name": "blocking",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				}
-			  },
-			  "description": "TODOs that are blocked by this TODO."
-			},
-			{
-			  "name": "scheduled",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Scheduled time for this TODO."
-			}
-		  ],
-		  "responses": {
-			"200": {
-			  "description": "Successful response"
-			},
-			"401": {
-			  "description": "Unauthorized"
-			}
-		  },
-		  "requestBody": {
-			"required": true,
-			"content": {
-			  "application/json": {
-				"schema": {
-				  "type": "object",
-				  "properties": {
-					"id": {
-					  "type": "integer",
-					  "description": "Unique identifier for the post."
-					},
-					"date": {
-					  "type": "string",
-					  "description": "The date the post was published, in the site's timezone."
-					},
-					"date_gmt": {
-					  "type": "string",
-					  "description": "The date the post was published, as GMT."
-					},
-					"slug": {
-					  "type": "string",
-					  "description": "An alphanumeric identifier for the post unique to its type."
-					},
-					"status": {
-					  "type": "string",
-					  "enum": [
-						"publish",
-						"future",
-						"draft",
-						"pending",
-						"private"
-					  ],
-					  "description": "A named status for the post."
-					},
-					"password": {
-					  "type": "string",
-					  "description": "A password to protect access to the content and excerpt."
-					},
-					"title": {
-					  "type": "object",
-					  "description": "The title for the post."
-					},
-					"excerpt": {
-					  "type": "object",
-					  "description": "The excerpt for the post."
-					},
-					"comment_status": {
-					  "type": "string",
-					  "enum": [
-						"open",
-						"closed"
-					  ],
-					  "description": "Whether or not comments are open on the post."
-					},
-					"ping_status": {
-					  "type": "string",
-					  "enum": [
-						"open",
-						"closed"
-					  ],
-					  "description": "Whether or not the post can be pinged."
-					},
-					"meta": {
-					  "type": "object",
-					  "description": "Meta fields."
-					},
-					"template": {
-					  "type": "string",
-					  "description": "The theme file to use to display the post."
-					},
-					"notebook": {
-					  "type": "array",
-					  "items": {
-						"type": "integer"
-					  },
-					  "description": "The terms assigned to the post in the notebook taxonomy."
-					},
-					"blocking": {
-					  "type": "array",
-					  "items": {
-						"type": "integer"
-					  },
-					  "description": "TODOs that are blocked by this TODO."
-					},
-					"scheduled": {
-					  "type": "integer",
-					  "description": "Scheduled time for this TODO."
 					}
 				  }
 				}
@@ -1416,37 +415,8 @@
 		},
 		"delete": {
 		  "operationId": "todo_delete_item",
-		  "summary": "",
-		  "description": "",
-		  "parameters": [
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "id",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Unique identifier for the post."
-			},
-			{
-			  "name": "force",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "boolean",
-				"default": false
-			  },
-			  "description": "Whether to bypass Trash and force deletion."
-			}
-		  ],
+		  "summary": "Deletes a TODO item",
+		  "description": "Deletes a TODO item",
 		  "responses": {
 			"200": {
 			  "description": "Successful response"
@@ -1460,8 +430,8 @@
 	  "/pos/v1/notes": {
 		"get": {
 		  "operationId": "notes_get_items",
-		  "summary": "",
-		  "description": "",
+		  "summary": "Gets a list of notes",
+		  "description": "Gets a list of notes",
 		  "parameters": [
 			{
 			  "name": "context",
@@ -1470,11 +440,9 @@
 			  "schema": {
 				"type": "string",
 				"enum": [
-				  "view",
-				  "embed",
 				  "edit"
 				],
-				"default": "view"
+				"default": "edit"
 			  },
 			  "description": "Scope under which the request is made; determines fields present in response."
 			},
@@ -1570,18 +538,6 @@
 			  "description": "Limit result set to specific IDs."
 			},
 			{
-			  "name": "search_semantics",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "exact"
-				]
-			  },
-			  "description": "How to interpret the search input."
-			},
-			{
 			  "name": "offset",
 			  "in": "query",
 			  "required": false,
@@ -1645,18 +601,6 @@
 			  "description": "Array of column names to be searched."
 			},
 			{
-			  "name": "slug",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "string"
-				}
-			  },
-			  "description": "Limit result set to posts with one or more specific slugs."
-			},
-			{
 			  "name": "status",
 			  "in": "query",
 			  "required": false,
@@ -1700,29 +644,14 @@
 			  "description": "Limit result set based on relationship between multiple taxonomies."
 			},
 			{
-			  "name": "tags",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "Limit result set to items with specific terms assigned in the tags taxonomy."
-			},
-			{
-			  "name": "tags_exclude",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "Limit result set to items except those with specific terms assigned in the tags taxonomy."
-			},
-			{
 			  "name": "notebook",
 			  "in": "query",
 			  "required": false,
 			  "schema": {
-				"type": "object"
+				"type": "array",
+				"items": {
+				  "type": "integer"
+				}
 			  },
 			  "description": "Limit result set to items with specific terms assigned in the notebook taxonomy."
 			},
@@ -1731,7 +660,10 @@
 			  "in": "query",
 			  "required": false,
 			  "schema": {
-				"type": "object"
+				"type": "array",
+				"items": {
+				  "type": "integer"
+				}
 			  },
 			  "description": "Limit result set to items except those with specific terms assigned in the notebook taxonomy."
 			}
@@ -1749,129 +681,6 @@
 		  "operationId": "notes_create_item",
 		  "summary": "",
 		  "description": "",
-		  "parameters": [
-			{
-			  "name": "date",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The date the post was published, in the site's timezone."
-			},
-			{
-			  "name": "date_gmt",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The date the post was published, as GMT."
-			},
-			{
-			  "name": "slug",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "An alphanumeric identifier for the post unique to its type."
-			},
-			{
-			  "name": "status",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "publish",
-				  "future",
-				  "draft",
-				  "pending",
-				  "private"
-				]
-			  },
-			  "description": "A named status for the post."
-			},
-			{
-			  "name": "password",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "A password to protect access to the content and excerpt."
-			},
-			{
-			  "name": "title",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The title for the post."
-			},
-			{
-			  "name": "content",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The content for the post."
-			},
-			{
-			  "name": "excerpt",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The excerpt for the post."
-			},
-			{
-			  "name": "meta",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "Meta fields."
-			},
-			{
-			  "name": "template",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The theme file to use to display the post."
-			},
-			{
-			  "name": "tags",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				}
-			  },
-			  "description": "The terms assigned to the post in the post_tag taxonomy."
-			},
-			{
-			  "name": "notebook",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				}
-			  },
-			  "description": "The terms assigned to the post in the notebook taxonomy."
-			}
-		  ],
 		  "responses": {
 			"200": {
 			  "description": "Successful response"
@@ -1891,14 +700,6 @@
 					  "type": "string",
 					  "description": "The date the post was published, in the site's timezone."
 					},
-					"date_gmt": {
-					  "type": "string",
-					  "description": "The date the post was published, as GMT."
-					},
-					"slug": {
-					  "type": "string",
-					  "description": "An alphanumeric identifier for the post unique to its type."
-					},
 					"status": {
 					  "type": "string",
 					  "enum": [
@@ -1910,36 +711,17 @@
 					  ],
 					  "description": "A named status for the post."
 					},
-					"password": {
-					  "type": "string",
-					  "description": "A password to protect access to the content and excerpt."
-					},
 					"title": {
-					  "type": "object",
+					  "type": "string",
 					  "description": "The title for the post."
 					},
 					"content": {
-					  "type": "object",
-					  "description": "The content for the post."
+					  "type": "string",
+					  "description": "The content for the post, using Gutenberg blocks."
 					},
 					"excerpt": {
-					  "type": "object",
-					  "description": "The excerpt for the post."
-					},
-					"meta": {
-					  "type": "object",
-					  "description": "Meta fields."
-					},
-					"template": {
 					  "type": "string",
-					  "description": "The theme file to use to display the post."
-					},
-					"tags": {
-					  "type": "array",
-					  "items": {
-						"type": "integer"
-					  },
-					  "description": "The terms assigned to the post in the post_tag taxonomy."
+					  "description": "The excerpt for the post."
 					},
 					"notebook": {
 					  "type": "array",
@@ -1960,58 +742,6 @@
 		  "operationId": "notes_get_item",
 		  "summary": "",
 		  "description": "",
-		  "parameters": [
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "id",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Unique identifier for the post."
-			},
-			{
-			  "name": "context",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "view",
-				  "embed",
-				  "edit"
-				],
-				"default": "view"
-			  },
-			  "description": "Scope under which the request is made; determines fields present in response."
-			},
-			{
-			  "name": "excerpt_length",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Override the default excerpt length."
-			},
-			{
-			  "name": "password",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The password for the post if it is password protected."
-			}
-		  ],
 		  "responses": {
 			"200": {
 			  "description": "Successful response"
@@ -2025,146 +755,6 @@
 		  "operationId": "notes_update_item",
 		  "summary": "",
 		  "description": "",
-		  "parameters": [
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "id",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Unique identifier for the post."
-			},
-			{
-			  "name": "date",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The date the post was published, in the site's timezone."
-			},
-			{
-			  "name": "date_gmt",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The date the post was published, as GMT."
-			},
-			{
-			  "name": "slug",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "An alphanumeric identifier for the post unique to its type."
-			},
-			{
-			  "name": "status",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "publish",
-				  "future",
-				  "draft",
-				  "pending",
-				  "private"
-				]
-			  },
-			  "description": "A named status for the post."
-			},
-			{
-			  "name": "password",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "A password to protect access to the content and excerpt."
-			},
-			{
-			  "name": "title",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The title for the post."
-			},
-			{
-			  "name": "content",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The content for the post."
-			},
-			{
-			  "name": "excerpt",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The excerpt for the post."
-			},
-			{
-			  "name": "meta",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "Meta fields."
-			},
-			{
-			  "name": "template",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The theme file to use to display the post."
-			},
-			{
-			  "name": "tags",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				}
-			  },
-			  "description": "The terms assigned to the post in the post_tag taxonomy."
-			},
-			{
-			  "name": "notebook",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				}
-			  },
-			  "description": "The terms assigned to the post in the notebook taxonomy."
-			}
-		  ],
 		  "responses": {
 			"200": {
 			  "description": "Successful response"
@@ -2180,21 +770,9 @@
 				"schema": {
 				  "type": "object",
 				  "properties": {
-					"id": {
-					  "type": "integer",
-					  "description": "Unique identifier for the post."
-					},
 					"date": {
 					  "type": "string",
 					  "description": "The date the post was published, in the site's timezone."
-					},
-					"date_gmt": {
-					  "type": "string",
-					  "description": "The date the post was published, as GMT."
-					},
-					"slug": {
-					  "type": "string",
-					  "description": "An alphanumeric identifier for the post unique to its type."
 					},
 					"status": {
 					  "type": "string",
@@ -2207,496 +785,17 @@
 					  ],
 					  "description": "A named status for the post."
 					},
-					"password": {
-					  "type": "string",
-					  "description": "A password to protect access to the content and excerpt."
-					},
 					"title": {
-					  "type": "object",
+					  "type": "string",
 					  "description": "The title for the post."
 					},
 					"content": {
-					  "type": "object",
-					  "description": "The content for the post."
+					  "type": "string",
+					  "description": "The content for the post, using Gutenberg blocks."
 					},
 					"excerpt": {
-					  "type": "object",
+					  "type": "string",
 					  "description": "The excerpt for the post."
-					},
-					"meta": {
-					  "type": "object",
-					  "description": "Meta fields."
-					},
-					"template": {
-					  "type": "string",
-					  "description": "The theme file to use to display the post."
-					},
-					"tags": {
-					  "type": "array",
-					  "items": {
-						"type": "integer"
-					  },
-					  "description": "The terms assigned to the post in the post_tag taxonomy."
-					},
-					"notebook": {
-					  "type": "array",
-					  "items": {
-						"type": "integer"
-					  },
-					  "description": "The terms assigned to the post in the notebook taxonomy."
-					}
-				  }
-				}
-			  }
-			}
-		  }
-		},
-		"put": {
-		  "operationId": "notes_update_item",
-		  "summary": "",
-		  "description": "",
-		  "parameters": [
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "id",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Unique identifier for the post."
-			},
-			{
-			  "name": "date",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The date the post was published, in the site's timezone."
-			},
-			{
-			  "name": "date_gmt",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The date the post was published, as GMT."
-			},
-			{
-			  "name": "slug",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "An alphanumeric identifier for the post unique to its type."
-			},
-			{
-			  "name": "status",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "publish",
-				  "future",
-				  "draft",
-				  "pending",
-				  "private"
-				]
-			  },
-			  "description": "A named status for the post."
-			},
-			{
-			  "name": "password",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "A password to protect access to the content and excerpt."
-			},
-			{
-			  "name": "title",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The title for the post."
-			},
-			{
-			  "name": "content",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The content for the post."
-			},
-			{
-			  "name": "excerpt",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The excerpt for the post."
-			},
-			{
-			  "name": "meta",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "Meta fields."
-			},
-			{
-			  "name": "template",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The theme file to use to display the post."
-			},
-			{
-			  "name": "tags",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				}
-			  },
-			  "description": "The terms assigned to the post in the post_tag taxonomy."
-			},
-			{
-			  "name": "notebook",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				}
-			  },
-			  "description": "The terms assigned to the post in the notebook taxonomy."
-			}
-		  ],
-		  "responses": {
-			"200": {
-			  "description": "Successful response"
-			},
-			"401": {
-			  "description": "Unauthorized"
-			}
-		  },
-		  "requestBody": {
-			"required": true,
-			"content": {
-			  "application/json": {
-				"schema": {
-				  "type": "object",
-				  "properties": {
-					"id": {
-					  "type": "integer",
-					  "description": "Unique identifier for the post."
-					},
-					"date": {
-					  "type": "string",
-					  "description": "The date the post was published, in the site's timezone."
-					},
-					"date_gmt": {
-					  "type": "string",
-					  "description": "The date the post was published, as GMT."
-					},
-					"slug": {
-					  "type": "string",
-					  "description": "An alphanumeric identifier for the post unique to its type."
-					},
-					"status": {
-					  "type": "string",
-					  "enum": [
-						"publish",
-						"future",
-						"draft",
-						"pending",
-						"private"
-					  ],
-					  "description": "A named status for the post."
-					},
-					"password": {
-					  "type": "string",
-					  "description": "A password to protect access to the content and excerpt."
-					},
-					"title": {
-					  "type": "object",
-					  "description": "The title for the post."
-					},
-					"content": {
-					  "type": "object",
-					  "description": "The content for the post."
-					},
-					"excerpt": {
-					  "type": "object",
-					  "description": "The excerpt for the post."
-					},
-					"meta": {
-					  "type": "object",
-					  "description": "Meta fields."
-					},
-					"template": {
-					  "type": "string",
-					  "description": "The theme file to use to display the post."
-					},
-					"tags": {
-					  "type": "array",
-					  "items": {
-						"type": "integer"
-					  },
-					  "description": "The terms assigned to the post in the post_tag taxonomy."
-					},
-					"notebook": {
-					  "type": "array",
-					  "items": {
-						"type": "integer"
-					  },
-					  "description": "The terms assigned to the post in the notebook taxonomy."
-					}
-				  }
-				}
-			  }
-			}
-		  }
-		},
-		"patch": {
-		  "operationId": "notes_update_item",
-		  "summary": "",
-		  "description": "",
-		  "parameters": [
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "id",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Unique identifier for the post."
-			},
-			{
-			  "name": "date",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The date the post was published, in the site's timezone."
-			},
-			{
-			  "name": "date_gmt",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The date the post was published, as GMT."
-			},
-			{
-			  "name": "slug",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "An alphanumeric identifier for the post unique to its type."
-			},
-			{
-			  "name": "status",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "publish",
-				  "future",
-				  "draft",
-				  "pending",
-				  "private"
-				]
-			  },
-			  "description": "A named status for the post."
-			},
-			{
-			  "name": "password",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "A password to protect access to the content and excerpt."
-			},
-			{
-			  "name": "title",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The title for the post."
-			},
-			{
-			  "name": "content",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The content for the post."
-			},
-			{
-			  "name": "excerpt",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The excerpt for the post."
-			},
-			{
-			  "name": "meta",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "Meta fields."
-			},
-			{
-			  "name": "template",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The theme file to use to display the post."
-			},
-			{
-			  "name": "tags",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				}
-			  },
-			  "description": "The terms assigned to the post in the post_tag taxonomy."
-			},
-			{
-			  "name": "notebook",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				}
-			  },
-			  "description": "The terms assigned to the post in the notebook taxonomy."
-			}
-		  ],
-		  "responses": {
-			"200": {
-			  "description": "Successful response"
-			},
-			"401": {
-			  "description": "Unauthorized"
-			}
-		  },
-		  "requestBody": {
-			"required": true,
-			"content": {
-			  "application/json": {
-				"schema": {
-				  "type": "object",
-				  "properties": {
-					"id": {
-					  "type": "integer",
-					  "description": "Unique identifier for the post."
-					},
-					"date": {
-					  "type": "string",
-					  "description": "The date the post was published, in the site's timezone."
-					},
-					"date_gmt": {
-					  "type": "string",
-					  "description": "The date the post was published, as GMT."
-					},
-					"slug": {
-					  "type": "string",
-					  "description": "An alphanumeric identifier for the post unique to its type."
-					},
-					"status": {
-					  "type": "string",
-					  "enum": [
-						"publish",
-						"future",
-						"draft",
-						"pending",
-						"private"
-					  ],
-					  "description": "A named status for the post."
-					},
-					"password": {
-					  "type": "string",
-					  "description": "A password to protect access to the content and excerpt."
-					},
-					"title": {
-					  "type": "object",
-					  "description": "The title for the post."
-					},
-					"content": {
-					  "type": "object",
-					  "description": "The content for the post."
-					},
-					"excerpt": {
-					  "type": "object",
-					  "description": "The excerpt for the post."
-					},
-					"meta": {
-					  "type": "object",
-					  "description": "Meta fields."
-					},
-					"template": {
-					  "type": "string",
-					  "description": "The theme file to use to display the post."
-					},
-					"tags": {
-					  "type": "array",
-					  "items": {
-						"type": "integer"
-					  },
-					  "description": "The terms assigned to the post in the post_tag taxonomy."
 					},
 					"notebook": {
 					  "type": "array",
@@ -2715,650 +814,6 @@
 		  "operationId": "notes_delete_item",
 		  "summary": "",
 		  "description": "",
-		  "parameters": [
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "id",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Unique identifier for the post."
-			},
-			{
-			  "name": "force",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "boolean",
-				"default": false
-			  },
-			  "description": "Whether to bypass Trash and force deletion."
-			}
-		  ],
-		  "responses": {
-			"200": {
-			  "description": "Successful response"
-			},
-			"401": {
-			  "description": "Unauthorized"
-			}
-		  }
-		}
-	  },
-	  "/pos/v1/notes/{parent}/revisions": {
-		"get": {
-		  "operationId": "notes_get_items",
-		  "summary": "",
-		  "description": "",
-		  "parameters": [
-			{
-			  "name": "parent",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "parent",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "The ID for the parent of the revision."
-			},
-			{
-			  "name": "context",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "view",
-				  "embed",
-				  "edit"
-				],
-				"default": "view"
-			  },
-			  "description": "Scope under which the request is made; determines fields present in response."
-			},
-			{
-			  "name": "page",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer",
-				"default": 1
-			  },
-			  "description": "Current page of the collection."
-			},
-			{
-			  "name": "per_page",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Maximum number of items to be returned in result set."
-			},
-			{
-			  "name": "search",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "Limit results to those matching a string."
-			},
-			{
-			  "name": "exclude",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				},
-				"default": []
-			  },
-			  "description": "Ensure result set excludes specific IDs."
-			},
-			{
-			  "name": "include",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				},
-				"default": []
-			  },
-			  "description": "Limit result set to specific IDs."
-			},
-			{
-			  "name": "offset",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Offset the result set by a specific number of items."
-			},
-			{
-			  "name": "order",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "asc",
-				  "desc"
-				],
-				"default": "desc"
-			  },
-			  "description": "Order sort attribute ascending or descending."
-			},
-			{
-			  "name": "orderby",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "date",
-				  "id",
-				  "include",
-				  "relevance",
-				  "slug",
-				  "include_slugs",
-				  "title"
-				],
-				"default": "date"
-			  },
-			  "description": "Sort collection by object attribute."
-			}
-		  ],
-		  "responses": {
-			"200": {
-			  "description": "Successful response"
-			},
-			"401": {
-			  "description": "Unauthorized"
-			}
-		  }
-		}
-	  },
-	  "/pos/v1/notes/{parent}/revisions/{id}": {
-		"get": {
-		  "operationId": "notes_get_item",
-		  "summary": "",
-		  "description": "",
-		  "parameters": [
-			{
-			  "name": "parent",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "parent",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "The ID for the parent of the revision."
-			},
-			{
-			  "name": "id",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Unique identifier for the revision."
-			},
-			{
-			  "name": "context",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "view",
-				  "embed",
-				  "edit"
-				],
-				"default": "view"
-			  },
-			  "description": "Scope under which the request is made; determines fields present in response."
-			}
-		  ],
-		  "responses": {
-			"200": {
-			  "description": "Successful response"
-			},
-			"401": {
-			  "description": "Unauthorized"
-			}
-		  }
-		},
-		"delete": {
-		  "operationId": "notes_delete_item",
-		  "summary": "",
-		  "description": "",
-		  "parameters": [
-			{
-			  "name": "parent",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "parent",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "The ID for the parent of the revision."
-			},
-			{
-			  "name": "id",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Unique identifier for the revision."
-			},
-			{
-			  "name": "force",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "boolean",
-				"default": false
-			  },
-			  "description": "Required to be true, as revisions do not support trashing."
-			}
-		  ],
-		  "responses": {
-			"200": {
-			  "description": "Successful response"
-			},
-			"401": {
-			  "description": "Unauthorized"
-			}
-		  }
-		}
-	  },
-	  "/pos/v1/notes/{id}/autosaves": {
-		"get": {
-		  "operationId": "notes_get_items",
-		  "summary": "",
-		  "description": "",
-		  "parameters": [
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "parent",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "The ID for the parent of the autosave."
-			},
-			{
-			  "name": "context",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "view",
-				  "embed",
-				  "edit"
-				],
-				"default": "view"
-			  },
-			  "description": "Scope under which the request is made; determines fields present in response."
-			}
-		  ],
-		  "responses": {
-			"200": {
-			  "description": "Successful response"
-			},
-			"401": {
-			  "description": "Unauthorized"
-			}
-		  }
-		},
-		"post": {
-		  "operationId": "notes_create_item",
-		  "summary": "",
-		  "description": "",
-		  "parameters": [
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "parent",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "The ID for the parent of the autosave."
-			},
-			{
-			  "name": "date",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The date the post was published, in the site's timezone."
-			},
-			{
-			  "name": "date_gmt",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The date the post was published, as GMT."
-			},
-			{
-			  "name": "slug",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "An alphanumeric identifier for the post unique to its type."
-			},
-			{
-			  "name": "status",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "publish",
-				  "future",
-				  "draft",
-				  "pending",
-				  "private"
-				]
-			  },
-			  "description": "A named status for the post."
-			},
-			{
-			  "name": "password",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "A password to protect access to the content and excerpt."
-			},
-			{
-			  "name": "title",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The title for the post."
-			},
-			{
-			  "name": "content",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The content for the post."
-			},
-			{
-			  "name": "excerpt",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "The excerpt for the post."
-			},
-			{
-			  "name": "meta",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "Meta fields."
-			},
-			{
-			  "name": "template",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "The theme file to use to display the post."
-			},
-			{
-			  "name": "tags",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				}
-			  },
-			  "description": "The terms assigned to the post in the post_tag taxonomy."
-			},
-			{
-			  "name": "notebook",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "array",
-				"items": {
-				  "type": "integer"
-				}
-			  },
-			  "description": "The terms assigned to the post in the notebook taxonomy."
-			}
-		  ],
-		  "responses": {
-			"200": {
-			  "description": "Successful response"
-			},
-			"401": {
-			  "description": "Unauthorized"
-			}
-		  },
-		  "requestBody": {
-			"required": true,
-			"content": {
-			  "application/json": {
-				"schema": {
-				  "type": "object",
-				  "properties": {
-					"parent": {
-					  "type": "integer",
-					  "description": "The ID for the parent of the autosave."
-					},
-					"date": {
-					  "type": "string",
-					  "description": "The date the post was published, in the site's timezone."
-					},
-					"date_gmt": {
-					  "type": "string",
-					  "description": "The date the post was published, as GMT."
-					},
-					"slug": {
-					  "type": "string",
-					  "description": "An alphanumeric identifier for the post unique to its type."
-					},
-					"status": {
-					  "type": "string",
-					  "enum": [
-						"publish",
-						"future",
-						"draft",
-						"pending",
-						"private"
-					  ],
-					  "description": "A named status for the post."
-					},
-					"password": {
-					  "type": "string",
-					  "description": "A password to protect access to the content and excerpt."
-					},
-					"title": {
-					  "type": "object",
-					  "description": "The title for the post."
-					},
-					"content": {
-					  "type": "object",
-					  "description": "The content for the post."
-					},
-					"excerpt": {
-					  "type": "object",
-					  "description": "The excerpt for the post."
-					},
-					"meta": {
-					  "type": "object",
-					  "description": "Meta fields."
-					},
-					"template": {
-					  "type": "string",
-					  "description": "The theme file to use to display the post."
-					},
-					"tags": {
-					  "type": "array",
-					  "items": {
-						"type": "integer"
-					  },
-					  "description": "The terms assigned to the post in the post_tag taxonomy."
-					},
-					"notebook": {
-					  "type": "array",
-					  "items": {
-						"type": "integer"
-					  },
-					  "description": "The terms assigned to the post in the notebook taxonomy."
-					}
-				  }
-				}
-			  }
-			}
-		  }
-		}
-	  },
-	  "/pos/v1/notes/{parent}/autosaves/{id}": {
-		"get": {
-		  "operationId": "notes_get_item",
-		  "summary": "",
-		  "description": "",
-		  "parameters": [
-			{
-			  "name": "parent",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "parent",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "The ID for the parent of the autosave."
-			},
-			{
-			  "name": "id",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "The ID for the autosave."
-			},
-			{
-			  "name": "context",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "view",
-				  "embed",
-				  "edit"
-				],
-				"default": "view"
-			  },
-			  "description": "Scope under which the request is made; determines fields present in response."
-			}
-		  ],
 		  "responses": {
 			"200": {
 			  "description": "Successful response"
@@ -3533,53 +988,6 @@
 		  "operationId": "notebook_create_item",
 		  "summary": "",
 		  "description": "",
-		  "parameters": [
-			{
-			  "name": "description",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "HTML description of the term."
-			},
-			{
-			  "name": "name",
-			  "in": "query",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "HTML title for the term."
-			},
-			{
-			  "name": "slug",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "An alphanumeric identifier for the term unique to its type."
-			},
-			{
-			  "name": "parent",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "The parent term ID."
-			},
-			{
-			  "name": "meta",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "Meta fields."
-			}
-		  ],
 		  "responses": {
 			"200": {
 			  "description": "Successful response"
@@ -3597,7 +1005,7 @@
 				  "properties": {
 					"description": {
 					  "type": "string",
-					  "description": "HTML description of the term."
+					  "description": "Description of the notebook."
 					},
 					"name": {
 					  "type": "string",
@@ -3613,7 +1021,16 @@
 					},
 					"meta": {
 					  "type": "object",
-					  "description": "Meta fields."
+					  "description": "Meta fields.",
+					  "properties": {
+						"flags": {
+						  "type": "array",
+						  "items": {
+							"type": "string"
+						  },
+						  "description": "Flags for the notebook."
+						}
+					  }
 					}
 				  }
 				}
@@ -3627,40 +1044,6 @@
 		  "operationId": "notebook_get_item",
 		  "summary": "",
 		  "description": "",
-		  "parameters": [
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "id",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Unique identifier for the term."
-			},
-			{
-			  "name": "context",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string",
-				"enum": [
-				  "view",
-				  "embed",
-				  "edit"
-				],
-				"default": "view"
-			  },
-			  "description": "Scope under which the request is made; determines fields present in response."
-			}
-		  ],
 		  "responses": {
 			"200": {
 			  "description": "Successful response"
@@ -3674,70 +1057,6 @@
 		  "operationId": "notebook_update_item",
 		  "summary": "",
 		  "description": "",
-		  "parameters": [
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "id",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Unique identifier for the term."
-			},
-			{
-			  "name": "description",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "HTML description of the term."
-			},
-			{
-			  "name": "name",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "HTML title for the term."
-			},
-			{
-			  "name": "slug",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "An alphanumeric identifier for the term unique to its type."
-			},
-			{
-			  "name": "parent",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "The parent term ID."
-			},
-			{
-			  "name": "meta",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "Meta fields."
-			}
-		  ],
 		  "responses": {
 			"200": {
 			  "description": "Successful response"
@@ -3774,235 +1093,18 @@
 					  "description": "The parent term ID."
 					},
 					"meta": {
-					  "type": "object",
-					  "description": "Meta fields."
-					}
-				  }
-				}
-			  }
-			}
-		  }
-		},
-		"put": {
-		  "operationId": "notebook_update_item",
-		  "summary": "",
-		  "description": "",
-		  "parameters": [
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "id",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Unique identifier for the term."
-			},
-			{
-			  "name": "description",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "HTML description of the term."
-			},
-			{
-			  "name": "name",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "HTML title for the term."
-			},
-			{
-			  "name": "slug",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "An alphanumeric identifier for the term unique to its type."
-			},
-			{
-			  "name": "parent",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "The parent term ID."
-			},
-			{
-			  "name": "meta",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "Meta fields."
-			}
-		  ],
-		  "responses": {
-			"200": {
-			  "description": "Successful response"
-			},
-			"401": {
-			  "description": "Unauthorized"
-			}
-		  },
-		  "requestBody": {
-			"required": true,
-			"content": {
-			  "application/json": {
-				"schema": {
-				  "type": "object",
-				  "properties": {
-					"id": {
-					  "type": "integer",
-					  "description": "Unique identifier for the term."
-					},
-					"description": {
-					  "type": "string",
-					  "description": "HTML description of the term."
-					},
-					"name": {
-					  "type": "string",
-					  "description": "HTML title for the term."
-					},
-					"slug": {
-					  "type": "string",
-					  "description": "An alphanumeric identifier for the term unique to its type."
-					},
-					"parent": {
-					  "type": "integer",
-					  "description": "The parent term ID."
-					},
-					"meta": {
-					  "type": "object",
-					  "description": "Meta fields."
-					}
-				  }
-				}
-			  }
-			}
-		  }
-		},
-		"patch": {
-		  "operationId": "notebook_update_item",
-		  "summary": "",
-		  "description": "",
-		  "parameters": [
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "id",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Unique identifier for the term."
-			},
-			{
-			  "name": "description",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "HTML description of the term."
-			},
-			{
-			  "name": "name",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "HTML title for the term."
-			},
-			{
-			  "name": "slug",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "string"
-			  },
-			  "description": "An alphanumeric identifier for the term unique to its type."
-			},
-			{
-			  "name": "parent",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "The parent term ID."
-			},
-			{
-			  "name": "meta",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "object"
-			  },
-			  "description": "Meta fields."
-			}
-		  ],
-		  "responses": {
-			"200": {
-			  "description": "Successful response"
-			},
-			"401": {
-			  "description": "Unauthorized"
-			}
-		  },
-		  "requestBody": {
-			"required": true,
-			"content": {
-			  "application/json": {
-				"schema": {
-				  "type": "object",
-				  "properties": {
-					"id": {
-					  "type": "integer",
-					  "description": "Unique identifier for the term."
-					},
-					"description": {
-					  "type": "string",
-					  "description": "HTML description of the term."
-					},
-					"name": {
-					  "type": "string",
-					  "description": "HTML title for the term."
-					},
-					"slug": {
-					  "type": "string",
-					  "description": "An alphanumeric identifier for the term unique to its type."
-					},
-					"parent": {
-					  "type": "integer",
-					  "description": "The parent term ID."
-					},
-					"meta": {
-					  "type": "object",
-					  "description": "Meta fields."
-					}
+						"type": "object",
+						"description": "Meta fields.",
+						"properties": {
+						  "flags": {
+							"type": "array",
+							"items": {
+							  "type": "string"
+							},
+							"description": "Flags for the notebook."
+						  }
+						}
+					  }
 				  }
 				}
 			  }
@@ -4013,35 +1115,6 @@
 		  "operationId": "notebook_delete_item",
 		  "summary": "",
 		  "description": "",
-		  "parameters": [
-			{
-			  "name": "id",
-			  "in": "path",
-			  "required": true,
-			  "schema": {
-				"type": "string"
-			  }
-			},
-			{
-			  "name": "id",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "integer"
-			  },
-			  "description": "Unique identifier for the term."
-			},
-			{
-			  "name": "force",
-			  "in": "query",
-			  "required": false,
-			  "schema": {
-				"type": "boolean",
-				"default": false
-			  },
-			  "description": "Required to be true, as terms do not support trashing."
-			}
-		  ],
 		  "responses": {
 			"200": {
 			  "description": "Successful response"
@@ -4054,3 +1127,5 @@
 	  }
 	}
   }
+
+  
