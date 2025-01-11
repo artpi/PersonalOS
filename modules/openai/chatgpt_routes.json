@@ -1080,19 +1080,6 @@
 						}
 					}
 				}
-			},
-			"delete": {
-				"operationId": "notebook_delete_item",
-				"summary": "",
-				"description": "",
-				"responses": {
-					"200": {
-						"description": "Successful response"
-					},
-					"401": {
-						"description": "Unauthorized"
-					}
-				}
 			}
 		}
 	}
