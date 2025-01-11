@@ -65,7 +65,7 @@ class POS_Module {
 		}
 	}
 
-	public function register_post_type( $args = array() ) {
+	public function register_post_type( $args = array(), $redirect_to_admin = false ) {
 		$labels = array(
 			'name'          => $this->name,
 			'singular_name' => $this->name,
@@ -94,23 +94,48 @@ class POS_Module {
 			$args
 		);
 		register_post_type( $this->id, $defaults );
-		add_action( 'template_redirect', array( $this, 'redirect_cpt_to_admin_edit' ) );
+		if ( $redirect_to_admin ) {
+			add_action( 'template_redirect', array( $this, 'redirect_cpt_to_admin_edit' ) );
+		}
 	}
 
 	public function redirect_cpt_to_admin_edit() {
-		if ( isset( $_GET[ $this->id ] ) && is_user_logged_in() ) {
-			$slug = sanitize_text_field( $_GET[ $this->id ] );
+		$post = null;
 
+		// We only want 404s to be redirected
+		if ( is_singular() && ! is_404() ) {
+			return;
+		}
+
+		if ( ! is_user_logged_in() ) {
+			return;
+		}
+
+		if ( isset( $_GET[ $this->id ] ) ) {
+			$slug = sanitize_text_field( $_GET[ $this->id ] );
 			// Try to retrieve the post by the slug (assuming it matches the post_name)
 			$post = get_page_by_path( $slug, OBJECT, $this->id );
-
-			// If the post exists, redirect to its admin edit page
-			if ( $post && current_user_can( 'edit_post', $post->ID ) ) {
-				$edit_url = admin_url( 'post.php?post=' . $post->ID . '&action=edit' );
-				wp_safe_redirect( $edit_url );
-				exit;
-			}
+		} elseif ( isset( $_GET['p'] ) ) {
+			$post = get_post( sanitize_text_field( $_GET['p'] ) );
+		} else {
+			return;
 		}
+
+		if ( ! $post ) {
+			return;
+		}
+
+		if ( $post->post_type !== $this->id ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'edit_post', $post->ID ) ) {
+			return;
+		}
+
+		$edit_url = admin_url( 'post.php?post=' . $post->ID . '&action=edit' );
+		wp_safe_redirect( $edit_url );
+		exit;
 	}
 
 	public function jetpack_filter_whitelist_cpt_sync_with_dotcom( $types ) {

@@ -11,7 +11,8 @@ class TODO_Module extends POS_Module {
 				'taxonomies'   => array( 'notebook' ),
 				'show_in_menu' => false,
 				// 'hierarchical' => true,
-			)
+			),
+			true
 		);
 
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
