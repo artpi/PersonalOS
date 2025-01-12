@@ -64,7 +64,8 @@ class Notes_Module extends POS_Module {
 			array(
 				'supports'   => array( 'title', 'excerpt', 'editor', 'custom-fields', 'revisions' ),
 				'taxonomies' => array( 'notebook', 'post_tag' ),
-			)
+			),
+			true
 		);
 		$this->jetpack_whitelist_cpt_with_dotcom();
 

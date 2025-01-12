@@ -65,7 +65,7 @@ class POS_Module {
 		}
 	}
 
-	public function register_post_type( $args = array() ) {
+	public function register_post_type( $args = array(), $redirect_to_admin = false ) {
 		$labels = array(
 			'name'          => $this->name,
 			'singular_name' => $this->name,
@@ -94,6 +94,60 @@ class POS_Module {
 			$args
 		);
 		register_post_type( $this->id, $defaults );
+		if ( $redirect_to_admin ) {
+			add_action( 'template_redirect', array( $this, 'redirect_cpt_to_admin_edit' ) );
+		}
+	}
+
+	public function redirect_cpt_to_admin_edit() {
+		$post = null;
+
+		// We only want 404s to be redirected
+		if ( is_singular() && ! is_404() ) {
+			return;
+		}
+
+		if ( ! is_user_logged_in() ) {
+			return;
+		}
+
+		// Check query vars first
+		if ( isset( $_GET[ $this->id ] ) ) {
+			$slug = sanitize_text_field( $_GET[ $this->id ] );
+			$post = get_page_by_path( $slug, OBJECT, $this->id );
+		} elseif ( isset( $_GET['p'] ) ) {
+			$post = get_post( sanitize_text_field( $_GET['p'] ) );
+		} else {
+			// Check permalink structure
+			$request_path = trim( parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH ), '/' );
+
+			// Only proceed if we're using pretty permalinks
+			if ( get_option( 'permalink_structure' ) ) {
+				$path_parts = explode( '/', $request_path );
+
+				// Check if the first part matches our post type
+				if ( count( $path_parts ) >= 2 && $path_parts[0] === $this->id ) {
+					$slug = sanitize_text_field( $path_parts[1] );
+					$post = get_page_by_path( $slug, OBJECT, $this->id );
+				}
+			}
+
+			if ( ! $post ) {
+				return;
+			}
+		}
+
+		if ( $post->post_type !== $this->id ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'edit_post', $post->ID ) ) {
+			return;
+		}
+
+		$edit_url = admin_url( 'post.php?post=' . $post->ID . '&action=edit' );
+		wp_safe_redirect( $edit_url );
+		exit;
 	}
 
 	public function jetpack_filter_whitelist_cpt_sync_with_dotcom( $types ) {
