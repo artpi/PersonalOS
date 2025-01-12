@@ -111,18 +111,30 @@ class POS_Module {
 			return;
 		}
 
+		// Check query vars first
 		if ( isset( $_GET[ $this->id ] ) ) {
 			$slug = sanitize_text_field( $_GET[ $this->id ] );
-			// Try to retrieve the post by the slug (assuming it matches the post_name)
 			$post = get_page_by_path( $slug, OBJECT, $this->id );
 		} elseif ( isset( $_GET['p'] ) ) {
 			$post = get_post( sanitize_text_field( $_GET['p'] ) );
 		} else {
-			return;
-		}
+			// Check permalink structure
+			$request_path = trim( parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH ), '/' );
 
-		if ( ! $post ) {
-			return;
+			// Only proceed if we're using pretty permalinks
+			if ( get_option( 'permalink_structure' ) ) {
+				$path_parts = explode( '/', $request_path );
+
+				// Check if the first part matches our post type
+				if ( count( $path_parts ) >= 2 && $path_parts[0] === $this->id ) {
+					$slug = sanitize_text_field( $path_parts[1] );
+					$post = get_page_by_path( $slug, OBJECT, $this->id );
+				}
+			}
+
+			if ( ! $post ) {
+				return;
+			}
 		}
 
 		if ( $post->post_type !== $this->id ) {
