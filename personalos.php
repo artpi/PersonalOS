@@ -63,15 +63,15 @@ class POS {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
 		$data_version = get_option( 'pos_data_version', false );
-		if ( ! $data_version ) {
-			// TODO: filter to not do this?
-			self::populate_starter_content();
-			return;
-		}
 		$plugin_data = get_plugin_data( __FILE__ );
 		self::$version = $plugin_data['Version'];
 
-		if ( version_compare( $data_version, self::$version, '>=' ) ) {
+		if ( ! $data_version ) {
+			// TODO: filter to not do this?
+			self::populate_starter_content();
+			update_option( 'pos_data_version', self::$version );
+			return;
+		} elseif ( version_compare( $data_version, self::$version, '>=' ) ) {
 			return;
 		}
 		foreach ( self::$modules as $module ) {
