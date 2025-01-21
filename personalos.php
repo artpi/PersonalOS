@@ -3,7 +3,7 @@
 /**
  * Plugin Name:     Personal OS
  * Description:     Manage your life.
- * Version:         0.2.3
+ * Version:         0.2.4
  * Author:          Artur Piszek (artpi)
  * Author URI:      https://piszek.com
  * License:         GPL-2.0-or-later
@@ -16,7 +16,7 @@
 
 class POS {
 	public static $modules = array();
-	public static $version = '0.2.1';
+	public static $version = '0.2.4';
 
 	public static function init() {
 		add_action( 'admin_menu', array( 'POS', 'admin_menu' ) );

@@ -1,8 +1,4 @@
 <?php
-// This definitely runs after notes.
-$starter_content_term = get_term_by( 'slug', 'starter-content', 'notebook' );
-$now_term = get_term_by( 'slug', 'now', 'notebook' );
-
 $todos = $this->list( array(), 'starter-content' );
 foreach ( $todos as $note ) {
 	wp_delete_post( $note->ID );
@@ -16,20 +12,16 @@ $this->create(
 		'meta_input'   => array(
 			'url' => 'tel://1234567890',
 		),
-		'tax_input'    => array(
-			'notebook' => array( $starter_content_term->term_id, $now_term->term_id ),
-		),
-	)
+	),
+	array( 'starter-content', 'now' )
 );
 
 $blocking = $this->create(
 	array(
 		'post_title'   => 'Blocking todo',
 		'post_excerpt' => 'This is blocking another todo.',
-		'tax_input'    => array(
-			'notebook' => array( $starter_content_term->term_id, $now_term->term_id ),
-		),
-	)
+	),
+	array( 'starter-content', 'now' )
 );
 
 $blocked = $this->create(
@@ -40,10 +32,8 @@ $blocked = $this->create(
 			'pos_blocked_by'           => $blocking,
 			'pos_blocked_pending_term' => 'now',
 		),
-		'tax_input'    => array(
-			'notebook' => array( $starter_content_term->term_id ),
-		),
-	)
+	),
+	array( 'starter-content' )
 );
 
 $tomorrow = gmdate( 'Y-m-d H:i:s', strtotime( '+1 day' ) );
@@ -55,10 +45,8 @@ $this->create(
 		'meta_input'   => array(
 			'pos_blocked_pending_term' => 'now',
 		),
-		'tax_input'    => array(
-			'notebook' => array( $starter_content_term->term_id ),
-		),
-	)
+	),
+	array( 'starter-content' )
 );
 
 $this->create(
@@ -69,8 +57,6 @@ $this->create(
 			'pos_blocked_pending_term' => 'now',
 			'pos_recurring_days'       => 2,
 		),
-		'tax_input'    => array(
-			'notebook' => array( $starter_content_term->term_id, $now_term->term_id ),
-		),
-	)
+	),
+	array( 'starter-content' )
 );

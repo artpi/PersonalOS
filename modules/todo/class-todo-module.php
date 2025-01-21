@@ -167,7 +167,7 @@ class TODO_Module extends POS_Module {
 		add_submenu_page( 'personalos', 'TODO', 'TODO', 'read', 'pos-todo', array( $this, 'render_admin_page' ) );
 	}
 
-	public function create( $data = array() ) {
+	public function create( $data = array(), $notebooks = array() ) {
 		$default_data = array(
 			'post_type'    => $this->id,
 			'post_title'   => '',
@@ -180,10 +180,12 @@ class TODO_Module extends POS_Module {
 				'pos_blocked_by'           => 0,
 				'pos_blocked_pending_term' => '',
 			),
-			'tax_input'    => array(),
 		);
 		$data = wp_parse_args( $data, $default_data );
 		$id = wp_insert_post( $data );
+		if ( ! empty( $notebooks ) ) {
+			wp_set_object_terms( $id, $notebooks, 'notebook' );
+		}
 		return $id;
 	}
 
