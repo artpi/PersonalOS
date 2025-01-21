@@ -39,6 +39,20 @@ class POS {
 		);
 		self::load_modules();
 		add_action( 'enqueue_block_editor_assets', array( 'POS', 'enqueue_assets' ) );
+		if ( defined( 'WP_CLI' ) && class_exists( 'WP_CLI' ) ) {
+			WP_CLI::add_command( 'pos populate', array( 'POS', 'populate_starter_content' ) );
+		}
+	}
+
+	/**
+	 * Populate starter content for all modules.
+	 *
+	 * @return void
+	 */
+	public static function populate_starter_content() {
+		foreach ( self::$modules as $module ) {
+			$module->populate_starter_content();
+		}
 	}
 
 	public static function fix_versions() {

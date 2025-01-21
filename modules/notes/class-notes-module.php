@@ -244,7 +244,7 @@ class Notes_Module extends POS_Module {
 		}
 	}
 
-	public function create( $title, $content, $inbox = false ) {
+	public function create( $title, $content, $notebooks = array() ) {
 		$post    = array(
 			'post_title'   => $title,
 			'post_content' => $content,
@@ -252,8 +252,31 @@ class Notes_Module extends POS_Module {
 			'post_type'    => $this->id,
 		);
 		$post_id = wp_insert_post( $post );
+		if ( ! empty( $notebooks ) ) {
+			wp_set_object_terms( $post_id, $notebooks, 'notebook' );
+		}
 		return $post_id;
 	}
+
+	public function create_term_if_not_exists( $name, $slug, $meta = array(), $args = array() ) {
+		$term = get_term_by( 'slug', $slug, 'notebook' );
+		if ( $term ) {
+			$term_id = $term->term_id;
+		} else {
+			$term = wp_insert_term(
+				$name,
+				'notebook',
+				array_merge( array( 'slug' => $slug ), $args )
+			);
+			$term_id = $term['term_id'];
+		}
+
+		foreach ( $meta as $value ) {
+			update_term_meta( $term_id, $value[0], $value[1] );
+		}
+		return $term_id;
+	}
+
 	public function init_admin_widgets() {
 		$terms = get_terms(
 			array(
