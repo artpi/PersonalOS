@@ -24,17 +24,19 @@ $this->create_term_if_not_exists( 'Nice Quotes', 'resource2', array(), array( 'p
 
 // Lets delete all starter-content notes.
 
-$notes = get_posts( array(
-	'post_type' => 'notes',
-	'numberposts' => -1,
-	'tax_query' => array(
-		array(
-			'taxonomy' => 'notebook',
-			'field'    => 'slug',
-			'terms'    => [ 'starter-content' ],
+$notes = get_posts(
+	array(
+		'post_type'   => 'notes',
+		'numberposts' => -1,
+		'tax_query'   => array(
+			array(
+				'taxonomy' => 'notebook',
+				'field'    => 'slug',
+				'terms'    => array( 'starter-content' ),
+			),
 		),
-	),
-) );
+	)
+);
 
 foreach ( $notes as $note ) {
 	wp_delete_post( $note->ID );
@@ -42,18 +44,23 @@ foreach ( $notes as $note ) {
 
 // Now lets create notes.
 
-$note = $this->create( 'Embedded note', get_comment_delimited_block_content(
-	'paragraph',
-	array(),
-	'<p>This is a test note that can be embedded in other notes by using the <code>pos/note</code> block. You can edit this in the original note, or from the note that this note is embedded in.</p>'
-), array( 'starter-content' ) );
+$note = $this->create(
+	'Embedded note',
+	get_comment_delimited_block_content(
+		'paragraph',
+		array(),
+		'<p>This is a test note that can be embedded in other notes by using the <code>pos/note</code> block. You can edit this in the original note, or from the note that this note is embedded in.</p>'
+	),
+	array( 'starter-content' )
+);
 
-$this->create( 'Note with embedded note inside',
+$this->create(
+	'Note with embedded note inside',
 	get_comment_delimited_block_content(
 		'paragraph',
 		array(),
 		'<p>Some content that is not embedded.</p>'
-	).
+	) .
 	get_comment_delimited_block_content(
 		'pos/note',
 		array(
