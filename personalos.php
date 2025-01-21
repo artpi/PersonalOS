@@ -39,13 +39,35 @@ class POS {
 		);
 		self::load_modules();
 		add_action( 'enqueue_block_editor_assets', array( 'POS', 'enqueue_assets' ) );
+		if ( defined( 'WP_CLI' ) && class_exists( 'WP_CLI' ) ) {
+			WP_CLI::add_command( 'pos populate', array( 'POS', 'populate_starter_content' ) );
+		}
+	}
+
+	/**
+	 * Populate starter content for all modules.
+	 *
+	 * @return void
+	 */
+	public static function populate_starter_content() {
+		if ( defined( 'WP_CLI' ) && class_exists( 'WP_CLI' ) ) {
+			wp_set_current_user( 1 );
+		}
+		foreach ( self::$modules as $module ) {
+			$module->populate_starter_content();
+		}
 	}
 
 	public static function fix_versions() {
 		if ( ! function_exists( 'get_plugin_data' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
-		$data_version = get_option( 'pos_data_version', self::$version );
+		$data_version = get_option( 'pos_data_version', false );
+		if ( ! $data_version ) {
+			// TODO: filter to not do this?
+			self::populate_starter_content();
+			return;
+		}
 		$plugin_data = get_plugin_data( __FILE__ );
 		self::$version = $plugin_data['Version'];
 

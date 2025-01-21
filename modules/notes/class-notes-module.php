@@ -95,19 +95,22 @@ class Notes_Module extends POS_Module {
 			)
 		);
 
-		add_filter( 'pos_notebook_flags', function( $flags ) {
-			$flags[] = array(
-				'id' => 'star',
-				'name' => 'Star',
-				'label' => 'Starred, it will show up in menu.',
-			);
-			$flags[] = array(
-				'id' => 'project', 
-				'name' => 'Project',
-				'label' => 'This is a currently active project.',
-			);
-			return $flags;
-		} );
+		add_filter(
+			'pos_notebook_flags',
+			function( $flags ) {
+				$flags[] = array(
+					'id'    => 'star',
+					'name'  => 'Star',
+					'label' => 'Starred, it will show up in menu.',
+				);
+				$flags[] = array(
+					'id'    => 'project',
+					'name'  => 'Project',
+					'label' => 'This is a currently active project.',
+				);
+				return $flags;
+			}
+		);
 
 		register_meta(
 			'post',
@@ -181,13 +184,13 @@ class Notes_Module extends POS_Module {
 
 	public function notebook_edit_form_fields( $term, $taxonomy ) {
 		$value = get_term_meta( $term->term_id, 'flag', false );
-		$possible_flags = apply_filters( 'pos_notebook_flags', [] );
+		$possible_flags = apply_filters( 'pos_notebook_flags', array() );
 		?>
 		<table class="form-table" role="presentation"><tbody>
 			<tr class="form-field term-parent-wrap">
 			<th scope="row"><label>Notebook Flags</label></th>
 			<td>
-				<?php foreach ( $possible_flags as $flag ): ?>
+				<?php foreach ( $possible_flags as $flag ) : ?>
 					<label style="display: block; margin-bottom: 5px;">
 						<input type="checkbox" name="pos_flag[]" value="<?php echo esc_attr( $flag['id'] ); ?>"
 							<?php checked( in_array( $flag['id'], $value ) ); ?>>
@@ -244,7 +247,7 @@ class Notes_Module extends POS_Module {
 		}
 	}
 
-	public function create( $title, $content, $inbox = false ) {
+	public function create( $title, $content, $notebooks = array() ) {
 		$post    = array(
 			'post_title'   => $title,
 			'post_content' => $content,
@@ -252,8 +255,31 @@ class Notes_Module extends POS_Module {
 			'post_type'    => $this->id,
 		);
 		$post_id = wp_insert_post( $post );
+		if ( ! empty( $notebooks ) ) {
+			wp_set_object_terms( $post_id, $notebooks, 'notebook' );
+		}
 		return $post_id;
 	}
+
+	public function create_term_if_not_exists( $name, $slug, $meta = array(), $args = array() ) {
+		$term = get_term_by( 'slug', $slug, 'notebook' );
+		if ( $term ) {
+			$term_id = $term->term_id;
+		} else {
+			$term = wp_insert_term(
+				$name,
+				'notebook',
+				array_merge( array( 'slug' => $slug ), $args )
+			);
+			$term_id = $term['term_id'];
+		}
+
+		foreach ( $meta as $value ) {
+			update_term_meta( $term_id, $value[0], $value[1] );
+		}
+		return $term_id;
+	}
+
 	public function init_admin_widgets() {
 		$terms = get_terms(
 			array(

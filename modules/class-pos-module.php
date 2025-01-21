@@ -12,6 +12,10 @@ class POS_Module {
 		return $this->description;
 	}
 
+	public function get_module_dir() {
+		$reflection = new ReflectionClass( $this );
+		return dirname( $reflection->getFileName() );
+	}
 	/**
 	 * Get the documentation for the module.
 	 * It will look for a README.md file in the module directory.
@@ -19,8 +23,7 @@ class POS_Module {
 	 * @return string|false
 	 */
 	public function get_readme() {
-		$reflection = new ReflectionClass( $this );
-		$dir = dirname( $reflection->getFileName() );
+		$dir = $this->get_module_dir();
 		if ( file_exists( $dir . '/README.md' ) ) {
 			$readme = file_get_contents( $dir . '/README.md' );
 			// Replace readme urls with module links
@@ -28,6 +31,13 @@ class POS_Module {
 			return $readme;
 		}
 		return false;
+	}
+
+	public function populate_starter_content() {
+		$dir = $this->get_module_dir();
+		if ( file_exists( $dir . '/starter-content.php' ) ) {
+			include $dir . '/starter-content.php';
+		}
 	}
 
 	public function get_settings_fields() {
