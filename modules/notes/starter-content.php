@@ -19,7 +19,7 @@ $this->create_term_if_not_exists( 'Work', 'area2', array(), array( 'parent' => $
 $this->create_term_if_not_exists( 'Family', 'area3', array(), array( 'parent' => $term_areas ) );
 
 $term_resources = $this->create_term_if_not_exists( '4-Resources', 'resources', array() );
-$starter_content = $this->create_term_if_not_exists( 'Starter Content', 'starter-content', array(), array( 'parent' => $term_resources ) );
+$starter_content = $this->create_term_if_not_exists( 'Starter Content', 'starter-content', array( array( 'flag', 'star' ) ), array( 'parent' => $term_resources ) );
 $this->create_term_if_not_exists( 'Nice Quotes', 'resource2', array(), array( 'parent' => $term_resources ) );
 
 // Lets delete all starter-content notes.

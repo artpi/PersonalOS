@@ -50,6 +50,9 @@ class POS {
 	 * @return void
 	 */
 	public static function populate_starter_content() {
+		if ( defined( 'WP_CLI' ) && class_exists( 'WP_CLI' ) ) {
+			wp_set_current_user( 1 );
+		}
 		foreach ( self::$modules as $module ) {
 			$module->populate_starter_content();
 		}
