@@ -3,7 +3,7 @@
 /**
  * Plugin Name:     Personal OS
  * Description:     Manage your life.
- * Version:         0.2.2
+ * Version:         0.2.3
  * Author:          Artur Piszek (artpi)
  * Author URI:      https://piszek.com
  * License:         GPL-2.0-or-later
