@@ -169,18 +169,18 @@ class TODO_Module extends POS_Module {
 
 	public function create( $data = array() ) {
 		$default_data = array(
-			'post_type' => $this->id,
-			'post_title' => '',
-			'post_status' => 'private',
+			'post_type'    => $this->id,
+			'post_title'   => '',
+			'post_status'  => 'private',
 			'post_excerpt' => '',
-			'post_date' => gmdate( 'Y-m-d H:i:s' ),
-			'meta_input' => array(
-				'url' => '',
-				'pos_recurring_days' => 0,
-				'pos_blocked_by' => 0,
+			'post_date'    => gmdate( 'Y-m-d H:i:s' ),
+			'meta_input'   => array(
+				'url'                      => '',
+				'pos_recurring_days'       => 0,
+				'pos_blocked_by'           => 0,
 				'pos_blocked_pending_term' => '',
 			),
-			'tax_input' => array(),
+			'tax_input'    => array(),
 		);
 		$data = wp_parse_args( $data, $default_data );
 		$id = wp_insert_post( $data );
@@ -189,15 +189,15 @@ class TODO_Module extends POS_Module {
 
 	public function list( $args = array(), $taxonomy = '' ) {
 		$defaults = array(
-			'post_type' => $this->id,
+			'post_type'   => $this->id,
 			'post_status' => array( 'private', 'publish', 'future' ),
 		);
 		if ( $taxonomy ) {
 			$defaults['tax_query'] = array(
 				array(
 					'taxonomy' => 'notebook',
-					'field' => is_numeric( $taxonomy ) ? 'id' : 'slug',
-					'terms' => array( $taxonomy ),
+					'field'    => is_numeric( $taxonomy ) ? 'id' : 'slug',
+					'terms'    => array( $taxonomy ),
 				),
 			);
 		}

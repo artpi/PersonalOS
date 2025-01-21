@@ -95,19 +95,22 @@ class Notes_Module extends POS_Module {
 			)
 		);
 
-		add_filter( 'pos_notebook_flags', function( $flags ) {
-			$flags[] = array(
-				'id' => 'star',
-				'name' => 'Star',
-				'label' => 'Starred, it will show up in menu.',
-			);
-			$flags[] = array(
-				'id' => 'project', 
-				'name' => 'Project',
-				'label' => 'This is a currently active project.',
-			);
-			return $flags;
-		} );
+		add_filter(
+			'pos_notebook_flags',
+			function( $flags ) {
+				$flags[] = array(
+					'id'    => 'star',
+					'name'  => 'Star',
+					'label' => 'Starred, it will show up in menu.',
+				);
+				$flags[] = array(
+					'id'    => 'project',
+					'name'  => 'Project',
+					'label' => 'This is a currently active project.',
+				);
+				return $flags;
+			}
+		);
 
 		register_meta(
 			'post',
@@ -181,13 +184,13 @@ class Notes_Module extends POS_Module {
 
 	public function notebook_edit_form_fields( $term, $taxonomy ) {
 		$value = get_term_meta( $term->term_id, 'flag', false );
-		$possible_flags = apply_filters( 'pos_notebook_flags', [] );
+		$possible_flags = apply_filters( 'pos_notebook_flags', array() );
 		?>
 		<table class="form-table" role="presentation"><tbody>
 			<tr class="form-field term-parent-wrap">
 			<th scope="row"><label>Notebook Flags</label></th>
 			<td>
-				<?php foreach ( $possible_flags as $flag ): ?>
+				<?php foreach ( $possible_flags as $flag ) : ?>
 					<label style="display: block; margin-bottom: 5px;">
 						<input type="checkbox" name="pos_flag[]" value="<?php echo esc_attr( $flag['id'] ); ?>"
 							<?php checked( in_array( $flag['id'], $value ) ); ?>>
