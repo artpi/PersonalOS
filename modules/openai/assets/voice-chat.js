@@ -6,7 +6,31 @@ window.pos_voice_chat = {
 	isActive: false
 };
 
+function markdownToHtml(markdown) {
+	return markdown
+		.replace(/\n/g, '<br>')
+		.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+		.replace(/__(.*?)__/g, '<u>$1</u>')
+		.replace(/\[(.*?)\]\((.*?)\)/g, '<a target="_blank" href="$2">$1</a>')
+		.replace(/^\s*[-*]\s(.*)$/gm, '<li>$1</li>')
+		.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+}
+
+
 async function realtimeChatInit(clickEvent) {
+	const messagesContainer = document.getElementById('messages');
+	const messageInput = document.getElementById('message-input');
+	const sendButton = document.getElementById('send-button');
+
+	function addMessage(text, sender) {
+		text = markdownToHtml(text);
+		const messageBubble = document.createElement('div');
+		messageBubble.classList.add('message', sender);
+		messageBubble.innerHTML = text;
+		messagesContainer.appendChild(messageBubble);
+		messagesContainer.scrollTop = messagesContainer.scrollHeight;
+	}
+
 	const button = clickEvent.target;
 
 	// If session is active, hang up
@@ -61,6 +85,7 @@ async function realtimeChatInit(clickEvent) {
 		const data = JSON.parse(e.data);
 		if ( data.type === 'response.function_call_arguments.done' ) {
 			console.log('FUNCTION CALL ARGUMENTS DONE', data.name, data.arguments);
+			addMessage('Calling function ' + data.name, 'bot');
 			wp.apiFetch({
 				path: '/pos/v1/openai/realtime/function_call',
 				method: 'POST',
@@ -85,7 +110,11 @@ async function realtimeChatInit(clickEvent) {
 			});
 
 		} else if (data.type === 'response.audio_transcript.done') {
-			console.log('DONE', data.transcript);
+			console.log('MODEL', data.transcript);
+			addMessage(data.transcript, 'bot');
+		} else if (data.type === 'conversation.item.input_audio_transcription.completed') {
+			console.log('USER', data.transcript);
+			addMessage(data.transcript, 'user');
 		}
 	});
 

@@ -57,6 +57,81 @@ class OpenAI_Module extends POS_Module {
 		<div id="voice-chat">
 			<button id="start-session">Start Session</button>
 		</div>
+		<div id="chat-container">
+			<div id="messages">
+				<!-- Chat messages will appear here -->
+			</div>
+			<div id="input-container">
+				<input type="text" id="message-input" placeholder="Type your message...">
+				<button id="send-button">Send</button>
+			</div>
+		</div>
+		<style>
+			#chat-container {
+				width: 90%;
+				max-width: 600px;
+				height: 80vh;
+				background-color: #ffffff;
+				box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+				border-radius: 8px;
+				display: flex;
+				flex-direction: column;
+				overflow: hidden;
+			}
+			#messages {
+				flex: 1;
+				padding: 16px;
+				overflow-y: auto;
+				display: flex;
+				flex-direction: column;
+				gap: 12px;
+			}
+			.message {
+				max-width: 70%;
+				padding: 10px 14px;
+				border-radius: 18px;
+				font-size: 14px;
+				line-height: 1.5;
+			}
+			.message.user {
+				align-self: flex-end;
+				background-color: #007bff;
+				color: white;
+				border-bottom-right-radius: 4px;
+			}
+			.message.bot {
+				align-self: flex-start;
+				background-color: #e4e6eb;
+				color: black;
+				border-bottom-left-radius: 4px;
+			}
+			#input-container {
+				display: flex;
+				padding: 12px;
+				background-color: #f9f9f9;
+				border-top: 1px solid #ddd;
+			}
+			#message-input {
+				flex: 1;
+				padding: 10px;
+				border: 1px solid #ddd;
+				border-radius: 20px;
+				font-size: 14px;
+			}
+			#send-button {
+				margin-left: 10px;
+				padding: 10px 16px;
+				border: none;
+				border-radius: 20px;
+				background-color: #007bff;
+				color: white;
+				font-size: 14px;
+				cursor: pointer;
+			}
+			#send-button:hover {
+				background-color: #0056b3;
+			}
+		</style>
 		EOF;
 
 		wp_enqueue_script( 'voice-chat', plugins_url( 'assets/voice-chat.js', __FILE__ ), array( 'wp-api-fetch' ), '1.0.0', true );
@@ -183,8 +258,11 @@ class OpenAI_Module extends POS_Module {
 			'https://api.openai.com/v1/realtime/sessions',
 			array(
 				'model' => 'gpt-4o-realtime-preview-2024-12-17',
-				'instructions' => 'You are an assistant with access to my database of notes and todos. You will help me complete tasks and schedule my work.',
+				'instructions' => 'You are an assistant with access to my database of notes and todos. You will help me complete tasks and schedule my work. Use very basic markdown.',
 				'voice' => 'ballad',
+				'input_audio_transcription' => array(
+					'model' => 'whisper-1',
+				),
 				'tools' => array_map( function( $tool ) {
 					return $tool->get_function_signature_for_realtime_api();
 				}, OpenAI_Tool::get_tools() ),
