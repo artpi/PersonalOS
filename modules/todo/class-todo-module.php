@@ -131,7 +131,21 @@ class TODO_Module extends POS_Module {
 	}
 
 	public function register_openai_tools( $tools ) {
+		$self = $this;
 		$tools[] = new OpenAI_Tool( 'todo_get_items', 'List TODOs', array(), array( $this, 'get_items_for_openai' ) );
+		$tools[] = new OpenAI_Tool( 'todo_create_item', 'Create TODO', array(
+			'post_title' => array(
+				'type' => 'string',
+				'description' => 'The title of the TODO',
+			),
+			'post_excerpt' => array(
+				'type' => 'string',
+				'description' => 'The description of the TODO',
+			),
+		), function( $args ) use ( $self ) {
+			return get_post( $self->create( $args, array( 'now' ) ) );
+		} );
+
 		return $tools;
 	}
 
