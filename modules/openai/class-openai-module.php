@@ -127,11 +127,30 @@ class OpenAI_Module extends POS_Module {
 	public function rest_api_init() {
 		register_rest_route(
 			$this->rest_namespace,
-			'/openai/ephemeral-key',
+			'/openai/realtime/session',
 			array(
 				'methods'             => 'POST',
-				'callback'            => array( $this, 'ephemeral_key' ),
+				'callback'            => array( $this, 'realtime_session' ),
 				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+		register_rest_route(
+			$this->rest_namespace,
+			'/openai/realtime/function_call',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'function_call' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+				'args' => array(
+					'name' => array(
+						'required' => true,
+						'type' => 'string',
+					),
+					'arguments' => array(
+						'required' => false,
+						'type' => 'string',
+					),
+				),
 			)
 		);
 		register_rest_route(
@@ -157,16 +176,38 @@ class OpenAI_Module extends POS_Module {
 		return current_user_can( 'manage_options' );
 	}
 
-	public function ephemeral_key( WP_REST_Request $request ) {
+	public function realtime_session( WP_REST_Request $request ) {
 
 		$result = $this->api_call(
 			'https://api.openai.com/v1/realtime/sessions',
 			array(
 				'model' => 'gpt-4o-realtime-preview-2024-12-17',
+				'instructions' => 'You are an assistant with access to my database of notes and todos. You will help me complete tasks and schedule my work.',
 				'voice' => 'verse',
+				'tools' => array(
+					array(
+						'type' => 'function',
+						'name' => 'todo_get_items',
+					),
+				),
 			)
 		);
 		return $result;
+	}
+
+	public function function_call( WP_REST_Request $request ) {
+		$params = $request->get_json_params();
+		$name = $params['name'];
+		$arguments = $params['arguments'];
+
+		if ( $name === 'todo_get_items' ) {
+			$items = POS::get_module_by_id( 'todo' )->list([], 'now');
+			$items = array_map( function( $item ) {
+				return [ 'title' => $item->post_title, 'excerpt' => $item->post_excerpt, 'url' => get_permalink( $item ) ];
+			}, $items );
+			return array( 'result' => wp_json_encode( $items ) );
+		}
+		return array( 'result' => 'Unknown function:' . json_encode( $params ) );
 	}
 
 	public function media_describe( WP_REST_Request $request ) {

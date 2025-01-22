@@ -19,7 +19,7 @@ async function realtimeChatInit(clickEvent) {
 
 	// Get ephemeral key from server
 	const tokenResponse = await wp.apiFetch({
-		path: '/pos/v1/openai/ephemeral-key',
+		path: '/pos/v1/openai/realtime/session',
 		method: 'POST',
 	});
 	
@@ -51,21 +51,42 @@ async function realtimeChatInit(clickEvent) {
 		button.classList.add("session_active");
 
 		window.pos_voice_chat.dc.send(JSON.stringify({
-			type: 'conversation.item.create',
-			item: {
-				type: 'message',
-				role: 'system',
-				content: [
-					{
-						type: 'input_text',
-						text: 'Introduce yourself.'
-					}
-				]
+			type: 'response.create',
+			response: {
+				"instructions": "Ask how can you",
 			}
 		}));
 	});
 	window.pos_voice_chat.dc.addEventListener("message", (e) => {
-		console.log(e);
+		const data = JSON.parse(e.data);
+		if ( data.type === 'response.function_call_arguments.done' ) {
+			console.log('FUNCTION CALL ARGUMENTS DONE', data.name, data.arguments);
+			wp.apiFetch({
+				path: '/pos/v1/openai/realtime/function_call',
+				method: 'POST',
+				data: {
+					name: data.name,
+					arguments: data.arguments
+				}
+			}).then(response => {
+				console.log('FUNCTION CALL RESPONSE', response);
+				window.pos_voice_chat.dc.send(JSON.stringify({
+					type: 'conversation.item.create',
+					item: {
+						type: 'function_call_output',
+						call_id: data.call_id,
+						output: response.result
+					}
+				}));
+				window.pos_voice_chat.dc.send(JSON.stringify({
+					type: 'response.create'
+				}));
+
+			});
+
+		} else if (data.type === 'response.audio_transcript.done') {
+			console.log('DONE', data.transcript);
+		}
 	});
 
 	// Start session
