@@ -1,38 +1,74 @@
-async function realtimeChatInit() {
-	// Get an ephemeral key from your server - see server code below
+window.pos_voice_chat = {
+	pc: null,
+	dc: null,
+	audioEl: null,
+	ms: null,
+	isActive: false
+};
 
-	  const tokenResponse = await wp.apiFetch({
+async function realtimeChatInit(clickEvent) {
+	const button = clickEvent.target;
+
+	// If session is active, hang up
+	if (window.pos_voice_chat.isActive) {
+		hangUpSession();
+		button.textContent = "Start Session";
+		button.classList.remove("session_active");
+		return;
+	}
+
+	// Get ephemeral key from server
+	const tokenResponse = await wp.apiFetch({
 		path: '/pos/v1/openai/ephemeral-key',
 		method: 'POST',
-	  });
-	  console.log(tokenResponse);
-	  //TODO: check for error.
-	  const data = tokenResponse;
-	  const EPHEMERAL_KEY = data.client_secret.value;
+	});
+	
+	const data = tokenResponse;
+	const EPHEMERAL_KEY = data.client_secret.value;
 
 	// Create a peer connection
-	const pc = new RTCPeerConnection();
+	window.pos_voice_chat.pc = new RTCPeerConnection();
+	const pc = window.pos_voice_chat.pc;
 
-	// Set up to play remote audio from the model
-	const audioEl = document.createElement("audio");
-	audioEl.autoplay = true;
-	document.body.appendChild(audioEl);
-	pc.ontrack = e => audioEl.srcObject = e.streams[0];
+	// Set up audio element
+	window.pos_voice_chat.audioEl = document.createElement("audio");
+	window.pos_voice_chat.audioEl.autoplay = true;
+	document.body.appendChild(window.pos_voice_chat.audioEl);
+	pc.ontrack = e => window.pos_voice_chat.audioEl.srcObject = e.streams[0];
 
-	// Add local audio track for microphone input in the browser
-	const ms = await navigator.mediaDevices.getUserMedia({
+	// Add local audio track
+	window.pos_voice_chat.ms = await navigator.mediaDevices.getUserMedia({
 		audio: true
 	});
-	pc.addTrack(ms.getTracks()[0]);
+	pc.addTrack(window.pos_voice_chat.ms.getTracks()[0]);
 
-	// Set up data channel for sending and receiving events
-	const dc = pc.createDataChannel("oai-events");
-	dc.addEventListener("message", (e) => {
-		// Realtime server events appear here!
+	// Set up data channel
+	window.pos_voice_chat.dc = pc.createDataChannel("oai-events");
+	window.pos_voice_chat.dc.addEventListener('open', () => {
+
+		// Update UI to show active session
+		button.textContent = "Hang Up";
+		button.classList.add("session_active");
+
+		window.pos_voice_chat.dc.send(JSON.stringify({
+			type: 'conversation.item.create',
+			item: {
+				type: 'message',
+				role: 'system',
+				content: [
+					{
+						type: 'input_text',
+						text: 'Introduce yourself.'
+					}
+				]
+			}
+		}));
+	});
+	window.pos_voice_chat.dc.addEventListener("message", (e) => {
 		console.log(e);
 	});
 
-	// Start the session using the Session Description Protocol (SDP)
+	// Start session
 	const offer = await pc.createOffer();
 	await pc.setLocalDescription(offer);
 
@@ -42,8 +78,8 @@ async function realtimeChatInit() {
 		method: "POST",
 		body: offer.sdp,
 		headers: {
-		Authorization: `Bearer ${EPHEMERAL_KEY}`,
-		"Content-Type": "application/sdp"
+			Authorization: `Bearer ${EPHEMERAL_KEY}`,
+			"Content-Type": "application/sdp"
 		},
 	});
 
@@ -52,4 +88,30 @@ async function realtimeChatInit() {
 		sdp: await sdpResponse.text(),
 	};
 	await pc.setRemoteDescription(answer);
+	window.pos_voice_chat.isActive = true;
+	button.textContent = "Connecting...";
+}
+
+function hangUpSession() {
+	if (window.pos_voice_chat.pc) {
+		window.pos_voice_chat.pc.close();
+	}
+	if (window.pos_voice_chat.dc) {
+		window.pos_voice_chat.dc.close();
+	}
+	if (window.pos_voice_chat.ms) {
+		window.pos_voice_chat.ms.getTracks().forEach(track => track.stop());
+	}
+	if (window.pos_voice_chat.audioEl) {
+		window.pos_voice_chat.audioEl.remove();
+	}
+
+	// Reset all variables
+	window.pos_voice_chat = {
+		pc: null,
+		dc: null,
+		audioEl: null, 
+		ms: null,
+		isActive: false
+	};
 }

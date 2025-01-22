@@ -59,7 +59,7 @@ class OpenAI_Module extends POS_Module {
 		EOF;
 
 		wp_enqueue_script( 'voice-chat', plugins_url( 'assets/voice-chat.js', __FILE__ ), array( 'wp-api-fetch' ), '1.0.0', true );
-		wp_add_inline_script( 'voice-chat', 'document.getElementById("start-session").addEventListener("click", function() { realtimeChatInit(); });', 'after' );
+		wp_add_inline_script( 'voice-chat', 'document.getElementById("start-session").addEventListener("click", realtimeChatInit );', 'after' );
 	}
 
 	public function custom_gpt_page() {
