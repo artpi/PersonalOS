@@ -127,6 +127,19 @@ class TODO_Module extends POS_Module {
 				),
 			)
 		);
+		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
+	}
+
+	public function register_openai_tools( $tools ) {
+		$tools[] = new OpenAI_Tool( 'todo_get_items', 'List TODOs', array(), array( $this, 'get_items_for_openai' ) );
+		return $tools;
+	}
+
+	public function get_items_for_openai( $args ) {
+		$items = $this->list([], 'now');
+		return array_map( function( $item ) {
+			return [ 'title' => $item->post_title, 'excerpt' => $item->post_excerpt, 'url' => get_permalink( $item ) ];
+		}, $items );
 	}
 
 	public function load_todo_edit_page() {

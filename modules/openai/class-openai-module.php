@@ -1,5 +1,6 @@
 <?php
 
+require_once __DIR__ . '/class-openai-tool.php';
 class OpenAI_Module extends POS_Module {
 	public $id          = 'openai';
 	public $name        = 'OpenAI';
@@ -183,13 +184,10 @@ class OpenAI_Module extends POS_Module {
 			array(
 				'model' => 'gpt-4o-realtime-preview-2024-12-17',
 				'instructions' => 'You are an assistant with access to my database of notes and todos. You will help me complete tasks and schedule my work.',
-				'voice' => 'verse',
-				'tools' => array(
-					array(
-						'type' => 'function',
-						'name' => 'todo_get_items',
-					),
-				),
+				'voice' => 'ballad',
+				'tools' => array_map( function( $tool ) {
+					return $tool->get_function_signature_for_realtime_api();
+				}, OpenAI_Tool::get_tools() ),
 			)
 		);
 		return $result;
@@ -197,17 +195,11 @@ class OpenAI_Module extends POS_Module {
 
 	public function function_call( WP_REST_Request $request ) {
 		$params = $request->get_json_params();
-		$name = $params['name'];
-		$arguments = $params['arguments'];
-
-		if ( $name === 'todo_get_items' ) {
-			$items = POS::get_module_by_id( 'todo' )->list([], 'now');
-			$items = array_map( function( $item ) {
-				return [ 'title' => $item->post_title, 'excerpt' => $item->post_excerpt, 'url' => get_permalink( $item ) ];
-			}, $items );
-			return array( 'result' => wp_json_encode( $items ) );
+		$tool = OpenAI_Tool::get_tool( $params['name'] );
+		if ( ! $tool ) {
+			return new WP_Error( 'tool-not-found', 'Tool not found: ' . $params['name'] );
 		}
-		return array( 'result' => 'Unknown function:' . json_encode( $params ) );
+		return array( 'result' => $tool->invoke_for_function_call( ! empty( $params['arguments'] ) ? json_decode( $params['arguments'], true ) : array() ) );
 	}
 
 	public function media_describe( WP_REST_Request $request ) {
