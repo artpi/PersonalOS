@@ -40,6 +40,26 @@ class OpenAI_Module extends POS_Module {
 			'pos-custom-gpt',
 			array( $this, 'custom_gpt_page' )
 		);
+		add_submenu_page(
+			'personalos',
+			'Voice Chat',
+			'Voice Chat',
+			'manage_options',
+			'pos-voice-chat',
+			array( $this, 'voice_chat_page' )
+		);
+	}
+
+	public function voice_chat_page() {
+		echo <<<EOF
+		<h1>Voice Chat</h1>
+		<div id="voice-chat">
+			<button id="start-session">Start Session</button>
+		</div>
+		EOF;
+
+		wp_enqueue_script( 'voice-chat', plugins_url( 'assets/voice-chat.js', __FILE__ ), array( 'wp-api-fetch' ), '1.0.0', true );
+		wp_add_inline_script( 'voice-chat', 'document.getElementById("start-session").addEventListener("click", function() { realtimeChatInit(); });', 'after' );
 	}
 
 	public function custom_gpt_page() {
@@ -107,6 +127,15 @@ class OpenAI_Module extends POS_Module {
 	public function rest_api_init() {
 		register_rest_route(
 			$this->rest_namespace,
+			'/openai/ephemeral-key',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'ephemeral_key' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+		register_rest_route(
+			$this->rest_namespace,
 			'/openai/chat/completions',
 			array(
 				'methods'             => 'POST',
@@ -126,6 +155,18 @@ class OpenAI_Module extends POS_Module {
 	}
 	public function check_permission() {
 		return current_user_can( 'manage_options' );
+	}
+
+	public function ephemeral_key( WP_REST_Request $request ) {
+
+		$result = $this->api_call(
+			'https://api.openai.com/v1/realtime/sessions',
+			array(
+				'model' => 'gpt-4o-realtime-preview-2024-12-17',
+				'voice' => 'verse',
+			)
+		);
+		return $result;
 	}
 
 	public function media_describe( WP_REST_Request $request ) {
