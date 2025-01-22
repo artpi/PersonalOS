@@ -143,7 +143,7 @@ class TODO_Module extends POS_Module {
 				'description' => 'The description of the TODO',
 			),
 		), function( $args ) use ( $self ) {
-			return get_post( $self->create( $args, array( 'now' ) ) );
+			return get_post( $self->create( $args, array( 'inbox' ) ) );
 		} );
 
 		return $tools;
