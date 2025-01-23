@@ -124,9 +124,11 @@ window.POSVoiceChat = {
 		if (this.isActive) {
 			this.hangUpSession();
 			button.textContent = "Start Session";
-			button.classList.remove("session_active");
+			document.getElementById('chat-container').classList.remove("session_active");
 			return;
 		}
+		document.getElementById('chat-container').classList.add("session_active");
+		button.textContent = "Connecting...";
 
 		// Get ephemeral key from server
 		const tokenResponse = await wp.apiFetch({
@@ -166,7 +168,7 @@ window.POSVoiceChat = {
 		this.dc = this.pc.createDataChannel("oai-events");
 		this.dc.addEventListener('open', () => {
 			button.textContent = "Hang Up";
-			button.classList.add("session_active");
+			//button.classList.add("session_active");
 
 			this.dc.send(JSON.stringify({
 				type: 'response.create',
@@ -199,7 +201,6 @@ window.POSVoiceChat = {
 		};
 		await this.pc.setRemoteDescription(answer);
 		this.isActive = true;
-		button.textContent = "Connecting...";
 	},
 
 	setupDataChannelListeners() {
@@ -235,7 +236,14 @@ window.POSVoiceChat = {
 			} else if (data.type === 'conversation.item.input_audio_transcription.completed') {
 				console.log('USER', data.transcript);
 				this.addMessage(data.transcript, 'user');
+			} else if (data.type === 'output_audio_buffer.audio_started') {
+				console.log('BUFFER AUDIO STARTED');
+				document.getElementById('chat-container').classList.add("speaking");
+			} else if (data.type === 'output_audio_buffer.audio_stopped') {
+				console.log('BUFFER AUDIO STOPPED');
+				document.getElementById('chat-container').classList.remove("speaking");
 			}
+			
 		});
 	},
 
