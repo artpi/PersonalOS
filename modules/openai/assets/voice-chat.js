@@ -7,6 +7,8 @@ window.POSVoiceChat = {
 	messagesContainer: null,
 	messageInput: null,
 	startSessionButton: null,
+	audioInputSelect: null,
+	audioOutputSelect: null,
 
 	init() {
 		document.addEventListener('DOMContentLoaded', this.onLoad.bind(this));
@@ -16,6 +18,12 @@ window.POSVoiceChat = {
 		this.messagesContainer = document.getElementById('messages');
 		this.messageInput = document.getElementById('message-input');
 		this.startSessionButton = document.getElementById('start-session');
+		this.audioInputSelect = document.getElementById('audio-input');
+		this.audioOutputSelect = document.getElementById('audio-output');
+
+		// Set up device selectors
+		this.setupDeviceSelectors();
+
 		document.getElementById('send-button').addEventListener('click', () => {
 			this.addMessage(this.messageInput.value, 'user');
 			this.messageInput.value = '';
@@ -23,6 +31,72 @@ window.POSVoiceChat = {
 		this.startSessionButton.addEventListener('click', () => {
 			this.realtimeChatInit(this.startSessionButton);
 		});
+	},
+
+	async setupDeviceSelectors() {
+		try {
+			const devices = await navigator.mediaDevices.enumerateDevices();
+			
+			// Clear existing options
+			this.audioInputSelect.innerHTML = '';
+			this.audioOutputSelect.innerHTML = '';
+
+			// Populate input devices
+			devices.filter(device => device.kind === 'audioinput')
+				.forEach(device => {
+					const option = document.createElement('option');
+					option.value = device.deviceId;
+					option.text = device.label || `Microphone ${this.audioInputSelect.length + 1}`;
+					this.audioInputSelect.appendChild(option);
+					if(device.label === 'AirPods') {
+						option.selected = true;
+					}
+				});
+
+			// Populate output devices
+			devices.filter(device => device.kind === 'audiooutput')
+				.forEach(device => {
+					const option = document.createElement('option');
+					option.value = device.deviceId;
+					option.text = device.label || `Speaker ${this.audioOutputSelect.length + 1}`;
+					this.audioOutputSelect.appendChild(option);
+					if(device.label === 'AirPods') {
+						option.selected = true;
+					}
+				});
+
+			// Add change listeners
+			this.audioInputSelect.addEventListener('change', () => {
+				if (this.isActive) {
+					this.restartAudioInput();
+				}
+			});
+
+			this.audioOutputSelect.addEventListener('change', () => {
+				if (this.audioEl && this.audioEl.setSinkId) {
+					this.audioEl.setSinkId(this.audioOutputSelect.value);
+				}
+			});
+		} catch (error) {
+			console.error('Error setting up device selectors:', error);
+		}
+	},
+
+	async restartAudioInput() {
+		if (this.ms) {
+			this.ms.getTracks().forEach(track => track.stop());
+		}
+
+		this.ms = await navigator.mediaDevices.getUserMedia({
+			audio: {
+				deviceId: this.audioInputSelect.value ? { exact: this.audioInputSelect.value } : undefined
+			}
+		});
+
+		const sender = this.pc.getSenders().find(s => s.track.kind === 'audio');
+		if (sender) {
+			sender.replaceTrack(this.ms.getTracks()[0]);
+		}
 	},
 
 	markdownToHtml(markdown) {
@@ -71,11 +145,22 @@ window.POSVoiceChat = {
 		document.body.appendChild(this.audioEl);
 		this.pc.ontrack = e => this.audioEl.srcObject = e.streams[0];
 
-		// Add local audio track
+		// Update getUserMedia to use selected input device
 		this.ms = await navigator.mediaDevices.getUserMedia({
-			audio: true
+			audio: {
+				deviceId: this.audioInputSelect.value ? { exact: this.audioInputSelect.value } : undefined
+			}
 		});
 		this.pc.addTrack(this.ms.getTracks()[0]);
+
+		// Set audio output if supported
+		if (this.audioEl.setSinkId && this.audioOutputSelect.value) {
+			try {
+				await this.audioEl.setSinkId(this.audioOutputSelect.value);
+			} catch (error) {
+				console.error('Error setting audio output device:', error);
+			}
+		}
 
 		// Set up data channel
 		this.dc = this.pc.createDataChannel("oai-events");

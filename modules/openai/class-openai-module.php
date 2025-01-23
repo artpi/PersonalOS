@@ -56,6 +56,8 @@ class OpenAI_Module extends POS_Module {
 		<h1>Voice Chat</h1>
 		<div id="voice-chat">
 			<button id="start-session">Start Session</button>
+			<select id="audio-input"></select>
+			<select id="audio-output"></select>
 		</div>
 		<div id="chat-container">
 			<div id="messages">
