@@ -49,6 +49,18 @@ class OpenAI_Module extends POS_Module {
 			'pos-voice-chat',
 			array( $this, 'voice_chat_page' )
 		);
+		add_action( 'admin_head', function() {
+			if ( get_current_screen()->id !== 'personal-os_page_pos-voice-chat' ) {
+				return;
+			}
+			?>
+				<meta name="apple-mobile-web-app-capable" content="yes">
+				<meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+				<!-- Set the app title -->
+				<meta name="apple-mobile-web-app-title" content="PersonalOS Voice Mode">
+			<?php
+		} );
 	}
 
 	public function voice_chat_page() {
@@ -75,6 +87,10 @@ class OpenAI_Module extends POS_Module {
 			</div>
 		</div>
 		<style>
+			#wpbody-content {
+				margin-bottom:0;
+				padding-bottom:0;
+			}
 			.audio-controls {
 				display: flex;
 				align-items: center;
@@ -216,6 +232,8 @@ class OpenAI_Module extends POS_Module {
 		EOF;
 
 		wp_enqueue_script( 'voice-chat', plugins_url( 'assets/voice-chat.js', __FILE__ ), array( 'wp-api-fetch' ), time(), true );
+		//wp_enqueue_style( 'voice-chat', plugins_url( 'assets/voice-chat.css', __FILE__ ) );
+
 	}
 
 	public function custom_gpt_page() {
