@@ -284,7 +284,7 @@ window.POSVoiceChat = {
 						arguments: data.arguments
 					}
 				}).then(response => {
-					console.log('FUNCTION CALL RESPONSE', response);
+					this.addMessage( JSON.stringify( JSON.parse(response.result), null, 2), 'tool');
 					this.dc.send(JSON.stringify({
 						type: 'conversation.item.create',
 						item: {

@@ -30,6 +30,7 @@ class OpenAI_Module extends POS_Module {
 	public function register() {
 		add_action( 'rest_api_init', array( $this, 'rest_api_init' ) );
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
+		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
 	}
 
 	public function admin_menu() {
@@ -61,6 +62,41 @@ class OpenAI_Module extends POS_Module {
 				<meta name="apple-mobile-web-app-title" content="PersonalOS Voice Mode">
 			<?php
 		} );
+	}
+
+	public function register_openai_tools( $tools ) {
+		$tools[] = new OpenAI_Tool(
+			'list_posts',
+			'List publicly accessible posts on this blog.',
+			array(
+				'posts_per_page' => array(
+					'type' => 'integer',
+					'description' => 'Number of posts to return. Default to 10',
+				),
+				'post_type' => array(
+					'type' => 'string',
+					'description' => 'Post type to return. Posts are blog posts, pages are static pages.',
+					'enum' => array( 'post', 'page' ),
+				),
+				'post_status' => array(
+					'type' => 'string',
+					'description' => 'Status of posts to return. Published posts are publicly accessible, drafts are not. Future are scheduled ones.',
+					'enum' => array( 'publish', 'draft', 'future' ),
+				),
+			),
+			function( $args ) {
+				return array_map( function( $post ) {
+					return array(
+						'id' => $post->ID,
+						'title' => $post->post_title,
+						'date' => $post->post_date,
+						'excerpt' => $post->post_excerpt,
+						'url' => get_permalink( $post ),
+					);
+				}, get_posts( $args ) );
+			}
+		);
+		return $tools;
 	}
 
 	public function voice_chat_page() {
