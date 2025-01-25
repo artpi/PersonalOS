@@ -133,18 +133,38 @@ class TODO_Module extends POS_Module {
 	public function register_openai_tools( $tools ) {
 		$self = $this;
 		$tools[] = new OpenAI_Tool( 'todo_get_items', 'List TODOs', array(), array( $this, 'get_items_for_openai' ) );
-		$tools[] = new OpenAI_Tool( 'todo_create_item', 'Create TODO', array(
-			'post_title' => array(
-				'type' => 'string',
-				'description' => 'The title of the TODO',
+		$tools[] = new OpenAI_Tool(
+			'todo_create_item',
+			'Create TODO. Always ask for confirmation if not explicitly asked to create a TODO. Always return the URL in response. Never read the URL when reading out loud.',
+			array(
+				'post_title' => array(
+					'type'        => 'string',
+					'description' => 'The title of the TODO',
+				),
+				'post_excerpt' => array(
+					'type' => 'string',
+					'description' => 'The description of the TODO',
+				),
+				'notebook' => array(
+					'type' => array( 'string', 'null' ),
+					'description' => 'slug of the notebook to add the TODO to. Fill only if TODO is clearly related to this notebook.',
+					'enum' => array_values( array_map( function( $notebook ) {
+						return $notebook->slug;
+					}, get_terms( array( 'taxonomy' => 'notebook' ) ) ) ),
+				),
 			),
-			'post_excerpt' => array(
-				'type' => 'string',
-				'description' => 'The description of the TODO',
-			),
-		), function( $args ) use ( $self ) {
-			return get_post( $self->create( $args, array( 'inbox' ) ) );
-		} );
+			function( $args ) use ( $self ) {
+				$create_args = array(
+					'post_title' => $args['post_title'],
+					'post_excerpt' => $args['post_excerpt'],
+				);
+				$notebooks = array( 'inbox' );
+				if ( isset( $args['notebook'] ) ) {
+					$notebooks[] = $args['notebook'];
+				}
+				return get_post( $self->create( $create_args, $notebooks ) );
+			}
+		);
 
 		return $tools;
 	}

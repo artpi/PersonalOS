@@ -25,8 +25,29 @@ window.POSVoiceChat = {
 		this.setupDeviceSelectors();
 
 		document.getElementById('send-button').addEventListener('click', () => {
-			this.addMessage(this.messageInput.value, 'user');
+			if ( this.messageInput.value.length === 0 || ! this.dc || ! this.isActive ) {
+				return;
+			}
+			const message = this.messageInput.value;
+			this.addMessage(message, 'user');
 			this.messageInput.value = '';
+			this.dc.send(JSON.stringify({
+				type: 'conversation.item.create',
+				item: {
+					type: 'message',
+					role: 'user',
+					content: [ {
+						type: 'input_text',
+						text: message,
+					} ]
+				}
+			}));
+			this.dc.send(JSON.stringify({
+				type: 'response.create',
+				response: {
+					modalities: ['text'],
+				}
+			}));
 		});
 		this.startSessionButton.addEventListener('click', () => {
 			this.realtimeChatInit(this.startSessionButton);
@@ -242,6 +263,8 @@ window.POSVoiceChat = {
 			} else if (data.type === 'output_audio_buffer.audio_stopped') {
 				console.log('BUFFER AUDIO STOPPED');
 				document.getElementById('chat-container').classList.remove("speaking");
+			} else {
+				//console.log('OTHER', data );
 			}
 			
 		});

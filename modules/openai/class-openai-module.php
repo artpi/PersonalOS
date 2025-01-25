@@ -117,9 +117,9 @@ class OpenAI_Module extends POS_Module {
 				flex-direction: column;
 				overflow: hidden;
 			}
-			#chat-container.session_active #input-container {
-				display: none;
-			}
+			// #chat-container.session_active #input-container {
+			// 	display: none;
+			// }
 			#messages {
 				flex: 1;
 				min-height: 0; /* Important for flex child scrolling */
@@ -356,10 +356,18 @@ class OpenAI_Module extends POS_Module {
 			'https://api.openai.com/v1/realtime/sessions',
 			array(
 				'model' => 'gpt-4o-realtime-preview-2024-12-17',
-				'instructions' => 'You are an assistant with access to my database of notes and todos. You will help me complete tasks and schedule my work. Use very basic markdown.',
+				'instructions' => $this->create_system_prompt(),
 				'voice' => 'ballad',
 				'input_audio_transcription' => array(
 					'model' => 'whisper-1',
+				),
+				// 'modalities' => array(
+				// 	'text',
+				// ),
+				'turn_detection' => array(
+					'type' => 'server_vad',
+					'threshold' => 0.8,
+					'prefix_padding_ms' => 100,
 				),
 				'tools' => array_map( function( $tool ) {
 					return $tool->get_function_signature_for_realtime_api();
@@ -367,6 +375,68 @@ class OpenAI_Module extends POS_Module {
 			)
 		);
 		return $result;
+	}
+
+	public function create_system_prompt() {
+		$note_module = POS::get_module_by_id( 'notes' );
+		$notebook_tree = array_map( function( $flag ) use ( $note_module ) {
+			$notebooks = array_map( function( $notebook ) {
+				return <<<EOF
+					<notebook
+						name="{$notebook->name}"
+						id="{$notebook->term_id}"
+						slug="{$notebook->slug}"
+					>
+						{$notebook->description}
+					</notebook>
+				EOF;
+			}, $note_module->get_notebooks_by_flag( $flag['id'] ) );
+			$notebooks = implode( "\n", $notebooks );
+			return <<<EOF
+				<notebook_type
+					id="{$flag['id']}"
+					name="{$flag['name']}"
+					label="{$flag['label']}"
+				>
+					{$notebooks}
+				</notebook_type>
+			EOF;
+		}, apply_filters(
+			'pos_notebook_flags',
+			array(
+				// array(
+				// 	'id' => null,
+				// 	'name' => 'Rest of the notebooks',
+				// 	'label' => 'Notebooks without any special flag.',
+				// ),
+			)
+		) );
+		$notebook_tree = implode( "\n", $notebook_tree );
+
+		$user_name = wp_get_current_user()->display_name;
+		$user_description = wp_get_current_user()->description;
+		$time = gmdate( 'Y-m-d H:i:s' );
+		return <<<EOF
+		<me>
+			<name>{$user_name}</name>
+			<description>{$user_description}</description>
+		</me>
+		<system>
+			<current_time>{$time}</current_time>
+		</system>
+		<you>
+			Your name is PersonalOS. You are a plugin installed on my WordPress site.
+			Apart from WordPress functionality, you have certain modules enabled, and functionality exposed as tools.
+			You can use these tools to perform actions on my behalf.
+		</you>
+
+		# Notebooks
+		My work is organized in "notebooks". They represent areas of my life, active projects and statuses of tasks.
+		From Notebook descriptions, you can learn about areas of my life.
+		<notebooks>
+			{$notebook_tree}
+		</notebooks>
+		EOF;
 	}
 
 	public function function_call( WP_REST_Request $request ) {
