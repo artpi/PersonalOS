@@ -9,6 +9,7 @@ window.POSVoiceChat = {
 	startSessionButton: null,
 	audioInputSelect: null,
 	audioOutputSelect: null,
+	backscroll: [],
 
 	init() {
 		document.addEventListener('DOMContentLoaded', this.onLoad.bind(this));
@@ -25,12 +26,30 @@ window.POSVoiceChat = {
 		this.setupDeviceSelectors();
 
 		document.getElementById('send-button').addEventListener('click', () => {
-			if ( this.messageInput.value.length === 0 || ! this.dc || ! this.isActive ) {
+			if ( this.messageInput.value.length === 0 ) {
 				return;
 			}
 			const message = this.messageInput.value;
 			this.addMessage(message, 'user');
 			this.messageInput.value = '';
+			if ( ! this.dc || ! this.isActive ) {
+				// Use without voice mode.
+				console.log('BACKSCROLL', this.backscroll);
+				wp.apiFetch({
+					path: '/pos/v1/openai/chat/assistant',
+					method: 'POST',
+					data: {
+						messages: this.backscroll,
+					}
+				}).then(response => {
+					if ( ! response.choices || ! response.choices.length || ! response.choices[0].message.content ) {
+						return;
+					}
+					this.addMessage(response.choices[0].message.content, 'assistant');
+				});
+				return;
+			}
+
 			this.dc.send(JSON.stringify({
 				type: 'conversation.item.create',
 				item: {
@@ -131,6 +150,10 @@ window.POSVoiceChat = {
 	},
 
 	addMessage(text, sender) {
+		this.backscroll.push({
+			content: text,
+			role: sender,
+		});
 		text = this.markdownToHtml(text);
 		const messageBubble = document.createElement('div');
 		messageBubble.classList.add('message', sender);
@@ -229,7 +252,7 @@ window.POSVoiceChat = {
 			const data = JSON.parse(e.data);
 			if (data.type === 'response.function_call_arguments.done') {
 				console.log('FUNCTION CALL ARGUMENTS DONE', data.name, data.arguments);
-				this.addMessage('Calling function ' + data.name, 'bot');
+				this.addMessage('Calling function ' + data.name, 'assistant');
 				wp.apiFetch({
 					path: '/pos/v1/openai/realtime/function_call',
 					method: 'POST',
@@ -253,7 +276,7 @@ window.POSVoiceChat = {
 				});
 			} else if (data.type === 'response.audio_transcript.done') {
 				console.log('MODEL', data.transcript);
-				this.addMessage(data.transcript, 'bot');
+				this.addMessage(data.transcript, 'assistant');
 			} else if (data.type === 'conversation.item.input_audio_transcription.completed') {
 				console.log('USER', data.transcript);
 				this.addMessage(data.transcript, 'user');

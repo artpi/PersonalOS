@@ -68,7 +68,7 @@ class OpenAI_Module extends POS_Module {
 		<div id="chat-container">
 			<div id="messages">
 				<!-- Chat messages will appear here -->
-				<div class="message bot">
+				<div class="message assistant">
 					<b>OpenAI advanced voice mode</b>
 				</div>
 			</div>
@@ -142,7 +142,7 @@ class OpenAI_Module extends POS_Module {
 				color: white;
 				border-bottom-right-radius: 4px;
 			}
-			.message.bot {
+			.message.assistant {
 				align-self: flex-start;
 				background-color: #e4e6eb;
 				color: black;
@@ -338,6 +338,15 @@ class OpenAI_Module extends POS_Module {
 		);
 		register_rest_route(
 			$this->rest_namespace,
+			'/openai/chat/assistant',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'chat_assistant' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+		register_rest_route(
+			$this->rest_namespace,
 			'/openai/media/describe/(?P<id>\d+)',
 			array(
 				'methods'             => 'POST',
@@ -497,6 +506,21 @@ class OpenAI_Module extends POS_Module {
 
 	public function chat_api( WP_REST_Request $request ) {
 		return $this->api_call( 'https://api.openai.com/v1/chat/completions', $request->get_json_params() );
+	}
+
+	public function chat_assistant( WP_REST_Request $request ) {
+		$params = $request->get_json_params();
+		$messages = array_merge( array(
+			array(
+				'role' => 'system',
+				'content' => $this->create_system_prompt(),
+			),
+		), $params['messages'] );
+		return $this->api_call( 'https://api.openai.com/v1/chat/completions', array(
+			'model' => 'gpt-4o',
+			'messages' => $messages,
+		) );
+
 	}
 
 	public function api_call( $url, $data ) {
