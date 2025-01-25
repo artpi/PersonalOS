@@ -40,7 +40,7 @@ class OpenAI_Tool {
 				'description' => $this->description,
 				'parameters'  => array(
 					'type'                 => 'object',
-					'properties'           => $this->parameters,
+					'properties'           => (object) $this->parameters,
 					'required'             => array_keys( $this->parameters ),
 					'additionalProperties' => false,
 				),

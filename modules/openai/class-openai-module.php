@@ -148,6 +148,22 @@ class OpenAI_Module extends POS_Module {
 				color: black;
 				border-bottom-left-radius: 4px;
 			}
+			.message.tool {
+				align-self: flex-start;
+				background-color: #edf2f7;
+				color: black;
+				border-bottom-left-radius: 4px;
+				cursor: pointer;
+			}
+			.message.tool pre {
+				display: none;
+				font-size: 0.75em;
+				overflow-x: auto;
+			}
+			.message.tool:hover pre {
+				display: block;
+			}
+
 			#input-container {
 				display: flex;
 				padding: 12px;
@@ -437,6 +453,7 @@ class OpenAI_Module extends POS_Module {
 			Your name is PersonalOS. You are a plugin installed on my WordPress site.
 			Apart from WordPress functionality, you have certain modules enabled, and functionality exposed as tools.
 			You can use these tools to perform actions on my behalf.
+			Use simple markdown to format your responses.
 		</you>
 
 		# Notebooks
@@ -510,17 +527,73 @@ class OpenAI_Module extends POS_Module {
 
 	public function chat_assistant( WP_REST_Request $request ) {
 		$params = $request->get_json_params();
-		$messages = array_merge( array(
-			array(
-				'role' => 'system',
-				'content' => $this->create_system_prompt(),
-			),
-		), $params['messages'] );
-		return $this->api_call( 'https://api.openai.com/v1/chat/completions', array(
-			'model' => 'gpt-4o',
-			'messages' => $messages,
-		) );
+		$backscroll = $params['messages'];
 
+		$tool_definitions = array_map(
+			function ( $tool ) {
+				return $tool->get_function_signature();
+			},
+			array_values( OpenAI_Tool::get_tools() ),
+		);
+		$max_loops = 10;
+		do {
+			--$max_loops;
+			$completion = $this->api_call( 'https://api.openai.com/v1/chat/completions', array(
+				'model' => 'gpt-4o',
+				'messages' => array_merge( array(
+					array(
+						'role' => 'assistant',
+						'content' => $this->create_system_prompt(),
+					),
+				), $backscroll ),
+				'tools' => $tool_definitions,
+			) );
+			//return $completion;
+			if ( is_wp_error( $completion ) ) {
+				return $completion;
+			}
+
+			if ( isset( $completion->message, $completion->code ) ) {
+				return new WP_Error( $completion->code, $completion->message );
+			}
+
+			if ( ! isset( $completion->choices[0]->finish_reason ) ) {
+				return new WP_Error( 'no-finish-reason', 'No finish reason', [ $completion, $backscroll ] );
+			}
+
+			$backscroll[] = $completion->choices[0]->message;
+			if ( $completion->choices[0]->finish_reason === 'tool_calls' ) {
+				$tool_calls = $completion->choices[0]->message->tool_calls;
+				foreach ( $tool_calls as $tool_call ) {
+					$arguments = json_decode( $tool_call->function->arguments, true );
+					$tool      = array_filter(
+						OpenAI_Tool::get_tools(),
+						function ( $tool ) use ( $tool_call ) {
+							return $tool->name === $tool_call->function->name;
+						}
+					);
+					$tool      = reset( $tool );
+					if ( ! $tool ) {
+						return new WP_Error( 'tool-not-found', 'Tool not found ' . $tool_call->function->name );
+					}
+
+					$result = $tool->invoke( $arguments );
+
+					if ( is_wp_error( $result ) ) {
+						return $result;
+					}
+					if ( ! is_string( $result ) ) {
+						$result = wp_json_encode( $result, JSON_PRETTY_PRINT );
+					}
+					$backscroll[] = [
+						'role'         => 'tool',
+						'content'      => $result,
+						'tool_call_id' => $tool_call->id,
+					];
+				}
+			}
+		} while ( $completion->choices[0]->finish_reason !== 'stop' && $max_loops > 0 );
+		return $backscroll;
 	}
 
 	public function api_call( $url, $data ) {

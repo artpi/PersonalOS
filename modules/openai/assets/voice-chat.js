@@ -26,53 +26,58 @@ window.POSVoiceChat = {
 		this.setupDeviceSelectors();
 
 		document.getElementById('send-button').addEventListener('click', () => {
-			if ( this.messageInput.value.length === 0 ) {
-				return;
-			}
-			const message = this.messageInput.value;
-			this.addMessage(message, 'user');
-			this.messageInput.value = '';
-			if ( ! this.dc || ! this.isActive ) {
-				// Use without voice mode.
-				console.log('BACKSCROLL', this.backscroll);
-				wp.apiFetch({
-					path: '/pos/v1/openai/chat/assistant',
-					method: 'POST',
-					data: {
-						messages: this.backscroll,
-					}
-				}).then(response => {
-					if ( ! response.choices || ! response.choices.length || ! response.choices[0].message.content ) {
-						return;
-					}
-					this.addMessage(response.choices[0].message.content, 'assistant');
-				});
-				return;
-			}
-
-			this.dc.send(JSON.stringify({
-				type: 'conversation.item.create',
-				item: {
-					type: 'message',
-					role: 'user',
-					content: [ {
-						type: 'input_text',
-						text: message,
-					} ]
-				}
-			}));
-			this.dc.send(JSON.stringify({
-				type: 'response.create',
-				response: {
-					modalities: ['text'],
-				}
-			}));
+			this.sendMessage();
 		});
+		this.messageInput.onkeydown = (e) => {
+			if ( e.key === 'Enter' ) {
+				this.sendMessage();
+			}
+		};
+
 		this.startSessionButton.addEventListener('click', () => {
 			this.realtimeChatInit(this.startSessionButton);
 		});
 	},
 
+	sendMessage() {
+		if ( this.messageInput.value.length === 0 ) {
+			return;
+		}
+		const message = this.messageInput.value;
+		this.addMessage(message, 'user');
+		this.messageInput.value = '';
+		if ( ! this.dc || ! this.isActive ) {
+			// Use without voice mode.
+			wp.apiFetch({
+				path: '/pos/v1/openai/chat/assistant',
+				method: 'POST',
+				data: {
+					messages: this.backscroll,
+				}
+			}).then(response => {
+				this.resetBackscroll(response);
+			});
+			return;
+		}
+
+		this.dc.send(JSON.stringify({
+			type: 'conversation.item.create',
+			item: {
+				type: 'message',
+				role: 'user',
+				content: [ {
+					type: 'input_text',
+					text: message,
+				} ]
+			}
+		}));
+		this.dc.send(JSON.stringify({
+			type: 'response.create',
+			response: {
+				modalities: ['text'],
+			}
+		}));
+	},
 	async setupDeviceSelectors() {
 		try {
 			const devices = await navigator.mediaDevices.enumerateDevices();
@@ -154,12 +159,30 @@ window.POSVoiceChat = {
 			content: text,
 			role: sender,
 		});
-		text = this.markdownToHtml(text);
+		this.renderMessage(text, sender);
+	},
+
+	renderMessage( text, sender ) {
 		const messageBubble = document.createElement('div');
 		messageBubble.classList.add('message', sender);
-		messageBubble.innerHTML = text;
+		if ( sender === 'tool' ) {
+			messageBubble.innerHTML = `<div class='tool-header'>Calling tool ⬇️</div><pre>${text}</pre>`;
+		} else {
+			messageBubble.innerHTML = this.markdownToHtml(text);
+		}
+
 		this.messagesContainer.appendChild(messageBubble);
 		this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+	},
+
+	resetBackscroll( newBackscroll ) {
+		this.backscroll = newBackscroll;
+		this.messagesContainer.innerHTML = '';
+		this.backscroll.forEach(message => {
+			if ( message.content ) {
+				this.renderMessage(message.content, message.role);
+			}
+		});
 	},
 
 	async realtimeChatInit(button) {
