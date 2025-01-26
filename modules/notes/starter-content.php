@@ -14,13 +14,14 @@ $this->create_term_if_not_exists( 'My main project now', 'project1', array( arra
 $this->create_term_if_not_exists( 'World Domination', 'project2', array( array( 'flag', 'project' ) ), array( 'parent' => $term_project ) );
 
 $term_areas = $this->create_term_if_not_exists( '3-Areas', 'areas', array() );
-$this->create_term_if_not_exists( 'Health', 'area1', array(), array( 'parent' => $term_areas ) );
-$this->create_term_if_not_exists( 'Work', 'area2', array(), array( 'parent' => $term_areas ) );
-$this->create_term_if_not_exists( 'Family', 'area3', array(), array( 'parent' => $term_areas ) );
+$this->create_term_if_not_exists( 'Health', 'health', array(), array( 'parent' => $term_areas ) );
+$this->create_term_if_not_exists( 'Work', 'work', array(), array( 'parent' => $term_areas ) );
+$this->create_term_if_not_exists( 'Family', 'family', array(), array( 'parent' => $term_areas ) );
 
 $term_resources = $this->create_term_if_not_exists( '4-Resources', 'resources', array() );
 $starter_content = $this->create_term_if_not_exists( 'Starter Content', 'starter-content', array( array( 'flag', 'star' ) ), array( 'parent' => $term_resources ) );
-$this->create_term_if_not_exists( 'Nice Quotes', 'resource2', array(), array( 'parent' => $term_resources ) );
+$ai_memory = $this->create_term_if_not_exists( 'AI Memory', 'ai-memory', array(), array( 'parent' => $term_resources ) );
+$this->create_term_if_not_exists( 'Nice Quotes', 'nice-quotes', array(), array( 'parent' => $term_resources ) );
 
 // Lets delete all starter-content notes.
 

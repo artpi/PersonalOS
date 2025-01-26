@@ -108,6 +108,7 @@ class OpenAI_Module extends POS_Module {
 	}
 
 	public function register_openai_tools( $tools ) {
+		$notes_module = POS::get_module_by_id( 'notes' );
 		$tools[] = new OpenAI_Tool(
 			'list_posts',
 			'List publicly accessible posts on this blog.',
@@ -139,6 +140,39 @@ class OpenAI_Module extends POS_Module {
 						);
 					},
 					get_posts( $args )
+				);
+			}
+		);
+		$tools[] = new OpenAI_Tool(
+			'ai_memory',
+			'Store information in the memory. Use this tool when you need to store additional information relevant for future conversations. For example, "Remembe to always talk like a pirate", or "I Just got a puppy", or "I am building a house" should trigger this tool. Very time-specific, ephemeral data should not.',
+			array(
+				'ID' => array(
+					'type'        => 'integer',
+					'description' => 'ID of the memory to update. Only provide when updating existing memory. Set to 0 when creating a new memory.',
+				),
+				'post_title' => array(
+					'type'        => 'string',
+					'description' => 'Short title describing the memory. Describe what is the memory about specifically.',
+				),
+				'post_content' => array(
+					'type'        => 'string',
+					'description' => 'Actual content of the memory that will be stored and used for future conversations.',
+				),
+			),
+			function( $args ) {
+				$memory_id = wp_insert_post(
+					array_merge(
+						$args,
+						array(
+							'post_type'   => 'notes',
+							'post_status' => 'publish',
+						)
+					)
+				);
+				wp_set_object_terms( $memory_id, array( 'ai-memory' ), 'notebook' );
+				return array(
+					'url' => get_permalink( $memory_id ),
 				);
 			}
 		);
@@ -530,6 +564,27 @@ class OpenAI_Module extends POS_Module {
 		);
 		$notebook_tree = implode( "\n", $notebook_tree );
 
+		$memories = get_posts(
+			array(
+				'post_type'   => 'notes',
+				'taxonomy'    => 'notebook', 
+				'term'        => 'ai-memory',
+				'numberposts' => -1,
+			)
+		);
+		$memories = implode(
+			"\n",
+			array_map(
+				function( $memory ) {
+					return "<memory id='{$memory->ID}'>
+						<title>{$memory->post_title}</title>
+						<content>{$memory->post_content}</content>
+					</memory>";
+				},
+				$memories
+			)
+		);
+
 		$user_name = wp_get_current_user()->display_name;
 		$user_description = wp_get_current_user()->description;
 		$time = gmdate( 'Y-m-d H:i:s' );
@@ -556,6 +611,13 @@ class OpenAI_Module extends POS_Module {
 		<notebooks>
 			{$notebook_tree}
 		</notebooks>
+	
+		# AI Memory
+		You have previously stored some information in the AI Memory using the "ai_memory" tool.
+		You can use this information to answer questions or perform actions.
+		<memory>
+			{$memories}
+		</memory>
 		EOF;
 	}
 
