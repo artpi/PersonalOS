@@ -37,6 +37,13 @@ window.POSVoiceChat = {
 		this.startSessionButton.addEventListener('click', () => {
 			this.realtimeChatInit(this.startSessionButton);
 		});
+		// Get query param 'q' and populate message input if present
+		const urlParams = new URLSearchParams(window.location.search);
+		const queryMessage = urlParams.get('q');
+		if (queryMessage) {
+			this.messageInput.value = queryMessage;
+			this.sendMessage();
+		}
 	},
 
 	sendMessage() {
