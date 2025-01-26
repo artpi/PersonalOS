@@ -52,10 +52,15 @@ class OpenAI_Module extends POS_Module {
 	public function cli_openai_tool( $args ) {
 		$tools = apply_filters( 'pos_openai_tools', array() );
 		if ( empty( $args[0] ) ) {
-			WP_CLI::log( 'Available tools:' );
-			foreach ( $tools as $tool ) {
-				WP_CLI::log( sprintf( '%s: %s', $tool->name, $tool->description ) );
-			}
+			$items = array_map( function( $tool ) {
+				return array(
+					'name' => $tool->name,
+					'description' => $tool->description,
+					'parameters' => json_encode( $tool->parameters ),
+				);
+			}, $tools );
+			
+			WP_CLI\Utils\format_items( 'table', $items, array( 'name', 'description', 'parameters' ) );
 			return;
 		}
 		$tool = OpenAI_Tool::get_tool( $args[0] );
@@ -451,6 +456,7 @@ class OpenAI_Module extends POS_Module {
 				'model' => 'gpt-4o-realtime-preview-2024-12-17',
 				'instructions' => $this->create_system_prompt(),
 				'voice' => 'ballad',
+				'temperature' => 0.6,
 				'input_audio_transcription' => array(
 					'model' => 'whisper-1',
 				),
@@ -522,6 +528,8 @@ class OpenAI_Module extends POS_Module {
 			Apart from WordPress functionality, you have certain modules enabled, and functionality exposed as tools.
 			You can use these tools to perform actions on my behalf.
 			Use simple markdown to format your responses.
+			NEVER read the URLs (http://, https://, evernote://, etc) out loud in voice mode.
+			When answering a question about my todos or notes, stick only to the information from the tools. DO NOT make up information.
 		</you>
 
 		# Notebooks

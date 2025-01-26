@@ -59,18 +59,30 @@ class Evernote_Module extends External_Service_Module {
 		$this->register_cli_command( 'sync_note', 'cli' );
 		add_action( 'notebook_edit_form_fields', array( $this, 'notebook_edit_form_fields' ), 10, 2 );
 		add_action( 'edited_notebook', array( $this, 'save_bound_notebook_taxonomy_setting' ) );
-		//add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
+		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
 	}
 
-	// public function register_openai_tools( $tools ) {
-	// 	$tools[] = new OpenAI_Tool( 'evernote_search_notes', 'Search notes in Evernote', array(
-	// 		'query' => array(
-	// 			'type' => 'string',
-	// 			'description' => 'Query to search for notes.',
-	// 		),
-	// 	), array( $this, 'get_note' ) );
-	// 	return $tools;
-	// }
+	public function register_openai_tools( $tools ) {
+		$self = $this;
+		$tools[] = new OpenAI_Tool( 'evernote_search_notes', 'Search notes in Evernote', array(
+			'query' => array(
+				'type' => 'string',
+				'description' => 'Query to search for notes.',
+			),
+		), function( $args ) use ( $self ) {
+			return array_map( function( $note ) use ( $self ) {
+				$cached_data = $self->get_cached_data();
+				$notebook_name = $cached_data['notebooks'][ $note->notebookGuid ]['name'] ?? $note->notebookGuid;
+				return array(
+					'title' => $note->title,
+					'url' => $self->get_app_link_from_guid( $note->guid ),
+					'date' => gmdate( 'Y-m-d H:i:s', floor( $note->created / 1000 ) ),
+					'notebook' => $notebook_name,
+				);
+			}, $self->search_notes( $args ) );
+		} );
+		return $tools;
+	}
 	/**
 	 * This forces sync of the note from evernote
 	 * <guid>
@@ -241,6 +253,41 @@ class Evernote_Module extends External_Service_Module {
 			$this->log( "Evernote ENML probably misformatted: '" . $e->getMessage() . '" . While saving: ' . $note->content, E_USER_WARNING );
 		}
 
+	}
+
+	public function search_notes( $args ) {
+		$this->connect();
+		$limit = $args['limit'] ?? 25;
+		$filter = new \EDAM\NoteStore\NoteFilter();
+		$filter->words = $args['query'];
+		$filter->ascending = false;
+		$filter->order = EDAM\Types\NoteSortOrder::CREATED;
+        if( isset( $args['notebook'] ) ) {
+			$filter->notebookGuid = $args['notebook'];
+        }
+        $notes = array();
+
+        try {
+            $start = 0;
+            $step = $limit ? min( 25, $limit ) : 25;
+            do {
+                $n = $this->advanced_client->getNoteStore()->findNotes( $filter, $start, $step );
+                if( ! $limit || $n->totalNotes < $limit ) {
+					$limit = $n->totalNotes;
+				}
+                $start += $step;
+                $notes = array_merge( $notes, $n->notes );
+            } while( count( $notes ) < $limit );
+
+        } catch (EDAMUserException $edue) {
+			$this->log( "EDAMUserException[".$edue->errorCode."]: " . $edue, E_USER_WARNING );
+			return 'Error authorizing with Evernote';
+        } catch (EDAMNotFoundException $ednfe) {
+			$this->log( "EDAMNotFoundException: Invalid parent notebook GUID", E_USER_WARNING );
+			return 'Error in Evernote configuration';
+        }
+
+        return $notes; //array_slice( $notes, 0, $limit );
 	}
 
 	/**
