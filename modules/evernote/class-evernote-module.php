@@ -31,6 +31,7 @@ class Evernote_Module extends External_Service_Module {
 			'type'  => 'callback',
 			'name'  => 'Synced notebooks',
 			'label' => 'Comma separated list of notebooks to sync',
+			'default' => array(),
 		),
 		'active'           => array(
 			'type'  => 'bool',
@@ -389,7 +390,8 @@ class Evernote_Module extends External_Service_Module {
 			$disabled = 'disabled';
 			$extra = ' (conn: ' . get_term( $existing )->name . ')';
 		}
-		$sync_status = in_array( $key, $this->get_setting( 'synced_notebooks' ), true ) ? '🔄 ' : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
+		$synced_notebooks = empty( $this->get_setting( 'synced_notebooks' ) ) ? [] : $this->get_setting( 'synced_notebooks' );
+		$sync_status = in_array( $key, $synced_notebooks, true ) ? '🔄 ' : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
 
 		return "<option $selected $disabled value='$id'>{$sync_status}{$type}{$data['name']}{$extra}</option>";
 	}
