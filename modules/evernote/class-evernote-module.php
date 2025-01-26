@@ -59,8 +59,18 @@ class Evernote_Module extends External_Service_Module {
 		$this->register_cli_command( 'sync_note', 'cli' );
 		add_action( 'notebook_edit_form_fields', array( $this, 'notebook_edit_form_fields' ), 10, 2 );
 		add_action( 'edited_notebook', array( $this, 'save_bound_notebook_taxonomy_setting' ) );
+		//add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
 	}
 
+	// public function register_openai_tools( $tools ) {
+	// 	$tools[] = new OpenAI_Tool( 'evernote_search_notes', 'Search notes in Evernote', array(
+	// 		'query' => array(
+	// 			'type' => 'string',
+	// 			'description' => 'Query to search for notes.',
+	// 		),
+	// 	), array( $this, 'get_note' ) );
+	// 	return $tools;
+	// }
 	/**
 	 * This forces sync of the note from evernote
 	 * <guid>

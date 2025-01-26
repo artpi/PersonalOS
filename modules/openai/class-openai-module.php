@@ -31,6 +31,38 @@ class OpenAI_Module extends POS_Module {
 		add_action( 'rest_api_init', array( $this, 'rest_api_init' ) );
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
+		$this->register_cli_command( 'tool', 'cli_openai_tool' );
+	}
+
+	/**
+	 * Test OpenAI tools
+	 * 
+	 * Lists available OpenAI tools and allows testing individual tools with arguments.
+	 * If no tool is specified, displays all available tools. If a tool name is provided,
+	 * executes that specific tool with the optional arguments.
+	 *
+	 * ## OPTIONS
+	 * 
+	 * [<tool>]
+	 * : Name of the tool to test
+	 * 
+	 * [<args>]
+	 * : JSON string of arguments to pass to the tool
+	 */
+	public function cli_openai_tool( $args ) {
+		$tools = apply_filters( 'pos_openai_tools', array() );
+		if ( empty( $args[0] ) ) {
+			WP_CLI::log( 'Available tools:' );
+			foreach ( $tools as $tool ) {
+				WP_CLI::log( sprintf( '%s: %s', $tool->name, $tool->description ) );
+			}
+			return;
+		}
+		$tool = OpenAI_Tool::get_tool( $args[0] );
+		if ( ! $tool ) {
+			WP_CLI::error( 'Tool not found' );
+		}
+		WP_CLI::log( print_r( $tool->invoke( ! empty( $args[1] ) ? json_decode( $args[1], true ) : array() ), true ) );
 	}
 
 	public function admin_menu() {
