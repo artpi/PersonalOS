@@ -495,14 +495,14 @@ class OpenAI_Module extends POS_Module {
 				$notebooks = array_map(
 					function( $notebook ) {
 						return <<<EOF
-					<notebook
-						name="{$notebook->name}"
-						id="{$notebook->term_id}"
-						slug="{$notebook->slug}"
-					>
-						{$notebook->description}
-					</notebook>
-                    EOF;
+							<notebook
+								name="{$notebook->name}"
+								id="{$notebook->term_id}"
+								slug="{$notebook->slug}"
+							>
+								{$notebook->description}
+							</notebook>
+						EOF;
 					},
 					$note_module->get_notebooks_by_flag( $flag['id'] )
 				);
@@ -515,7 +515,7 @@ class OpenAI_Module extends POS_Module {
 				>
 					{$notebooks}
 				</notebook_type>
-            EOF;
+				EOF;
 			},
 			apply_filters(
 				'pos_notebook_flags',
