@@ -137,25 +137,30 @@ class TODO_Module extends POS_Module {
 			'todo_create_item',
 			'Create TODO. Always ask for confirmation if not explicitly asked to create a TODO. Always return the URL in response. Never read the URL when reading out loud.',
 			array(
-				'post_title' => array(
+				'post_title'   => array(
 					'type'        => 'string',
 					'description' => 'The title of the TODO',
 				),
 				'post_excerpt' => array(
-					'type' => 'string',
+					'type'        => 'string',
 					'description' => 'The description of the TODO',
 				),
-				'notebook' => array(
-					'type' => array( 'string', 'null' ),
+				'notebook'     => array(
+					'type'        => array( 'string', 'null' ),
 					'description' => 'slug of the notebook to add the TODO to. Fill only if TODO is clearly related to this notebook.',
-					'enum' => array_values( array_map( function( $notebook ) {
-						return $notebook->slug;
-					}, get_terms( array( 'taxonomy' => 'notebook' ) ) ) ),
+					'enum'        => array_values(
+						array_map(
+							function( $notebook ) {
+								return $notebook->slug;
+							},
+							get_terms( array( 'taxonomy' => 'notebook' ) )
+						)
+					),
 				),
 			),
 			function( $args ) use ( $self ) {
 				$create_args = array(
-					'post_title' => $args['post_title'],
+					'post_title'   => $args['post_title'],
 					'post_excerpt' => $args['post_excerpt'],
 				);
 				$notebooks = array( 'inbox' );
@@ -170,10 +175,17 @@ class TODO_Module extends POS_Module {
 	}
 
 	public function get_items_for_openai( $args ) {
-		$items = $this->list([], 'now');
-		return array_map( function( $item ) {
-			return [ 'title' => $item->post_title, 'excerpt' => $item->post_excerpt, 'url' => get_permalink( $item ) ];
-		}, $items );
+		$items = $this->list( array(), 'now' );
+		return array_map(
+			function( $item ) {
+				return array(
+					'title'   => $item->post_title,
+					'excerpt' => $item->post_excerpt,
+					'url'     => get_permalink( $item ),
+				);
+			},
+			$items
+		);
 	}
 
 	public function load_todo_edit_page() {

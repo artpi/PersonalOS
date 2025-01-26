@@ -339,14 +339,14 @@ class OpenAI_Endpoints {
 		// 		),
 		// 	),
 		// );
-		foreach ($routes as $route => $handlers) {
+		foreach ( $routes as $route => $handlers ) {
 			// Only include pos/v1 namespace and notebook taxonomy endpoints
-			if (!$this->should_include_route($route)) {
+			if ( ! $this->should_include_route( $route ) ) {
 				continue;
 			}
 
-			$path = $this->convert_wp_route_to_openapi($route);
-			$openapi['paths'][$path] = $this->get_path_item($handlers, $route);
+			$path = $this->convert_wp_route_to_openapi( $route );
+			$openapi['paths'][ $path ] = $this->get_path_item( $handlers, $route );
 			//echo $route;
 			// echo json_encode($handlers);
 			// die();

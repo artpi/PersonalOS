@@ -36,30 +36,33 @@ class OpenAI_Module extends POS_Module {
 
 	/**
 	 * Test OpenAI tools
-	 * 
+	 *
 	 * Lists available OpenAI tools and allows testing individual tools with arguments.
 	 * If no tool is specified, displays all available tools. If a tool name is provided,
 	 * executes that specific tool with the optional arguments.
 	 *
 	 * ## OPTIONS
-	 * 
+	 *
 	 * [<tool>]
 	 * : Name of the tool to test
-	 * 
+	 *
 	 * [<args>]
 	 * : JSON string of arguments to pass to the tool
 	 */
 	public function cli_openai_tool( $args ) {
 		$tools = apply_filters( 'pos_openai_tools', array() );
 		if ( empty( $args[0] ) ) {
-			$items = array_map( function( $tool ) {
-				return array(
-					'name' => $tool->name,
-					'description' => $tool->description,
-					'parameters' => json_encode( $tool->parameters ),
-				);
-			}, $tools );
-			
+			$items = array_map(
+				function( $tool ) {
+					return array(
+						'name'        => $tool->name,
+						'description' => $tool->description,
+						'parameters'  => json_encode( $tool->parameters ),
+					);
+				},
+				$tools
+			);
+
 			WP_CLI\Utils\format_items( 'table', $items, array( 'name', 'description', 'parameters' ) );
 			return;
 		}
@@ -87,18 +90,21 @@ class OpenAI_Module extends POS_Module {
 			'pos-voice-chat',
 			array( $this, 'voice_chat_page' )
 		);
-		add_action( 'admin_head', function() {
-			if ( get_current_screen()->id !== 'personal-os_page_pos-voice-chat' ) {
-				return;
-			}
-			?>
+		add_action(
+			'admin_head',
+			function() {
+				if ( get_current_screen()->id !== 'personal-os_page_pos-voice-chat' ) {
+					return;
+				}
+				?>
 				<meta name="apple-mobile-web-app-capable" content="yes">
 				<meta name="apple-mobile-web-app-status-bar-style" content="default">
 
 				<!-- Set the app title -->
 				<meta name="apple-mobile-web-app-title" content="PersonalOS Voice Mode">
-			<?php
-		} );
+				<?php
+			}
+		);
 	}
 
 	public function register_openai_tools( $tools ) {
@@ -107,30 +113,33 @@ class OpenAI_Module extends POS_Module {
 			'List publicly accessible posts on this blog.',
 			array(
 				'posts_per_page' => array(
-					'type' => 'integer',
+					'type'        => 'integer',
 					'description' => 'Number of posts to return. Default to 10',
 				),
-				'post_type' => array(
-					'type' => 'string',
+				'post_type'      => array(
+					'type'        => 'string',
 					'description' => 'Post type to return. Posts are blog posts, pages are static pages.',
-					'enum' => array( 'post', 'page' ),
+					'enum'        => array( 'post', 'page' ),
 				),
-				'post_status' => array(
-					'type' => 'string',
+				'post_status'    => array(
+					'type'        => 'string',
 					'description' => 'Status of posts to return. Published posts are publicly accessible, drafts are not. Future are scheduled ones.',
-					'enum' => array( 'publish', 'draft', 'future' ),
+					'enum'        => array( 'publish', 'draft', 'future' ),
 				),
 			),
 			function( $args ) {
-				return array_map( function( $post ) {
-					return array(
-						'id' => $post->ID,
-						'title' => $post->post_title,
-						'date' => $post->post_date,
-						'excerpt' => $post->post_excerpt,
-						'url' => get_permalink( $post ),
-					);
-				}, get_posts( $args ) );
+				return array_map(
+					function( $post ) {
+						return array(
+							'id'      => $post->ID,
+							'title'   => $post->post_title,
+							'date'    => $post->post_date,
+							'excerpt' => $post->post_excerpt,
+							'url'     => get_permalink( $post ),
+						);
+					},
+					get_posts( $args )
+				);
 			}
 		);
 		return $tools;
@@ -404,14 +413,14 @@ class OpenAI_Module extends POS_Module {
 				'methods'             => 'POST',
 				'callback'            => array( $this, 'function_call' ),
 				'permission_callback' => array( $this, 'check_permission' ),
-				'args' => array(
-					'name' => array(
+				'args'                => array(
+					'name'      => array(
 						'required' => true,
-						'type' => 'string',
+						'type'     => 'string',
 					),
 					'arguments' => array(
 						'required' => false,
-						'type' => 'string',
+						'type'     => 'string',
 					),
 				),
 			)
@@ -453,24 +462,27 @@ class OpenAI_Module extends POS_Module {
 		$result = $this->api_call(
 			'https://api.openai.com/v1/realtime/sessions',
 			array(
-				'model' => 'gpt-4o-realtime-preview-2024-12-17',
-				'instructions' => $this->create_system_prompt(),
-				'voice' => 'ballad',
-				'temperature' => 0.6,
+				'model'                     => 'gpt-4o-realtime-preview-2024-12-17',
+				'instructions'              => $this->create_system_prompt(),
+				'voice'                     => 'ballad',
+				'temperature'               => 0.6,
 				'input_audio_transcription' => array(
 					'model' => 'whisper-1',
 				),
 				// 'modalities' => array(
 				// 	'text',
 				// ),
-				'turn_detection' => array(
-					'type' => 'server_vad',
-					'threshold' => 0.8,
+				'turn_detection'            => array(
+					'type'              => 'server_vad',
+					'threshold'         => 0.8,
 					'prefix_padding_ms' => 100,
 				),
-				'tools' => array_map( function( $tool ) {
-					return $tool->get_function_signature_for_realtime_api();
-				}, OpenAI_Tool::get_tools() ),
+				'tools'                     => array_map(
+					function( $tool ) {
+						return $tool->get_function_signature_for_realtime_api();
+					},
+					OpenAI_Tool::get_tools()
+				),
 			)
 		);
 		return $result;
@@ -478,9 +490,11 @@ class OpenAI_Module extends POS_Module {
 
 	public function create_system_prompt() {
 		$note_module = POS::get_module_by_id( 'notes' );
-		$notebook_tree = array_map( function( $flag ) use ( $note_module ) {
-			$notebooks = array_map( function( $notebook ) {
-				return <<<EOF
+		$notebook_tree = array_map(
+			function( $flag ) use ( $note_module ) {
+				$notebooks = array_map(
+					function( $notebook ) {
+						return <<<EOF
 					<notebook
 						name="{$notebook->name}"
 						id="{$notebook->term_id}"
@@ -488,10 +502,12 @@ class OpenAI_Module extends POS_Module {
 					>
 						{$notebook->description}
 					</notebook>
-				EOF;
-			}, $note_module->get_notebooks_by_flag( $flag['id'] ) );
-			$notebooks = implode( "\n", $notebooks );
-			return <<<EOF
+                    EOF;
+					},
+					$note_module->get_notebooks_by_flag( $flag['id'] )
+				);
+				$notebooks = implode( "\n", $notebooks );
+				return <<<EOF
 				<notebook_type
 					id="{$flag['id']}"
 					name="{$flag['name']}"
@@ -499,17 +515,19 @@ class OpenAI_Module extends POS_Module {
 				>
 					{$notebooks}
 				</notebook_type>
-			EOF;
-		}, apply_filters(
-			'pos_notebook_flags',
-			array(
+            EOF;
+			},
+			apply_filters(
+				'pos_notebook_flags',
+				array(
 				// array(
 				// 	'id' => null,
 				// 	'name' => 'Rest of the notebooks',
 				// 	'label' => 'Notebooks without any special flag.',
 				// ),
+				)
 			)
-		) );
+		);
 		$notebook_tree = implode( "\n", $notebook_tree );
 
 		$user_name = wp_get_current_user()->display_name;
@@ -614,16 +632,22 @@ class OpenAI_Module extends POS_Module {
 		$max_loops = 10;
 		do {
 			--$max_loops;
-			$completion = $this->api_call( 'https://api.openai.com/v1/chat/completions', array(
-				'model' => 'gpt-4o',
-				'messages' => array_merge( array(
-					array(
-						'role' => 'assistant',
-						'content' => $this->create_system_prompt(),
+			$completion = $this->api_call(
+				'https://api.openai.com/v1/chat/completions',
+				array(
+					'model'    => 'gpt-4o',
+					'messages' => array_merge(
+						array(
+							array(
+								'role'    => 'assistant',
+								'content' => $this->create_system_prompt(),
+							),
+						),
+						$backscroll
 					),
-				), $backscroll ),
-				'tools' => $tool_definitions,
-			) );
+					'tools'    => $tool_definitions,
+				)
+			);
 			//return $completion;
 			if ( is_wp_error( $completion ) ) {
 				return $completion;
@@ -634,7 +658,7 @@ class OpenAI_Module extends POS_Module {
 			}
 
 			if ( ! isset( $completion->choices[0]->finish_reason ) ) {
-				return new WP_Error( 'no-finish-reason', 'No finish reason', [ $completion, $backscroll ] );
+				return new WP_Error( 'no-finish-reason', 'No finish reason', array( $completion, $backscroll ) );
 			}
 
 			$backscroll[] = $completion->choices[0]->message;
@@ -661,11 +685,11 @@ class OpenAI_Module extends POS_Module {
 					if ( ! is_string( $result ) ) {
 						$result = wp_json_encode( $result, JSON_PRETTY_PRINT );
 					}
-					$backscroll[] = [
+					$backscroll[] = array(
 						'role'         => 'tool',
 						'content'      => $result,
 						'tool_call_id' => $tool_call->id,
-					];
+					);
 				}
 			}
 		} while ( $completion->choices[0]->finish_reason !== 'stop' && $max_loops > 0 );

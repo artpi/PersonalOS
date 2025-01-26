@@ -25,9 +25,12 @@ class OpenAI_Tool {
 	}
 
 	public static function get_tool( string $name ) {
-		$matching = array_filter( self::get_tools(), function( $tool ) use ( $name ) {
-			return $tool->name === $name;
-		} );
+		$matching = array_filter(
+			self::get_tools(),
+			function( $tool ) use ( $name ) {
+				return $tool->name === $name;
+			}
+		);
 		return array_shift( $matching );
 	}
 
@@ -50,7 +53,7 @@ class OpenAI_Tool {
 
 	public function get_function_signature_for_realtime_api() {
 		$signature = array(
-			'type'     => 'function',
+			'type'        => 'function',
 			'name'        => $this->name,
 			'description' => $this->description,
 		);
@@ -73,7 +76,7 @@ class OpenAI_Tool {
 		$result = $this->invoke( $arguments );
 		if ( is_wp_error( $result ) ) {
 			return $result->get_error_message();
-		} else if ( is_string( $result ) ) {
+		} elseif ( is_string( $result ) ) {
 			return $result;
 		} else {
 			return wp_json_encode( $result );
