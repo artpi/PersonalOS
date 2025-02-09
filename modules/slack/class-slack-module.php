@@ -6,8 +6,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Slack_Module extends POS_Module {
 	public $id = 'slack';
-	public $name = 'Slack Interface';
-	public $description = 'Interface for Slack to trigger OpenAI completions.';
+	public $name = 'Slack integration';
+	public $description = 'Interface for Slack to trigger OpenAI completions, respond in threads, and more. First you need to create a Slack app with permissions: app_mention, message.im, app_mentions:read, channels:history, chat:write, groups:history, im:history';
 	public $settings = array(
 		'slack_token' => array(
 			'type'  => 'text',
@@ -179,6 +179,7 @@ class Slack_Module extends POS_Module {
 		if ( ! empty( $payload['event']['bot_id'] ) ) {
 			return;
 		}
+		// TODO: This is a hack and instead user should connect to slack and get the user id via Oauth.
 		POS::get_module_by_id( 'notes' )->switch_to_user();
 		$this->log( 'pos_process_slack_callback:' . wp_json_encode( $payload ) );
 		$backscroll = $this->slack_gpt_retrieve_backscroll( $payload['event']['thread_ts'] ?? $payload['event']['ts'], $payload['event']['channel'] );
