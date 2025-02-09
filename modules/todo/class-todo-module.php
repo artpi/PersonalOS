@@ -181,7 +181,7 @@ class TODO_Module extends POS_Module {
 				return array(
 					'title'   => $item->post_title,
 					'excerpt' => $item->post_excerpt,
-					'url'     => get_permalink( $item ),
+					'url'     => admin_url( 'post.php?post=' . $item->ID . '&action=edit' ),
 				);
 			},
 			$items
@@ -252,6 +252,7 @@ class TODO_Module extends POS_Module {
 		$defaults = array(
 			'post_type'   => $this->id,
 			'post_status' => array( 'private', 'publish', 'future' ),
+			'posts_per_page' => -1,
 		);
 		if ( $taxonomy ) {
 			$defaults['tax_query'] = array(
