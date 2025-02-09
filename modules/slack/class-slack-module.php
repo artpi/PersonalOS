@@ -22,6 +22,9 @@ class Slack_Module extends POS_Module {
 	);
 
 	public function register(): void {
+		if ( ! $this->get_setting( 'slack_token' ) || ! $this->get_setting( 'api_token' ) ) {
+			return;
+		}
 		add_action( 'rest_api_init', array( $this, 'register_rest_endpoints' ) );
 		add_action( 'pos_process_slack_callback', array( $this, 'pos_process_slack_callback' ) );
 
