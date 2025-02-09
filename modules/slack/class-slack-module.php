@@ -19,6 +19,11 @@ class Slack_Module extends POS_Module {
 			'name'  => 'Slack API Token',
 			'label' => 'Enter your Slack API token (xoxp-...).',
 		),
+		'bot_user_id' => array(
+			'type'  => 'text',
+			'name'  => 'Slack Bot User ID',
+			'label' => 'Enter your Slack Bot User ID (B0611111111).',
+		),
 	);
 
 	public function register(): void {
@@ -60,6 +65,10 @@ class Slack_Module extends POS_Module {
 		if ( empty( $payload['token'] ) || $payload['token'] !== $this->get_setting( 'slack_token' ) ) {
 			$this->log( 'Invalid Slack token: ' . $payload['token'] . '/' . $this->get_setting( 'slack_token' ) );
 			return new WP_Error( 'invalid_token', 'Invalid Slack token', array( 'status' => 403 ) );
+		}
+
+		if ( ! empty( $payload['event']['bot_id'] ) ) {
+			return rest_ensure_response( array( 'text' => 'Slack bot user ID detected, skipping...' ) );
 		}
 
 		// Immediate response to Slack
@@ -150,6 +159,9 @@ class Slack_Module extends POS_Module {
 
 
 	public function pos_process_slack_callback( array $payload ): void {
+		if ( ! empty( $payload['event']['bot_id'] ) ) {
+			return;
+		}
 		POS::get_module_by_id( 'notes' )->switch_to_user();
 		$this->log( 'pos_process_slack_callback:' . wp_json_encode( $payload ) );
 		$backscroll = $this->slack_gpt_retrieve_backscroll( $payload['event']['thread_ts'] ?? $payload['event']['ts'], $payload['event']['channel'] );
