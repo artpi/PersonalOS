@@ -113,6 +113,12 @@ class Slack_Module extends POS_Module {
 	}
 
 	public function slack_gpt_respond_in_thread( $ts, $channel, $response ) {
+		// Convert markdown URLs to Slack format
+		$response = preg_replace(
+			'/\[([^\]]+)\]\(([^\)]+)\)/',
+			'<$2|$1>',
+			$response
+		);
 		$data = array(
 			'channel'   => $channel,
 			'thread_ts' => $ts,
