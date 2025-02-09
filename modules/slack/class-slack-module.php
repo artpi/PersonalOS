@@ -53,10 +53,11 @@ class Slack_Module extends POS_Module {
 			return rest_ensure_response( array( 'challenge' => $payload['challenge'] ) );
 		}
 
-		// Validate token using the token saved in settings
-		// if ( empty( $payload['token'] ) || $payload['token'] !== $this->get_setting( 'slack_token' ) ) {
-		// 	return new WP_Error( 'invalid_token', 'Invalid Slack token', array( 'status' => 403 ) );
-		// }
+		//Validate token using the token saved in settings
+		if ( empty( $payload['token'] ) || $payload['token'] !== $this->get_setting( 'slack_token' ) ) {
+			$this->log( 'Invalid Slack token: ' . $payload['token'] . '/' . $this->get_setting( 'slack_token' ) );
+			return new WP_Error( 'invalid_token', 'Invalid Slack token', array( 'status' => 403 ) );
+		}
 
 		// Immediate response to Slack
 		$response = array( 'text' => 'Processing your request...' );
@@ -112,6 +113,7 @@ class Slack_Module extends POS_Module {
 		$data = array(
 			'channel'   => $channel,
 			'thread_ts' => $ts,
+			'mrkdwn'    => true,
 			'text'      => $response,
 		);
 
