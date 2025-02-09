@@ -124,20 +124,34 @@ class Notes_Module extends POS_Module {
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 	}
 
-	public function admin_menu() {
-		$terms = get_terms(
-			array(
-				'taxonomy'   => 'notebook',
-				'hide_empty' => false,
-				'meta_query' => array(
-					array(
-						'key'     => 'flag',
-						'value'   => 'star',
-						'compare' => '=',
-					),
-				),
-			)
+	public function get_notebooks_by_flag( $flag ) {
+		$args = array(
+			'taxonomy'   => 'notebook',
+			'hide_empty' => false,
 		);
+		if ( is_string( $flag ) ) {
+			$args['meta_query'] = array(
+				array(
+					'key'     => 'flag',
+					'value'   => $flag,
+					'compare' => '=',
+				),
+			);
+		} elseif ( $flag === null ) {
+			$args['meta_query'] = array(
+				array(
+					'key'     => 'flag',
+					'compare' => 'NOT EXISTS',
+				),
+			);
+		}
+		// When passed false it will return all notebooks
+		return get_terms( $args );
+	}
+
+	public function admin_menu() {
+		$terms = $this->get_notebooks_by_flag( 'star' );
+
 		foreach ( $terms as $term ) {
 			$count = count(
 				get_posts(
