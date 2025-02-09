@@ -67,6 +67,15 @@ class Slack_Module extends POS_Module {
 
 		// Schedule a background process to handle the Slack callback
 		wp_schedule_single_event( time(), 'pos_process_slack_callback', array( $payload ) );
+		// This will trigger the cron job
+		wp_remote_post(
+			site_url( '/wp-cron.php' ),
+			array(
+				'timeout'   => 0.01,   // Super short timeout
+				'blocking'  => false,  // Don't wait for a response
+				'sslverify' => false,  // Skip SSL verification if needed
+			)
+		);
 
 		return rest_ensure_response( $response );
 	}
