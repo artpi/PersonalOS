@@ -19,11 +19,6 @@ class Slack_Module extends POS_Module {
 			'name'  => 'Slack API Token',
 			'label' => 'Enter your Slack API token (xoxp-...).',
 		),
-		'bot_user_id' => array(
-			'type'  => 'text',
-			'name'  => 'Slack Bot User ID',
-			'label' => 'Enter your Slack Bot User ID (B0611111111).',
-		),
 	);
 
 	public function register(): void {
@@ -137,6 +132,28 @@ class Slack_Module extends POS_Module {
 			'<$2|$1>',
 			$response
 		);
+
+		// Convert inline cod
+		$response = preg_replace(
+			'/`([^`]+)`/',
+			'`$1`',
+			$response
+		);
+
+		// Convert bold text (both ** and __ variants)
+		$response = preg_replace(
+			'/(\*\*|__)(.*?)(\*\*|__)/s',
+			'*$2*',
+			$response
+		);
+
+		// Convert italic text (both * and _ variants)
+		$response = preg_replace(
+			'/(?<!\*)\*(?!\*)([^\*]+)(?<!\*)\*(?!\*)|(?<!_)_(?!_)([^_]+)(?<!_)_(?!_)/',
+			'_$1$2_',
+			$response
+		);
+
 		$data = array(
 			'channel'   => $channel,
 			'thread_ts' => $ts,
