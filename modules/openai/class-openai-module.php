@@ -147,11 +147,11 @@ class OpenAI_Module extends POS_Module {
 			'ai_memory',
 			'Store information in the memory. Use this tool when you need to store additional information relevant for future conversations. For example, "Remembe to always talk like a pirate", or "I Just got a puppy", or "I am building a house" should trigger this tool. Very time-specific, ephemeral data should not.',
 			array(
-				'ID' => array(
+				'ID'           => array(
 					'type'        => 'integer',
 					'description' => 'ID of the memory to update. Only provide when updating existing memory. Set to 0 when creating a new memory.',
 				),
-				'post_title' => array(
+				'post_title'   => array(
 					'type'        => 'string',
 					'description' => 'Short title describing the memory. Describe what is the memory about specifically.',
 				),
@@ -567,7 +567,7 @@ class OpenAI_Module extends POS_Module {
 		$memories = get_posts(
 			array(
 				'post_type'   => 'notes',
-				'taxonomy'    => 'notebook', 
+				'taxonomy'    => 'notebook',
 				'term'        => 'ai-memory',
 				'numberposts' => -1,
 			)
@@ -684,7 +684,10 @@ class OpenAI_Module extends POS_Module {
 	public function chat_assistant( WP_REST_Request $request ) {
 		$params = $request->get_json_params();
 		$backscroll = $params['messages'];
+		return $this->complete_backscroll( $backscroll );
+	}
 
+	public function complete_backscroll( array $backscroll ) {
 		$tool_definitions = array_map(
 			function ( $tool ) {
 				return $tool->get_function_signature();
