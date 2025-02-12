@@ -534,16 +534,9 @@ class OpenAI_Module extends POS_Module {
 		return $result;
 	}
 
-	/**
-	 * Create a system prompt for the OpenAI API.
-	 * @TODO: This could be achieved by using Gutenberg and notes to put this together.
-	 *
-	 * @return string The system prompt.
-	 */
-	public function create_system_prompt( $params = array() ) {
+	public function system_prompt_defaults() {
 		$note_module = POS::get_module_by_id( 'notes' );
-
-		$defaults = array(
+		return array(
 			'me' => array(
 				'name' => wp_get_current_user()->display_name,
 				'description' => wp_get_current_user()->description,
@@ -620,7 +613,16 @@ class OpenAI_Module extends POS_Module {
 				),
 			),
 		);
-		$prompt = wp_parse_args( $params, $defaults );
+	}
+
+	/**
+	 * Create a system prompt for the OpenAI API.
+	 * @TODO: This could be achieved by using Gutenberg and notes to put this together.
+	 *
+	 * @return string The system prompt.
+	 */
+	public function create_system_prompt( $params = array() ) {
+		$prompt = wp_parse_args( $params, $this->system_prompt_defaults() );
 		return $this->array_to_xml( $prompt );
 	}
 
@@ -637,28 +639,28 @@ class OpenAI_Module extends POS_Module {
 		}
 
 		$xml = array();
-		
+
 		foreach ( $data as $key => $value ) {
 			// Skip numeric keys for indexed arrays
 			if ( is_int( $key ) ) {
 				$xml[] = $this->array_to_xml( $value, $indent );
 				continue;
 			}
-			
+
 			// Start element
 			$xml[] = "{$indent}<{$key}>";
-			
+
 			// Handle value based on type
 			if ( is_array( $value ) ) {
 				$xml[] = $this->array_to_xml( $value, $indent . "\t" );
 			} else {
 				$xml[] = $indent . "\t" . $value;
 			}
-			
+
 			// Close element
 			$xml[] = "{$indent}</{$key}>";
 		}
-		
+
 		return implode( "\n", $xml );
 	}
 
@@ -838,35 +840,26 @@ class OpenAI_Module extends POS_Module {
 		return $response->choices[0]->message->content;
 	}
 
-	public function tts( $text, $voice = 'shimmer', $data = array() ) {
-		$api_key = $this->get_setting( 'api_key' );
+	public function tts( $messages, $voice = 'ballad', $data = array() ) {
 		$file_name = 'speech-' . uniqid() . '.mp3';
 
-		$response = wp_remote_post(
-			'https://api.openai.com/v1/audio/speech',
-			array(
-				'timeout'  => 360,
-				'headers'  => array(
-					'Authorization' => 'Bearer ' . $api_key,
-					'Content-Type'  => 'application/json',
-				),
-				'body'     => wp_json_encode(
-					array(
-						'model' => 'tts-1',
-						'input' => $text,
-						'voice' => $voice,
-					)
-				),
-				'filename' => $file_name,
-			)
+		$openai_payload = array(
+			'model' => 'gpt-4o-audio-preview',
+			'modalities' => array( 'text', 'audio' ),
+			'audio' => array(
+				'voice' => $voice,
+				'format' => 'mp3',
+			),
+			'messages' => $messages,
 		);
 
+		$response = $this->api_call( 'https://api.openai.com/v1/chat/completions', $openai_payload );
 		if ( is_wp_error( $response ) ) {
 			return $response;
 		}
 
-		if ( is_wp_error( $response ) ) {
-			return $response;
+		if ( empty( $response->choices[0]->message->audio->data ) ) {
+			return new WP_Error( 'no-audio', 'No audio data in response' );
 		}
 
 		require_once ABSPATH . 'wp-admin/includes/media.php';
@@ -876,19 +869,27 @@ class OpenAI_Module extends POS_Module {
 		$tempfile = wp_tempnam();
 		global $wp_filesystem;
 		WP_Filesystem();
-		$wp_filesystem->put_contents( $tempfile, wp_remote_retrieve_body( $response ) );
+
+		$this->log( 'data from response: ' . print_r( $response->choices[0]->message->content, true ) );
+		// Decode base64 audio data and write to temp file
+		$audio_data = base64_decode( $response->choices[0]->message->audio->data );
+		$wp_filesystem->put_contents( $tempfile, $audio_data );
 
 		$file = array(
-			'name'     => wp_hash( time() ) . '-' . $file_name, // This hash is used to obfuscate the file names which should NEVER be exposed.
+			'name'     => ( $data['post_title'] ? $data['post_title'] . '-' . gmdate( 'Y-m-d' ) : wp_hash( time() ) ) . '-' . $file_name,
 			'type'     => 'audio/mpeg',
 			'tmp_name' => $tempfile,
 			'error'    => 0,
 			'size'     => filesize( $tempfile ),
 		);
 
-		$data['post_content'] = $text;
-		$data['post_status'] = 'private';
-
+		$data = wp_parse_args(
+			array(
+				'post_content' => $response->choices[0]->message->content ?? 'test',
+				'post_status' => 'private',
+			),
+			$data
+		);
 		$media_id = media_handle_sideload( $file, 0, null, $data );
 
 		return $media_id;

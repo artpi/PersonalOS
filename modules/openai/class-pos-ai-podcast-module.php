@@ -401,42 +401,44 @@ class POS_AI_Podcast_Module extends POS_Module {
 		if ( $episode_generated_today ) {
 			return $episode_generated_today[0]->ID;
 		}
-		$this->log( 'Generating podcast episode' );
-
-		$new_content = $this->openai->chat_completion(
+		$templates = array(
 			array(
-				array(
-					'role'    => 'system',
-					'content' => 'You are a motivational speech writer.',
-				),
-				array(
-					'role'    => 'user',
-					'content' => <<<EOF
-                    Generate a motivational speech from Tony Robbins to start my day. The speech you generate will be read out by OpenAI speech generation models. so don't use any headings or titles.
+				'prompt' => <<<EOF
+					Generate a motivational speech from Tony Robbins to start my day. Be dramatic in your speech, use pauses, sometimes speak faster, sometimes slower.
+					The speech you generate will be read out by OpenAI speech generation models. so don't use any headings or titles.
 
-                    Use the following framework : State, Story, Strategy.
-                    1. Focus on getting me in a hyped-up state.
-                    2. Shift my internal story into more hyped-up, actionable, full of energy
-                    3. Help me develop a strategy for dealing with my important projects.
-                # Projects I want to focus on right now:
-                {$this->get_active_projects()}
-                # Todos for today:
-                {$this->get_todos_now()}
-                EOF,
-				),
-			)
+					Use the following framework : State, Story, Strategy.
+					1. Focus on getting me in a hyped-up state.
+					2. Shift my internal story into more hyped-up, actionable, full of energy
+					3. Help me develop a strategy for dealing with my important projects.
+					4. Walk me through my todos for today.
+
+					# Projects I want to focus on right now:
+					{$this->get_active_projects()}
+					# Todos for today:
+					{$this->get_todos_now()}
+				EOF,
+				'voice' => 'ballad',
+				'title' => 'Daily Podcast - Tony Robbins style',
+			),
 		);
-		if ( is_wp_error( $new_content ) ) {
-			$this->log( 'Generating podcast episode failed: ' . $new_content->get_error_message(), E_USER_WARNING );
-			return;
-		}
+		$template = $templates[ array_rand( $templates ) ];
+		$this->log( 'Generating podcast episode - ' . print_r( $template, true ) );
+
+		$messages = array(
+			array(
+				'role' => 'system',
+				'content' => $template['prompt'],
+			),
+		);
+
 		$this->log( 'Generating audio for the podcast' );
 
 		$file = $this->openai->tts(
-			$new_content,
-			'onyx',
+			$messages,
+			$template['voice'],
 			array(
-				'post_title' => 'Motivational Podcast',
+				'post_title' => $template['title'],
 				'meta_input' => array(
 					'pos_podcast' => gmdate( 'Y-m-d' ),
 				),
