@@ -486,6 +486,18 @@ class OpenAI_Module extends POS_Module {
 				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
+		register_rest_route(
+			$this->rest_namespace,
+			'/openai/chat/system_prompt',
+			array(
+				'methods'             => 'GET',
+				'callback'            => function( WP_REST_Request $request ) {
+					$params = $request->get_query_params();
+					return $this->create_system_prompt( $params );
+				},
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
 	}
 	public function check_permission() {
 		return current_user_can( 'manage_options' );
@@ -522,103 +534,132 @@ class OpenAI_Module extends POS_Module {
 		return $result;
 	}
 
-	public function create_system_prompt() {
+	/**
+	 * Create a system prompt for the OpenAI API.
+	 * @TODO: This could be achieved by using Gutenberg and notes to put this together.
+	 *
+	 * @return string The system prompt.
+	 */
+	public function create_system_prompt( $params = array() ) {
 		$note_module = POS::get_module_by_id( 'notes' );
-		$notebook_tree = array_map(
-			function( $flag ) use ( $note_module ) {
-				$notebooks = array_map(
-					function( $notebook ) {
+
+		$defaults = array(
+			'me' => array(
+				'name' => wp_get_current_user()->display_name,
+				'description' => wp_get_current_user()->description,
+			),
+			'system' => array(
+				'current_time' => gmdate( 'Y-m-d H:i:s' ),
+			),
+			'you' => <<<EOF
+				Your name is PersonalOS. You are a plugin installed on my WordPress site.
+				Apart from WordPress functionality, you have certain modules enabled, and functionality exposed as tools.
+				You can use these tools to perform actions on my behalf.
+				Use simple markdown to format your responses.
+				NEVER read the URLs (http://, https://, evernote://, etc) out loud in voice mode.
+				When answering a question about my todos or notes, stick only to the information from the tools. DO NOT make up information.
+			EOF,
+			'notebooks' => array(
+				'description' => 'My work is organized in "notebooks". They represent areas of my life, active projects and statuses of tasks.',
+				'notebooks' => array_map(
+					function( $flag ) use ( $note_module ) {
+						$notebooks = array_map(
+							function( $notebook ) {
+								return <<<EOF
+									<notebook
+										name="{$notebook->name}"
+										id="{$notebook->term_id}"
+										slug="{$notebook->slug}"
+									>
+										{$notebook->description}
+									</notebook>
+								EOF;
+							},
+							$note_module->get_notebooks_by_flag( $flag['id'] )
+						);
+						$notebooks = implode( "\n", $notebooks );
 						return <<<EOF
-							<notebook
-								name="{$notebook->name}"
-								id="{$notebook->term_id}"
-								slug="{$notebook->slug}"
-							>
-								{$notebook->description}
-							</notebook>
+						<notebook_type
+							id="{$flag['id']}"
+							name="{$flag['name']}"
+							label="{$flag['label']}"
+						>
+							{$notebooks}
+						</notebook_type>
 						EOF;
 					},
-					$note_module->get_notebooks_by_flag( $flag['id'] )
-				);
-				$notebooks = implode( "\n", $notebooks );
-				return <<<EOF
-				<notebook_type
-					id="{$flag['id']}"
-					name="{$flag['name']}"
-					label="{$flag['label']}"
-				>
-					{$notebooks}
-				</notebook_type>
-				EOF;
-			},
-			apply_filters(
-				'pos_notebook_flags',
-				array(
-				// array(
-				// 	'id' => null,
-				// 	'name' => 'Rest of the notebooks',
-				// 	'label' => 'Notebooks without any special flag.',
-				// ),
-				)
-			)
+					apply_filters(
+						'pos_notebook_flags',
+						array(
+						// array(
+						// 	'id' => null,
+						// 	'name' => 'Rest of the notebooks',
+						// 	'label' => 'Notebooks without any special flag.',
+						// ),
+						)
+					)
+				),
+			),
+			'memories' => array(
+				'description' => 'You have previously stored some information in the AI Memory using the "ai_memory" tool.',
+				'memories' => array_map(
+					function( $memory ) {
+						return "<memory id='{$memory->ID}'>
+							<title>{$memory->post_title}</title>
+							<content>{$memory->post_content}</content>
+						</memory>";
+					},
+					get_posts(
+						array(
+							'post_type'   => 'notes',
+							'taxonomy'    => 'notebook',
+							'term'        => 'ai-memory',
+							'numberposts' => -1,
+						)
+					)
+				),
+			),
 		);
-		$notebook_tree = implode( "\n", $notebook_tree );
+		$prompt = wp_parse_args( $params, $defaults );
+		return $this->array_to_xml( $prompt );
+	}
 
-		$memories = get_posts(
-			array(
-				'post_type'   => 'notes',
-				'taxonomy'    => 'notebook',
-				'term'        => 'ai-memory',
-				'numberposts' => -1,
-			)
-		);
-		$memories = implode(
-			"\n",
-			array_map(
-				function( $memory ) {
-					return "<memory id='{$memory->ID}'>
-						<title>{$memory->post_title}</title>
-						<content>{$memory->post_content}</content>
-					</memory>";
-				},
-				$memories
-			)
-		);
+	/**
+	 * Recursively converts an array to XML string
+	 *
+	 * @param mixed  $data    The data to convert
+	 * @param string $indent  Current indentation level
+	 * @return string The XML string
+	 */
+	private function array_to_xml( $data, string $indent = '' ): string {
+		if ( is_string( $data ) || is_numeric( $data ) ) {
+			return $data;
+		}
 
-		$user_name = wp_get_current_user()->display_name;
-		$user_description = wp_get_current_user()->description;
-		$time = gmdate( 'Y-m-d H:i:s' );
-		return <<<EOF
-		<me>
-			<name>{$user_name}</name>
-			<description>{$user_description}</description>
-		</me>
-		<system>
-			<current_time>{$time}</current_time>
-		</system>
-		<you>
-			Your name is PersonalOS. You are a plugin installed on my WordPress site.
-			Apart from WordPress functionality, you have certain modules enabled, and functionality exposed as tools.
-			You can use these tools to perform actions on my behalf.
-			Use simple markdown to format your responses.
-			NEVER read the URLs (http://, https://, evernote://, etc) out loud in voice mode.
-			When answering a question about my todos or notes, stick only to the information from the tools. DO NOT make up information.
-		</you>
-
-		# Notebooks
-		My work is organized in "notebooks". They represent areas of my life, active projects and statuses of tasks.
-		From Notebook descriptions, you can learn about areas of my life.
-		<notebooks>
-			{$notebook_tree}
-		</notebooks>
-	
-		# AI Memory
-		You have previously stored some information in the AI Memory using the "ai_memory" tool.
-		You can use this information to answer questions or perform actions.
-		<memory>
-			{$memories}
-		</memory>
-		EOF;
+		$xml = array();
+		
+		foreach ( $data as $key => $value ) {
+			// Skip numeric keys for indexed arrays
+			if ( is_int( $key ) ) {
+				$xml[] = $this->array_to_xml( $value, $indent );
+				continue;
+			}
+			
+			// Start element
+			$xml[] = "{$indent}<{$key}>";
+			
+			// Handle value based on type
+			if ( is_array( $value ) ) {
+				$xml[] = $this->array_to_xml( $value, $indent . "\t" );
+			} else {
+				$xml[] = $indent . "\t" . $value;
+			}
+			
+			// Close element
+			$xml[] = "{$indent}</{$key}>";
+		}
+		
+		return implode( "\n", $xml );
 	}
 
 	public function function_call( WP_REST_Request $request ) {
