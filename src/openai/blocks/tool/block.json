@@ -17,7 +17,7 @@
 		}
 	},
 	"supports": {
-	  "html": false
+		"html": false
 	},
 	"editorScript": "file:./index.js"
 }
