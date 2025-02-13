@@ -1,0 +1,23 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "pos/ai-tool",
+	"title": "OpenAI Tool",
+	"category": "media",
+	"icon": "smiley",
+	"description": "Render the OpenAI Tool block.",
+	"attributes": {
+		"tool": {
+			"type": "string",
+			"default": ""
+		},
+		"parameters": {
+			"type": "object",
+			"default": {}
+		}
+	},
+	"supports": {
+	  "html": false
+	},
+	"editorScript": "file:./index.js"
+}
