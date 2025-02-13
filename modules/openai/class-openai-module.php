@@ -40,7 +40,8 @@ class OpenAI_Module extends POS_Module {
 		if ( ! $tool ) {
 			return '';
 		}
-		return json_encode( $tool->invoke( (array) $attributes['parameters'] ?? array() ), JSON_PRETTY_PRINT );
+		$result = $tool->invoke( (array) $attributes['parameters'] ?? array() );
+		return '<pre>' . wp_json_encode( $result, JSON_PRETTY_PRINT ) . '</pre>';
 	}
 
 	/**
@@ -518,6 +519,9 @@ class OpenAI_Module extends POS_Module {
 				'methods'             => 'GET',
 				'callback'            => function( WP_REST_Request $request ) {
 					$params = $request->get_query_params();
+					if ( ! empty( $params['id'] ) ) {
+						$params = get_post( $params['id'] );
+					}
 					return $this->create_system_prompt( $params );
 				},
 				'permission_callback' => array( $this, 'check_permission' ),
@@ -647,6 +651,19 @@ class OpenAI_Module extends POS_Module {
 	 * @return string The system prompt.
 	 */
 	public function create_system_prompt( $params = array() ) {
+		if ( $params instanceof \WP_Post ) {
+			$content = apply_filters( 'the_content', $params->post_content );
+			$content = preg_replace_callback( '/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/i', function( $matches ) {
+				$level = $matches[1];
+				$text = $matches[2];
+				return str_repeat( '#', intval( $level ) ) . ' ' . $text;
+			}, $content );
+			$content = preg_replace_callback( '/<li[^>]*>(.*?)<\/li>/i', function( $matches ) {
+				return '- ' . $matches[1];
+			}, $content );
+			$content = wp_strip_all_tags( $content );
+			return $content;
+		}
 		$prompt = wp_parse_args( $params, $this->system_prompt_defaults() );
 		return $this->array_to_xml( $prompt );
 	}
