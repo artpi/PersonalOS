@@ -31,6 +31,9 @@ class Notes_Module extends POS_Module {
 		return get_posts( $args );
 	}
 
+	/**
+	 * @TODO: Unify list with get_notes
+	 */
 	public function get_notes( $args = array() ) {
 		return get_posts(
 			array_merge(
