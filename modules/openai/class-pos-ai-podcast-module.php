@@ -28,7 +28,8 @@ class POS_AI_Podcast_Module extends POS_Module {
 		if ( strlen( $token ) > 3 ) {
 			add_action( $this->hook_name, array( $this, 'generate' ) );
 			if ( ! wp_next_scheduled( $this->hook_name ) ) {
-				wp_schedule_event( time(), 'daily', $this->hook_name );
+				$tomorrow_5am = strtotime( 'tomorrow 4am' ) + ( get_option( 'gmt_offset' ) * HOUR_IN_SECONDS );
+				wp_schedule_event( $tomorrow_5am, 'daily', $this->hook_name );
 			}
 		}
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
