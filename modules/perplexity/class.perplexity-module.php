@@ -21,6 +21,29 @@ class Perplexity_Module extends POS_Module {
 			return;
 		}
 		$this->register_cli_command( 'search', 'cli_search' );
+		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
+	}
+
+	public function register_openai_tools( $tools ) {
+		$self = $this;
+		$tools[] = new OpenAI_Tool(
+			'perplexity_search',
+			'Search the web using Perplexity search. Use this tool only if you are certain you need the information from the internet.',
+			array(
+				'query' => array(
+					'type'        => 'string',
+					'description' => 'The search query to send to Perplexity',
+				),
+			),
+			function ( $arguments ) use ( $self ) {
+				$result = $self->search( $arguments['query'] );
+				if ( is_wp_error( $result ) ) {
+					return $result;
+				}
+				return $result['content'];
+			}
+		);
+		return $tools;
 	}
 
 	/**

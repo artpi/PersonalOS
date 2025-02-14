@@ -812,7 +812,7 @@ class OpenAI_Module extends POS_Module {
 			}
 
 			$backscroll[] = $completion->choices[0]->message;
-			if ( $completion->choices[0]->finish_reason === 'tool_calls' ) {
+			if ( $completion->choices[0]->finish_reason === 'tool_calls' || ! empty( $completion->choices[0]->message->tool_calls ) ) {
 				$tool_calls = $completion->choices[0]->message->tool_calls;
 				foreach ( $tool_calls as $tool_call ) {
 					$arguments = json_decode( $tool_call->function->arguments, true );
@@ -842,7 +842,7 @@ class OpenAI_Module extends POS_Module {
 					);
 				}
 			}
-		} while ( $completion->choices[0]->finish_reason !== 'stop' && $max_loops > 0 );
+		} while ( ( $completion->choices[0]->finish_reason !== 'stop' || ! empty( $completion->choices[0]->message->tool_calls ) ) && $max_loops > 0 );
 		return $backscroll;
 	}
 
