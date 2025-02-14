@@ -133,7 +133,7 @@ class TODO_Module extends POS_Module {
 	public function register_openai_tools( $tools ) {
 		$self = $this;
 		$tools[] = new OpenAI_Tool( 'todo_get_items', 'List TODOs', array(), array( $this, 'get_items_for_openai' ) );
-		$tools[] = new OpenAI_Tool(
+		$tools[] = new OpenAI_Tool_Writeable(
 			'todo_create_item',
 			'Create TODO. Always ask for confirmation if not explicitly asked to create a TODO. Always return the URL in response. Never read the URL when reading out loud.',
 			array(

@@ -12,6 +12,28 @@ class Notes_Module extends POS_Module {
 		),
 	);
 
+	public function list( $args = array(), $taxonomy = '' ) {
+		$defaults = array(
+			'post_type'   => $this->id,
+			'post_status' => array( 'private', 'publish', 'future' ),
+			'posts_per_page' => -1,
+		);
+		if ( $taxonomy ) {
+			$defaults['tax_query'] = array(
+				array(
+					'taxonomy' => 'notebook',
+					'field'    => is_numeric( $taxonomy ) ? 'id' : 'slug',
+					'terms'    => array( $taxonomy ),
+				),
+			);
+		}
+		$args = wp_parse_args( $args, $defaults );
+		return get_posts( $args );
+	}
+
+	/**
+	 * @TODO: Unify list with get_notes
+	 */
 	public function get_notes( $args = array() ) {
 		return get_posts(
 			array_merge(
@@ -122,6 +144,59 @@ class Notes_Module extends POS_Module {
 			)
 		);
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
+		add_action( 'pos_openai_tools', array( $this, 'ai_tools' ), 10, 1 );
+	}
+
+	public function ai_tools( $tools ) {
+		$note_module = $this;
+		$tools[] = new OpenAI_Tool(
+			'get_notebooks',
+			'My work is organized in "notebooks". They represent areas of my life, active projects and statuses of tasks. Use this tool to get all my notebooks.',
+			array(
+				'notebook_flag' => array(
+					'type'        => 'string',
+					'description' => 'The flag of the notebook to get.',
+					'enum'        => array_map(
+						function( $flag ) {
+							return $flag['id'];
+						},
+						apply_filters( 'pos_notebook_flags', array( array( 'id' => 'all' ) ) )
+					),
+				),
+			),
+			function ( $parameters ) use ( $note_module ) {
+				$flags = array_filter(
+					apply_filters( 'pos_notebook_flags', array() ),
+					function( $flag ) use ( $parameters ) {
+						return $flag['id'] === $parameters['notebook_flag'] || $parameters['notebook_flag'] === 'all';
+					}
+				);
+				$notebooks = array_map(
+					function( $flag ) use ( $note_module ) {
+						$notebooks = array_map(
+							function( $notebook ) {
+								return [
+									'notebook_name' => $notebook->name,
+									'notebook_id' => $notebook->term_id,
+									'notebook_slug' => $notebook->slug,
+									'notebook_description' => $notebook->description,
+								];
+							},
+							$note_module->get_notebooks_by_flag( $flag['id'] )
+						);
+						return [
+							'flag_id' => $flag['id'],
+							'flag_name' => $flag['name'],
+							'flag_label' => $flag['label'],
+							'notebooks' => $notebooks,
+						];
+					},
+					array_values( $flags )
+				);
+				return $notebooks;
+			}
+		);
+		return $tools;
 	}
 
 	public function get_notebooks_by_flag( $flag ) {

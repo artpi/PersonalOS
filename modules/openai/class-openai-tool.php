@@ -6,6 +6,7 @@ class OpenAI_Tool {
 	public string $description;
 	public array $parameters;
 	public bool $strict = true;
+	public bool $writeable = false;
 
 	public function __construct( string $name, string $description, array $parameters, callable|null $callback = null ) {
 		$this->name        = $name;
@@ -20,8 +21,14 @@ class OpenAI_Tool {
 		}
 	}
 
-	public static function get_tools() {
-		return apply_filters( 'pos_openai_tools', array() );
+	public static function get_tools( $include_writeable = true ) {
+		$tools = apply_filters( 'pos_openai_tools', array() );
+		if ( ! $include_writeable ) {
+			$tools = array_filter( $tools, function( $tool ) {
+				return ! $tool->writeable;
+			} );
+		}
+		return array_values( $tools );
 	}
 
 	public static function get_tool( string $name ) {
@@ -82,4 +89,9 @@ class OpenAI_Tool {
 			return wp_json_encode( $result );
 		}
 	}
+}
+
+// phpcs:ignore 
+class OpenAI_Tool_Writeable extends OpenAI_Tool {
+	public bool $writeable = true;
 }

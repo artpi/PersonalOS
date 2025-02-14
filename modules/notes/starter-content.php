@@ -20,6 +20,10 @@ $this->create_term_if_not_exists( 'Family', 'family', array(), array( 'parent' =
 
 $term_resources = $this->create_term_if_not_exists( '4-Resources', 'resources', array() );
 $starter_content = $this->create_term_if_not_exists( 'Starter Content', 'starter-content', array( array( 'flag', 'star' ) ), array( 'parent' => $term_resources ) );
+
+$prompts = $this->create_term_if_not_exists( 'AI Prompts', 'prompts', array(), array( 'parent' => $term_resources ) );
+$podcast_prompts = $this->create_term_if_not_exists( 'Prompts: Podcast', 'prompts-podcast', array(), array( 'parent' => $prompts ) );
+
 $ai_memory = $this->create_term_if_not_exists( 'AI Memory', 'ai-memory', array(), array( 'parent' => $term_resources ) );
 $this->create_term_if_not_exists( 'Nice Quotes', 'nice-quotes', array(), array( 'parent' => $term_resources ) );
 
@@ -70,4 +74,54 @@ $this->create(
 		'<div class="wp-block-pos-note"><div></div></div>'
 	),
 	array( 'starter-content' )
+);
+
+// Default prompts.
+
+$this->create(
+	'Daily Podcast - Tony Robbins style',
+	<<<EOF
+	<!-- wp:preformatted -->
+	<pre class="wp-block-preformatted">Generate a motivational speech from Tony Robbins to start my day. Be dramatic in your speech, use pauses, sometimes speak faster, sometimes slower.<br>The speech you generate will be read out by OpenAI speech generation models. so don't use any headings or titles.<br><br>Use the following framework : State, Story, Strategy.<br></pre>
+	<!-- /wp:preformatted -->
+
+	<!-- wp:list {"ordered":true} -->
+	<ol class="wp-block-list"><!-- wp:list-item -->
+	<li> Focus on getting me in a hyped-up state.</li>
+	<!-- /wp:list-item -->
+
+	<!-- wp:list-item -->
+	<li>Shift my internal story into more hyped-up, actionable, full of energy</li>
+	<!-- /wp:list-item -->
+
+	<!-- wp:list-item -->
+	<li>Help me develop a strategy for dealing with my important projects.</li>
+	<!-- /wp:list-item -->
+
+	<!-- wp:list-item -->
+	<li>Walk me through my todos for today.</li>
+	<!-- /wp:list-item --></ol>
+	<!-- /wp:list -->
+
+	<!-- wp:heading -->
+	<h2 class="wp-block-heading">Projects I want to focus on right now:</h2>
+	<!-- /wp:heading -->
+
+	<!-- wp:pos/ai-tool {"tool":"get_notebooks","parameters":{"notebook_flag":"project"}} -->
+	<div class="wp-block pos-ai-tool"><p>This is a static block.</p></div>
+	<!-- /wp:pos/ai-tool -->
+
+	<!-- wp:heading -->
+	<h2 class="wp-block-heading">My TODOS for Today</h2>
+	<!-- /wp:heading -->
+
+	<!-- wp:pos/ai-tool {"tool":"todo_get_items","parameters":{}} -->
+	<div class="wp-block pos-ai-tool"><p>This is a static block.</p></div>
+	<!-- /wp:pos/ai-tool -->
+
+	<!-- wp:paragraph -->
+	<p></p>
+	<!-- /wp:paragraph -->
+	EOF,
+	array( 'prompts-podcast', 'prompts', 'starter-content' )
 );

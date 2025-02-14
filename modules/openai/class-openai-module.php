@@ -32,6 +32,16 @@ class OpenAI_Module extends POS_Module {
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
 		$this->register_cli_command( 'tool', 'cli_openai_tool' );
+		$this->register_block( 'tool', array( 'render_callback' => array( $this, 'render_tool_block' ) ) );
+	}
+
+	public function render_tool_block( $attributes ) {
+		$tool = OpenAI_Tool::get_tool( $attributes['tool'] );
+		if ( ! $tool ) {
+			return '';
+		}
+		$result = $tool->invoke( (array) $attributes['parameters'] ?? array() );
+		return '<pre>' . wp_json_encode( $result, JSON_PRETTY_PRINT ) . '</pre>';
 	}
 
 	/**
@@ -143,7 +153,7 @@ class OpenAI_Module extends POS_Module {
 				);
 			}
 		);
-		$tools[] = new OpenAI_Tool(
+		$tools[] = new OpenAI_Tool_Writeable(
 			'ai_memory',
 			'Store information in the memory. Use this tool when you need to store additional information relevant for future conversations. For example, "Remembe to always talk like a pirate", or "I Just got a puppy", or "I am building a house" should trigger this tool. Very time-specific, ephemeral data should not.',
 			array(
@@ -461,6 +471,22 @@ class OpenAI_Module extends POS_Module {
 		);
 		register_rest_route(
 			$this->rest_namespace,
+			'/openai/chat/tools',
+			array(
+				'methods'             => 'GET',
+				'callback'            => function() {
+					return array_map(
+						function( $tool ) {
+							return $tool->get_function_signature();
+						},
+						OpenAI_Tool::get_tools( false )
+					);
+				},
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+		register_rest_route(
+			$this->rest_namespace,
 			'/openai/chat/completions',
 			array(
 				'methods'             => 'POST',
@@ -493,6 +519,9 @@ class OpenAI_Module extends POS_Module {
 				'methods'             => 'GET',
 				'callback'            => function( WP_REST_Request $request ) {
 					$params = $request->get_query_params();
+					if ( ! empty( $params['id'] ) ) {
+						$params = get_post( $params['id'] );
+					}
 					return $this->create_system_prompt( $params );
 				},
 				'permission_callback' => array( $this, 'check_permission' ),
@@ -622,6 +651,19 @@ class OpenAI_Module extends POS_Module {
 	 * @return string The system prompt.
 	 */
 	public function create_system_prompt( $params = array() ) {
+		if ( $params instanceof \WP_Post ) {
+			$content = apply_filters( 'the_content', $params->post_content );
+			$content = preg_replace_callback( '/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/i', function( $matches ) {
+				$level = $matches[1];
+				$text = $matches[2];
+				return str_repeat( '#', intval( $level ) ) . ' ' . $text;
+			}, $content );
+			$content = preg_replace_callback( '/<li[^>]*>(.*?)<\/li>/i', function( $matches ) {
+				return '- ' . $matches[1];
+			}, $content );
+			$content = wp_strip_all_tags( $content );
+			return $content;
+		}
 		$prompt = wp_parse_args( $params, $this->system_prompt_defaults() );
 		return $this->array_to_xml( $prompt );
 	}
