@@ -405,7 +405,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 		}
 		$prompts = $notes_module->list( array(), 'prompts-podcast' );
 		$template = $prompts[ array_rand( $prompts ) ];
-		$template->post_content = $this->openai->create_system_prompt( array( 'id' => $template->ID ) );
+		$template->post_content = $this->openai->create_system_prompt( $template );
 		$this->log( 'Generating podcast episode - ' . print_r( $template, true ) );
 
 		$messages = array(
