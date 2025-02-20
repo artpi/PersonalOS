@@ -174,6 +174,28 @@ class TODO_Module extends POS_Module {
 		return $tools;
 	}
 
+	public function get_scheduled_todos() {
+		$scheduled_events = array();
+		$crons = _get_cron_array();
+
+		if ( ! empty( $crons ) ) {
+			foreach ( $crons as $timestamp => $cron ) {
+				if ( isset( $cron['pos_todo_scheduled'] ) ) {
+					foreach ( $cron['pos_todo_scheduled'] as $event ) {
+						if ( isset( $event['args'][0] ) ) {
+							$scheduled_events[] = array(
+								'timestamp' => $timestamp,
+								'todo_id'   => $event['args'][0],
+							);
+						}
+					}
+				}
+			}
+		}
+
+		return $scheduled_events;
+	}
+
 	public function get_items_for_openai( $args ) {
 		$items = $this->list( array(), 'now' );
 		return array_map(
