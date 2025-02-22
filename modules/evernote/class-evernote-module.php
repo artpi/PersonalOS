@@ -74,13 +74,13 @@ class Evernote_Module extends External_Service_Module {
 				),
 				'limit' => array(
 					'type'        => 'integer',
-					'description' => 'Limit the number of notes returned. Do not change unless specified otherwise',
-					'default'     => 25,
+					'description' => 'Limit the number of notes returned. Do not change unless specified otherwise. Please use 10 as default.',
+					// 'default'     => 25,
 				),
 				'return_random' => array(
 					'type'        => 'integer',
-					'description' => 'Return X random notes from result. Do not change unless specified otherwise',
-					'default'     => 0,
+					'description' => 'Return X random notes from result. Do not change unless specified otherwise. Please always use 0 unless specified otherwise.',
+					// 'default'     => 0,
 				),
 			),
 			function( $args ) use ( $self ) {
