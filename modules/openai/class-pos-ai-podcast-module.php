@@ -48,7 +48,8 @@ class POS_AI_Podcast_Module extends POS_Module {
 		if ( strlen( $token ) > 3 ) {
 			add_action( $this->hook_name, array( $this, 'generate' ) );
 			if ( ! wp_next_scheduled( $this->hook_name ) ) {
-				wp_schedule_event( time(), 'daily', $this->hook_name );
+				$tomorrow_5am = strtotime( 'tomorrow 4am' ) + ( get_option( 'gmt_offset' ) * HOUR_IN_SECONDS );
+				wp_schedule_event( $tomorrow_5am, 'daily', $this->hook_name );
 			}
 		}
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
@@ -368,6 +369,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 	}
 
 	public function generate() {
+		$notes_module = POS::get_module_by_id( 'notes' );
 		$episode_generated_today = get_posts(
 			array(
 				'post_type'   => 'attachment',
@@ -390,49 +392,30 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'soundtrack_url' => get_post_meta( $episode_generated_today[0]->ID, 'soundtrack', true ),
 			];
 		}
-		$this->log( 'Generating podcast episode' );
+		$prompts = $notes_module->list( array(), 'prompts-podcast' );
+		$template = $prompts[ array_rand( $prompts ) ];
+		$template->post_content = $this->openai->create_system_prompt( $template );
+		$this->log( 'Generating podcast episode - ' . print_r( $template, true ) );
 
-		$scenarios = $this->get_scenarios();
-		$scenario_index = array_rand( $scenarios );
-		$random_scenario = $scenarios[ $scenario_index ];
-		$todos = $this->get_todos_now();
-		$projects = $this->get_active_projects();
-
-		$payload = array(
+		$messages = array(
 			array(
-				'role'    => 'system',
-				'content' => $random_scenario['prompt'],
+				'role' => 'system',
+				'content' => $template->post_content,
 			),
 		);
-		if ( strlen( $todos ) > 0 ) {
-			$payload[] = array(
-				'role'    => 'user',
-				'content' => "My todos for today. When reading those, translate them into English:\n" . $todos,
-			);
-		}
-		if ( strlen( $projects ) > 0 ) {
-			$payload[] = array(
-				'role'    => 'user',
-				'content' => "My active projects:\n" . $projects,
-			);
-		}
-		$new_content = $this->openai->chat_completion(
-			$payload
-		);
-		if ( is_wp_error( $new_content ) ) {
-			$this->log( 'Generating podcast episode failed: ' . $new_content->get_error_message(), E_USER_WARNING );
-			return;
-		}
+
 		$this->log( 'Generating audio for the podcast' );
 		$soundtrack_url = plugins_url( 'podcast-assets/' . $this->soundtracks[ array_rand( $this->soundtracks ) ], __FILE__ );
 
-		$data = array(
-			'post_title' => 'Motivational Podcast',
-			'meta_input' => array(
-				'pos_podcast' => gmdate( 'Y-m-d' ),
-				'scenario' => $random_scenario['id'],
-				'soundtrack' => $soundtrack_url,
-			),
+		$file = $this->openai->tts(
+			$messages,
+			'ballad',
+			array(
+				'post_title' => $template->post_title,
+				'meta_input' => array(
+					'pos_podcast' => gmdate( 'Y-m-d' ),
+				),
+			)
 		);
 
 		if ( $this->elevenlabs->is_configured() && $this->get_setting( 'tts_service' ) === 'elevenlabs' ) {

@@ -3,7 +3,7 @@
 /**
  * Plugin Name:     Personal OS
  * Description:     Manage your life.
- * Version:         0.0.2
+ * Version:         0.2.4
  * Author:          Artur Piszek (artpi)
  * Author URI:      https://piszek.com
  * License:         GPL-2.0-or-later
@@ -16,23 +16,62 @@
 
 class POS {
 	public static $modules = array();
-	public static $version = '0.0.1';
+	public static $version = '0.2.4';
 
 	public static function init() {
 		add_action( 'admin_menu', array( 'POS', 'admin_menu' ) );
+		$script_asset = require plugin_dir_path( __FILE__ ) . '/build/index.asset.php';
+		wp_register_script(
+			'pos',
+			plugins_url( 'build/index.js', __FILE__ ),
+			$script_asset['dependencies'],
+			$script_asset['version'],
+			true
+		);
+
+		wp_register_style(
+			'pos',
+			plugins_url( 'build/style-index.css', __FILE__ ),
+			array(
+				'wp-components',
+			),
+			$script_asset['version'],
+		);
 		self::load_modules();
 		add_action( 'enqueue_block_editor_assets', array( 'POS', 'enqueue_assets' ) );
+		if ( defined( 'WP_CLI' ) && class_exists( 'WP_CLI' ) ) {
+			WP_CLI::add_command( 'pos populate', array( 'POS', 'populate_starter_content' ) );
+		}
+	}
+
+	/**
+	 * Populate starter content for all modules.
+	 *
+	 * @return void
+	 */
+	public static function populate_starter_content() {
+		if ( defined( 'WP_CLI' ) && class_exists( 'WP_CLI' ) ) {
+			wp_set_current_user( 1 );
+		}
+		foreach ( self::$modules as $module ) {
+			$module->populate_starter_content();
+		}
 	}
 
 	public static function fix_versions() {
 		if ( ! function_exists( 'get_plugin_data' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
-		$data_version = get_option( 'pos_data_version', self::$version );
+		$data_version = get_option( 'pos_data_version', false );
 		$plugin_data = get_plugin_data( __FILE__ );
 		self::$version = $plugin_data['Version'];
 
-		if ( version_compare( $data_version, self::$version, '>=' ) ) {
+		if ( ! $data_version ) {
+			// TODO: filter to not do this?
+			self::populate_starter_content();
+			update_option( 'pos_data_version', self::$version );
+			return;
+		} elseif ( version_compare( $data_version, self::$version, '>=' ) ) {
 			return;
 		}
 		foreach ( self::$modules as $module ) {
@@ -56,14 +95,8 @@ class POS {
 		add_submenu_page( 'personalos', 'Notebooks', 'Notebooks', 'manage_options', 'edit-tags.php?taxonomy=notebook&post_type=notes' );
 	}
 	public static function enqueue_assets() {
-		$script_asset = require plugin_dir_path( __FILE__ ) . '/build/index.asset.php';
-		wp_enqueue_script(
-			'pos',
-			plugins_url( 'build/index.js', __FILE__ ),
-			$script_asset['dependencies'],
-			$script_asset['version'],
-			true
-		);
+		wp_enqueue_script( 'pos' );
+		wp_enqueue_style( 'pos' );
 	}
 
 	public static function admin_page() {
@@ -80,6 +113,10 @@ class POS {
 		require_once plugin_dir_path( __FILE__ ) . 'modules/daily/class-daily-module.php';
 		require_once plugin_dir_path( __FILE__ ) . 'modules/openai/class-pos-ai-podcast-module.php';
 		require_once plugin_dir_path( __FILE__ ) . 'modules/openai/class-elevenlabs-module.php';
+		require_once plugin_dir_path( __FILE__ ) . 'modules/bucketlist/class-bucketlist-module.php';
+		require_once plugin_dir_path( __FILE__ ) . 'modules/slack/class-slack-module.php';
+		require_once plugin_dir_path( __FILE__ ) . 'modules/perplexity/class.perplexity-module.php';
+		require_once plugin_dir_path( __FILE__ ) . 'modules/todo/class-ics-module.php';
 
 		// TODO: https://github.com/artpi/PersonalOS/issues/15 Introduce a setting to enable/disable modules. We don't want constructors to be fired when the module is not wanted.
 		$todo          = new TODO_Module();
@@ -96,6 +133,10 @@ class POS {
 			new Daily_Module( $notes ),
 			$elevenlabs,
 			new POS_AI_Podcast_Module( $openai, $elevenlabs ),
+			new Bucketlist_Module(),
+			new Slack_Module(),
+			new Perplexity_Module(),
+			new ICS_Module(),
 		);
 		self::fix_versions();
 		require_once plugin_dir_path( __FILE__ ) . 'class-pos-settings.php';

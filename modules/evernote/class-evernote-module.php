@@ -31,6 +31,7 @@ class Evernote_Module extends External_Service_Module {
 			'type'  => 'callback',
 			'name'  => 'Synced notebooks',
 			'label' => 'Comma separated list of notebooks to sync',
+			'default' => array(),
 		),
 		'active'           => array(
 			'type'  => 'bool',
@@ -58,8 +59,48 @@ class Evernote_Module extends External_Service_Module {
 		$this->register_cli_command( 'sync_note', 'cli' );
 		add_action( 'notebook_edit_form_fields', array( $this, 'notebook_edit_form_fields' ), 10, 2 );
 		add_action( 'edited_notebook', array( $this, 'save_bound_notebook_taxonomy_setting' ) );
+		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
 	}
 
+	public function register_openai_tools( $tools ) {
+		$self = $this;
+		$tools[] = new OpenAI_Tool(
+			'evernote_search_notes',
+			'Search notes in Evernote',
+			array(
+				'query' => array(
+					'type'        => 'string',
+					'description' => 'Query to search for notes.',
+				),
+				'limit' => array(
+					'type'        => 'integer',
+					'description' => 'Limit the number of notes returned. Do not change unless specified otherwise. Please use 10 as default.',
+					// 'default'     => 25,
+				),
+				'return_random' => array(
+					'type'        => 'integer',
+					'description' => 'Return X random notes from result. Do not change unless specified otherwise. Please always use 0 unless specified otherwise.',
+					// 'default'     => 0,
+				),
+			),
+			function( $args ) use ( $self ) {
+				return array_map(
+					function( $note ) use ( $self ) {
+						$cached_data = $self->get_cached_data();
+						$notebook_name = $cached_data['notebooks'][ $note->notebookGuid ]['name'] ?? $note->notebookGuid;
+						return array(
+							'title'    => $note->title,
+							'url'      => $self->get_app_link_from_guid( $note->guid ),
+							'date'     => gmdate( 'Y-m-d H:i:s', floor( $note->created / 1000 ) ),
+							'notebook' => $notebook_name,
+						);
+					},
+					$self->search_notes( $args )
+				);
+			}
+		);
+		return $tools;
+	}
 	/**
 	 * This forces sync of the note from evernote
 	 * <guid>
@@ -232,6 +273,48 @@ class Evernote_Module extends External_Service_Module {
 
 	}
 
+	public function search_notes( $args ) {
+		$this->connect();
+		$limit = $args['limit'] ?? 25;
+		$filter = new \EDAM\NoteStore\NoteFilter();
+		$filter->words = $args['query'];
+		$filter->ascending = false;
+		$filter->order = EDAM\Types\NoteSortOrder::CREATED;
+		if ( isset( $args['notebook'] ) ) {
+			$filter->notebookGuid = $args['notebook'];
+		}
+		$notes = array();
+
+		try {
+			$start = 0;
+			$step = $limit ? min( 25, $limit ) : 25;
+			do {
+				$n = $this->advanced_client->getNoteStore()->findNotes( $filter, $start, $step );
+				if ( ! $limit || $n->totalNotes < $limit ) {
+					$limit = $n->totalNotes;
+				}
+				$start += $step;
+				$notes = array_merge( $notes, $n->notes );
+			} while ( count( $notes ) < $limit );
+
+		} catch ( EDAMUserException $edue ) {
+			$this->log( 'EDAMUserException[' . $edue->errorCode . ']: ' . $edue, E_USER_WARNING );
+			return 'Error authorizing with Evernote';
+		} catch ( EDAMNotFoundException $ednfe ) {
+			$this->log( 'EDAMNotFoundException: Invalid parent notebook GUID', E_USER_WARNING );
+			return 'Error in Evernote configuration';
+		}
+
+		if ( ! empty( $args['return_random'] ) && $args['return_random'] > 0 ) {
+			$random_notes = array_rand( $notes, $args['return_random'] );
+			if ( is_int( $random_notes ) ) {
+				$random_notes = array( $random_notes );
+			}
+			return array_intersect_key( $notes, array_flip( $random_notes ) );
+		}
+		return $notes;
+	}
+
 	/**
 	 * This is called when a note is updated from evernote.
 	 * It will update the post with the new data.
@@ -389,7 +472,8 @@ class Evernote_Module extends External_Service_Module {
 			$disabled = 'disabled';
 			$extra = ' (conn: ' . get_term( $existing )->name . ')';
 		}
-		$sync_status = in_array( $key, $this->get_setting( 'synced_notebooks' ), true ) ? '🔄 ' : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
+		$synced_notebooks = empty( $this->get_setting( 'synced_notebooks' ) ) ? [] : $this->get_setting( 'synced_notebooks' );
+		$sync_status = in_array( $key, $synced_notebooks, true ) ? '🔄 ' : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
 
 		return "<option $selected $disabled value='$id'>{$sync_status}{$type}{$data['name']}{$extra}</option>";
 	}

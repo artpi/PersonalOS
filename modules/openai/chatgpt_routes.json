@@ -1,0 +1,1124 @@
+{
+	"openapi": "3.1.0",
+	"info": {
+		"title": "PersonalOS API",
+		"version": "1.0.0"
+	},
+	"servers": [
+		{
+			"url": ""
+		}
+	],
+	"paths": {
+		"/pos/v1/todo": {
+			"get": {
+				"operationId": "todo_get_items",
+				"summary": "Lists TODO items",
+				"description": "Lists TODO items",
+				"parameters": [
+					{
+						"name": "context",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [ "edit" ],
+							"default": "edit"
+						},
+						"description": "Scope under which the request is made; determines fields present in response. Always use edit."
+					},
+					{
+						"name": "page",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"default": 1
+						},
+						"description": "Current page of the collection."
+					},
+					{
+						"name": "per_page",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"default": 100
+						},
+						"description": "Maximum number of items to be returned in result set."
+					},
+					{
+						"name": "search",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Limit results to those matching a string."
+					},
+					{
+						"name": "after",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Limit response to posts published after a given ISO8601 compliant date."
+					},
+					{
+						"name": "modified_after",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Limit response to posts modified after a given ISO8601 compliant date."
+					},
+					{
+						"name": "before",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Limit response to posts published before a given ISO8601 compliant date."
+					},
+					{
+						"name": "modified_before",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Limit response to posts modified before a given ISO8601 compliant date."
+					},
+					{
+						"name": "exclude",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "array",
+							"items": {
+								"type": "integer"
+							},
+							"default": []
+						},
+						"description": "Ensure result set excludes specific IDs."
+					},
+					{
+						"name": "include",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "array",
+							"items": {
+								"type": "integer"
+							},
+							"default": []
+						},
+						"description": "Limit result set to specific IDs."
+					},
+					{
+						"name": "offset",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						},
+						"description": "Offset the result set by a specific number of items."
+					},
+					{
+						"name": "order",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [ "asc", "desc" ],
+							"default": "desc"
+						},
+						"description": "Order sort attribute ascending or descending."
+					},
+					{
+						"name": "orderby",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [
+								"author",
+								"date",
+								"id",
+								"include",
+								"modified",
+								"parent",
+								"relevance",
+								"slug",
+								"include_slugs",
+								"title"
+							],
+							"default": "date"
+						},
+						"description": "Sort collection by post attribute."
+					},
+					{
+						"name": "search_columns",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "array",
+							"items": {
+								"type": "string",
+								"enum": [
+									"post_title",
+									"post_content",
+									"post_excerpt"
+								]
+							},
+							"default": []
+						},
+						"description": "Array of column names to be searched."
+					},
+					{
+						"name": "slug",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							}
+						},
+						"description": "Limit result set to posts with one or more specific slugs."
+					},
+					{
+						"name": "status",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "array",
+							"items": {
+								"type": "string",
+								"enum": [
+									"publish",
+									"future",
+									"draft",
+									"pending",
+									"private",
+									"trash",
+									"any"
+								]
+							},
+							"default": [ "any" ]
+						},
+						"description": "Limit result set to posts assigned one or more statuses. Use status=any to get all todos, unless specified otherwise. Future todos are also important to get when listing todos"
+					},
+					{
+						"name": "tax_relation",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [ "AND", "OR" ]
+						},
+						"description": "Limit result set based on relationship between multiple taxonomies."
+					},
+					{
+						"name": "notebook",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "array",
+							"items": {
+								"type": "integer"
+							}
+						},
+						"description": "Limit result set to items with specific terms assigned in the notebook taxonomy."
+					},
+					{
+						"name": "notebook_exclude",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "array",
+							"items": {
+								"type": "integer"
+							}
+						},
+						"description": "Limit result set to items except those with specific terms assigned in the notebook taxonomy."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Successful response"
+					},
+					"401": {
+						"description": "Unauthorized"
+					}
+				}
+			},
+			"post": {
+				"operationId": "todo_create_item",
+				"summary": "Creates a TODO item",
+				"description": "Creates a TODO item",
+				"responses": {
+					"200": {
+						"description": "Successful response"
+					},
+					"401": {
+						"description": "Unauthorized"
+					}
+				},
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"date": {
+										"type": "string",
+										"description": "The date the TODO was/should be created. Use when scheduling a todo in the futue. It will appear in the active list on that future date. This is NOT a due date, but more of a date when you shouuld start looking into this todo."
+									},
+									"status": {
+										"type": "string",
+										"enum": [ "publish", "private" ],
+										"description": "A named status for the post. Use private unless you want to explicitly have this todo visible for other users."
+									},
+									"title": {
+										"type": "string",
+										"description": "The title for the todo."
+									},
+									"excerpt": {
+										"type": "string",
+										"description": "Detailed description and notes."
+									},
+									"meta": {
+										"type": "object",
+										"description": "Meta fields.",
+										"properties": {
+											"pos_blocked_by": {
+												"type": "integer",
+												"description": "An ID of the TODO that is blocking this specific todo. Use this field to marked current one as blocked by another"
+											},
+											"pos_recurring_days": {
+												"type": "integer",
+												"description": "How many days in the future this todo should be repeated. Use this field to mark a todo as recurring. It will repeat every X days"
+											},
+											"pos_blocked_pending_term": {
+												"type": "string",
+												"default": "now",
+												"description": "When todo is unblocked or its time is due, it will be unblocked by moving to this term."
+											},
+											"url": {
+												"type": "string",
+												"description": "A URL representing an action of this TODO. It can be a link to a page, a call:// url, mailto://."
+											}
+										}
+									},
+									"notebook": {
+										"type": "array",
+										"items": {
+											"type": "integer"
+										},
+										"description": "The terms assigned to the post in the notebook taxonomy."
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/pos/v1/todo/{id}": {
+			"get": {
+				"operationId": "todo_get_item",
+				"summary": "Get a specific TODO item. Always use this to get the todo if you know the id",
+				"description": "Gets a TODO item",
+				"parameters": [
+					{
+						"name": "context",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [ "edit" ],
+							"default": "edit"
+						},
+						"description": "Scope under which the request is made; determines fields present in response."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Successful response"
+					},
+					"401": {
+						"description": "Unauthorized"
+					}
+				}
+			},
+			"post": {
+				"operationId": "todo_update_item",
+				"summary": "Use this to update a todo. If you don't know the id, use the list todos endpoint.",
+				"description": "",
+				"responses": {
+					"200": {
+						"description": "Successful response"
+					},
+					"401": {
+						"description": "Unauthorized"
+					}
+				},
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"date": {
+										"type": "string",
+										"description": "The date the post was published, in the site's timezone."
+									},
+									"slug": {
+										"type": "string",
+										"description": "An alphanumeric identifier for the post unique to its type."
+									},
+									"status": {
+										"type": "string",
+										"enum": [
+											"publish",
+											"future",
+											"draft",
+											"pending",
+											"private"
+										],
+										"description": "A named status for the post."
+									},
+									"title": {
+										"type": "object",
+										"description": "The title for the post."
+									},
+									"excerpt": {
+										"type": "object",
+										"description": "The excerpt for the post."
+									},
+									"meta": {
+										"type": "object",
+										"description": "Meta fields.",
+										"properties": {
+											"pos_blocked_by": {
+												"type": "integer",
+												"description": "An ID of the TODO that is blocking this specific todo. Use this field to marked current one as blocked by another"
+											},
+											"pos_recurring_days": {
+												"type": "integer",
+												"description": "How many days in the future this todo should be repeated. Use this field to mark a todo as recurring. It will repeat every X days"
+											},
+											"pos_blocked_pending_term": {
+												"type": "string",
+												"default": "now",
+												"description": "When todo is unblocked or its time is due, it will be unblocked by moving to this term."
+											},
+											"url": {
+												"type": "string",
+												"description": "A URL representing an action of this TODO. It can be a link to a page, a call:// url, mailto://."
+											}
+										}
+									},
+									"notebook": {
+										"type": "array",
+										"items": {
+											"type": "integer"
+										},
+										"description": "The terms assigned to the post in the notebook taxonomy."
+									}
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"operationId": "todo_delete_item",
+				"summary": "Completes a TODO item",
+				"description": "Completes a TODO item",
+				"responses": {
+					"200": {
+						"description": "Successful response"
+					},
+					"401": {
+						"description": "Unauthorized"
+					}
+				}
+			}
+		},
+		"/pos/v1/notes": {
+			"get": {
+				"operationId": "notes_get_items",
+				"summary": "Gets a list of notes",
+				"description": "Gets a list of notes",
+				"parameters": [
+					{
+						"name": "context",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [ "edit" ],
+							"default": "edit"
+						},
+						"description": "Scope under which the request is made; determines fields present in response."
+					},
+					{
+						"name": "page",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"default": 1
+						},
+						"description": "Current page of the collection."
+					},
+					{
+						"name": "per_page",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"default": 10
+						},
+						"description": "Maximum number of items to be returned in result set."
+					},
+					{
+						"name": "search",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Limit results to those matching a string."
+					},
+					{
+						"name": "after",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Limit response to posts published after a given ISO8601 compliant date."
+					},
+					{
+						"name": "modified_after",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Limit response to posts modified after a given ISO8601 compliant date."
+					},
+					{
+						"name": "before",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Limit response to posts published before a given ISO8601 compliant date."
+					},
+					{
+						"name": "modified_before",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Limit response to posts modified before a given ISO8601 compliant date."
+					},
+					{
+						"name": "exclude",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "array",
+							"items": {
+								"type": "integer"
+							},
+							"default": []
+						},
+						"description": "Ensure result set excludes specific IDs."
+					},
+					{
+						"name": "include",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "array",
+							"items": {
+								"type": "integer"
+							},
+							"default": []
+						},
+						"description": "Limit result set to specific IDs."
+					},
+					{
+						"name": "offset",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						},
+						"description": "Offset the result set by a specific number of items."
+					},
+					{
+						"name": "order",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [ "asc", "desc" ],
+							"default": "desc"
+						},
+						"description": "Order sort attribute ascending or descending."
+					},
+					{
+						"name": "orderby",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [
+								"author",
+								"date",
+								"id",
+								"include",
+								"modified",
+								"parent",
+								"relevance",
+								"slug",
+								"include_slugs",
+								"title"
+							],
+							"default": "date"
+						},
+						"description": "Sort collection by post attribute."
+					},
+					{
+						"name": "search_columns",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "array",
+							"items": {
+								"type": "string",
+								"enum": [
+									"post_title",
+									"post_content",
+									"post_excerpt"
+								]
+							},
+							"default": []
+						},
+						"description": "Array of column names to be searched."
+					},
+					{
+						"name": "status",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "array",
+							"items": {
+								"type": "string",
+								"enum": [
+									"publish",
+									"future",
+									"draft",
+									"pending",
+									"private",
+									"trash",
+									"auto-draft",
+									"inherit",
+									"request-pending",
+									"request-confirmed",
+									"request-failed",
+									"request-completed",
+									"any"
+								]
+							},
+							"default": [ "publish" ]
+						},
+						"description": "Limit result set to posts assigned one or more statuses."
+					},
+					{
+						"name": "tax_relation",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [ "AND", "OR" ]
+						},
+						"description": "Limit result set based on relationship between multiple taxonomies."
+					},
+					{
+						"name": "notebook",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "array",
+							"items": {
+								"type": "integer"
+							}
+						},
+						"description": "Limit result set to items with specific terms assigned in the notebook taxonomy."
+					},
+					{
+						"name": "notebook_exclude",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "array",
+							"items": {
+								"type": "integer"
+							}
+						},
+						"description": "Limit result set to items except those with specific terms assigned in the notebook taxonomy."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Successful response"
+					},
+					"401": {
+						"description": "Unauthorized"
+					}
+				}
+			},
+			"post": {
+				"operationId": "notes_create_item",
+				"summary": "",
+				"description": "",
+				"responses": {
+					"200": {
+						"description": "Successful response"
+					},
+					"401": {
+						"description": "Unauthorized"
+					}
+				},
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"date": {
+										"type": "string",
+										"description": "The date the post was published, in the site's timezone."
+									},
+									"status": {
+										"type": "string",
+										"enum": [
+											"publish",
+											"future",
+											"draft",
+											"pending",
+											"private"
+										],
+										"description": "A named status for the post."
+									},
+									"title": {
+										"type": "string",
+										"description": "The title for the post."
+									},
+									"content": {
+										"type": "string",
+										"description": "The content for the post, using Gutenberg blocks."
+									},
+									"excerpt": {
+										"type": "string",
+										"description": "The excerpt for the post."
+									},
+									"notebook": {
+										"type": "array",
+										"items": {
+											"type": "integer"
+										},
+										"description": "The terms assigned to the post in the notebook taxonomy."
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/pos/v1/notes/{id}": {
+			"get": {
+				"operationId": "notes_get_item",
+				"summary": "",
+				"description": "",
+				"responses": {
+					"200": {
+						"description": "Successful response"
+					},
+					"401": {
+						"description": "Unauthorized"
+					}
+				}
+			},
+			"post": {
+				"operationId": "notes_update_item",
+				"summary": "",
+				"description": "",
+				"responses": {
+					"200": {
+						"description": "Successful response"
+					},
+					"401": {
+						"description": "Unauthorized"
+					}
+				},
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"date": {
+										"type": "string",
+										"description": "The date the post was published, in the site's timezone."
+									},
+									"status": {
+										"type": "string",
+										"enum": [
+											"publish",
+											"future",
+											"draft",
+											"pending",
+											"private"
+										],
+										"description": "A named status for the post."
+									},
+									"title": {
+										"type": "string",
+										"description": "The title for the post."
+									},
+									"content": {
+										"type": "string",
+										"description": "The content for the post, using Gutenberg blocks."
+									},
+									"excerpt": {
+										"type": "string",
+										"description": "The excerpt for the post."
+									},
+									"notebook": {
+										"type": "array",
+										"items": {
+											"type": "integer"
+										},
+										"description": "The terms assigned to the post in the notebook taxonomy."
+									}
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"operationId": "notes_delete_item",
+				"summary": "",
+				"description": "",
+				"responses": {
+					"200": {
+						"description": "Successful response"
+					},
+					"401": {
+						"description": "Unauthorized"
+					}
+				}
+			}
+		},
+		"/pos/v1/notebook": {
+			"get": {
+				"operationId": "notebook_get_items",
+				"summary": "",
+				"description": "",
+				"parameters": [
+					{
+						"name": "context",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [ "view", "embed", "edit" ],
+							"default": "view"
+						},
+						"description": "Scope under which the request is made; determines fields present in response."
+					},
+					{
+						"name": "page",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"default": 1
+						},
+						"description": "Current page of the collection."
+					},
+					{
+						"name": "per_page",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"default": 10
+						},
+						"description": "Maximum number of items to be returned in result set."
+					},
+					{
+						"name": "search",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Limit results to those matching a string."
+					},
+					{
+						"name": "exclude",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "array",
+							"items": {
+								"type": "integer"
+							},
+							"default": []
+						},
+						"description": "Ensure result set excludes specific IDs."
+					},
+					{
+						"name": "include",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "array",
+							"items": {
+								"type": "integer"
+							},
+							"default": []
+						},
+						"description": "Limit result set to specific IDs."
+					},
+					{
+						"name": "order",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [ "asc", "desc" ],
+							"default": "asc"
+						},
+						"description": "Order sort attribute ascending or descending."
+					},
+					{
+						"name": "orderby",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [
+								"id",
+								"include",
+								"name",
+								"slug",
+								"include_slugs",
+								"term_group",
+								"description",
+								"count"
+							],
+							"default": "name"
+						},
+						"description": "Sort collection by term attribute."
+					},
+					{
+						"name": "hide_empty",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "boolean",
+							"default": false
+						},
+						"description": "Whether to hide terms not assigned to any posts."
+					},
+					{
+						"name": "parent",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						},
+						"description": "Limit result set to terms assigned to a specific parent."
+					},
+					{
+						"name": "post",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						},
+						"description": "Limit result set to terms assigned to a specific post."
+					},
+					{
+						"name": "slug",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							}
+						},
+						"description": "Limit result set to terms with one or more specific slugs."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Successful response"
+					},
+					"401": {
+						"description": "Unauthorized"
+					}
+				}
+			},
+			"post": {
+				"operationId": "notebook_create_item",
+				"summary": "",
+				"description": "",
+				"responses": {
+					"200": {
+						"description": "Successful response"
+					},
+					"401": {
+						"description": "Unauthorized"
+					}
+				},
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"description": {
+										"type": "string",
+										"description": "Description of the notebook."
+									},
+									"name": {
+										"type": "string",
+										"description": "HTML title for the term."
+									},
+									"slug": {
+										"type": "string",
+										"description": "An alphanumeric identifier for the term unique to its type."
+									},
+									"parent": {
+										"type": "integer",
+										"description": "The parent term ID."
+									},
+									"meta": {
+										"type": "object",
+										"description": "Meta fields.",
+										"properties": {
+											"flags": {
+												"type": "array",
+												"items": {
+													"type": "string"
+												},
+												"description": "Flags for the notebook."
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/pos/v1/notebook/{id}": {
+			"get": {
+				"operationId": "notebook_get_item",
+				"summary": "",
+				"description": "",
+				"responses": {
+					"200": {
+						"description": "Successful response"
+					},
+					"401": {
+						"description": "Unauthorized"
+					}
+				}
+			},
+			"post": {
+				"operationId": "notebook_update_item",
+				"summary": "",
+				"description": "",
+				"responses": {
+					"200": {
+						"description": "Successful response"
+					},
+					"401": {
+						"description": "Unauthorized"
+					}
+				},
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"id": {
+										"type": "integer",
+										"description": "Unique identifier for the term."
+									},
+									"description": {
+										"type": "string",
+										"description": "HTML description of the term."
+									},
+									"name": {
+										"type": "string",
+										"description": "HTML title for the term."
+									},
+									"slug": {
+										"type": "string",
+										"description": "An alphanumeric identifier for the term unique to its type."
+									},
+									"parent": {
+										"type": "integer",
+										"description": "The parent term ID."
+									},
+									"meta": {
+										"type": "object",
+										"description": "Meta fields.",
+										"properties": {
+											"flags": {
+												"type": "array",
+												"items": {
+													"type": "string"
+												},
+												"description": "Flags for the notebook."
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}

@@ -1,0 +1,72 @@
+@import "@wordpress/dataviews/build-style/style.css";
+
+
+.pos__dataview {
+	button {
+		background: transparent;
+		border: none;
+		cursor: pointer;
+	}
+}
+.components-dropdown__content {
+	background: white;
+	z-index: 1000;
+}
+
+.pos__dataview .pos__notebook-badge {
+	margin: 3px;
+	padding: 5px;
+	border-radius: 5px;
+	font-size: 0.75em;
+	background: #f0f0f0;
+	// border: 0;
+	cursor: pointer;
+}
+
+.pos__dataview .pos__notebook-badge:hover {
+	background: #e0e0e0;
+}
+.pos__dataview .pos__notebook-badge--future {
+	background: #f0f0f0;
+}
+
+.pos__todo-description {
+	overflow: auto;
+	max-height: 100px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.dataviews-view-list li.is-selected .pos__todo-description {
+	max-height: none;
+}
+
+.dataviews-view-table__actions-column  button.has-icon>svg {
+	width: 24px;
+	height: 24px;
+}
+.pos__todo-form {
+	margin-bottom: 10px;
+}
+
+.pos__todo-form .components-datetime__date, .pos__todo-form .components-base-control {
+	width: 100%;
+}
+
+.components-panel__row.wide>div {
+	width: 100%;
+}
+
+.pos__todo-form-recurring .components-input-control__prefix, .pos__todo-form-recurring .components-input-control__suffix {
+	display: flex;
+	color: rgb(117, 117, 117);
+}
+.pos__todo-form-recurring input {
+	flex-basis: 60%;
+	text-align: center;
+}
+.pos__todo-edit {
+	background: #f0f0f0;
+	padding-top: 20px;
+	padding-right: 20px;
+}

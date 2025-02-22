@@ -12,6 +12,28 @@ class Notes_Module extends POS_Module {
 		),
 	);
 
+	public function list( $args = array(), $taxonomy = '' ) {
+		$defaults = array(
+			'post_type'   => $this->id,
+			'post_status' => array( 'private', 'publish', 'future' ),
+			'posts_per_page' => -1,
+		);
+		if ( $taxonomy ) {
+			$defaults['tax_query'] = array(
+				array(
+					'taxonomy' => 'notebook',
+					'field'    => is_numeric( $taxonomy ) ? 'id' : 'slug',
+					'terms'    => array( $taxonomy ),
+				),
+			);
+		}
+		$args = wp_parse_args( $args, $defaults );
+		return get_posts( $args );
+	}
+
+	/**
+	 * @TODO: Unify list with get_notes
+	 */
 	public function get_notes( $args = array() ) {
 		return get_posts(
 			array_merge(
@@ -64,7 +86,8 @@ class Notes_Module extends POS_Module {
 			array(
 				'supports'   => array( 'title', 'excerpt', 'editor', 'custom-fields', 'revisions' ),
 				'taxonomies' => array( 'notebook', 'post_tag' ),
-			)
+			),
+			true
 		);
 		$this->jetpack_whitelist_cpt_with_dotcom();
 
@@ -94,6 +117,23 @@ class Notes_Module extends POS_Module {
 			)
 		);
 
+		add_filter(
+			'pos_notebook_flags',
+			function( $flags ) {
+				$flags[] = array(
+					'id'    => 'star',
+					'name'  => 'Star',
+					'label' => 'Starred, it will show up in menu.',
+				);
+				$flags[] = array(
+					'id'    => 'project',
+					'name'  => 'Project',
+					'label' => 'This is a currently active project.',
+				);
+				return $flags;
+			}
+		);
+
 		register_meta(
 			'post',
 			'url',
@@ -104,22 +144,89 @@ class Notes_Module extends POS_Module {
 			)
 		);
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
+		add_action( 'pos_openai_tools', array( $this, 'ai_tools' ), 10, 1 );
+	}
+
+	public function ai_tools( $tools ) {
+		$note_module = $this;
+		$tools[] = new OpenAI_Tool(
+			'get_notebooks',
+			'My work is organized in "notebooks". They represent areas of my life, active projects and statuses of tasks. Use this tool to get all my notebooks.',
+			array(
+				'notebook_flag' => array(
+					'type'        => 'string',
+					'description' => 'The flag of the notebook to get.',
+					'enum'        => array_map(
+						function( $flag ) {
+							return $flag['id'];
+						},
+						apply_filters( 'pos_notebook_flags', array( array( 'id' => 'all' ) ) )
+					),
+				),
+			),
+			function ( $parameters ) use ( $note_module ) {
+				$flags = array_filter(
+					apply_filters( 'pos_notebook_flags', array() ),
+					function( $flag ) use ( $parameters ) {
+						return $flag['id'] === $parameters['notebook_flag'] || $parameters['notebook_flag'] === 'all';
+					}
+				);
+				$notebooks = array_map(
+					function( $flag ) use ( $note_module ) {
+						$notebooks = array_map(
+							function( $notebook ) {
+								return [
+									'notebook_name' => $notebook->name,
+									'notebook_id' => $notebook->term_id,
+									'notebook_slug' => $notebook->slug,
+									'notebook_description' => $notebook->description,
+								];
+							},
+							$note_module->get_notebooks_by_flag( $flag['id'] )
+						);
+						return [
+							'flag_id' => $flag['id'],
+							'flag_name' => $flag['name'],
+							'flag_label' => $flag['label'],
+							'notebooks' => $notebooks,
+						];
+					},
+					array_values( $flags )
+				);
+				return $notebooks;
+			}
+		);
+		return $tools;
+	}
+
+	public function get_notebooks_by_flag( $flag ) {
+		$args = array(
+			'taxonomy'   => 'notebook',
+			'hide_empty' => false,
+		);
+		if ( is_string( $flag ) ) {
+			$args['meta_query'] = array(
+				array(
+					'key'     => 'flag',
+					'value'   => $flag,
+					'compare' => '=',
+				),
+			);
+		} elseif ( $flag === null ) {
+			$args['meta_query'] = array(
+				array(
+					'key'     => 'flag',
+					'compare' => 'NOT EXISTS',
+				),
+			);
+		}
+		// When passed false it will return all notebooks
+		return get_terms( $args );
 	}
 
 	public function admin_menu() {
-		$terms = get_terms(
-			array(
-				'taxonomy'   => 'notebook',
-				'hide_empty' => false,
-				'meta_query' => array(
-					array(
-						'key'     => 'flag',
-						'value'   => 'star',
-						'compare' => '=',
-					),
-				),
-			)
-		);
+		$terms = $this->get_notebooks_by_flag( 'star' );
+
 		foreach ( $terms as $term ) {
 			$count = count(
 				get_posts(
@@ -139,7 +246,7 @@ class Notes_Module extends POS_Module {
 				)
 			);
 			if ( $count > 0 ) {
-				add_submenu_page( 'personalos', $term->name, $term->name . ' todos ' . '<span class="awaiting-mod" style="background-color: #0073aa;"><span class="pending-count" aria-hidden="true">' . $count . '</span></span>', 'read', 'edit.php?post_type=todo&notebook=' . $term->slug );
+				add_submenu_page( 'personalos', $term->name, $term->name . ' todos ' . '<span class="awaiting-mod" style="background-color: #0073aa;"><span class="pending-count" aria-hidden="true">' . $count . '</span></span>', 'read', 'admin.php?page=pos-todo#' . $term->slug );
 			}
 			$count = count(
 				get_posts(
@@ -166,20 +273,17 @@ class Notes_Module extends POS_Module {
 
 	public function notebook_edit_form_fields( $term, $taxonomy ) {
 		$value = get_term_meta( $term->term_id, 'flag', false );
-		$possible_flags = array(
-			'star' => 'Starred, it will show up in menu.',
-			'project' => 'This is a currently active project.',
-		);
+		$possible_flags = apply_filters( 'pos_notebook_flags', array() );
 		?>
 		<table class="form-table" role="presentation"><tbody>
 			<tr class="form-field term-parent-wrap">
 			<th scope="row"><label>Notebook Flags</label></th>
 			<td>
-				<?php foreach ( $possible_flags as $flag => $label ): ?>
+				<?php foreach ( $possible_flags as $flag ) : ?>
 					<label style="display: block; margin-bottom: 5px;">
-						<input type="checkbox" name="pos_flag[]" value="<?php echo esc_attr($flag); ?>"
-							<?php checked( in_array( $flag, $value ) ); ?>>
-						<?php echo esc_html( $label ); ?>
+						<input type="checkbox" name="pos_flag[]" value="<?php echo esc_attr( $flag['id'] ); ?>"
+							<?php checked( in_array( $flag['id'], $value ) ); ?>>
+						<?php echo esc_html( $flag['label'] ); ?>
 					</label>
 				<?php endforeach; ?>
 				<p class="description">Select one or more flags for this notebook. These flags determine how the notebook is treated in various contexts.</p>
@@ -232,7 +336,7 @@ class Notes_Module extends POS_Module {
 		}
 	}
 
-	public function create( $title, $content, $inbox = false ) {
+	public function create( $title, $content, $notebooks = array() ) {
 		$post    = array(
 			'post_title'   => $title,
 			'post_content' => $content,
@@ -240,8 +344,31 @@ class Notes_Module extends POS_Module {
 			'post_type'    => $this->id,
 		);
 		$post_id = wp_insert_post( $post );
+		if ( ! empty( $notebooks ) ) {
+			wp_set_object_terms( $post_id, $notebooks, 'notebook' );
+		}
 		return $post_id;
 	}
+
+	public function create_term_if_not_exists( $name, $slug, $meta = array(), $args = array() ) {
+		$term = get_term_by( 'slug', $slug, 'notebook' );
+		if ( $term ) {
+			$term_id = $term->term_id;
+		} else {
+			$term = wp_insert_term(
+				$name,
+				'notebook',
+				array_merge( array( 'slug' => $slug ), $args )
+			);
+			$term_id = $term['term_id'];
+		}
+
+		foreach ( $meta as $value ) {
+			update_term_meta( $term_id, $value[0], $value[1] );
+		}
+		return $term_id;
+	}
+
 	public function init_admin_widgets() {
 		$terms = get_terms(
 			array(
@@ -439,7 +566,7 @@ class Notes_Module extends POS_Module {
 			}
 		);
 		if ( count( $notes ) > 0 ) {
-			echo '<h3><a href="edit.php?notebook=' . $conf['args']->slug . '&post_type=todo">' . esc_html( $conf['args']->name ) . ': TODOs</a></h3>';
+			echo '<h3><a href="admin.php?page=pos-todo#' . $conf['args']->slug . '">' . esc_html( $conf['args']->name ) . ': TODOs</a></h3>';
 			$notes = array_map(
 				function( $note ) use ( $check ) {
 					return "<li><a href='" . esc_url( wp_nonce_url( "post.php?action=trash&amp;post=$note->ID", 'trash-post_' . $note->ID ) ) . "'>{$check}<a style='font-weight:bold;margin: 0 5px 0 0 ' href='" . get_edit_post_link( $note->ID ) . "' aria-label='Edit “{$note->post_title}”'>{$note->post_title}</a></li>";
