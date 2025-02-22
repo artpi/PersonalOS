@@ -72,6 +72,16 @@ class Evernote_Module extends External_Service_Module {
 					'type'        => 'string',
 					'description' => 'Query to search for notes.',
 				),
+				'limit' => array(
+					'type'        => 'integer',
+					'description' => 'Limit the number of notes returned. Do not change unless specified otherwise. Please use 10 as default.',
+					// 'default'     => 25,
+				),
+				'return_random' => array(
+					'type'        => 'integer',
+					'description' => 'Return X random notes from result. Do not change unless specified otherwise. Please always use 0 unless specified otherwise.',
+					// 'default'     => 0,
+				),
 			),
 			function( $args ) use ( $self ) {
 				return array_map(
@@ -295,7 +305,14 @@ class Evernote_Module extends External_Service_Module {
 			return 'Error in Evernote configuration';
 		}
 
-		return $notes; //array_slice( $notes, 0, $limit );
+		if ( ! empty( $args['return_random'] ) && $args['return_random'] > 0 ) {
+			$random_notes = array_rand( $notes, $args['return_random'] );
+			if ( is_int( $random_notes ) ) {
+				$random_notes = array( $random_notes );
+			}
+			return array_intersect_key( $notes, array_flip( $random_notes ) );
+		}
+		return $notes;
 	}
 
 	/**
