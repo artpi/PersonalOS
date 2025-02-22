@@ -138,26 +138,6 @@ class POS_AI_Podcast_Module extends POS_Module {
 		return $latest_podcast ? $latest_podcast[0]->ID : 0;
 	}
 
-	public function get_scenarios() {
-		return array(
-			[
-				'title' => 'Tony Robbins State, Story, Strategy',
-				'id' => 'tony-robbins-1',
-				'prompt' => <<<EOF
-				Generate a motivational speech from Tony Robbins to start my day. The speech you generate will be read out by OpenAI speech generation models. so don't use any headings or titles.
-
-				Use the following framework : State, Story, Strategy.
-				1. Focus on getting me in a hyped-up state.
-				2. Shift my internal story into more hyped-up, actionable, full of energy
-				3. Help me develop a strategy for dealing with my important projects.
-
-				In the first part, focus on getting me in a hyped-up state about my important projects.
-				Next, remind me about my TODOs, but just mention them, don't say too much about them.
-				EOF,
-			],
-		);
-	}
-
 	/**
 	 * Trigger generating a podcast episode
 	 */
@@ -383,7 +363,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 				),
 			)
 		);
-		if ( $episode_generated_today ) {
+		if ( false && $episode_generated_today ) {
 			return [
 				'media_id' => $episode_generated_today[0]->ID,
 				'media_url' => wp_get_attachment_url( $episode_generated_today[0]->ID ),
@@ -407,28 +387,26 @@ class POS_AI_Podcast_Module extends POS_Module {
 		$this->log( 'Generating audio for the podcast' );
 		$soundtrack_url = plugins_url( 'podcast-assets/' . $this->soundtracks[ array_rand( $this->soundtracks ) ], __FILE__ );
 
-		$file = $this->openai->tts(
-			$messages,
-			'ballad',
-			array(
-				'post_title' => $template->post_title,
-				'meta_input' => array(
-					'pos_podcast' => gmdate( 'Y-m-d' ),
-				),
-			)
+		$post_data = array(
+			'post_title' => $template->post_title,
+			'meta_input' => array(
+				'pos_podcast' => gmdate( 'Y-m-d' ),
+				'soundtrack' => $soundtrack_url,
+				'prompt_id' => $template->ID,
+			),
 		);
-
 		if ( $this->elevenlabs->is_configured() && $this->get_setting( 'tts_service' ) === 'elevenlabs' ) {
+			$new_content = $this->openai->chat_completion( $messages );
 			$file = $this->elevenlabs->tts(
 				$new_content,
 				$this->get_setting( 'elevenlabs_voice' ),
-				$data,
+				$post_data,
 			);
 		} else if ( $this->openai->is_configured() && $this->get_setting( 'tts_service' ) === 'openai-ttsv1' ) {
 			$file = $this->openai->tts(
-				$new_content,
-				'onyx',
-				$data,
+				$messages,
+				'ballad',
+				$post_data,
 			);
 		}
 
@@ -440,7 +418,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 		return [
 			'media_id' => $file,
 			'media_url' => wp_get_attachment_url( $file ),
-			'scenario' => $random_scenario['id'],
+			'prompt_id' => $template->ID,
 			'text' => $new_content,
 			'soundtrack_url' => $soundtrack_url,
 		];
