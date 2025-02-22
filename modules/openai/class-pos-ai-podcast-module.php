@@ -29,9 +29,9 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'type'    => 'select',
 				'name'    => 'TTS Service',
 				'label'   => 'Select the TTS service to use for the podcast.',
-				'default' => 'elevenlabs',
+				'default' => 'openai-gpt4o-audio',
 				'options' => array(
-					'openai-ttsv1' => 'OpenAI TTS v1',
+					'openai-gpt4o-audio' => 'OpenAI GPT-4o Audio',
 				),
 			),
 		);
@@ -81,26 +81,6 @@ class POS_AI_Podcast_Module extends POS_Module {
 				<div id="progress" style="height: 10px; background-color: #0073aa;width: 0%;"></div>
 			</div>
 		</section>
-		<section>
-			<h2>Projects I want to focus on this week</h2>
-				<?php
-				$projects = $this->get_active_projects();
-				if ( strlen( $projects ) > 0 ) {
-					echo nl2br( $projects );
-				} else {
-					echo '<li>No projects found</li>';
-				}
-				?>
-			<h2>My TODOs for today</h2>
-				<?php
-				$todos = $this->get_todos_now();
-				if ( strlen( $todos ) > 0 ) {
-					echo nl2br( $todos );
-				} else {
-					echo '<li>No todos found</li>';
-				}
-				?>
-		</section>
 		<?php
 	}
 
@@ -118,24 +98,6 @@ class POS_AI_Podcast_Module extends POS_Module {
 			true
 		);
 
-	}
-
-	private function get_latest_podcast_id() {
-		$latest_podcast = get_posts(
-			array(
-				'post_type'   => 'attachment',
-				'post_status' => 'private, publish, inherit',
-				'numberposts' => 1,
-				'meta_query'  => array(
-					array(
-						'key'     => 'pos_podcast',
-						'compare' => 'EXISTS',
-					),
-				),
-			)
-		);
-
-		return $latest_podcast ? $latest_podcast[0]->ID : 0;
 	}
 
 	/**
@@ -363,11 +325,11 @@ class POS_AI_Podcast_Module extends POS_Module {
 				),
 			)
 		);
-		if ( false && $episode_generated_today ) {
+		if ( $episode_generated_today ) {
 			return [
 				'media_id' => $episode_generated_today[0]->ID,
 				'media_url' => wp_get_attachment_url( $episode_generated_today[0]->ID ),
-				'scenario' => get_post_meta( $episode_generated_today[0]->ID, 'scenario', true ),
+				'prompt_id' => get_post_meta( $episode_generated_today[0]->ID, 'prompt_id', true ),
 				'text' => $episode_generated_today[0]->post_content,
 				'soundtrack_url' => get_post_meta( $episode_generated_today[0]->ID, 'soundtrack', true ),
 			];
@@ -402,12 +364,15 @@ class POS_AI_Podcast_Module extends POS_Module {
 				$this->get_setting( 'elevenlabs_voice' ),
 				$post_data,
 			);
-		} else if ( $this->openai->is_configured() && $this->get_setting( 'tts_service' ) === 'openai-ttsv1' ) {
+		} else if ( $this->openai->is_configured() && $this->get_setting( 'tts_service' ) === 'openai-gpt4o-audio' ) {
 			$file = $this->openai->tts(
 				$messages,
 				'ballad',
 				$post_data,
 			);
+		} else {
+			$this->log( 'No TTS service configured', E_USER_WARNING );
+			return;
 		}
 
 		if ( is_wp_error( $file ) ) {
