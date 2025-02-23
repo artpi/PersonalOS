@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PersonalOS - Your Personal Operating System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white font-sans">
+    <!-- Navigation -->
+    <nav class="fixed w-full bg-gray-800/80 backdrop-blur-md z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <div class="text-2xl font-bold tracking-tight">PersonalOS</div>
+            <div class="hidden md:flex space-x-8">
+                <a href="#features" class="hover:text-indigo-400 transition">Features</a>
+                <a href="#about" class="hover:text-indigo-400 transition">About</a>
+                <a href="#download" class="hover:text-indigo-400 transition">Download</a>
+            </div>
+            <button id="menu-toggle" class="md:hidden focus:outline-none">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                </svg>
+            </button>
+        </div>
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden bg-gray-800">
+            <div class="px-4 pt-2 pb-4 space-y-2">
+                <a href="#features" class="block hover:text-indigo-400 transition">Features</a>
+                <a href="#about" class="block hover:text-indigo-400 transition">About</a>
+                <a href="#download" class="block hover:text-indigo-400 transition">Download</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="min-h-screen flex items-center pt-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-12">
+            <div class="space-y-6">
+                <h1 class="text-5xl md:text-6xl font-extrabold leading-tight">
+                    Your <span class="text-indigo-400">Personal</span> Operating System
+                </h1>
+                <p class="text-lg text-gray-300">
+                    PersonalOS is your all-in-one personal management system. Powered by AI and built on WordPress, it’s designed to streamline your tasks, notes, and goals effortlessly.
+                </p>
+                <a href="#download" class="inline-block bg-indigo-600 hover:bg-indigo-700 px-6 py-3 rounded-lg font-semibold transition">
+                    Get Started
+                </a>
+            </div>
+            <div class="flex justify-center">
+                <div class="bg-gray-800 p-4 rounded-xl shadow-2xl transform rotate-3">
+                    <div class="bg-gray-900 p-4 rounded-lg">
+                        <p class="text-sm text-gray-400">[Mockup Placeholder: Sleek app interface showing todos and notes]</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-20 bg-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-4xl font-bold text-center mb-12">Powerful Features</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-gray-900 p-6 rounded-lg shadow-lg hover:shadow-xl transition">
+                    <h3 class="text-xl font-semibold mb-4 text-indigo-400">AI Task Prioritization</h3>
+                    <p class="text-gray-300">
+                        Let our AI analyze your todos and suggest the best order to tackle them based on deadlines, urgency, and your habits.
+                    </p>
+                </div>
+                <div class="bg-gray-900 p-6 rounded-lg shadow-lg hover:shadow-xl transition">
+                    <h3 class="text-xl font-semibold mb-4 text-indigo-400">Smart Notes</h3>
+                    <p class="text-gray-300">
+                        Capture ideas instantly. Our AI tags, summarizes, and links your notes to related tasks automatically.
+                    </p>
+                </div>
+                <div class="bg-gray-900 p-6 rounded-lg shadow-lg hover:shadow-xl transition">
+                    <h3 class="text-xl font-semibold mb-4 text-indigo-400">Goal Tracking</h3>
+                    <p class="text-gray-300">
+                        Set long-term goals and watch PersonalOS break them into actionable steps with progress insights.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="py-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-4xl font-bold mb-6">About PersonalOS</h2>
+            <p class="text-lg text-gray-300 max-w-2xl mx-auto">
+                Built on the flexibility of WordPress, PersonalOS combines the power of AI with a familiar platform to create a personal management system that adapts to you. Whether you're a student, professional, or dreamer, we’ve got you covered.
+            </p>
+        </div>
+    </section>
+
+    <!-- Download CTA -->
+    <section id="download" class="py-20 bg-indigo-600">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-4xl font-bold mb-6">Ready to Take Control?</h2>
+            <p class="text-lg text-indigo-100 mb-8">
+                Download PersonalOS now and start managing your life like never before.
+            </p>
+            <a href="#" class="inline-block bg-white text-indigo-600 hover:bg-gray-100 px-8 py-4 rounded-lg font-semibold text-lg transition">
+                Download Now
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 py-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-gray-400">
+            <p>&copy; 2025 PersonalOS. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Minimal JS for Mobile Menu -->
+    <script>
+        const menuToggle = document.getElementById('menu-toggle');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        menuToggle.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+    </script>
+</body>
+</html>
