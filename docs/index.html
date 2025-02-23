@@ -5,10 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PersonalOS - Your Personal Operating System</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Add Inter font for more modern look -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
 </head>
-<body class="bg-gray-900 text-white font-sans">
+<body class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white font-sans">
     <!-- Navigation -->
-    <nav class="fixed w-full bg-gray-800/80 backdrop-blur-md z-10">
+    <nav class="fixed w-full bg-gray-900/80 backdrop-blur-xl border-b border-gray-800/50 z-10">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
             <div class="text-2xl font-bold tracking-tight">PersonalOS</div>
             <div class="hidden md:flex space-x-8">
@@ -33,22 +46,23 @@
     </nav>
 
     <!-- Hero Section -->
-    <section class="min-h-screen flex items-center pt-20">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-12">
-            <div class="space-y-6">
+    <section class="min-h-screen flex items-center pt-20 relative">
+        <div class="absolute inset-0 bg-gradient-to-tr from-indigo-500/10 via-purple-500/10 to-pink-500/10"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-12 relative">
+            <div class="space-y-8">
                 <h1 class="text-5xl md:text-6xl font-extrabold leading-tight">
-                    Your <span class="text-indigo-400">Personal</span> Operating System
+                    Your <span class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">Personal</span> Operating System
                 </h1>
-                <p class="text-lg text-gray-300">
-                    PersonalOS is your all-in-one personal management system. Powered by AI and built on WordPress, it’s designed to streamline your tasks, notes, and goals effortlessly.
+                <p class="text-xl text-gray-300 leading-relaxed">
+                    PersonalOS is your all-in-one personal management system. Powered by AI and built on WordPress, it's designed to streamline your tasks, notes, and goals effortlessly.
                 </p>
-                <a href="#download" class="inline-block bg-indigo-600 hover:bg-indigo-700 px-6 py-3 rounded-lg font-semibold transition">
+                <a href="#download" class="inline-block bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 px-8 py-4 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-indigo-500/25">
                     Get Started
                 </a>
             </div>
             <div class="flex justify-center">
-                <div class="bg-gray-800 p-4 rounded-xl shadow-2xl transform rotate-3">
-                    <div class="bg-gray-900 p-4 rounded-lg">
+                <div class="bg-gradient-to-r from-gray-800 to-gray-700 p-6 rounded-2xl shadow-2xl backdrop-blur-xl border border-gray-700/50 transform rotate-3 hover:rotate-0 transition-all duration-300">
+                    <div class="bg-gray-900 p-6 rounded-xl border border-gray-800">
                         <p class="text-sm text-gray-400">[Mockup Placeholder: Sleek app interface showing todos and notes]</p>
                     </div>
                 </div>
@@ -57,25 +71,26 @@
     </section>
 
     <!-- Features Section -->
-    <section id="features" class="py-20 bg-gray-800">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 class="text-4xl font-bold text-center mb-12">Powerful Features</h2>
+    <section id="features" class="py-20 bg-gradient-to-b from-gray-800 to-gray-900 relative">
+        <div class="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-purple-500/5"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+            <h2 class="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Powerful Features</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div class="bg-gray-900 p-6 rounded-lg shadow-lg hover:shadow-xl transition">
-                    <h3 class="text-xl font-semibold mb-4 text-indigo-400">AI Task Prioritization</h3>
-                    <p class="text-gray-300">
+                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">AI Task Prioritization</h3>
+                    <p class="text-gray-300 leading-relaxed">
                         Let our AI analyze your todos and suggest the best order to tackle them based on deadlines, urgency, and your habits.
                     </p>
                 </div>
-                <div class="bg-gray-900 p-6 rounded-lg shadow-lg hover:shadow-xl transition">
-                    <h3 class="text-xl font-semibold mb-4 text-indigo-400">Smart Notes</h3>
-                    <p class="text-gray-300">
+                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Smart Notes</h3>
+                    <p class="text-gray-300 leading-relaxed">
                         Capture ideas instantly. Our AI tags, summarizes, and links your notes to related tasks automatically.
                     </p>
                 </div>
-                <div class="bg-gray-900 p-6 rounded-lg shadow-lg hover:shadow-xl transition">
-                    <h3 class="text-xl font-semibold mb-4 text-indigo-400">Goal Tracking</h3>
-                    <p class="text-gray-300">
+                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Goal Tracking</h3>
+                    <p class="text-gray-300 leading-relaxed">
                         Set long-term goals and watch PersonalOS break them into actionable steps with progress insights.
                     </p>
                 </div>
@@ -84,30 +99,32 @@
     </section>
 
     <!-- About Section -->
-    <section id="about" class="py-20">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 class="text-4xl font-bold mb-6">About PersonalOS</h2>
-            <p class="text-lg text-gray-300 max-w-2xl mx-auto">
-                Built on the flexibility of WordPress, PersonalOS combines the power of AI with a familiar platform to create a personal management system that adapts to you. Whether you're a student, professional, or dreamer, we’ve got you covered.
+    <section id="about" class="py-20 relative">
+        <div class="absolute inset-0 bg-gradient-to-t from-indigo-500/5 to-purple-500/5"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
+            <h2 class="text-4xl font-bold mb-8 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">About PersonalOS</h2>
+            <p class="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
+                Built on the flexibility of WordPress, PersonalOS combines the power of AI with a familiar platform to create a personal management system that adapts to you. Whether you're a student, professional, or dreamer, we've got you covered.
             </p>
         </div>
     </section>
 
     <!-- Download CTA -->
-    <section id="download" class="py-20 bg-indigo-600">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+    <section id="download" class="py-20 bg-gradient-to-r from-indigo-600 to-purple-600 relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-r from-indigo-600/50 to-purple-600/50 backdrop-blur-3xl"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
             <h2 class="text-4xl font-bold mb-6">Ready to Take Control?</h2>
-            <p class="text-lg text-indigo-100 mb-8">
+            <p class="text-xl text-indigo-100 mb-8">
                 Download PersonalOS now and start managing your life like never before.
             </p>
-            <a href="#" class="inline-block bg-white text-indigo-600 hover:bg-gray-100 px-8 py-4 rounded-lg font-semibold text-lg transition">
+            <a href="#" class="inline-block bg-white text-indigo-600 hover:bg-gray-100 px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 shadow-xl hover:shadow-white/25">
                 Download Now
             </a>
         </div>
     </section>
 
     <!-- Footer -->
-    <footer class="bg-gray-800 py-6">
+    <footer class="bg-gradient-to-b from-gray-800 to-gray-900 py-8 border-t border-gray-800/50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-gray-400">
             <p>&copy; 2025 PersonalOS. All rights reserved.</p>
         </div>
