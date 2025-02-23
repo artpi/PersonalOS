@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PersonalOS - Your Personal Operating System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Add Inter font for more modern look -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white font-sans">
+    <!-- Navigation -->
+    <nav class="fixed w-full bg-gray-900/80 backdrop-blur-xl border-b border-gray-800/50 z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <div class="text-2xl font-bold tracking-tight">PersonalOS</div>
+            <div class="hidden md:flex space-x-8">
+                <a href="#features" class="flex items-center bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-all duration-300">Features</a>
+                <a href="#download" class="inline-block bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 px-4 py-2 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-indigo-500/25">Install</a>
+                <a target="_blank" href="https://github.com/artpi/Personalos" class="flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-all duration-300">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span>GitHub</span>
+                </a>
+            </div>
+            <button id="menu-toggle" class="md:hidden focus:outline-none">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                </svg>
+            </button>
+        </div>
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden bg-gray-800">
+            <div class="px-4 pt-2 pb-4 space-y-2">
+                <a href="#features" class="block hover:text-indigo-400 transition">Features</a>
+                <a href="#about" class="block hover:text-indigo-400 transition">About</a>
+                <a href="#download" class="block hover:text-indigo-400 transition">Download</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="min-h-screen flex items-center pt-20 relative">
+        <div class="absolute inset-0 bg-gradient-to-tr from-indigo-500/10 via-purple-500/10 to-pink-500/10"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-12 relative">
+            <div class="space-y-8">
+                <h1 class="text-5xl md:text-6xl font-extrabold leading-tight">
+                    Your <span class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">Personal</span> Operating System
+                </h1>
+                <p class="text-xl text-gray-300 leading-relaxed">
+                    PersonalOS is your all-in-one personal management system, designed to keep your personal data in <b>your control</b>, but accessible for AI agents.
+                </p>
+                <a href="#download" class="inline-block bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 px-8 py-4 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-indigo-500/25">
+                    Get Started
+                </a>
+            </div>
+            <div class="flex justify-center">
+                <div class="bg-gradient-to-r from-gray-800 to-gray-700 p-6 rounded-2xl shadow-2xl backdrop-blur-xl border border-gray-700/50 transform rotate-3 hover:rotate-0 transition-all duration-300">
+                    <div class="bg-gray-900 p-6 rounded-xl border border-gray-800">
+                        <p class="text-sm text-gray-400">[Mockup Placeholder: Sleek app interface showing todos and notes]</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-20 bg-gradient-to-b from-gray-800 to-gray-900 relative">
+
+		<!-- <div class="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-purple-500/5"></div> -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+            <h2 class="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Your Second Brain, in your digital home</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">TODOs</h3>
+                    <p class="text-gray-300 leading-relaxed">
+                        Opinionated TODO manager supporting scheduled, recurring or blocking tasks. Multiple lists, projects, tags and contexts.
+                    </p>
+                </div>
+                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Notes</h3>
+                    <p class="text-gray-300 leading-relaxed">
+                        The most extensible note editor on the web, supporting backlinks, nested notes, Readwise and Evernote sync and more.
+                    </p>
+                </div>
+                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Fusion of GTD and PARA</h3>
+                    <p class="text-gray-300 leading-relaxed">
+                        Notes and TODOs are organized in a system inspired by Getting Things Done by David Allen and the PARA method by Tiago Forte.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative mt-20">
+            <h2 class="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Designed for AI</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Agents</h3>
+                    <p class="text-gray-300 leading-relaxed">
+                        AI agents can access your notes and todos to help you achieve your goals. They can create tasks, take notes, review your posts.
+                    </p>
+                </div>
+                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Integrates with everything</h3>
+                    <p class="text-gray-300 leading-relaxed">
+                        Talk to agents through Slack, Custom GPTs and Voice mode. Connect AI to your external services.
+                    </p>
+                </div>
+                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Your AI podcast</h3>
+                    <p class="text-gray-300 leading-relaxed">
+                        Start your day with a personal podcast from your Second Brain.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative mt-20">
+            <h2 class="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Engineered for the long run</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Platform Independence</h3>
+                    <p class="text-gray-300 leading-relaxed">
+                        PersonalOS is built on top of WordPress, the most popular self-hosted CMS in the world. Your data is in your control in a familiar interface.
+                    </p>
+					<p class="text-gray-300 leading-relaxed">
+                        We may go away, but your access to PersonalOS is forever.
+                    </p>
+                </div>
+                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Powerful Integrations</h3>
+                    <p class="text-gray-300 leading-relaxed">
+                        WordPress has thousands of plugins, and PersonalOS is built to integrate with them seamlessly.
+                    </p>
+                </div>
+                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">No investor pressure</h3>
+                    <p class="text-gray-300 leading-relaxed">
+                        Other platforms are incentivized to lock you in and integrate only with their own services. PersonalOS is built to integrate with everything.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+	<!-- Download CTA -->
+	<section id="try" class="py-20 bg-gradient-to-r from-indigo-600 to-purple-600 relative overflow-hidden">
+		<div class="absolute inset-0 bg-gradient-to-r from-indigo-600/50 to-purple-600/50 backdrop-blur-3xl"></div>
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
+			<h2 class="text-4xl font-bold mb-6">Try it yourself</h2>
+			<p class="text-xl text-indigo-100 mb-8">
+				Launch a fully-functioning WordPress instance with PersonalOS pre-installed, inside your browser. Data will never leave your browser, but AI features will require your own API keys.
+			</p>
+			<a
+				target="_blank"
+				href="https://playground.wordpress.net/?networking=yes#{%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginData%22:{%22resource%22:%22url%22,%22url%22:%22https://github.com/artpi/personalos/releases/latest/download/wp-personal-os.zip%22}}],%22landingPage%22:%22/wp-admin/admin.php?page=personalos-settings%22,%22login%22:true}"
+				class="inline-block bg-white text-indigo-600 hover:bg-gray-100 px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 shadow-xl hover:shadow-white/25"
+			>
+				Launch test
+			</a>
+		</div>
+	</section>
+
+    <!-- About Section -->
+    <section id="about" class="py-20 relative">
+        <div class="absolute inset-0 bg-gradient-to-t from-indigo-500/5 to-purple-500/5"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
+            <h2 class="text-4xl font-bold mb-8 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Is it a plugin?</h2>
+            <p class="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
+                PersonalOS is a WordPress plugin that turns your WordPress site into a personal operating system. You will need a WordPress instance to use it - you can launch one on WordPress.com, use one you already have or even install it on your own computer.
+            </p>
+        </div>
+    </section>
+
+	<!-- Download CTA -->
+	<section id="download" class="py-20 bg-gradient-to-r from-indigo-600 to-purple-600 relative overflow-hidden">
+		<div class="absolute inset-0 bg-gradient-to-r from-indigo-600/50 to-purple-600/50 backdrop-blur-3xl"></div>
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
+			<h2 class="text-4xl font-bold mb-6">Install PersonalOS</h2>
+			<p class="text-xl text-indigo-100 mb-8">
+				Learn how to install PersonalOS, if you have a WordPress or not yet.
+			</p>
+			<a href="https://github.com/artpi/PersonalOS/blob/main/docs/INSTALL.md" class="inline-block bg-white text-indigo-600 hover:bg-gray-100 px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 shadow-xl hover:shadow-white/25">
+				Get Personal
+			</a>
+		</div>
+	</section>
+
+    <!-- Footer -->
+    <footer class="bg-gradient-to-b from-gray-800 to-gray-900 py-8 border-t border-gray-800/50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-gray-400">
+            <p>&copy; 2025 PersonalOS. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Minimal JS for Mobile Menu -->
+    <script>
+        const menuToggle = document.getElementById('menu-toggle');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        menuToggle.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+    </script>
+</body>
+</html>
