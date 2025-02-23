@@ -220,14 +220,14 @@ class POS_AI_Podcast_Module extends POS_Module {
 						'type'     => 'string',
 						'required' => true,
 					),
-					'scenario' => array(
+					'prompt_id' => array(
 						'type'     => 'integer',
 						'required' => false,
 					),
 				),
 				'methods'             => 'POST',
 				'callback'            => function( $request ) {
-					return $this->generate();
+					return $this->generate( $request->has_param( 'prompt_id' ) ? $request->get_param( 'prompt_id' ) : null );
 				},
 				'permission_callback' => function( $request ) {
 					return true;
@@ -310,7 +310,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 		);
 	}
 
-	public function generate() {
+	public function generate( $prompt_id = null ) {
 		$notes_module = POS::get_module_by_id( 'notes' );
 		$episode_generated_today = get_posts(
 			array(
@@ -334,8 +334,12 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'soundtrack_url' => get_post_meta( $episode_generated_today[0]->ID, 'soundtrack', true ),
 			];
 		}
-		$prompts = $notes_module->list( array(), 'prompts-podcast' );
-		$template = $prompts[ array_rand( $prompts ) ];
+		if ( $prompt_id ) {
+			$template = get_post( $prompt_id );
+		} else {
+			$prompts = $notes_module->list( array(), 'prompts-podcast' );
+			$template = $prompts[ array_rand( $prompts ) ];
+		}
 		$template->post_content = $this->openai->create_system_prompt( $template );
 		$this->log( 'Generating podcast episode - ' . print_r( $template, true ) );
 
