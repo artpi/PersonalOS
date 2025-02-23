@@ -24,3 +24,5 @@ I consider this a humble start. I intend to grow this feature list until it beco
   - [Transcriptions](modules/openai/README.md) - Upload an mp3 and it will get transcribed and turned into a note.
 
 ## How to install
+
+[Install](./docs/INSTALL.md)
