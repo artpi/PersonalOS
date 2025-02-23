@@ -16,47 +16,10 @@ class ElevenLabs_Module extends POS_Module {
 		return ! empty( $this->settings['api_key'] );
 	}
 
-	public function register() {
-		//add_action( 'rest_api_init', array( $this, 'rest_api_init' ) );
-		$this->register_cli_command( 'generate', 'cli' );
-	}
-
-	/**
-	 * Trigger generating a podcast episode
-	 */
-	public function cli( $args ) {
-		print_r( $this->tts( "Now, lets shift to your strategy. We’ve got two major projects: building your new house and losing weight. These aren’t just tasks; these are opportunities for you to step up. With your house, every step of the process, from planning to construction, is a chance to take ownership. Break it down, every decision you make moves you closer to your vision. Schedule it out, talk to the right people, and be relentless in pushing forward. No hesitation, no delays—action, action, action!", 'jB108zg64sTcu1kCbN9L' ) );
-	}
-
 	public function get_voices() {
 		$response = $this->api_call( 'https://api.elevenlabs.io/v1/voices', array() );
 		return $response;
 	}
-
-	public function rest_api_init() {
-		register_rest_route(
-			$this->rest_namespace,
-			'/openai/chat/completions',
-			array(
-				'methods'             => 'POST',
-				'callback'            => array( $this, 'chat_api' ),
-				'permission_callback' => array( $this, 'check_permission' ),
-			)
-		);
-		register_rest_route(
-			$this->rest_namespace,
-			'/openai/media/describe/(?P<id>\d+)',
-			array(
-				'methods'             => 'POST',
-				'callback'            => array( $this, 'media_describe' ),
-				'permission_callback' => array( $this, 'check_permission' ),
-			)
-		);
-	}
-	public function check_permission() {
-		return current_user_can( 'manage_options' );
-	}
-
 
 	public function api_call( $url, $data ) {
 		$api_key = $this->get_setting( 'api_key' );
@@ -85,7 +48,7 @@ class ElevenLabs_Module extends POS_Module {
 		return json_decode( $body );
 	}
 
-	public function tts( $text, $voice = 'jB108zg64sTcu1kCbN9L', $data = array() ) {
+	public function tts( $text, $voice = '', $data = array() ) {
 		$api_key = $this->get_setting( 'api_key' );
 		$file_name = 'speech-' . uniqid() . '.mp3';
 
