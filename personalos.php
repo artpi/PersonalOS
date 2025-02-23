@@ -112,6 +112,7 @@ class POS {
 		require_once plugin_dir_path( __FILE__ ) . 'modules/openai/class-pos-transcription.php';
 		require_once plugin_dir_path( __FILE__ ) . 'modules/daily/class-daily-module.php';
 		require_once plugin_dir_path( __FILE__ ) . 'modules/openai/class-pos-ai-podcast-module.php';
+		require_once plugin_dir_path( __FILE__ ) . 'modules/openai/class-elevenlabs-module.php';
 		require_once plugin_dir_path( __FILE__ ) . 'modules/bucketlist/class-bucketlist-module.php';
 		require_once plugin_dir_path( __FILE__ ) . 'modules/slack/class-slack-module.php';
 		require_once plugin_dir_path( __FILE__ ) . 'modules/perplexity/class.perplexity-module.php';
@@ -121,6 +122,7 @@ class POS {
 		$todo          = new TODO_Module();
 		$notes         = new Notes_Module();
 		$openai        = new OpenAI_Module();
+		$elevenlabs    = new ElevenLabs_Module();
 		self::$modules = array(
 			$notes,
 			new Readwise( $notes ),
@@ -129,7 +131,8 @@ class POS {
 			$openai,
 			new POS_Transcription( $openai, $notes ),
 			new Daily_Module( $notes ),
-			new POS_AI_Podcast_Module( $openai ),
+			$elevenlabs,
+			new POS_AI_Podcast_Module( $openai, $elevenlabs ),
 			new Bucketlist_Module(),
 			new Slack_Module(),
 			new Perplexity_Module(),

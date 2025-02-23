@@ -1,0 +1,2 @@
+- In modules/openai/class-openai-module.php, the create_system_prompt() is getting the post content and converting it to markdown. It should parse Gutenberg blocks properly and retrieve certain details. For example, the `core/audio` block should be filtered and the audio shoudl be returned as an attribute.
+- 

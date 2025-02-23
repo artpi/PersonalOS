@@ -5,14 +5,16 @@ class POS_AI_Podcast_Module extends POS_Module {
 	public $name        = 'AI Podcast';
 	public $description = 'AI Podcast';
 	private $openai     = null;
+	private $elevenlabs = null;
 	private $hook_name = 'pos_generate_ai_podcast';
 	private $soundtracks = array(
 		'motivation-st-1.m4a',
 		'motivation-st-2.m4a',
 	);
 
-	public function __construct( $openai ) {
+	public function __construct( $openai, $elevenlabs ) {
 		$this->openai = $openai;
+		$this->elevenlabs = $elevenlabs;
 		$this->register_cli_command( 'generate', 'cli' );
 		add_action( 'rest_api_init', array( $this, 'rest_api_init' ) );
 		$token = $this->get_setting( 'token' );
@@ -23,7 +25,25 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'label'   => strlen( $token ) < 3 ? 'You need a token longer than 3 characters to enable the podcast feed' : 'Your feed is accessible <a href="' . add_query_arg( 'token', $token, get_rest_url( null, $this->rest_namespace . '/ai-podcast' ) ) . '" target="_blank">here</a>',
 				'default' => '0',
 			),
+			'tts_service' => array(
+				'type'    => 'select',
+				'name'    => 'TTS Service',
+				'label'   => 'Select the TTS service to use for the podcast.',
+				'default' => 'openai-gpt4o-audio',
+				'options' => array(
+					'openai-gpt4o-audio' => 'OpenAI GPT-4o Audio',
+				),
+			),
 		);
+		if ( $this->elevenlabs->is_configured() ) {
+			$this->settings['tts_service']['options']['elevenlabs'] = 'ElevenLabs';
+			$this->settings['elevenlabs_voice'] = array(
+				'type'    => 'text',
+				'name'    => 'ElevenLabs Voice ID',
+				'label'   => 'The voice to use for your motivational podcast. Add this voice to your account or paste another id <a href="https://elevenlabs.io/app/voice-lab/share/f441776f9bb056eb2295e030ffce576ee35583946b9d95b273731d9887cb51e9/jB108zg64sTcu1kCbN9L" target="_blank">here</a>',
+				'default' => 'jB108zg64sTcu1kCbN9L',
+			);
+		}
 
 		if ( strlen( $token ) > 3 ) {
 			add_action( $this->hook_name, array( $this, 'generate' ) );
@@ -33,6 +53,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 			}
 		}
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ), 10, 1 );
 
 	}
 
@@ -41,139 +62,44 @@ class POS_AI_Podcast_Module extends POS_Module {
 	}
 
 	public function render_admin_player_page() {
-		$soundtrack_url = plugins_url( 'podcast-assets/' . $this->soundtracks[ array_rand( $this->soundtracks ) ], __FILE__ );
-		$podcast = $this->generate();
-		$podcast_url = wp_get_attachment_url( $podcast );
 		?>
 		<section class="section section-about" id="about">
-	<div class="section-content large-text d-flex flex-column justify-content-center h-100">
-		<h1 class="big-title">PersonalOS Hype Player</h1>
-		<p class="text-description">
-			This will get your todos and create a motivational podcast for you.
-		</p>
-	</div>
-</section>
-<section id="player-loader">
-	<p>Loading the sounds</p>
-	<img src="<?php echo esc_url( get_admin_url() . 'images/spinner-2x.gif' ); ?>" />
-</section>
-<section id="hype-player" style="display: none;">
-	<button id="playButton" style="display: none;" class="button button-primary button-hero">Play Audio</button>
-	<button id="pauseButton" style="display: none;">Pause</button>
-	<div id="progressBar" style="margin-top: 20px;background-color: #f0f0f0;display: none;">
-		<div id="progress" style="height: 10px; background-color: #0073aa;width: 0%;"></div>
-	</div>
-	</section>
-
-	<script>
-		// Create an audio context
-		const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-		let audioBuffer1, audioBuffer2;
-		let source1, source2;
-		let progressInterval;
-
-		let startTime;
-		let pausedAt = 0;
-		let isPlaying = false;
-
-		// Load sounds and show play button when ready
-		async function loadSounds() {
-			const sound1 = await fetch( '<?php echo esc_url( $soundtrack_url ); ?>' ).then(response => response.arrayBuffer());
-			const sound2 = await fetch( '<?php echo esc_url( $podcast_url ); ?>' ).then(response => response.arrayBuffer());
-
-			audioBuffer1 = await audioContext.decodeAudioData(sound1);
-			audioBuffer2 = await audioContext.decodeAudioData(sound2);
-
-			// Show play button once audio is loaded
-			document.getElementById('playButton').style.display = 'inline-block';
-			document.getElementById('progressBar').style.display = 'block';
-			document.getElementById('hype-player').style.display = 'block';
-			document.getElementById('player-loader').style.display = 'none';
-		}
-
-		// Play the loaded sounds
-		function playSounds() {
-			if (isPlaying) return;
-
-			source1 = audioContext.createBufferSource();
-			source2 = audioContext.createBufferSource();
-
-			source1.buffer = audioBuffer1;
-			source2.buffer = audioBuffer2;
-
-			const gainNode1 = audioContext.createGain();
-			gainNode1.gain.setValueAtTime(0.2, audioContext.currentTime);
-
-			source1.connect(gainNode1);
-			gainNode1.connect(audioContext.destination);
-			source2.connect(audioContext.destination);
-
-			startTime = audioContext.currentTime - pausedAt;
-			source1.start(0, pausedAt);
-			source2.start(0, pausedAt);
-
-			updateProgressBar();
-
-			source2.onended = stopPlayback;
-
-			isPlaying = true;
-			document.getElementById('playButton').textContent = 'Resume';
-			document.getElementById('pauseButton').style.display = 'inline-block';
-		}
-
-		// Add pauseSounds function
-		function pauseSounds() {
-			if (!isPlaying) return;
-
-			source1.stop();
-			source2.stop();
-			pausedAt = audioContext.currentTime - startTime;
-			clearInterval(progressInterval);
-			isPlaying = false;
-			document.getElementById('playButton').textContent = 'Resume';
-		}
-
-		// Update progress bar
-		function updateProgressBar() {
-			const progressElement = document.getElementById('progress');
-			const duration = audioBuffer2.duration;
-
-			progressInterval = setInterval(() => {
-				const elapsedTime = audioContext.currentTime - startTime;
-				const progress = (elapsedTime / duration) * 100;
-				progressElement.style.width = `${Math.min(progress, 100)}%`;
-
-				if (progress >= 100) {
-					clearInterval(progressInterval);
-				}
-			}, 100);
-		}
-
-		// Stop playback
-		function stopPlayback() {
-			if (source1) {
-				source1.stop();
-			}
-			if (source2) {
-				source2.stop();
-			}
-			clearInterval(progressInterval);
-			document.getElementById('progress').style.width = '100%';
-			isPlaying = false;
-			pausedAt = 0;
-			document.getElementById('playButton').textContent = 'Play Audio';
-			document.getElementById('pauseButton').style.display = 'none';
-		}
-
-		// Load sounds when the page loads
-		window.addEventListener('load', loadSounds);
-
-		// Add event listeners to buttons
-		document.getElementById('playButton').addEventListener('click', playSounds);
-		document.getElementById('pauseButton').addEventListener('click', pauseSounds);
-	</script>
+			<div class="section-content large-text d-flex flex-column justify-content-center h-100">
+				<h1 class="big-title">PersonalOS Hype Player</h1>
+				<p class="text-description">
+					This will get your todos and create a motivational podcast for you.
+				</p>
+			</div>
+		</section>
+		<section id="player-loader">
+			<p>Loading the sounds</p>
+			<img src="<?php echo esc_url( get_admin_url() . 'images/spinner-2x.gif' ); ?>" />
+		</section>
+		<section id="hype-player" style="display: none;">
+			<button id="playButton" style="display: none;" class="button button-primary button-hero">Play Audio</button>
+			<div id="progressBar" style="margin-top: 20px;background-color: #f0f0f0;display: none;">
+				<div id="progress" style="height: 10px; background-color: #0073aa;width: 0%;"></div>
+			</div>
+		</section>
 		<?php
 	}
+
+	public function enqueue_scripts( $hook ) {
+		// Only enqueue on the Hype Me page
+		if ( 'personal-os_page_pos-hype-me' !== $hook ) {
+			return;
+		}
+
+		wp_enqueue_script(
+			'hype-player',
+			plugins_url( 'hype-player.js', __FILE__ ),
+			array( 'wp-api-fetch' ),
+			filemtime( plugin_dir_path( __FILE__ ) . 'hype-player.js' ),
+			true
+		);
+
+	}
+
 	/**
 	 * Trigger generating a podcast episode
 	 */
@@ -294,15 +220,14 @@ class POS_AI_Podcast_Module extends POS_Module {
 						'type'     => 'string',
 						'required' => true,
 					),
+					'prompt_id' => array(
+						'type'     => 'integer',
+						'required' => false,
+					),
 				),
 				'methods'             => 'POST',
 				'callback'            => function( $request ) {
-					$media_id = $this->generate();
-					$media_url = wp_get_attachment_url( $media_id );
-					return array(
-						'media_id'  => $media_id,
-						'media_url' => $media_url,
-					);
+					return $this->generate( $request->has_param( 'prompt_id' ) ? $request->get_param( 'prompt_id' ) : null );
 				},
 				'permission_callback' => function( $request ) {
 					return true;
@@ -385,7 +310,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 		);
 	}
 
-	public function generate() {
+	public function generate( $prompt_id = null ) {
 		$notes_module = POS::get_module_by_id( 'notes' );
 		$episode_generated_today = get_posts(
 			array(
@@ -401,10 +326,20 @@ class POS_AI_Podcast_Module extends POS_Module {
 			)
 		);
 		if ( $episode_generated_today ) {
-			return $episode_generated_today[0]->ID;
+			return [
+				'media_id' => $episode_generated_today[0]->ID,
+				'media_url' => wp_get_attachment_url( $episode_generated_today[0]->ID ),
+				'prompt_id' => get_post_meta( $episode_generated_today[0]->ID, 'prompt_id', true ),
+				'text' => $episode_generated_today[0]->post_content,
+				'soundtrack_url' => get_post_meta( $episode_generated_today[0]->ID, 'soundtrack', true ),
+			];
 		}
-		$prompts = $notes_module->list( array(), 'prompts-podcast' );
-		$template = $prompts[ array_rand( $prompts ) ];
+		if ( $prompt_id ) {
+			$template = get_post( $prompt_id );
+		} else {
+			$prompts = $notes_module->list( array(), 'prompts-podcast' );
+			$template = $prompts[ array_rand( $prompts ) ];
+		}
 		$template->post_content = $this->openai->create_system_prompt( $template );
 		$this->log( 'Generating podcast episode - ' . print_r( $template, true ) );
 
@@ -416,22 +351,45 @@ class POS_AI_Podcast_Module extends POS_Module {
 		);
 
 		$this->log( 'Generating audio for the podcast' );
+		$soundtrack_url = plugins_url( 'podcast-assets/' . $this->soundtracks[ array_rand( $this->soundtracks ) ], __FILE__ );
 
-		$file = $this->openai->tts(
-			$messages,
-			'ballad',
-			array(
-				'post_title' => $template->post_title,
-				'meta_input' => array(
-					'pos_podcast' => gmdate( 'Y-m-d' ),
-				),
-			)
+		$post_data = array(
+			'post_title' => $template->post_title,
+			'meta_input' => array(
+				'pos_podcast' => gmdate( 'Y-m-d' ),
+				'soundtrack' => $soundtrack_url,
+				'prompt_id' => $template->ID,
+			),
 		);
+		if ( $this->elevenlabs->is_configured() && $this->get_setting( 'tts_service' ) === 'elevenlabs' ) {
+			$new_content = $this->openai->chat_completion( $messages );
+			$file = $this->elevenlabs->tts(
+				$new_content,
+				$this->get_setting( 'elevenlabs_voice' ),
+				$post_data,
+			);
+		} else if ( $this->openai->is_configured() && $this->get_setting( 'tts_service' ) === 'openai-gpt4o-audio' ) {
+			$file = $this->openai->tts(
+				$messages,
+				'ballad',
+				$post_data,
+			);
+		} else {
+			$this->log( 'No TTS service configured', E_USER_WARNING );
+			return;
+		}
+
 		if ( is_wp_error( $file ) ) {
 			$this->log( 'Generating podcast episode failed: ' . $file->get_error_message(), E_USER_WARNING );
 			return;
 		}
 		$this->log( 'Generating podcast episode succeeded: ' . $file );
-		return $file;
+		return [
+			'media_id' => $file,
+			'media_url' => wp_get_attachment_url( $file ),
+			'prompt_id' => $template->ID,
+			'text' => $new_content,
+			'soundtrack_url' => $soundtrack_url,
+		];
 	}
 }
