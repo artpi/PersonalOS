@@ -44,4 +44,5 @@ These are roughly the features I want to implement. They are meant to be
 - Somehow describe procedures and prompts as spellbooks
 - Engineer serendipity in some way
 - Talk to other instances on other WordPress sites using @akirk Friends plugin
+- Sync with [Google Tasks API](https://developers.google.com/tasks/reference/rest)
 - 
