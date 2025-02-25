@@ -30,6 +30,7 @@ These are roughly the features I want to implement. They are meant to be
 - Sync with Strava: The main question is if Strava should put the workout details in the daily node or should it use some other data structure?
 - Management UX for good questions and integrate them into the whole system. They should probably be collected in a notebook as notes
 - Implement one of the open source chatbot UXs
+- Probably need to implement a new post type, which is a log, that would include all workouts and similar events like Google Photos, workouts, done to-dos, and then the daily notes would list these log items inside. The reason for this being a separate custom post type is that if we put this in the notes, we would have crazy conflicts during the day when the daily note is being generated. If we have it separately, we have an easier way to resolve those conflicts.
 
 
 ## Crazy ideas
