@@ -21,6 +21,31 @@
         }
     </script>
     <style>
+        /* Enhanced header styles */
+        .enhanced-header {
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            position: relative;
+            z-index: 1;
+            letter-spacing: 0.02em;
+            color: #e0e0ff; /* Brighter color */
+            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
+        }
+        
+        .enhanced-header::before {
+            content: none; /* Remove gradient effect */
+        }
+        
+        .header-outline {
+            -webkit-text-stroke: 1px rgba(255, 255, 255, 0.5);
+            text-stroke: 1px rgba(255, 255, 255, 0.5);
+        }
+        
+        /* White text headers need different styling for better contrast */
+        h2.enhanced-header.text-white {
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+        }
+        
         /* Lightbox styles */
         .lightbox {
             display: none;
@@ -87,6 +112,16 @@
         .screenshot-img:hover {
             transform: scale(1.02);
         }
+        
+        .enhanced-header.h3 {
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.3));
+        }
+        
+        .header-outline.h3 {
+            -webkit-text-stroke: 0.5px rgba(255, 255, 255, 0.3);
+            text-stroke: 0.5px rgba(255, 255, 255, 0.3);
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white font-sans">
@@ -99,7 +134,9 @@
     <!-- Navigation -->
     <nav class="fixed w-full bg-gray-900/80 backdrop-blur-xl border-b border-gray-800/50 z-10">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-            <div class="text-2xl font-bold tracking-tight">PersonalOS</div>
+            <div class="text-2xl font-bold tracking-tight enhanced-header header-outline" data-text="PersonalOS" style="color: #e0e0ff; filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));">
+                PersonalOS
+            </div>
             <div class="hidden md:flex space-x-8">
                 <a href="#features" class="flex items-center bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-all duration-300">Features</a>
                 <a href="#download" class="inline-block bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 px-4 py-2 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-indigo-500/25">Install</a>
@@ -161,7 +198,7 @@
 
 		<!-- <div class="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-purple-500/5"></div> -->
         <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 relative">
-            <h2 class="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
+            <h2 class="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 enhanced-header header-outline" data-text="Your Second Brain, in your digital home">
                 Your Second Brain, in your digital home
             </h2>
             
@@ -169,7 +206,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-12 mb-16 max-w-7xl mx-auto">
                 <!-- TODOs Screenshot -->
                 <div class="bg-gradient-to-br from-gray-900/80 to-indigo-900/30 p-5 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/20 transition-all duration-300 border border-indigo-800/30 backdrop-blur-xl">
-                    <h3 class="text-2xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 text-center font-sans flex items-center justify-center">
+                    <h3 class="text-2xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 text-center font-sans flex items-center justify-center enhanced-header header-outline" data-text="TODOs">
                         <span class="dashicons dashicons-editor-ul text-indigo-400 mr-2"></span>
                         TODOs
                     </h3>
@@ -209,7 +246,7 @@
                 
                 <!-- Notes Screenshot -->
                 <div class="bg-gradient-to-br from-gray-900/80 to-purple-900/30 p-5 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300 border border-purple-800/30 backdrop-blur-xl">
-                    <h3 class="text-2xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400 text-center font-sans flex items-center justify-center">
+                    <h3 class="text-2xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400 text-center font-sans flex items-center justify-center enhanced-header header-outline" data-text="Notes">
                         <span class="dashicons dashicons-welcome-write-blog text-purple-400 mr-2"></span>
                         Notes
                     </h3>
@@ -248,12 +285,12 @@
         </div>
 
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative mt-20">
-            <h2 class="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
+            <h2 class="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 enhanced-header header-outline" data-text="Designed for AI">
                 Designed for AI
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center">
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center enhanced-header header-outline" data-text="Agents">
                         <span class="dashicons dashicons-admin-users text-indigo-400 mr-2"></span>
                         Agents
                     </h3>
@@ -279,7 +316,7 @@
                     </p>
                 </div>
                 <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center">
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center enhanced-header header-outline" data-text="Integrates with everything">
                         <span class="dashicons dashicons-admin-plugins text-indigo-400 mr-2"></span>
                         Integrates with everything
                     </h3>
@@ -302,7 +339,7 @@
                     </p>
                 </div>
                 <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center">
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center enhanced-header header-outline" data-text="Your AI podcast">
                         <span class="dashicons dashicons-microphone text-indigo-400 mr-2"></span>
                         Your AI podcast
                     </h3>
@@ -328,12 +365,12 @@
         </div>
 
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative mt-20">
-            <h2 class="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
+            <h2 class="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 enhanced-header header-outline" data-text="Engineered for the long run">
                 Engineered for the long run
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center">
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center enhanced-header header-outline" data-text="Platform Independence">
                         <span class="dashicons dashicons-admin-site-alt3 text-indigo-400 mr-2"></span>
                         Platform Independence
                     </h3>
@@ -345,7 +382,7 @@
                     </p>
                 </div>
                 <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center">
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center enhanced-header header-outline" data-text="Powerful Integrations">
                         <span class="dashicons dashicons-networking text-indigo-400 mr-2"></span>
                         Powerful Integrations
                     </h3>
@@ -354,7 +391,7 @@
                     </p>
                 </div>
                 <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center">
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center enhanced-header header-outline" data-text="No investor pressure">
                         <span class="dashicons dashicons-lock text-indigo-400 mr-2"></span>
                         No investor pressure
                     </h3>
@@ -370,7 +407,7 @@
 	<section id="try" class="py-20 bg-gradient-to-r from-indigo-600 to-purple-600 relative overflow-hidden">
 		<div class="absolute inset-0 bg-gradient-to-r from-indigo-600/50 to-purple-600/50 backdrop-blur-3xl"></div>
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
-			<h2 class="text-4xl font-bold mb-6 flex items-center justify-center">
+			<h2 class="text-4xl font-bold mb-6 flex items-center justify-center enhanced-header header-outline text-white" data-text="Try it yourself">
 				<span class="dashicons dashicons-welcome-learn-more text-white mr-3"></span>
 				Try it yourself
 			</h2>
@@ -391,7 +428,7 @@
     <section id="about" class="py-20 relative">
         <div class="absolute inset-0 bg-gradient-to-t from-indigo-500/5 to-purple-500/5"></div>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
-            <h2 class="text-4xl font-bold mb-8 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center justify-center">
+            <h2 class="text-4xl font-bold mb-8 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 enhanced-header header-outline flex items-center justify-center" data-text="Is it a plugin?">
                 <span class="dashicons dashicons-admin-plugins text-indigo-400 mr-3"></span>
                 Is it a plugin?
             </h2>
@@ -405,7 +442,7 @@
 	<section id="download" class="py-20 bg-gradient-to-r from-indigo-600 to-purple-600 relative overflow-hidden">
 		<div class="absolute inset-0 bg-gradient-to-r from-indigo-600/50 to-purple-600/50 backdrop-blur-3xl"></div>
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
-			<h2 class="text-4xl font-bold mb-6 flex items-center justify-center">
+			<h2 class="text-4xl font-bold mb-6 flex items-center justify-center enhanced-header header-outline text-white" data-text="Install PersonalOS">
 				<span class="dashicons dashicons-download text-white mr-3"></span>
 				Install PersonalOS
 			</h2>
