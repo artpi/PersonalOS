@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Add Inter font for more modern look -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Add WordPress Dashicons -->
+    <link rel="stylesheet" href="https://s.w.org/wp-includes/css/dashicons.min.css">
     <script>
         tailwind.config = {
             theme: {
@@ -18,12 +20,123 @@
             }
         }
     </script>
+    <style>
+        /* Enhanced header styles */
+        .enhanced-header {
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            position: relative;
+            z-index: 1;
+            letter-spacing: 0.02em;
+            color: #e0e0ff; /* Brighter color */
+            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
+        }
+        
+        .enhanced-header::before {
+            content: none; /* Remove gradient effect */
+        }
+        
+        .header-outline {
+            -webkit-text-stroke: 1px rgba(255, 255, 255, 0.5);
+            text-stroke: 1px rgba(255, 255, 255, 0.5);
+        }
+        
+        /* White text headers need different styling for better contrast */
+        h2.enhanced-header.text-white {
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+        }
+        
+        /* Lightbox styles */
+        .lightbox {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .lightbox.active {
+            display: flex;
+            opacity: 1;
+        }
+        
+        .lightbox-content {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 0.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        
+        .lightbox.active .lightbox-content {
+            transform: scale(1);
+        }
+        
+        .lightbox-close {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            z-index: 1001;
+            width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            transition: background-color 0.3s ease;
+        }
+        
+        .lightbox-close:hover {
+            background-color: rgba(79, 70, 229, 0.7);
+        }
+        
+        .screenshot-img {
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        
+        .screenshot-img:hover {
+            transform: scale(1.02);
+        }
+        
+        .enhanced-header.h3 {
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.3));
+        }
+        
+        .header-outline.h3 {
+            -webkit-text-stroke: 0.5px rgba(255, 255, 255, 0.3);
+            text-stroke: 0.5px rgba(255, 255, 255, 0.3);
+        }
+    </style>
 </head>
 <body class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white font-sans">
+    <!-- Lightbox container -->
+    <div id="lightbox" class="lightbox">
+        <div class="lightbox-close">&times;</div>
+        <img id="lightbox-img" class="lightbox-content" src="" alt="Enlarged screenshot">
+    </div>
+
     <!-- Navigation -->
     <nav class="fixed w-full bg-gray-900/80 backdrop-blur-xl border-b border-gray-800/50 z-10">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-            <div class="text-2xl font-bold tracking-tight">PersonalOS</div>
+            <div class="text-2xl font-bold tracking-tight enhanced-header header-outline" data-text="PersonalOS" style="color: #e0e0ff; filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));">
+                PersonalOS
+            </div>
             <div class="hidden md:flex space-x-8">
                 <a href="#features" class="flex items-center bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-all duration-300">Features</a>
                 <a href="#download" class="inline-block bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 px-4 py-2 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-indigo-500/25">Install</a>
@@ -44,8 +157,13 @@
         <div id="mobile-menu" class="hidden md:hidden bg-gray-800">
             <div class="px-4 pt-2 pb-4 space-y-2">
                 <a href="#features" class="block hover:text-indigo-400 transition">Features</a>
-                <a href="#about" class="block hover:text-indigo-400 transition">About</a>
-                <a href="#download" class="block hover:text-indigo-400 transition">Download</a>
+                <a href="#download" class="block hover:text-indigo-400 transition">Install</a>
+                <a target="_blank" href="https://github.com/artpi/Personalos" class="flex items-center space-x-2 hover:text-indigo-400 transition">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span>GitHub</span>
+                </a>
             </div>
         </div>
     </nav>
@@ -79,59 +197,183 @@
     <section id="features" class="py-20 bg-gradient-to-b from-gray-800 to-gray-900 relative">
 
 		<!-- <div class="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-purple-500/5"></div> -->
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-            <h2 class="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Your Second Brain, in your digital home</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">TODOs</h3>
-                    <p class="text-gray-300 leading-relaxed">
-                        Opinionated TODO manager supporting scheduled, recurring or blocking tasks. Multiple lists, projects, tags and contexts.
+        <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 relative">
+            <h2 class="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 enhanced-header header-outline" data-text="Your Second Brain, in your digital home">
+                Your Second Brain, in your digital home
+            </h2>
+            
+            <!-- Two screenshots side-by-side -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 mb-16 max-w-7xl mx-auto">
+                <!-- TODOs Screenshot -->
+                <div class="bg-gradient-to-br from-gray-900/80 to-indigo-900/30 p-5 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/20 transition-all duration-300 border border-indigo-800/30 backdrop-blur-xl">
+                    <h3 class="text-2xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 text-center font-sans flex items-center justify-center enhanced-header header-outline" data-text="TODOs">
+                        <span class="dashicons dashicons-editor-ul text-indigo-400 mr-2"></span>
+                        TODOs
+                    </h3>
+                    <div class="overflow-hidden rounded-xl border border-indigo-500/20 shadow-lg">
+                        <img src="assets/todos.png" alt="PersonalOS TODOs interface" class="w-full h-auto screenshot-img">
+                    </div>
+                    <p class="text-gray-300 leading-relaxed mt-5 text-left text-lg">
+                        An opinionated TODO manager designed to surface what's important <b>right now</b> while giving you the peace of mind that everything is taken care of:
+                        <ul class="list-none space-y-1 mt-4 mx-4 max-w-s">
+                            <li class="flex items-center">
+                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
+                                Assign TODOS to NOW / LATER / FollowUP
+                            </li>
+							<li class="flex items-center">
+                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
+                                Automatically transition statuses
+                            </li>
+                            <li class="flex items-center">
+                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
+                                Set blocking TODOs for bigger projects
+                            </li>
+                            <li class="flex items-center">
+                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
+                                Projects, contexts, areas,..
+                            </li>
+                            <li class="flex items-center">
+                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
+                                Offline sync with dedicated WP-TODO mobile app
+                            </li>
+                        </ul>
                     </p>
+					<a href="https://github.com/artpi/PersonalOS/blob/main/modules/todo/README.md" target="_blank" class="block text-center text-indigo-300 hover:text-indigo-200 mt-4 border border-indigo-500/30 rounded-lg py-2 px-4 mx-auto w-fit flex items-center justify-center transition-all duration-300 hover:border-indigo-400/50">
+						<span>All TODO features</span>
+						<span class="dashicons dashicons-external ml-1"></span>
+					</a>
                 </div>
-                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Notes</h3>
-                    <p class="text-gray-300 leading-relaxed">
-                        The most extensible note editor on the web, supporting backlinks, nested notes, Readwise and Evernote sync and more.
+                
+                <!-- Notes Screenshot -->
+                <div class="bg-gradient-to-br from-gray-900/80 to-purple-900/30 p-5 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300 border border-purple-800/30 backdrop-blur-xl">
+                    <h3 class="text-2xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400 text-center font-sans flex items-center justify-center enhanced-header header-outline" data-text="Notes">
+                        <span class="dashicons dashicons-welcome-write-blog text-purple-400 mr-2"></span>
+                        Notes
+                    </h3>
+                    <div class="overflow-hidden rounded-xl border border-purple-500/20 shadow-lg">
+                        <img src="assets/notes.png" alt="PersonalOS Notes interface" class="w-full h-auto screenshot-img">
+                    </div>
+                    <p class="text-gray-300 leading-relaxed mt-5 text-left text-lg">
+                        Your notes, now powered with the most extensible editor on the web - WordPress Block Editor.
+                        <ul class="list-none space-y-1 mt-4 mx-4 max-w-s">
+                            <li class="flex items-center">
+                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
+                                Embedded notes for creating networked ideas
+                            </li>
+							<li class="flex items-center">
+                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
+                               Search for related concepts in sidebar or through autocompleter
+                            </li>
+                            <li class="flex items-center">
+                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
+                                Use your favorite blocks from thousands of WordPress plugins
+                            </li>.
+                            <li class="flex items-center">
+                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
+                                Built-in synchronization with Readwise, Evernote, ...
+                            </li>
+                        </ul>
                     </p>
+					<a href="https://github.com/artpi/PersonalOS/blob/main/modules/notes/README.md" target="_blank" class="block text-center text-indigo-300 hover:text-indigo-200 mt-4 border border-indigo-500/30 rounded-lg py-2 px-4 mx-auto w-fit flex items-center justify-center transition-all duration-300 hover:border-indigo-400/50">
+						<span>All Notes features</span>
+						<span class="dashicons dashicons-external ml-1"></span>
+					</a>
                 </div>
-                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Fusion of GTD and PARA</h3>
-                    <p class="text-gray-300 leading-relaxed">
-                        Notes and TODOs are organized in a system inspired by Getting Things Done by David Allen and the PARA method by Tiago Forte.
-                    </p>
                 </div>
             </div>
+            
         </div>
 
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative mt-20">
-            <h2 class="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Designed for AI</h2>
+            <h2 class="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 enhanced-header header-outline" data-text="Designed for AI">
+                Designed for AI
+            </h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Agents</h3>
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center enhanced-header header-outline" data-text="Agents">
+                        <span class="dashicons dashicons-admin-users text-indigo-400 mr-2"></span>
+                        Agents
+                    </h3>
                     <p class="text-gray-300 leading-relaxed">
-                        AI agents can access your notes and todos to help you achieve your goals. They can create tasks, take notes, review your posts.
+                        AI agents can access your notes and todos to help you achieve your goals.
+                        <ul class="list-none space-y-1 mt-4 mx-4 max-w-s">
+                            <li class="flex items-center">
+                                <!-- WordPress robot icon -->
+                                <svg class="w-5 h-5 text-indigo-400 mr-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+                                    <path d="M12 4c-4.4 0-8 3.6-8 8v8h16v-8c0-4.4-3.6-8-8-8zm0 1.5c3.6 0 6.5 2.9 6.5 6.5v6.5h-13v-6.5c0-3.6 2.9-6.5 6.5-6.5zM12 6c-3.3 0-6 2.7-6 6v4h12v-4c0-3.3-2.7-6-6-6zm0 1.5c2.5 0 4.5 2 4.5 4.5v2.5h-9v-2.5c0-2.5 2-4.5 4.5-4.5z"/>
+                                </svg>
+                                Create tasks and take notes
+                            </li>
+                            <li class="flex items-center">
+                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
+                                Review your content
+                            </li>
+                            <li class="flex items-center">
+                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
+                                Analyze your data
+                            </li>
+                        </ul>
                     </p>
                 </div>
                 <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Integrates with everything</h3>
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center enhanced-header header-outline" data-text="Integrates with everything">
+                        <span class="dashicons dashicons-admin-plugins text-indigo-400 mr-2"></span>
+                        Integrates with everything
+                    </h3>
                     <p class="text-gray-300 leading-relaxed">
-                        Talk to agents through Slack, Custom GPTs and Voice mode. Connect AI to your external services.
+                        Connect with your favorite platforms and services.
+                        <ul class="list-none space-y-1 mt-4 mx-4 max-w-s">
+                            <li class="flex items-center">
+                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
+                                Talk to agents through Slack
+                            </li>
+                            <li class="flex items-center">
+                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
+                                Use with Custom GPTs
+                            </li>
+                            <li class="flex items-center">
+                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
+                                Connect AI to external services
+                            </li>
+                        </ul>
                     </p>
                 </div>
                 <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Your AI podcast</h3>
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center enhanced-header header-outline" data-text="Your AI podcast">
+                        <span class="dashicons dashicons-microphone text-indigo-400 mr-2"></span>
+                        Your AI podcast
+                    </h3>
                     <p class="text-gray-300 leading-relaxed">
                         Start your day with a personal podcast from your Second Brain.
+                        <ul class="list-none space-y-1 mt-4 mx-4 max-w-s">
+                            <li class="flex items-center">
+                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
+                                Daily briefings from your notes
+                            </li>
+                            <li class="flex items-center">
+                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
+                                Voice-based interaction
+                            </li>
+                            <li class="flex items-center">
+                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
+                                Personalized content summaries
+                            </li>
+                        </ul>
                     </p>
                 </div>
             </div>
         </div>
 
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative mt-20">
-            <h2 class="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Engineered for the long run</h2>
+            <h2 class="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 enhanced-header header-outline" data-text="Engineered for the long run">
+                Engineered for the long run
+            </h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Platform Independence</h3>
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center enhanced-header header-outline" data-text="Platform Independence">
+                        <span class="dashicons dashicons-admin-site-alt3 text-indigo-400 mr-2"></span>
+                        Platform Independence
+                    </h3>
                     <p class="text-gray-300 leading-relaxed">
                         PersonalOS is built on top of WordPress, the most popular self-hosted CMS in the world. Your data is in your control in a familiar interface.
                     </p>
@@ -140,13 +382,19 @@
                     </p>
                 </div>
                 <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Powerful Integrations</h3>
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center enhanced-header header-outline" data-text="Powerful Integrations">
+                        <span class="dashicons dashicons-networking text-indigo-400 mr-2"></span>
+                        Powerful Integrations
+                    </h3>
                     <p class="text-gray-300 leading-relaxed">
                         WordPress has thousands of plugins, and PersonalOS is built to integrate with them seamlessly.
                     </p>
                 </div>
                 <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">No investor pressure</h3>
+                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center enhanced-header header-outline" data-text="No investor pressure">
+                        <span class="dashicons dashicons-lock text-indigo-400 mr-2"></span>
+                        No investor pressure
+                    </h3>
                     <p class="text-gray-300 leading-relaxed">
                         Other platforms are incentivized to lock you in and integrate only with their own services. PersonalOS is built to integrate with everything.
                     </p>
@@ -159,7 +407,10 @@
 	<section id="try" class="py-20 bg-gradient-to-r from-indigo-600 to-purple-600 relative overflow-hidden">
 		<div class="absolute inset-0 bg-gradient-to-r from-indigo-600/50 to-purple-600/50 backdrop-blur-3xl"></div>
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
-			<h2 class="text-4xl font-bold mb-6">Try it yourself</h2>
+			<h2 class="text-4xl font-bold mb-6 flex items-center justify-center enhanced-header header-outline text-white" data-text="Try it yourself">
+				<span class="dashicons dashicons-welcome-learn-more text-white mr-3"></span>
+				Try it yourself
+			</h2>
 			<p class="text-xl text-indigo-100 mb-8">
 				Launch a fully-functioning WordPress instance with PersonalOS pre-installed, inside your browser. Data will never leave your browser, but AI features will require your own API keys.
 			</p>
@@ -177,7 +428,10 @@
     <section id="about" class="py-20 relative">
         <div class="absolute inset-0 bg-gradient-to-t from-indigo-500/5 to-purple-500/5"></div>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
-            <h2 class="text-4xl font-bold mb-8 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Is it a plugin?</h2>
+            <h2 class="text-4xl font-bold mb-8 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 enhanced-header header-outline flex items-center justify-center" data-text="Is it a plugin?">
+                <span class="dashicons dashicons-admin-plugins text-indigo-400 mr-3"></span>
+                Is it a plugin?
+            </h2>
             <p class="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
                 PersonalOS is a WordPress plugin that turns your WordPress site into a personal operating system. You will need a WordPress instance to use it - you can launch one on WordPress.com, use one you already have or even install it on your own computer.
             </p>
@@ -188,7 +442,10 @@
 	<section id="download" class="py-20 bg-gradient-to-r from-indigo-600 to-purple-600 relative overflow-hidden">
 		<div class="absolute inset-0 bg-gradient-to-r from-indigo-600/50 to-purple-600/50 backdrop-blur-3xl"></div>
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
-			<h2 class="text-4xl font-bold mb-6">Install PersonalOS</h2>
+			<h2 class="text-4xl font-bold mb-6 flex items-center justify-center enhanced-header header-outline text-white" data-text="Install PersonalOS">
+				<span class="dashicons dashicons-download text-white mr-3"></span>
+				Install PersonalOS
+			</h2>
 			<p class="text-xl text-indigo-100 mb-8">
 				Learn how to install PersonalOS, if you have a WordPress or not yet.
 			</p>
@@ -212,6 +469,49 @@
 
         menuToggle.addEventListener('click', () => {
             mobileMenu.classList.toggle('hidden');
+        });
+    </script>
+
+    <!-- Lightbox functionality -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const lightbox = document.getElementById('lightbox');
+            const lightboxImg = document.getElementById('lightbox-img');
+            const lightboxClose = document.querySelector('.lightbox-close');
+            const screenshotImages = document.querySelectorAll('.screenshot-img');
+            
+            // Open lightbox when a screenshot is clicked
+            screenshotImages.forEach(img => {
+                img.addEventListener('click', function() {
+                    lightboxImg.src = this.src;
+                    lightboxImg.alt = this.alt;
+                    lightbox.classList.add('active');
+                    document.body.style.overflow = 'hidden'; // Prevent scrolling when lightbox is open
+                });
+            });
+            
+            // Close lightbox when clicking on the close button or outside the image
+            lightboxClose.addEventListener('click', closeLightbox);
+            lightbox.addEventListener('click', function(e) {
+                if (e.target === lightbox) {
+                    closeLightbox();
+                }
+            });
+            
+            // Close lightbox when pressing Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && lightbox.classList.contains('active')) {
+                    closeLightbox();
+                }
+            });
+            
+            function closeLightbox() {
+                lightbox.classList.remove('active');
+                document.body.style.overflow = ''; // Restore scrolling
+                setTimeout(() => {
+                    lightboxImg.src = '';
+                }, 300);
+            }
         });
     </script>
 </body>
