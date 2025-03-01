@@ -8,6 +8,7 @@ These are roughly the features I want to implement. They are meant to be
 - Implement a module, exposing a tool to use Google Custom Search tool to search the web. Here are some docs: https://developers.google.com/custom-search/v1/overview . Then you can `GET https://www.googleapis.com/customsearch/v1`. The same module probably should also expose a tool to retrieve an arbitrary URL content.
 - We need a new Gutenberg block for to-dos, which can be embedded in any note. When a new block is inserted into the note, then the to-do gets created on the backend, similarly to the note block. When it gets edited, then the to-do gets updated. The todos need to be aware of the notes they are embedded in.
 - Rewrite starter-content files to be pinned to a version.
+- When todos are rescheduled in modules/todo/class-todo-module.php, The event is not rescheduled. We need to fix this.
   
 
 ## Need Scoping / plan
