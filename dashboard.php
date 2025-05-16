@@ -2,15 +2,15 @@
 // Just a placeholder for now
 require_once __DIR__ . '/vendor/autoload.php';
 
-$doc_tabs = [];
+$doc_tabs = array();
 foreach ( POS::$modules as $module ) {
 	$readme = $module->get_readme();
 	if ( $readme ) {
-		$doc_tabs[] = [
-			'id' => $module->id,
-			'name' => $module->name,
+		$doc_tabs[] = array(
+			'id'     => $module->id,
+			'name'   => $module->name,
 			'readme' => $readme,
-		];
+		);
 	}
 }
 $module_id = isset( $_GET['module'] ) ? sanitize_text_field( $_GET['module'] ) : 'notes';

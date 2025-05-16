@@ -28,9 +28,9 @@ class Evernote_Module extends External_Service_Module {
 			'label' => 'You can get it from <a href="https://www.evernote.com/api/DeveloperToken.action">here</a>',
 		),
 		'synced_notebooks' => array(
-			'type'  => 'callback',
-			'name'  => 'Synced notebooks',
-			'label' => 'Comma separated list of notebooks to sync',
+			'type'    => 'callback',
+			'name'    => 'Synced notebooks',
+			'label'   => 'Comma separated list of notebooks to sync',
 			'default' => array(),
 		),
 		'active'           => array(
@@ -68,11 +68,11 @@ class Evernote_Module extends External_Service_Module {
 			'evernote_search_notes',
 			'Search notes in Evernote',
 			array(
-				'query' => array(
+				'query'         => array(
 					'type'        => 'string',
 					'description' => 'Query to search for notes.',
 				),
-				'limit' => array(
+				'limit'         => array(
 					'type'        => 'integer',
 					'description' => 'Limit the number of notes returned. Do not change unless specified otherwise. Please use 10 as default.',
 					// 'default'     => 25,
@@ -472,7 +472,7 @@ class Evernote_Module extends External_Service_Module {
 			$disabled = 'disabled';
 			$extra = ' (conn: ' . get_term( $existing )->name . ')';
 		}
-		$synced_notebooks = empty( $this->get_setting( 'synced_notebooks' ) ) ? [] : $this->get_setting( 'synced_notebooks' );
+		$synced_notebooks = empty( $this->get_setting( 'synced_notebooks' ) ) ? array() : $this->get_setting( 'synced_notebooks' );
 		$sync_status = in_array( $key, $synced_notebooks, true ) ? '🔄 ' : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
 
 		return "<option $selected $disabled value='$id'>{$sync_status}{$type}{$data['name']}{$extra}</option>";

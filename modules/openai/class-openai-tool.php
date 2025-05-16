@@ -24,9 +24,12 @@ class OpenAI_Tool {
 	public static function get_tools( $include_writeable = true ) {
 		$tools = apply_filters( 'pos_openai_tools', array() );
 		if ( ! $include_writeable ) {
-			$tools = array_filter( $tools, function( $tool ) {
-				return ! $tool->writeable;
-			} );
+			$tools = array_filter(
+				$tools,
+				function( $tool ) {
+					return ! $tool->writeable;
+				}
+			);
 		}
 		return array_values( $tools );
 	}

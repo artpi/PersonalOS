@@ -31,8 +31,8 @@ class Bucketlist_Module extends POS_Module {
 
 	public function add_bucketlist_flag( $flags ) {
 		$flags[] = array(
-			'id' => 'bucketlist',
-			'name' => 'Bucketlist',
+			'id'    => 'bucketlist',
+			'name'  => 'Bucketlist',
 			'label' => 'This notebook is a Bucketlist Item',
 		);
 		return $flags;

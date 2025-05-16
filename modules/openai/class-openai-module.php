@@ -566,14 +566,14 @@ class OpenAI_Module extends POS_Module {
 	public function system_prompt_defaults() {
 		$note_module = POS::get_module_by_id( 'notes' );
 		return array(
-			'me' => array(
-				'name' => wp_get_current_user()->display_name,
+			'me'        => array(
+				'name'        => wp_get_current_user()->display_name,
 				'description' => wp_get_current_user()->description,
 			),
-			'system' => array(
+			'system'    => array(
 				'current_time' => gmdate( 'Y-m-d H:i:s' ),
 			),
-			'you' => <<<EOF
+			'you'       => <<<EOF
 				Your name is PersonalOS. You are a plugin installed on my WordPress site.
 				Apart from WordPress functionality, you have certain modules enabled, and functionality exposed as tools.
 				You can use these tools to perform actions on my behalf.
@@ -583,7 +583,7 @@ class OpenAI_Module extends POS_Module {
 			EOF,
 			'notebooks' => array(
 				'description' => 'My work is organized in "notebooks". They represent areas of my life, active projects and statuses of tasks.',
-				'notebooks' => array_map(
+				'notebooks'   => array_map(
 					function( $flag ) use ( $note_module ) {
 						$notebooks = array_map(
 							function( $notebook ) {
@@ -622,9 +622,9 @@ class OpenAI_Module extends POS_Module {
 					)
 				),
 			),
-			'memories' => array(
+			'memories'  => array(
 				'description' => 'You have previously stored some information in the AI Memory using the "ai_memory" tool.',
-				'memories' => array_map(
+				'memories'    => array_map(
 					function( $memory ) {
 						return "<memory id='{$memory->ID}'>
 							<title>{$memory->post_title}</title>
@@ -653,14 +653,22 @@ class OpenAI_Module extends POS_Module {
 	public function create_system_prompt( $params = array() ) {
 		if ( $params instanceof \WP_Post ) {
 			$content = apply_filters( 'the_content', $params->post_content );
-			$content = preg_replace_callback( '/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/i', function( $matches ) {
-				$level = $matches[1];
-				$text = $matches[2];
-				return str_repeat( '#', intval( $level ) ) . ' ' . $text;
-			}, $content );
-			$content = preg_replace_callback( '/<li[^>]*>(.*?)<\/li>/i', function( $matches ) {
-				return '- ' . $matches[1];
-			}, $content );
+			$content = preg_replace_callback(
+				'/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/i',
+				function( $matches ) {
+					$level = $matches[1];
+					$text = $matches[2];
+					return str_repeat( '#', intval( $level ) ) . ' ' . $text;
+				},
+				$content
+			);
+			$content = preg_replace_callback(
+				'/<li[^>]*>(.*?)<\/li>/i',
+				function( $matches ) {
+					return '- ' . $matches[1];
+				},
+				$content
+			);
 			$content = wp_strip_all_tags( $content );
 			return $content;
 		}
@@ -886,13 +894,13 @@ class OpenAI_Module extends POS_Module {
 		$file_name = 'speech-' . uniqid() . '.mp3';
 
 		$openai_payload = array(
-			'model' => 'gpt-4o-audio-preview',
+			'model'      => 'gpt-4o-audio-preview',
 			'modalities' => array( 'text', 'audio' ),
-			'audio' => array(
-				'voice' => $voice,
+			'audio'      => array(
+				'voice'  => $voice,
 				'format' => 'mp3',
 			),
-			'messages' => $messages,
+			'messages'   => $messages,
 		);
 
 		$response = $this->api_call( 'https://api.openai.com/v1/chat/completions', $openai_payload );
@@ -928,7 +936,7 @@ class OpenAI_Module extends POS_Module {
 		$data = wp_parse_args(
 			array(
 				'post_content' => $response->choices[0]->message->content ?? 'test',
-				'post_status' => 'private',
+				'post_status'  => 'private',
 			),
 			$data
 		);

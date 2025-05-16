@@ -57,7 +57,15 @@ class POS_Settings {
 								printf(
 									'<select name="%1$s" id="pos_field_%1$s">%2$s</select><br/><label for="pos_field_%1$s">%3$s</label>',
 									esc_attr( $option_name ),
-									wp_kses( $this->get_select_options( $setting['options'], $value ), array( 'option' => array( 'value' => array(), 'selected' => array() ) ) ),
+									wp_kses(
+										$this->get_select_options( $setting['options'], $value ),
+										array(
+											'option' => array(
+												'value'    => array(),
+												'selected' => array(),
+											),
+										)
+									),
 									wp_kses_post( $setting['label'] ) ?? ''
 								);
 							} elseif ( $setting['type'] === 'bool' ) {

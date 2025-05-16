@@ -14,8 +14,8 @@ class Notes_Module extends POS_Module {
 
 	public function list( $args = array(), $taxonomy = '' ) {
 		$defaults = array(
-			'post_type'   => $this->id,
-			'post_status' => array( 'private', 'publish', 'future' ),
+			'post_type'      => $this->id,
+			'post_status'    => array( 'private', 'publish', 'future' ),
 			'posts_per_page' => -1,
 		);
 		if ( $taxonomy ) {
@@ -175,21 +175,21 @@ class Notes_Module extends POS_Module {
 					function( $flag ) use ( $note_module ) {
 						$notebooks = array_map(
 							function( $notebook ) {
-								return [
-									'notebook_name' => $notebook->name,
-									'notebook_id' => $notebook->term_id,
-									'notebook_slug' => $notebook->slug,
+								return array(
+									'notebook_name'        => $notebook->name,
+									'notebook_id'          => $notebook->term_id,
+									'notebook_slug'        => $notebook->slug,
 									'notebook_description' => $notebook->description,
-								];
+								);
 							},
 							$note_module->get_notebooks_by_flag( $flag['id'] )
 						);
-						return [
-							'flag_id' => $flag['id'],
-							'flag_name' => $flag['name'],
+						return array(
+							'flag_id'    => $flag['id'],
+							'flag_name'  => $flag['name'],
 							'flag_label' => $flag['label'],
-							'notebooks' => $notebooks,
-						];
+							'notebooks'  => $notebooks,
+						);
 					},
 					array_values( $flags )
 				);

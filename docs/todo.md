@@ -47,4 +47,5 @@ These are roughly the features I want to implement. They are meant to be
 - Engineer serendipity in some way
 - Talk to other instances on other WordPress sites using @akirk Friends plugin
 - Sync with [Google Tasks API](https://developers.google.com/tasks/reference/rest)
+- When I am attaching an email, incorporate that into the knowledge base some way. For example, incorporate fresh thinking into a document
 - 

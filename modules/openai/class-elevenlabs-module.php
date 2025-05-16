@@ -5,7 +5,7 @@ class ElevenLabs_Module extends POS_Module {
 	public $name        = 'Eleven Labs';
 	public $description = 'Eleven Labs module';
 	public $settings    = array(
-		'api_key'  => array(
+		'api_key' => array(
 			'type'  => 'text',
 			'name'  => 'Eleven labs API Key',
 			'label' => '',
@@ -27,8 +27,8 @@ class ElevenLabs_Module extends POS_Module {
 		$args = array(
 			'timeout' => 120,
 			'headers' => array(
-				'xi-api-key' => $api_key,
-				'Content-Type'  => 'application/json',
+				'xi-api-key'   => $api_key,
+				'Content-Type' => 'application/json',
 			),
 		);
 
@@ -55,19 +55,19 @@ class ElevenLabs_Module extends POS_Module {
 		$response = wp_remote_post(
 			'https://api.elevenlabs.io/v1/text-to-speech/' . $voice,
 			array(
-				'timeout'  => 360,
-				'headers'  => array(
-					'xi-api-key' => $api_key,
-					'Content-Type'  => 'application/json',
+				'timeout' => 360,
+				'headers' => array(
+					'xi-api-key'   => $api_key,
+					'Content-Type' => 'application/json',
 				),
-				'body'     => wp_json_encode(
+				'body'    => wp_json_encode(
 					array(
-						'model_id' => 'eleven_turbo_v2_5',
-						'text' => $text,
+						'model_id'       => 'eleven_turbo_v2_5',
+						'text'           => $text,
 						'voice_settings' => array(
-							'stability' => 0.1,
+							'stability'         => 0.1,
 							'use_speaker_boost' => true,
-							'similarity_boost' => 0,
+							'similarity_boost'  => 0,
 						),
 					)
 				),

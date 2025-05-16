@@ -95,20 +95,23 @@ class Perplexity_Module extends POS_Module {
 		}
 		$citations = $response->citations;
 
-		return [
-			'content' => $response->choices[0]->message->content,
-			'role' => $response->choices[0]->message->role,
+		return array(
+			'content'   => $response->choices[0]->message->content,
+			'role'      => $response->choices[0]->message->role,
 			'citations' => $citations,
-		];
+		);
 	}
 
 	public function search( $query ): array|WP_Error {
-		$result = $this->chat_completion( array(
+		$result = $this->chat_completion(
 			array(
-				'role' => 'user',
-				'content' => $query,
+				array(
+					'role'    => 'user',
+					'content' => $query,
+				),
 			),
-		), 'sonar' );
+			'sonar'
+		);
 
 		if ( is_wp_error( $result ) ) {
 			return $result;

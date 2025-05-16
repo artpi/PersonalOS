@@ -8,14 +8,14 @@ class ICS_Module extends POS_Module {
 	public $id = 'ics';
 	public $name = 'ICS Calendar Export';
 	public $description = 'Export TODOs as an ICS calendar feed that can be imported into calendar apps.';
-	public $settings = [
-		'token' => [
+	public $settings = array(
+		'token' => array(
 			'type'    => 'text',
 			'name'    => 'Token for the ICS feed',
 			'label'   => 'This is a token that will be used to access the ICS feed. It can be used to generate a private feed.',
 			'default' => '',
-		],
-	];
+		),
+	);
 
 	public function register(): void {
 		if ( strlen( $this->get_setting( 'token' ) ) > 0 ) {
@@ -33,7 +33,7 @@ class ICS_Module extends POS_Module {
 				'permission_callback' => array( $this, 'check_permission' ),
 				'args'                => array(
 					'token' => array(
-						'type' => 'string',
+						'type'     => 'string',
 						'required' => true,
 					),
 				),
@@ -54,7 +54,7 @@ class ICS_Module extends POS_Module {
 	 * @param WP_REST_Request $request The request object.
 	 * @return WP_REST_Response|WP_Error The response object.
 	 */
-	public function generate_ics_feed( WP_REST_Request $request ): mixed {		
+	public function generate_ics_feed( WP_REST_Request $request ): mixed {
 
 		$ics_content = $this->generate_ics_content();
 

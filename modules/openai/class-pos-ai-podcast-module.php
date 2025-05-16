@@ -19,7 +19,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 		add_action( 'rest_api_init', array( $this, 'rest_api_init' ) );
 		$token = $this->get_setting( 'token' );
 		$this->settings = array(
-			'token' => array(
+			'token'       => array(
 				'type'    => 'text',
 				'name'    => 'Private token for accessing the podcast feed',
 				'label'   => strlen( $token ) < 3 ? 'You need a token longer than 3 characters to enable the podcast feed' : 'Your feed is accessible <a href="' . add_query_arg( 'token', $token, get_rest_url( null, $this->rest_namespace . '/ai-podcast' ) ) . '" target="_blank">here</a>',
@@ -216,7 +216,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 			'/ai-podcast/generate',
 			array(
 				'params'              => array(
-					'token' => array(
+					'token'     => array(
 						'type'     => 'string',
 						'required' => true,
 					),
@@ -326,13 +326,13 @@ class POS_AI_Podcast_Module extends POS_Module {
 			)
 		);
 		if ( $episode_generated_today ) {
-			return [
-				'media_id' => $episode_generated_today[0]->ID,
-				'media_url' => wp_get_attachment_url( $episode_generated_today[0]->ID ),
-				'prompt_id' => get_post_meta( $episode_generated_today[0]->ID, 'prompt_id', true ),
-				'text' => $episode_generated_today[0]->post_content,
+			return array(
+				'media_id'       => $episode_generated_today[0]->ID,
+				'media_url'      => wp_get_attachment_url( $episode_generated_today[0]->ID ),
+				'prompt_id'      => get_post_meta( $episode_generated_today[0]->ID, 'prompt_id', true ),
+				'text'           => $episode_generated_today[0]->post_content,
 				'soundtrack_url' => get_post_meta( $episode_generated_today[0]->ID, 'soundtrack', true ),
-			];
+			);
 		}
 		if ( $prompt_id ) {
 			$template = get_post( $prompt_id );
@@ -345,7 +345,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 
 		$messages = array(
 			array(
-				'role' => 'system',
+				'role'    => 'system',
 				'content' => $template->post_content,
 			),
 		);
@@ -357,8 +357,8 @@ class POS_AI_Podcast_Module extends POS_Module {
 			'post_title' => $template->post_title,
 			'meta_input' => array(
 				'pos_podcast' => gmdate( 'Y-m-d' ),
-				'soundtrack' => $soundtrack_url,
-				'prompt_id' => $template->ID,
+				'soundtrack'  => $soundtrack_url,
+				'prompt_id'   => $template->ID,
 			),
 		);
 		if ( $this->elevenlabs->is_configured() && $this->get_setting( 'tts_service' ) === 'elevenlabs' ) {
@@ -368,7 +368,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 				$this->get_setting( 'elevenlabs_voice' ),
 				$post_data,
 			);
-		} else if ( $this->openai->is_configured() && $this->get_setting( 'tts_service' ) === 'openai-gpt4o-audio' ) {
+		} elseif ( $this->openai->is_configured() && $this->get_setting( 'tts_service' ) === 'openai-gpt4o-audio' ) {
 			$file = $this->openai->tts(
 				$messages,
 				'ballad',
@@ -384,12 +384,12 @@ class POS_AI_Podcast_Module extends POS_Module {
 			return;
 		}
 		$this->log( 'Generating podcast episode succeeded: ' . $file );
-		return [
-			'media_id' => $file,
-			'media_url' => wp_get_attachment_url( $file ),
-			'prompt_id' => $template->ID,
-			'text' => $new_content,
+		return array(
+			'media_id'       => $file,
+			'media_url'      => wp_get_attachment_url( $file ),
+			'prompt_id'      => $template->ID,
+			'text'           => $new_content,
 			'soundtrack_url' => $soundtrack_url,
-		];
+		);
 	}
 }
