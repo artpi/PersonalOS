@@ -27,7 +27,6 @@ class Vercel_AI_SDK {
 	private function sendStreamPart( string $typePrefix, string $jsonPayload ): void {
 		echo $typePrefix . $jsonPayload . "\n";
 		flush(); // Push to socket
-		usleep( 150000 ); // Simulate token-by-token latency
 	}
 
 	public function sendText( string $text ): void {
