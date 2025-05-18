@@ -12,7 +12,7 @@ import { Messages } from './messages';
 import type { VisibilityType } from './visibility-selector';
 import { useArtifactSelector } from '@/hooks/use-artifact';
 import { toast } from './toast';
-import { config } from '@/lib/constants';
+import { getConfig } from '@/lib/constants';
 
 // Define local types as original schemas/auth types are removed
 export type UserType = 'guest' | 'regular';
@@ -44,6 +44,7 @@ export function Chat({
   session: MockSession; // Changed from Session to MockSession
 }) {
   const { mutate } = useSWRConfig();
+  const currentConfig = getConfig();
 
   const {
     messages,
@@ -63,7 +64,7 @@ export function Chat({
 	// onToolCall: (toolCall) => {
 	// 	console.log('toolCall', toolCall);
 	// },
-	api: config.rest_api_url + 'pos/v1/openai/vercel/chat',
+	api: currentConfig.rest_api_url ? currentConfig.rest_api_url + 'pos/v1/openai/vercel/chat' : undefined,
     generateId: generateUUID,
     experimental_prepareRequestBody: (body) => {
 		console.log('body', body);

@@ -17,11 +17,12 @@ import {
 } from '@/components/ui/sidebar';
 import Link from 'next/link';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
-import { config } from '@/lib/constants';
+import { getConfig } from '@/lib/constants'; // Changed from 'config' to 'getConfig'
 
 export function AppSidebar({ user }: { user: MockSessionUser | undefined }) { // Use MockSessionUser
   const router = useRouter();
   const { setOpenMobile } = useSidebar();
+  const currentConfig = getConfig(); // Call getConfig()
 
   return (
     <Sidebar className="group-data-[side=left]:border-r-0">
@@ -29,14 +30,14 @@ export function AppSidebar({ user }: { user: MockSessionUser | undefined }) { //
         <SidebarMenu>
           <div className="flex flex-row justify-between items-center">
             <Link
-              href={ config.api_url }
+              href={currentConfig.api_url || '#'} // Use currentConfig, provide fallback for href
               onClick={() => {
                 setOpenMobile(false);
               }}
               className="flex flex-row gap-3 items-center"
             >
               <span className="text-lg font-semibold px-2 hover:bg-muted rounded-md cursor-pointer">
-                { config.site_title }
+                {currentConfig.site_title}
               </span>
             </Link>
             <Tooltip>
