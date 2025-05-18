@@ -1,7 +1,6 @@
-import { Toaster } from 'sonner';
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
-import { ThemeProvider } from '@/components/theme-provider';
+import ClientOnly from '@/components/client-only';
 // import { GeistSans } from 'geist/font/sans'; // Removed due to resolution issues
 
 import './globals.css';
@@ -67,23 +66,14 @@ export default async function RootLayout({
       className={`${geist.variable} ${geistMono.variable}`}
     >
       <head>
-        <script
+        {/* <script
           dangerouslySetInnerHTML={{
             __html: THEME_COLOR_SCRIPT,
           }}
-        />
+        /> */}
       </head>
       <body className="antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <Toaster position="top-center" />
-          {/* <SessionProvider>{children}</SessionProvider> */}
-          {children} { /* SessionProvider removed */}
-        </ThemeProvider>
+        <ClientOnly>{children}</ClientOnly>
       </body>
     </html>
   );

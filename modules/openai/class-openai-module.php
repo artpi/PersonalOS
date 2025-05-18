@@ -36,6 +36,7 @@ class OpenAI_Module extends POS_Module {
 		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
 		$this->register_cli_command( 'tool', 'cli_openai_tool' );
 		$this->register_block( 'tool', array( 'render_callback' => array( $this, 'render_tool_block' ) ) );
+		require_once __DIR__ . '/chat-page.php';
 	}
 
 	public function render_tool_block( $attributes ) {
