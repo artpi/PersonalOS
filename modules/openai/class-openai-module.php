@@ -794,7 +794,7 @@ class OpenAI_Module extends POS_Module {
 		return $this->complete_backscroll( $backscroll );
 	}
 
-	public function complete_backscroll( array $backscroll ) {
+	public function complete_backscroll( array $backscroll, callable $callback = null ) {
 		$tool_definitions = array_map(
 			function ( $tool ) {
 				return $tool->get_function_signature();
@@ -837,6 +837,9 @@ class OpenAI_Module extends POS_Module {
 			if ( $completion->choices[0]->finish_reason === 'tool_calls' || ! empty( $completion->choices[0]->message->tool_calls ) ) {
 				$tool_calls = $completion->choices[0]->message->tool_calls;
 				foreach ( $tool_calls as $tool_call ) {
+					if ( $callback ) {
+						$callback( 'tool_call', $tool_call );
+					}
 					$arguments = json_decode( $tool_call->function->arguments, true );
 					$tool      = array_filter(
 						OpenAI_Tool::get_tools(),
@@ -857,11 +860,20 @@ class OpenAI_Module extends POS_Module {
 					if ( ! is_string( $result ) ) {
 						$result = wp_json_encode( $result, JSON_PRETTY_PRINT );
 					}
-					$backscroll[] = array(
+					$res = array(
 						'role'         => 'tool',
+						'name'         => $tool_call->function->name,
 						'content'      => $result,
 						'tool_call_id' => $tool_call->id,
 					);
+					if ( $callback ) {
+						$callback( 'tool_result', $res );
+					}
+					$backscroll[] = $res;
+				}
+			} else {
+				if ( $callback ) {
+					$callback( 'message', $completion->choices[0]->message );
 				}
 			}
 		} while ( ( $completion->choices[0]->finish_reason !== 'stop' || ! empty( $completion->choices[0]->message->tool_calls ) ) && $max_loops > 0 );
@@ -937,16 +949,28 @@ class OpenAI_Module extends POS_Module {
 		// if ( isset( $params['stream'] ) ) {
 		// 	$openai_payload['stream'] = $params['stream'];
 		// }
-		$response = $this->api_call( 'https://api.openai.com/v1/chat/completions', $openai_payload );
-		$openai_messages[] = $response->choices[0]->message;
-		set_transient( 'vercel_chat_' . $params['id'], $openai_messages, 60 * 60 );
-
 		require_once __DIR__ . '/class.vercel-ai-sdk.php';
 		$vercel_sdk = new Vercel_AI_SDK();
 		Vercel_AI_SDK::sendHttpStreamHeaders();
-		$vercel_sdk->startStep( $response->id );
-		$vercel_sdk->sendText( $response->choices[0]->message->content );
-		$vercel_sdk->finishStep( $response->choices[0]->finish_reason, (array) $response->usage, false );
+		$vercel_sdk->startStep( $params['id'] );
+
+		$response = $this->complete_backscroll(
+			$openai_messages, function( $type, $data ) use ( $vercel_sdk ) {
+			if ( $type === 'message' ) {
+				$vercel_sdk->sendText( $data->content );
+			} else if ( $type === 'tool_result' ) {
+				//error_log( 'tool_result: ' . print_r( $data, true ) );
+				$data = (object) $data;
+				$vercel_sdk->sendToolResult( $data->tool_call_id, $data->content );
+			} else if ( $type === 'tool_call' ) {
+				$data = (object) $data;
+				$vercel_sdk->sendToolCall( $data->id, $data->function->name, json_decode( $data->function->arguments, true ) );
+			}
+		} );
+		set_transient( 'vercel_chat_' . $params['id'], $openai_messages, 60 * 60 );
+
+		// $vercel_sdk->sendText( $response->choices[0]->message->content );
+		$vercel_sdk->finishStep( 'stop', array( 'promptTokens' => 0, 'completionTokens' => 0 ), false );
 		die();
 	}
 
