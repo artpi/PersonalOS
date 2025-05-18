@@ -10,19 +10,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Static variables to store parts of the Next.js index.html.
-// Using globals here for simplicity in a procedural context.
-global $personalos_chatbot_head_content, $personalos_chatbot_body_attributes, $personalos_chatbot_body_inner_html;
-$personalos_chatbot_head_content = '';
-$personalos_chatbot_body_attributes = array();
-$personalos_chatbot_body_inner_html = '';
+// Static variable to store the full HTML content of the Next.js index.html.
+global $personalos_chatbot_full_html_content;
+$personalos_chatbot_full_html_content = '';
+
+
+function personalos_chat_config() {
+	return array(
+		'rest_api_url' => rest_url( '/' ),
+		'wp_admin_url' => admin_url(),
+		'site_title' => get_bloginfo( 'name' ),
+	);
+}
 
 /**
- * Prepares chatbot assets and data by parsing the Next.js index.html.
- * Populates global variables with extracted head content, body attributes, and body inner HTML.
+ * Prepares chatbot assets by reading the Next.js index.html file.
+ * Populates a global variable with the full HTML content.
  */
 function personalos_prepare_chatbot_assets_and_data(): void {
-	global $personalos_chatbot_head_content, $personalos_chatbot_body_attributes, $personalos_chatbot_body_inner_html;
+	global $personalos_chatbot_full_html_content;
 
 	// Determine the plugin root directory.
 	// Assumes chat-page.php is in personalos/modules/openai/chat-page.php
@@ -30,38 +36,31 @@ function personalos_prepare_chatbot_assets_and_data(): void {
 	$index_html_path = $plugin_root_dir . '/build/chatbot/index.html';
 
 	if ( ! file_exists( $index_html_path ) ) {
-		// Error will be handled by personalos_render_chatbot_dashboard if $personalos_chatbot_body_inner_html remains empty.
+		// Error will be handled by personalos_render_chatbot_dashboard if $personalos_chatbot_full_html_content remains empty.
+		$personalos_chatbot_full_html_content = ''; // Ensure it's empty on failure.
 		return;
 	}
 
 	$html_content = file_get_contents( $index_html_path );
 	if ( false === $html_content ) {
+		$personalos_chatbot_full_html_content = ''; // Ensure it's empty on failure.
 		return;
 	}
 
-	$doc = new DOMDocument();
-	// Suppress errors for HTML5 elements and ensure UTF-8 processing.
-	// Minified Next.js HTML might not be perfectly formed for a strict parser.
-	@$doc->loadHTML( mb_convert_encoding( $html_content, 'HTML-ENTITIES', 'UTF-8' ) );
+	// JSON encode the data and escape it for safe insertion into a script tag.
+	$json_data = wp_json_encode( personalos_chat_config() );
 
-	$head_node = $doc->getElementsByTagName( 'head' )->item( 0 );
-	if ( $head_node ) {
-		foreach ( $head_node->childNodes as $child_node ) {
-			$personalos_chatbot_head_content .= $doc->saveHTML( $child_node );
-		}
-	}
+	// Create the script tag.
+	// Using <script type="text/javascript"> for broader compatibility, though type is optional in HTML5.
+	$script_tag = "<script type=\"text/javascript\">\n";
+	$script_tag .= "\twindow.config = " . $json_data . ";\n";
+	$script_tag .= "</script>\n";
 
-	$body_node = $doc->getElementsByTagName( 'body' )->item( 0 );
-	if ( $body_node ) {
-		if ( $body_node->hasAttributes() ) {
-			foreach ( $body_node->attributes as $attr ) {
-				$personalos_chatbot_body_attributes[ $attr->nodeName ] = $attr->nodeValue;
-			}
-		}
-		foreach ( $body_node->childNodes as $child_node ) {
-			$personalos_chatbot_body_inner_html .= $doc->saveHTML( $child_node );
-		}
-	}
+	// Inject the script tag before the closing </body> tag.
+	// This is generally a safe place that ensures the data is available before app scripts run.
+	$html_content = str_replace( '</body>', $script_tag . '</body>', $html_content );
+
+	$personalos_chatbot_full_html_content = $html_content;
 }
 
 /**
@@ -69,39 +68,20 @@ function personalos_prepare_chatbot_assets_and_data(): void {
  * This function is called on the load-{$page_hook} action.
  */
 function personalos_chatbot_page_setup_hooks(): void {
+	global $personalos_chatbot_full_html_content; // Ensure access to the global variable.
+
 	// Prepare assets and data first.
 	personalos_prepare_chatbot_assets_and_data();
 
-	// Now add hooks that will use the prepared data.
-	add_action( 'admin_head', 'personalos_output_chatbot_head_content' );
-	add_filter( 'admin_body_class', 'personalos_add_chatbot_body_classes' );
-}
-
-/**
- * Outputs the extracted <head> content from Next.js index.html into the WP admin head.
- */
-function personalos_output_chatbot_head_content(): void {
-	global $personalos_chatbot_head_content;
-	if ( ! empty( $personalos_chatbot_head_content ) ) {
+	// If HTML content is successfully loaded, output it directly and terminate.
+	if ( ! empty( $personalos_chatbot_full_html_content ) ) {
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-		echo $personalos_chatbot_head_content;
+		echo $personalos_chatbot_full_html_content;
+		die();
 	}
-}
-
-/**
- * Adds body classes from Next.js <body> tag to WordPress admin body classes.
- *
- * @param string $admin_body_classes Space-separated string of existing admin body classes.
- * @return string Modified string of admin body classes.
- */
-function personalos_add_chatbot_body_classes( string $admin_body_classes ): string {
-	global $personalos_chatbot_body_attributes;
-	$nextjs_body_classes = isset( $personalos_chatbot_body_attributes['class'] ) ? $personalos_chatbot_body_attributes['class'] : '';
-
-	if ( ! empty( $nextjs_body_classes ) ) {
-		$admin_body_classes .= ' ' . $nextjs_body_classes;
-	}
-	return trim( $admin_body_classes );
+	// If $personalos_chatbot_full_html_content is empty (e.g., file not found),
+	// execution will continue. WordPress will then call personalos_render_chatbot_dashboard(),
+	// which will display the appropriate error message within the standard admin page structure.
 }
 
 /**
@@ -125,18 +105,20 @@ add_action( 'admin_menu', 'personalos_add_chatbot_admin_page' );
 
 /**
  * Renders the Chatbot Dashboard page content.
- * Outputs the inner HTML of the Next.js app's <body> tag.
+ * Outputs the full HTML content from the Next.js app's index.html file and terminates.
  */
 function personalos_render_chatbot_dashboard(): void {
-	global $personalos_chatbot_body_inner_html;
+	global $personalos_chatbot_full_html_content;
 
 	// Determine the plugin root directory for the error message.
+	// This needs to be calculated here again as it's used in the error message
+	// and personalos_prepare_chatbot_assets_and_data might not have set it if it bailed early.
 	$plugin_root_dir = dirname( __DIR__, 2 );
 	$index_html_path = $plugin_root_dir . '/build/chatbot/index.html';
 
-	if ( empty( $personalos_chatbot_body_inner_html ) ) {
+	if ( empty( $personalos_chatbot_full_html_content ) ) {
 		// This indicates an issue in personalos_prepare_chatbot_assets_and_data()
-		// (e.g., file not found, unreadable, or parsing failed).
+		// (e.g., file not found, unreadable).
 		echo '<div class="error"><p>' .
 			sprintf(
 				/* translators: %1$s: Path to the Next.js index.html file. */
@@ -144,12 +126,14 @@ function personalos_render_chatbot_dashboard(): void {
 				'<code>' . esc_html( $index_html_path ) . '</code>'
 			) .
 			'</p></div>';
-		return;
+		return; // WordPress will render its usual admin page structure here if we just return.
+				// To prevent this, ensure WordPress admin styles/scripts are dequeued if full HTML isn't available,
+				// or reconsider if an empty page with just this error is acceptable.
+				// For raw HTML output, if this error occurs, we are not outputting raw HTML.
 	}
 
-	// Output the Next.js application's body content.
-	// This content has been extracted from the Next.js build's index.html.
-	// It includes the necessary divs and scripts for the React app to hydrate and run.
+	// Output the Next.js application's full HTML content.
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-	echo $personalos_chatbot_body_inner_html;
+	echo $personalos_chatbot_full_html_content;
+	die(); // Terminate to prevent any further WordPress output.
 }

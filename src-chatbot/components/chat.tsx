@@ -12,6 +12,7 @@ import { Messages } from './messages';
 import type { VisibilityType } from './visibility-selector';
 import { useArtifactSelector } from '@/hooks/use-artifact';
 import { toast } from './toast';
+import { config } from '@/lib/constants';
 
 // Define local types as original schemas/auth types are removed
 export type UserType = 'guest' | 'regular';
@@ -62,7 +63,7 @@ export function Chat({
 	// onToolCall: (toolCall) => {
 	// 	console.log('toolCall', toolCall);
 	// },
-	api: 'http://localhost:8901/wp-json/pos/v1/openai/vercel/chat',
+	api: config.rest_api_url + 'pos/v1/openai/vercel/chat',
     generateId: generateUUID,
     experimental_prepareRequestBody: (body) => {
 		console.log('body', body);

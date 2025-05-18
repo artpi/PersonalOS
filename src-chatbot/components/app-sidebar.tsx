@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/sidebar';
 import Link from 'next/link';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { config } from '@/lib/constants';
 
 export function AppSidebar({ user }: { user: MockSessionUser | undefined }) { // Use MockSessionUser
   const router = useRouter();
@@ -28,14 +29,14 @@ export function AppSidebar({ user }: { user: MockSessionUser | undefined }) { //
         <SidebarMenu>
           <div className="flex flex-row justify-between items-center">
             <Link
-              href="/"
+              href={ config.api_url }
               onClick={() => {
                 setOpenMobile(false);
               }}
               className="flex flex-row gap-3 items-center"
             >
               <span className="text-lg font-semibold px-2 hover:bg-muted rounded-md cursor-pointer">
-                Chatbot
+                { config.site_title }
               </span>
             </Link>
             <Tooltip>

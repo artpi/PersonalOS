@@ -11,3 +11,6 @@ export const isTestEnvironment = Boolean(
 export const guestRegex = /^guest-\d+$/;
 
 // export const DUMMY_PASSWORD = generateDummyPassword(); // Removed as it's no longer used after auth and DB removal
+
+
+export const config = window.config;
