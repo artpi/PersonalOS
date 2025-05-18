@@ -3,7 +3,6 @@
 import type { Attachment, UIMessage } from 'ai';
 import { useChat } from '@ai-sdk/react';
 import { useState } from 'react';
-import { useSWRConfig } from 'swr';
 import { ChatHeader } from '@/components/chat-header';
 import { generateUUID } from '@/lib/utils';
 import { Artifact } from './artifact';
@@ -43,7 +42,6 @@ export function Chat({
   isReadonly: boolean;
   session: MockSession; // Changed from Session to MockSession
 }) {
-  const { mutate } = useSWRConfig();
   const currentConfig = getConfig();
 
   const {
@@ -67,7 +65,7 @@ export function Chat({
 	// onToolCall: (toolCall) => {
 	// 	console.log('toolCall', toolCall);
 	// },
-	api: currentConfig.rest_api_url ? currentConfig.rest_api_url + 'pos/v1/openai/vercel/chat' : undefined,
+	api: currentConfig.rest_api_url + 'pos/v1/openai/vercel/chat',
     generateId: generateUUID,
     experimental_prepareRequestBody: (body) => {
 		return ({
@@ -75,9 +73,6 @@ export function Chat({
 		message: body.messages.at(-1),
         selectedChatModel,
       });
-    },
-    onFinish: () => {
-      console.warn('Chat history SWR mutation removed from onFinish in chat.tsx');
     },
     onError: (error) => {
       toast({

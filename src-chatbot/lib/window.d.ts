@@ -1,6 +1,5 @@
 export type Config = {
 	site_title: string;
-	api_url: string;
 	wp_admin_url: string;
 	rest_api_url: string;
 	nonce: string;

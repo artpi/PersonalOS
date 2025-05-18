@@ -30,7 +30,7 @@ export function AppSidebar({ user }: { user: MockSessionUser | undefined }) { //
         <SidebarMenu>
           <div className="flex flex-row justify-between items-center">
             <Link
-              href={currentConfig.api_url || '#'} // Use currentConfig, provide fallback for href
+              href={currentConfig.wp_admin_url} // Use currentConfig, provide fallback for href
               onClick={() => {
                 setOpenMobile(false);
               }}
