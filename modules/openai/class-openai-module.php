@@ -543,7 +543,6 @@ class OpenAI_Module extends POS_Module {
 		);
 	}
 	public function check_permission() {
-		return true;
 		return current_user_can( 'manage_options' );
 	}
 

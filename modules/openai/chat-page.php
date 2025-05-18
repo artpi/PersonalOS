@@ -20,6 +20,7 @@ function personalos_chat_config() {
 		'rest_api_url' => rest_url( '/' ),
 		'wp_admin_url' => admin_url(),
 		'site_title' => get_bloginfo( 'name' ),
+		'nonce' => wp_create_nonce( 'wp_rest' ),
 	);
 }
 

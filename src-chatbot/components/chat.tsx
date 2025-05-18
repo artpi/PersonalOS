@@ -61,13 +61,15 @@ export function Chat({
     initialMessages,
     experimental_throttle: 100,
     sendExtraMessageFields: true,
+	headers: {
+		'X-WP-Nonce': currentConfig.nonce,
+	},
 	// onToolCall: (toolCall) => {
 	// 	console.log('toolCall', toolCall);
 	// },
 	api: currentConfig.rest_api_url ? currentConfig.rest_api_url + 'pos/v1/openai/vercel/chat' : undefined,
     generateId: generateUUID,
     experimental_prepareRequestBody: (body) => {
-		console.log('body', body);
 		return ({
 		id,
 		message: body.messages.at(-1),
