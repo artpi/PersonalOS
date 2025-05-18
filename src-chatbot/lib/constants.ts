@@ -24,8 +24,8 @@ export function getConfig(): Config {
   // Default/fallback configuration
   const fallbackConfig: Config = {
     site_title: 'Chatbot (Loading Config...)',
-    api_url: '#', // Intended to be admin_url or similar
-    rest_api_url: '', // Must be a valid base for API calls if used before real config loads
+    api_url: 'http://localhost:8901/wp-admin/', // Intended to be admin_url or similar
+    rest_api_url: 'http://localhost:8901/wp-json/', // Must be a valid base for API calls if used before real config loads
   };
 
   if (typeof window !== 'undefined' && window.config) {

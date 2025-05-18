@@ -8,11 +8,16 @@ import type { NextConfig } from 'next';
 const PLUGIN_NAME = 'personalos'; // Change if your plugin directory name is different
 const BASE_SUBPATH = `/wp-content/plugins/${PLUGIN_NAME}/build/chatbot`;
 
+const isDevelopment = process.env.NODE_ENV === 'development';
+
 const nextConfig: NextConfig = {
-  output: 'export',
-  distDir: '../build/chatbot', // This should be <project_root>/build/chatbot
-  basePath: BASE_SUBPATH,
-  assetPrefix: BASE_SUBPATH, // Typically same as basePath for static exports under a subpath
+  // Only set output to 'export' and specify distDir for non-development (production build)
+  ...(!isDevelopment && {
+    output: 'export',
+    distDir: '../build/chatbot', // This should be <project_root>/build/chatbot
+    basePath: BASE_SUBPATH,
+    assetPrefix: BASE_SUBPATH, // Typically same as basePath for static exports under a subpath
+  }),
   // experimental: { // PPR disabled as it conflicts with static export
   //   ppr: true,
   // },
