@@ -14,13 +14,29 @@ if ( ! defined( 'ABSPATH' ) ) {
 global $personalos_chatbot_full_html_content;
 $personalos_chatbot_full_html_content = '';
 
+function personalos_map_notebook_to_para_item( $notebook ) {
+	return array(
+		'id' => $notebook->slug,
+		'name' => $notebook->name,
+		'icon' => 'FileIcon',
+	);
+}
 
+// This has to match the Config type in src-chatbot/lib/window.d.ts - Cursor please always check this
 function personalos_chat_config() {
 	return array(
 		'rest_api_url' => rest_url( '/' ),
 		'wp_admin_url' => admin_url(),
 		'site_title' => get_bloginfo( 'name' ),
 		'nonce' => wp_create_nonce( 'wp_rest' ),
+		'projects' => array_map(
+			'personalos_map_notebook_to_para_item',
+			POS::get_module_by_id( 'notes' )->get_notebooks_by_flag( 'project' )
+		),
+		'starred' => array_map(
+			'personalos_map_notebook_to_para_item',
+			POS::get_module_by_id( 'notes' )->get_notebooks_by_flag( 'star' )
+		),
 	);
 }
 

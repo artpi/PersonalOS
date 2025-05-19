@@ -1,6 +1,6 @@
 // import { generateDummyPassword } from './db/utils'; // Removed as ./db/utils.ts is deleted
 
-import type { Config } from './window';
+import type { Config, PARAItem } from './window';
 
 // Guest regex for identifying guest users based on email pattern.
 export const guestRegex = /^guest-\\d+$/;
@@ -14,6 +14,27 @@ export const isTestEnvironment = Boolean(
 
 // export const DUMMY_PASSWORD = generateDummyPassword(); // Removed as it's no longer used after auth and DB removal
 
+// Mock Sidebar Data
+// Note: Icons (React components) cannot be part of the serializable window.config.
+// They are added here for the fallback/dev scenario where app-sidebar consumes these directly.
+// In a real scenario, window.config might have icon names, and app-sidebar.tsx would map them to components.
+
+// Placeholder FileIcon for mock data - this will be an issue if constants.ts is used by backend PHP.
+// For now, assuming this constants.ts is purely frontend for fallback.
+// Ideally, icons are handled entirely within the React components or mapped from strings.
+const MockFileIconPlaceholder = 'FileIcon'; // Using a string placeholder for icon
+
+export const mockSidebarProjects: PARAItem[] = [
+  { id: 'project-1', name: 'Organize Vacation', icon: MockFileIconPlaceholder },
+  { id: 'project-2', name: 'Ship the app', icon: MockFileIconPlaceholder },
+];
+
+export const mockSidebarStarred: PARAItem[] = [
+  { id: 'area-1', name: 'Wife', icon: MockFileIconPlaceholder },
+  { id: 'area-2', name: 'Kid 1', icon: MockFileIconPlaceholder },
+  { id: 'area-3', name: 'Dog', icon: MockFileIconPlaceholder },
+];
+
 /**
  * Retrieves the runtime configuration injected by PHP.
  * Provides a fallback configuration if window.config is not yet available.
@@ -23,10 +44,12 @@ export const isTestEnvironment = Boolean(
 export function getConfig(): Config {
   // Default/fallback configuration
   const fallbackConfig: Config = {
-    site_title: 'Chatbot (Loading Config...)',
+    site_title: 'PersonalOS',
 	wp_admin_url: 'http://localhost:8901/wp-admin/',
 	nonce: '',
     rest_api_url: 'http://localhost:8901/wp-json/', // Must be a valid base for API calls if used before real config loads
+	projects: mockSidebarProjects,
+	starred: mockSidebarStarred,
   };
 
   if (typeof window !== 'undefined' && window.config) {
