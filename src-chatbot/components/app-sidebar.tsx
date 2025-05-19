@@ -130,7 +130,7 @@ export function AppSidebar({ user }: { user: MockSessionUser | undefined }) { //
     <Sidebar className="group-data-[side=left]:border-r-0">
       <SidebarHeader>
         <SidebarMenu>
-          <div className="flex flex-row justify-between items-center">
+          <div className="flex flex-row justify-between items-center mb-2">
             <Link
               href={currentConfig.wp_admin_url} // Use currentConfig, provide fallback for href
               onClick={() => {
@@ -160,6 +160,20 @@ export function AppSidebar({ user }: { user: MockSessionUser | undefined }) { //
               <TooltipContent align="end">New Chat</TooltipContent>
             </Tooltip>
           </div>
+          <Button
+            variant="ghost"
+            className="w-full justify-start h-8 mb-2"
+            asChild
+          >
+            <Link
+              href={currentConfig.wp_admin_url || '#'}
+              onClick={() => {
+                setOpenMobile(false);
+              }}
+            >
+              &larr; WP-Admin
+            </Link>
+          </Button>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>

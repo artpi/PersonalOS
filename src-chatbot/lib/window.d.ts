@@ -5,6 +5,10 @@ export type Config = {
 	nonce: string;
 	projects: PARAItem[];
 	starred: PARAItem[];
+	user: {
+		id: number;
+		login: string;
+	};
 };
 
 // Define PARAItem interface

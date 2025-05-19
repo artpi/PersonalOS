@@ -37,6 +37,10 @@ function personalos_chat_config() {
 			'personalos_map_notebook_to_para_item',
 			POS::get_module_by_id( 'notes' )->get_notebooks_by_flag( 'star' )
 		),
+		'user' => array(
+			'id' => get_current_user_id(),
+			'login' => wp_get_current_user()->user_login,
+		),
 	);
 }
 

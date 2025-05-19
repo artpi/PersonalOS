@@ -15,7 +15,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { guestRegex } from '@/lib/constants';
+import { guestRegex, getConfig } from '@/lib/constants';
 
 export interface MockSessionUser {
   id: string;
@@ -27,7 +27,7 @@ export interface MockSessionUser {
 
 export function SidebarUserNav({ user }: { user: MockSessionUser }) {
   const { setTheme, theme } = useTheme();
-
+  const config = getConfig();
   const isGuest = user?.email ? guestRegex.test(user.email) : true;
 
   return (
@@ -51,7 +51,7 @@ export function SidebarUserNav({ user }: { user: MockSessionUser }) {
                 <div className="size-6 bg-zinc-500/30 rounded-full" />
               )}
               <span data-testid="user-email" className="truncate">
-                {isGuest || !user?.email ? 'Guest' : user.email}
+                { config.user.login }
               </span>
               <ChevronUp className="ml-auto" />
             </SidebarMenuButton>
