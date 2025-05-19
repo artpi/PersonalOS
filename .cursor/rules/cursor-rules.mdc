@@ -1,0 +1,63 @@
+---
+description: Include this whenever discussing cursor rules. This has important information how to set up cursor rules for the project
+globs: 
+alwaysApply: false
+---
+# Creating new Cursor rules
+
+This rule explains exactly how to create new Cursor rules for this project.
+
+## Cursor rules location
+
+Always place rule files in PROJECT_ROOT/.cursor/rules/:
+
+IMPORTANT: never place rule files in any location outside of `.cursor/rules`
+
+## Cursor rule conventions
+
+- Follow the below naming convention:
+    - Use kebab-case for filenames
+    - Always use .mdc extension
+    - Make names descriptive of the rule's purpose
+- You can link to other files in the project using Markdown link prefixed with mdc: (Example: `@app/Services/SeoService.php`)
+- Only ever link directly to a file and not a directory
+
+## Cursor rules file structure
+
+Cursor rules are in the format of MDC (.mdc) which is like a regular Markdown file with frontmatter context. Below is an example:
+
+```
+---
+description: <Short description of the rule's purpose (used by agents if no globs are provided)>
+globs: <optional comma separated list of /path/pattern/**/* or blank for agent to request based on description>
+alwaysApply: true/false (default to false unless otherwise instructed)
+---
+# Rule Title
+
+Main content explaining the rule with markdown formatting.
+
+1. Step-by-step instructions
+2. Code examples
+3. Guidelines
+```
+
+Full rule example:
+
+```
+---
+description: This rule explains how to work with AI APIs like OpenAI and Anthropic
+globs:
+alwaysApply: false
+---
+# How to handle AI integrations
+
+Whenever you use this rule, start your message with the following:
+
+"Analysing AI integrations..."
+
+- This project integrates with Anthropic and OpenAI via dedicated client classes located in @app/Clients.
+- Service classes, potentially found in @app/Services, may abstract interactions with these clients.
+- Ensure necessary API keys and configuration are present in the `.env` file (refer to `.env.example`).
+- Follow existing patterns within the client or service classes for making API calls.
+- Implement consistent error handling for API failures.
+```
