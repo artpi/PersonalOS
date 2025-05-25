@@ -10,6 +10,29 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://chat.vercel.ai'),
   title: 'PersonalOS',
   description: 'PersonalOS',
+  applicationName: 'PersonalOS',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Personal Chat',
+    // startupImage: [
+    //   '/images/apple-touch-startup-image-768x1004.png',
+    //   {
+    //     url: '/images/apple-touch-startup-image-1536x2008.png',
+    //     media: '(device-width: 768px) and (device-height: 1024px)',
+    //   },
+    // ],
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    shortcut: '/wp-content/plugins/personalos/build/chatbot/images/favicon.ico',
+    apple: [
+      { url: '/wp-content/plugins/personalos/build/chatbot/images/apple-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+  },
+//   manifest: '/wp-content/plugins/personalos/build/chatbot/manifest.json',
 };
 
 export const viewport = {
@@ -66,11 +89,17 @@ export default async function RootLayout({
       className={`${geist.variable} ${geistMono.variable}`}
     >
       <head>
-        {/* <script
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Personal Chat" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+        <link rel="apple-touch-icon" href="/wp-content/plugins/personalos/build/chatbot/images/apple-icon.png" />
+        <script
           dangerouslySetInnerHTML={{
             __html: THEME_COLOR_SCRIPT,
           }}
-        /> */}
+        />
       </head>
       <body className="antialiased">
         <ClientOnly>{children}</ClientOnly>
