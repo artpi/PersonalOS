@@ -17,6 +17,9 @@ class ICS_Module extends POS_Module {
 		),
 	);
 
+	// Intentionally empty
+	public function generate_starter_content() {}
+
 	public function register(): void {
 		if ( strlen( $this->get_setting( 'token' ) ) > 0 ) {
 			add_action( 'rest_api_init', array( $this, 'register_rest_endpoints' ) );
