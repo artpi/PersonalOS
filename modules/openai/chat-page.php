@@ -68,6 +68,15 @@ function personalos_prepare_chatbot_assets_and_data(): void {
 		return;
 	}
 
+	// Get the URL to the chatbot build directory using proper WordPress functions
+	$chatbot_url = plugins_url( 'build/chatbot', dirname( dirname( __FILE__ ) ) );
+
+	$html_content = str_replace(
+		'/wp-content/plugins/personalos/build/chatbot',
+		$chatbot_url,
+		$html_content
+	);
+
 	// JSON encode the data and escape it for safe insertion into a script tag.
 	$json_data = wp_json_encode( personalos_chat_config() );
 
