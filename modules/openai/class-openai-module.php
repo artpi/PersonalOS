@@ -43,7 +43,10 @@ class OpenAI_Module extends POS_Module {
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
 		$this->register_cli_command( 'tool', 'cli_openai_tool' );
+
 		$this->register_block( 'tool', array( 'render_callback' => array( $this, 'render_tool_block' ) ) );
+		$this->register_block( 'message', array() );
+
 		require_once __DIR__ . '/chat-page.php';
 
 		$this->email_responder = new OpenAI_Email_Responder( $this );
@@ -911,6 +914,79 @@ class OpenAI_Module extends POS_Module {
 		return json_decode( $body );
 	}
 
+	private function save_backscroll( array $backscroll, string $id ) {
+		$notes_module = POS::get_module_by_id( 'notes' );
+		if ( ! $notes_module ) {
+			return;
+		}
+
+		// Create content from backscroll messages
+		$content_blocks = array();
+		foreach ( $backscroll as $message ) {
+			if ( is_object( $message ) ) {
+				$message = (array) $message;
+			}
+
+			if ( ! isset( $message['role'] ) ) {
+				continue;
+			}
+
+			$role = $message['role'];
+			$content = $message['content'] ?? '';
+
+			if ( in_array( $role, array( 'user', 'assistant' ), true ) ) {
+				// Create message block
+				$content_blocks[] = get_comment_delimited_block_content(
+					'pos/ai-message',
+					array(
+						'role' => $role,
+						'content' => $content,
+						'id' => $message['id'] ?? '',
+					),
+					''
+				);
+			}
+		}
+
+		// Prepare post data
+		$post_data = array(
+			'post_title'   => 'Chat ' . gmdate( 'Y-m-d H:i:s' ),
+			'post_type'    => $notes_module->id,
+			'post_name'    => $id,
+			'post_content' => implode( "\n\n", $content_blocks ),
+			'post_status'  => 'private',
+		);
+
+		$existing_posts = get_posts(
+			array(
+				'post_type'      => $notes_module->id,
+				'posts_per_page' => 1,
+				'name' => $id,
+			)
+		);
+		error_log( 'Existing posts: ' . print_r( $existing_posts, true ) );
+		// Create or update post
+		if ( ! empty( $existing_posts ) ) {
+			$post_data['ID'] = $existing_posts[0]->ID;
+			wp_update_post( $post_data );
+		} else {
+			$post_id = wp_insert_post( $post_data );
+
+			// Add to OpenAI notebook
+			$openai_notebook = get_term_by( 'slug', 'openai-chats', 'notebook' );
+			if ( ! $openai_notebook ) {
+				$term_result = wp_insert_term( 'OpenAI Chats', 'notebook', array( 'slug' => 'openai-chats' ) );
+				if ( ! is_wp_error( $term_result ) ) {
+					$openai_notebook = get_term( $term_result['term_id'], 'notebook' );
+				}
+			}
+
+			if ( $openai_notebook ) {
+				wp_set_object_terms( $post_id, array( $openai_notebook->term_id ), 'notebook' );
+			}
+		}
+	}
+
 	public function vercel_chat( WP_REST_Request $request ) {
 		$params = $request->get_json_params();
 
@@ -978,8 +1054,9 @@ class OpenAI_Module extends POS_Module {
 					$vercel_sdk->sendToolCall( $data->id, $data->function->name, json_decode( $data->function->arguments, true ) );
 				}
 			}
-		);
-		set_transient( 'vercel_chat_' . $params['id'], $openai_messages, 60 * 60 );
+		} );
+		set_transient( 'vercel_chat_' . $params['id'], $response, 60 * 60 );
+		$this->save_backscroll( $response, $params['id'] );
 
 		// $vercel_sdk->sendText( $response->choices[0]->message->content );
 		$vercel_sdk->finishStep(

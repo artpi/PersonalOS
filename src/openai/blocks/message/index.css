@@ -1,0 +1,235 @@
+/**
+ * Chat-style editor styles for the AI Message block
+ */
+
+.wp-block-pos-ai-message {
+	margin: 16px 0;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	max-width: none;
+}
+
+.wp-block-pos-ai-message .openai-message-block {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 0;
+	background: transparent;
+	border: none;
+	border-radius: 0;
+}
+
+.wp-block-pos-ai-message .message-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	font-weight: 600;
+	color: #6b7280;
+	margin-bottom: 4px;
+}
+
+.wp-block-pos-ai-message .message-role-icon {
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 14px;
+	flex-shrink: 0;
+}
+
+.wp-block-pos-ai-message .message-role-label {
+	text-transform: capitalize;
+	font-weight: 600;
+}
+
+.wp-block-pos-ai-message .message-id {
+	font-size: 11px;
+	color: #9ca3af;
+	background: #f3f4f6;
+	padding: 2px 6px;
+	border-radius: 10px;
+	font-family: monospace;
+	margin-left: auto;
+}
+
+.wp-block-pos-ai-message .message-content {
+	background: #f1f5f9;
+	border-radius: 18px;
+	padding: 12px 16px;
+	margin: 0;
+	border: 1px solid #e2e8f0;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+	line-height: 1.5;
+	font-size: 14px;
+	color: #1f2937;
+	min-height: 20px;
+	transition: all 0.2s ease;
+	position: relative;
+}
+
+.wp-block-pos-ai-message .message-content:focus {
+	outline: none;
+	border-color: #3b82f6;
+	box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1), 0 1px 3px rgba(0, 0, 0, 0.1);
+	background: #ffffff;
+}
+
+.wp-block-pos-ai-message .message-content:empty::before {
+	content: "Type your message...";
+	color: #9ca3af;
+	font-style: italic;
+}
+
+/* User message styling */
+.wp-block-pos-ai-message.message-role-user .message-header {
+	color: #3b82f6;
+}
+
+.wp-block-pos-ai-message.message-role-user .message-role-icon {
+	background: #3b82f6;
+	color: white;
+}
+
+.wp-block-pos-ai-message.message-role-user .message-content {
+	background: #3b82f6;
+	color: white;
+	border-color: #2563eb;
+	margin-left: 32px;
+}
+
+.wp-block-pos-ai-message.message-role-user .message-content:focus {
+	background: #2563eb;
+	border-color: #1d4ed8;
+	box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2), 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.wp-block-pos-ai-message.message-role-user .message-content:empty::before {
+	color: rgba(255, 255, 255, 0.7);
+}
+
+/* Assistant message styling */
+.wp-block-pos-ai-message.message-role-assistant .message-header {
+	color: #10b981;
+}
+
+.wp-block-pos-ai-message.message-role-assistant .message-role-icon {
+	background: #10b981;
+	color: white;
+}
+
+.wp-block-pos-ai-message.message-role-assistant .message-content {
+	background: #f0f9ff;
+	border-color: #bae6fd;
+	color: #0c4a6e;
+}
+
+.wp-block-pos-ai-message.message-role-assistant .message-content:focus {
+	background: #e0f2fe;
+	border-color: #0ea5e9;
+	box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.1), 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* System message styling */
+.wp-block-pos-ai-message.message-role-system .message-header {
+	color: #f59e0b;
+}
+
+.wp-block-pos-ai-message.message-role-system .message-role-icon {
+	background: #f59e0b;
+	color: white;
+}
+
+.wp-block-pos-ai-message.message-role-system .message-content {
+	background: #fffbeb;
+	border-color: #fde68a;
+	color: #92400e;
+	border-left: 3px solid #f59e0b;
+}
+
+.wp-block-pos-ai-message.message-role-system .message-content:focus {
+	background: #fef3c7;
+	border-color: #f59e0b;
+	box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1), 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Hover effects */
+.wp-block-pos-ai-message:hover .message-content {
+	transform: translateY(-1px);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.wp-block-pos-ai-message.message-role-user:hover .message-content {
+	box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.wp-block-pos-ai-message.message-role-assistant:hover .message-content {
+	box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.wp-block-pos-ai-message.message-role-system:hover .message-content {
+	box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+/* Selected state */
+.wp-block-pos-ai-message.is-selected .message-content {
+	transform: translateY(-1px);
+}
+
+.wp-block-pos-ai-message.is-selected.message-role-user .message-content {
+	box-shadow: 0 0 0 2px #3b82f6, 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.wp-block-pos-ai-message.is-selected.message-role-assistant .message-content {
+	box-shadow: 0 0 0 2px #10b981, 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.wp-block-pos-ai-message.is-selected.message-role-system .message-content {
+	box-shadow: 0 0 0 2px #f59e0b, 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+/* Rich text formatting */
+.wp-block-pos-ai-message .message-content strong {
+	font-weight: 600;
+}
+
+.wp-block-pos-ai-message .message-content em {
+	font-style: italic;
+}
+
+.wp-block-pos-ai-message .message-content code {
+	background: rgba(0, 0, 0, 0.1);
+	padding: 2px 4px;
+	border-radius: 4px;
+	font-family: 'Monaco', 'Courier New', monospace;
+	font-size: 13px;
+}
+
+.wp-block-pos-ai-message.message-role-user .message-content code {
+	background: rgba(255, 255, 255, 0.2);
+}
+
+.wp-block-pos-ai-message.message-role-assistant .message-content code {
+	background: rgba(14, 165, 233, 0.1);
+}
+
+.wp-block-pos-ai-message.message-role-system .message-content code {
+	background: rgba(245, 158, 11, 0.1);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+	.wp-block-pos-ai-message {
+		margin: 12px 0;
+	}
+	
+	.wp-block-pos-ai-message .message-content {
+		padding: 10px 14px;
+		font-size: 13px;
+	}
+	
+	.wp-block-pos-ai-message.message-role-user .message-content {
+		margin-left: 24px;
+	}
+} 
