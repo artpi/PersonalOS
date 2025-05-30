@@ -31,41 +31,90 @@
 class POS_Ollama_Server {
 
 	public $module;
+	public $rest_namespace = 'ollama/v1';
 	/**
-	 * The single model available in this mock server.
+	 * Array of available models in this mock server.
 	 *
 	 * @var array
 	 */
-	private $model;
+	private $models;
 
 	/**
 	 * Constructor.
 	 */
 	public function __construct( $module ) {
 		$this->module = $module;
-		$this->init_model();
-		add_action( 'rest_api_init', array( $this, 'register_routes' ) );
+		$token = $this->module->get_setting( 'ollama_auth_token' );
+		$this->module->settings[ 'ollama_auth_token' ] = array(
+			'type'  => 'text',
+			'name'  => 'Token for authorizing OLLAMA mock API.',
+			'label'   => strlen( $token ) < 3 ? 'Set a token to enable Ollama-compatible API for external clients' : 'OLLAMA Api accessible at <a href="' . add_query_arg( 'token', $token, get_rest_url( null, $this->rest_namespace  ) ) . '" target="_blank">here</a>',
+			'default' => '0',
+		);
+		if ( strlen( $token ) >= 3 ) {
+			$this->init_models();
+			add_action( 'rest_api_init', array( $this, 'register_routes' ) );
+		}
 	}
 
 	/**
-	 * Initialize the single model data.
+	 * Initialize the models array.
 	 */
-	private function init_model(): void {
-		$this->model = array(
-			'name'        => 'personalos:4o',
-			'model'       => 'personalos:4o',
-			'modified_at' => gmdate( 'c' ),
-			'size'        => 4299915632,
-			'digest'      => 'sha256:a2af6cc3eb7fa8be8504abaf9b04e88f17a119ec3f04a3addf55f92841195f5a',
-			'details'     => array(
-				'parent_model'       => '',
-				'format'             => 'gguf',
-				'family'             => 'personalos',
-				'families'           => array( 'personalos' ),
-				'parameter_size'     => '4.0B',
-				'quantization_level' => 'Q4_K_M',
+	private function init_models(): void {
+		$this->models = array(
+			'personalos:4o' => array(
+				'name'        => 'personalos:4o',
+				'model'       => 'personalos:4o',
+				'modified_at' => gmdate( 'c' ),
+				'size'        => 4299915632,
+				'digest'      => 'sha256:a2af6cc3eb7fa8be8504abaf9b04e88f17a119ec3f04a3addf55f92841195f5a',
+				'details'     => array(
+					'parent_model'       => '',
+					'format'             => 'gguf',
+					'family'             => 'personalos',
+					'families'           => array( 'personalos' ),
+					'parameter_size'     => '4.0B',
+					'quantization_level' => 'Q4_K_M',
+				),
 			),
 		);
+	}
+
+	/**
+	 * Get a specific model by name.
+	 *
+	 * @param string $name Model name.
+	 * @return array|null Model data or null if not found.
+	 */
+	private function get_model( string $name ): ?array {
+		return $this->models[ $name ] ?? null;
+	}
+
+	/**
+	 * Get all models as indexed array.
+	 *
+	 * @return array Array of models.
+	 */
+	private function get_all_models(): array {
+		return array_values( $this->models );
+	}
+
+	/**
+	 * Check if model exists.
+	 *
+	 * @param string $name Model name.
+	 * @return bool True if model exists.
+	 */
+	private function model_exists( string $name ): bool {
+		return isset( $this->models[ $name ] );
+	}
+
+	public function check_permission( WP_REST_Request $request ) {
+		$token = $request->get_param( 'token' );
+		if ( $token === $this->module->get_setting( 'ollama_auth_token' ) ) {
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -74,122 +123,122 @@ class POS_Ollama_Server {
 	public function register_routes(): void {
 		// GET /api/tags - list models
 		register_rest_route(
-			'ollama/v1',
+			$this->rest_namespace,
 			'/api/tags',
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'get_tags' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
 
 		// GET /api/version - version info
 		register_rest_route(
-			'ollama/v1',
+			$this->rest_namespace,
 			'/api/version',
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'get_version' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
 
 		// POST /api/chat - chat endpoint
 		register_rest_route(
-			'ollama/v1',
+			$this->rest_namespace,
 			'/api/chat',
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'post_chat' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
 
 		// POST /api/generate - text generation
 		register_rest_route(
-			'ollama/v1',
+			$this->rest_namespace,
 			'/api/generate',
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'post_generate' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
 
 		// POST /api/pull - pull model
 		register_rest_route(
-			'ollama/v1',
+			$this->rest_namespace,
 			'/api/pull',
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'post_pull' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
 
 		// POST /api/show - show model info
 		register_rest_route(
-			'ollama/v1',
+			$this->rest_namespace,
 			'/api/show',
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'post_show' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
 
 		// POST /api/create - create model
 		register_rest_route(
-			'ollama/v1',
+			$this->rest_namespace,
 			'/api/create',
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'post_create' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
 
 		// DELETE /api/delete - delete model
 		register_rest_route(
-			'ollama/v1',
+			$this->rest_namespace,
 			'/api/delete',
 			array(
 				'methods'             => WP_REST_Server::DELETABLE,
 				'callback'            => array( $this, 'delete_model' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
 
 		// POST /api/copy - copy model
 		register_rest_route(
-			'ollama/v1',
+			$this->rest_namespace,
 			'/api/copy',
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'post_copy' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
 
 		// POST /api/push - push model
 		register_rest_route(
-			'ollama/v1',
+			$this->rest_namespace,
 			'/api/push',
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'post_push' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
 
 		// GET /api/ps - list running models
 		register_rest_route(
-			'ollama/v1',
+			$this->rest_namespace,
 			'/api/ps',
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'get_ps' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
 	}
@@ -245,7 +294,7 @@ Used for testing and development purposes only.
 	 */
 	public function get_tags( WP_REST_Request $request ): WP_REST_Response {
 		return new WP_REST_Response(
-			array( 'models' => array( $this->model ) ),
+			array( 'models' => $this->get_all_models() ),
 			200
 		);
 	}
@@ -282,9 +331,20 @@ Used for testing and development purposes only.
 		$messages = $data['messages'] ?? array();
 		$stream   = $data['stream'] ?? false;
 
-		$non_system_messages = array_filter( $messages, function( $message ) {
-			return $message['role'] !== 'system';
-		} );
+		// Validate model exists
+		if ( ! $this->model_exists( $model ) ) {
+			return new WP_REST_Response(
+				array( 'error' => 'Model not found' ),
+				404
+			);
+		}
+
+		$non_system_messages = array_filter(
+			$messages,
+			function( $message ) {
+				return $message['role'] !== 'system';
+			}
+		);
 		$result = $this->module->complete_backscroll( $non_system_messages );
 		$last_message = (array) end( $result );
 		$answer      = $last_message['content'] ?? 'Hello from PersonalOS Mock Ollama!';
@@ -352,6 +412,14 @@ Used for testing and development purposes only.
 		$stream   = $data['stream'] ?? false;
 		$response = 'Generated response to: ' . $prompt;
 
+		// Validate model exists
+		if ( ! $this->model_exists( $model ) ) {
+			return new WP_REST_Response(
+				array( 'error' => 'Model not found' ),
+				404
+			);
+		}
+
 		return new WP_REST_Response(
 			array(
 				'model'               => $model,
@@ -386,7 +454,7 @@ Used for testing and development purposes only.
 
 		$name = $data['name'];
 
-		if ( 'personalos:4o' !== $name ) {
+		if ( ! $this->model_exists( $name ) ) {
 			return new WP_REST_Response(
 				array( 'error' => 'Model not available. Only personalos:4o is supported.' ),
 				404
@@ -415,18 +483,20 @@ Used for testing and development purposes only.
 		}
 
 		$name = $data['name'] ?? $data['model'];
-		if ( 'personalos:4o' !== $name ) {
+		$model_data = $this->get_model( $name );
+
+		if ( ! $model_data ) {
 			return new WP_REST_Response(
 				array( 'error' => 'Model not found' ),
 				404
 			);
 		}
 
-		$family = $this->model['details']['family'] ?? 'personalos';
+		$family = $model_data['details']['family'] ?? 'personalos';
 
 		$modelfile  = "# Modelfile generated by \"ollama show\"\n";
 		$modelfile .= "# To build a new Modelfile based on this, replace FROM with:\n";
-		$modelfile .= '# FROM ' . $this->model['name'] . "\n\n";
+		$modelfile .= '# FROM ' . $model_data['name'] . "\n\n";
 		$modelfile .= "FROM /fake/path/to/model/blob\n";
 		$modelfile .= 'TEMPLATE """' . $this->get_model_template( $family ) . '"""' . "\n";
 		$modelfile .= "PARAMETER num_keep 24\n";
@@ -474,11 +544,11 @@ Used for testing and development purposes only.
 				'modelfile'    => $modelfile,
 				'parameters'   => "num_keep                       24\nstop                           \"<|start_header_id|>\"\nstop                           \"<|end_header_id|>\"\nstop                           \"<|eot_id|>\"",
 				'template'     => $this->get_model_template( $family ),
-				'details'      => $this->model['details'],
+				'details'      => $model_data['details'],
 				'model_info'   => $model_info,
 				'tensors'      => $tensors,
 				'capabilities' => $capabilities,
-				'modified_at'  => $this->model['modified_at'],
+				'modified_at'  => $model_data['modified_at'],
 			),
 			200
 		);
@@ -521,7 +591,7 @@ Used for testing and development purposes only.
 		}
 
 		$name = $data['name'];
-		if ( 'personalos:4o' !== $name ) {
+		if ( ! $this->model_exists( $name ) ) {
 			return new WP_REST_Response(
 				array( 'error' => 'Model not found' ),
 				404
@@ -550,7 +620,7 @@ Used for testing and development purposes only.
 		}
 
 		$source = $data['source'];
-		if ( 'personalos:4o' !== $source ) {
+		if ( ! $this->model_exists( $source ) ) {
 			return new WP_REST_Response(
 				array( 'error' => 'Source model not found' ),
 				404
@@ -591,25 +661,22 @@ Used for testing and development purposes only.
 	 * @return WP_REST_Response
 	 */
 	public function get_ps( WP_REST_Request $request ): WP_REST_Response {
-		$running_model = array(
-			'name'       => 'personalos:4o',
-			'model'      => 'personalos:4o',
-			'size'       => 4299915632,
-			'digest'     => 'sha256:a2af6cc3eb7fa8be8504abaf9b04e88f17a119ec3f04a3addf55f92841195f5a',
-			'details'    => array(
-				'parent_model'       => '',
-				'format'             => 'gguf',
-				'family'             => 'personalos',
-				'families'           => array( 'personalos' ),
-				'parameter_size'     => '4.0B',
-				'quantization_level' => 'Q4_K_M',
-			),
-			'expires_at' => gmdate( 'c', time() + 300 ),
-			'size_vram'  => 4299915632,
-		);
+		$running_models = array();
+
+		foreach ( $this->models as $model_data ) {
+			$running_models[] = array(
+				'name'       => $model_data['name'],
+				'model'      => $model_data['model'],
+				'size'       => $model_data['size'],
+				'digest'     => $model_data['digest'],
+				'details'    => $model_data['details'],
+				'expires_at' => gmdate( 'c', time() + 300 ),
+				'size_vram'  => $model_data['size'],
+			);
+		}
 
 		return new WP_REST_Response(
-			array( 'models' => array( $running_model ) ),
+			array( 'models' => $running_models ),
 			200
 		);
 	}
