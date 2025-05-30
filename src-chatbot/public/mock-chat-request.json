@@ -1,0 +1,23 @@
+{
+  "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "message": {
+    "id": "m1n2o3p4-q5r6-7890-1234-567890ghijkl",
+    "createdAt": "2024-07-30T10:00:00.000Z",
+    "role": "user",
+    "content": "Hello, how are you today?",
+    "parts": [
+      {
+        "text": "Hello, how are you today?",
+        "type": "text"
+      }
+    ],
+    "experimental_attachments": [
+      {
+        "url": "https://example.com/image.png",
+        "name": "example-image.png",
+        "contentType": "image/png"
+      }
+    ]
+  },
+  "selectedChatModel": "chat-model"
+} 

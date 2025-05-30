@@ -36,6 +36,7 @@ class OpenAI_Module extends POS_Module {
 		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
 		$this->register_cli_command( 'tool', 'cli_openai_tool' );
 		$this->register_block( 'tool', array( 'render_callback' => array( $this, 'render_tool_block' ) ) );
+		require_once __DIR__ . '/chat-page.php';
 	}
 
 	public function render_tool_block( $attributes ) {
@@ -530,6 +531,16 @@ class OpenAI_Module extends POS_Module {
 				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
+
+		register_rest_route(
+			$this->rest_namespace,
+			'/openai/vercel/chat',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'vercel_chat' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
 	}
 	public function check_permission() {
 		return current_user_can( 'manage_options' );
@@ -783,7 +794,7 @@ class OpenAI_Module extends POS_Module {
 		return $this->complete_backscroll( $backscroll );
 	}
 
-	public function complete_backscroll( array $backscroll ) {
+	public function complete_backscroll( array $backscroll, callable $callback = null ) {
 		$tool_definitions = array_map(
 			function ( $tool ) {
 				return $tool->get_function_signature();
@@ -826,6 +837,9 @@ class OpenAI_Module extends POS_Module {
 			if ( $completion->choices[0]->finish_reason === 'tool_calls' || ! empty( $completion->choices[0]->message->tool_calls ) ) {
 				$tool_calls = $completion->choices[0]->message->tool_calls;
 				foreach ( $tool_calls as $tool_call ) {
+					if ( $callback ) {
+						$callback( 'tool_call', $tool_call );
+					}
 					$arguments = json_decode( $tool_call->function->arguments, true );
 					$tool      = array_filter(
 						OpenAI_Tool::get_tools(),
@@ -846,11 +860,20 @@ class OpenAI_Module extends POS_Module {
 					if ( ! is_string( $result ) ) {
 						$result = wp_json_encode( $result, JSON_PRETTY_PRINT );
 					}
-					$backscroll[] = array(
+					$res = array(
 						'role'         => 'tool',
+						'name'         => $tool_call->function->name,
 						'content'      => $result,
 						'tool_call_id' => $tool_call->id,
 					);
+					if ( $callback ) {
+						$callback( 'tool_result', $res );
+					}
+					$backscroll[] = $res;
+				}
+			} else {
+				if ( $callback ) {
+					$callback( 'message', $completion->choices[0]->message );
 				}
 			}
 		} while ( ( $completion->choices[0]->finish_reason !== 'stop' || ! empty( $completion->choices[0]->message->tool_calls ) ) && $max_loops > 0 );
@@ -876,6 +899,79 @@ class OpenAI_Module extends POS_Module {
 			return $response;
 		}
 		return json_decode( $body );
+	}
+
+	public function vercel_chat( WP_REST_Request $request ) {
+		$params = $request->get_json_params();
+
+		$user_message_content = null;
+		if ( isset( $params['message']['content'] ) ) {
+			$user_message_content = $params['message']['content'];
+		} elseif ( isset( $params['messages'] ) && is_array( $params['messages'] ) ) { // Vercel AI SDK often sends a messages array
+			$last_message = end( $params['messages'] );
+			if ( $last_message && isset( $last_message['content'] ) && 'user' === $last_message['role'] ) {
+				$user_message_content = $last_message['content'];
+			}
+		}
+
+		if ( ! $user_message_content ) {
+			return new WP_Error( 'missing_message_content', 'User message content is required and could not be determined from the request.', array( 'status' => 400 ) );
+		}
+
+		$model = $params['selectedChatModel'] ?? ( $params['model'] ?? 'gpt-4o' ); // Use selectedChatModel or model from request, else default
+		$model = 'gpt-4o';
+		// Construct the payload for OpenAI API
+		// If the Vercel SDK sends a full 'messages' array, we might want to pass it through
+		// For now, we'll stick to the simpler structure based on 'message.content' or the last user message
+
+		$openai_messages = get_transient( 'vercel_chat_' . $params['id'] );
+		if ( ! $openai_messages ) {
+			$openai_messages = array();
+		}
+		$openai_messages[] = array(
+			'role'    => 'user',
+			'content' => $user_message_content,
+		);
+
+		// If the incoming request already has a messages array that's compatible,
+		// we could consider using it, but the user's example structure was simpler.
+		// For now, we will construct a new messages array with just the latest user message.
+		// If a more complex history is sent via `params['messages']`, that could be a future enhancement.
+
+		$openai_payload = array(
+			'model'    => $model,
+			'messages' => $openai_messages,
+			// Add other parameters like temperature, max_tokens if needed
+			// e.g., 'temperature' => $params['temperature'] ?? 0.7,
+		);
+
+		// If other parameters like 'stream' are passed, include them
+		// if ( isset( $params['stream'] ) ) {
+		// 	$openai_payload['stream'] = $params['stream'];
+		// }
+		require_once __DIR__ . '/class.vercel-ai-sdk.php';
+		$vercel_sdk = new Vercel_AI_SDK();
+		Vercel_AI_SDK::sendHttpStreamHeaders();
+		$vercel_sdk->startStep( $params['id'] );
+
+		$response = $this->complete_backscroll(
+			$openai_messages, function( $type, $data ) use ( $vercel_sdk ) {
+			if ( $type === 'message' ) {
+				$vercel_sdk->sendText( $data->content );
+			} else if ( $type === 'tool_result' ) {
+				//error_log( 'tool_result: ' . print_r( $data, true ) );
+				$data = (object) $data;
+				$vercel_sdk->sendToolResult( $data->tool_call_id, $data->content );
+			} else if ( $type === 'tool_call' ) {
+				$data = (object) $data;
+				$vercel_sdk->sendToolCall( $data->id, $data->function->name, json_decode( $data->function->arguments, true ) );
+			}
+		} );
+		set_transient( 'vercel_chat_' . $params['id'], $openai_messages, 60 * 60 );
+
+		// $vercel_sdk->sendText( $response->choices[0]->message->content );
+		$vercel_sdk->finishStep( 'stop', array( 'promptTokens' => 0, 'completionTokens' => 0 ), false );
+		die();
 	}
 
 	public function chat_completion( $messages = array(), $model = 'gpt-4o' ) {

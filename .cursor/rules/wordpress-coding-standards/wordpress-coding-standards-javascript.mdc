@@ -1,0 +1,46 @@
+---
+description: Official WordPress coding standards from https://github.com/WordPress/wpcs-docs/blob/master/wordpress-coding-standards/javascript.md
+globs: src/*.js,src/*.jsx,src/*.ts,src/*.tsc
+alwaysApply: false
+---
+# WordPress JavaScript Coding Standards
+Source: https://github.com/WordPress/wpcs-docs/blob/master/wordpress-coding-standards/javascript.md
+
+The WordPress JavaScript Coding Standards adapt the jQuery JavaScript Style Guide with these key modifications:
+- Single quotes for strings instead of double quotes
+- Case statements indented within switch blocks
+- Consistent function content indentation
+- WordPress-specific whitespace rules
+- 100-character line limit encouraged but not enforced
+
+## Key Formatting Rules
+- Indent with tabs, not spaces
+- Liberal use of whitespace for readability
+- Braces required for all blocks (if/else/for/while/try)
+- Each statement on its own line
+- Strict equality checks (`===`) over abstract equality (`==`)
+- Single quotes for strings
+
+## Variable Declaration
+- ES2015+: Use `const` by default, `let` when reassignment needed
+- Pre-ES2015: Single `var` statement at top of function scope
+- CamelCase for variables and functions
+- UpperCamelCase for constructors and classes
+- SCREAMING_SNAKE_CASE for constants
+
+## Code Organization
+- Functions should be concise and focused
+- Multi-line statements break after operators
+- Comments precede relevant code with blank line before
+- JSDoc format for documentation
+
+## Best Practices
+- Array creation with `[]`, not `new Array()`
+- Object creation with `{}` unless specific prototype needed
+- Store loop maximum in variable rather than recalculating
+- Use Underscore.js collection methods for data transformations
+- Only use jQuery each() for jQuery collections
+
+## Tools
+- JSHint for automated code quality checking
+- Configuration in `.jshintrc` file
