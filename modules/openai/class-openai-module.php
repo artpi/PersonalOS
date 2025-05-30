@@ -1,6 +1,8 @@
 <?php
 
 require_once __DIR__ . '/class-openai-tool.php';
+require_once __DIR__ . '/class-ollama.php';
+
 class OpenAI_Module extends POS_Module {
 	public $id          = 'openai';
 	public $name        = 'OpenAI';
@@ -28,6 +30,7 @@ class OpenAI_Module extends POS_Module {
 	}
 
 	public function register() {
+		new POS_Ollama_Server( $this );
 		add_action( 'rest_api_init', array( $this, 'rest_api_init' ) );
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
