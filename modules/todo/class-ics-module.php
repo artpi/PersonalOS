@@ -17,8 +17,14 @@ class ICS_Module extends POS_Module {
 		),
 	);
 
-	// Intentionally empty
-	public function generate_starter_content() {}
+
+	/**
+	 * Override parent method to prevent loading TODO module's starter content
+	 * The ICS module doesn't need starter content.
+	 */
+	public function populate_starter_content(): void {
+		// Intentionally empty - ICS module doesn't need starter content
+	}
 
 	public function register(): void {
 		if ( strlen( $this->get_setting( 'token' ) ) > 0 ) {
@@ -63,6 +69,7 @@ class ICS_Module extends POS_Module {
 
 		header( 'Content-Type: text/calendar; charset=utf-8' );
 		header( 'Content-Disposition: attachment; filename="todos.ics"' );
+		//phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo $ics_content;
 		die();
 		// return $response;

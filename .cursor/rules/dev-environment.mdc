@@ -1,0 +1,14 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+The dev environment is managed by the `wp-env` package.
+In order to run code and run tests, you need to use the proper syntax to run commands.
+
+For example:
+
+- To run unit tests, you would `npm run test:unit`
+- To read the debug.log you would `npm run wp-env run cli -- tail -n 100 wp-content/debug.log`
+
+Feel free to do both as often as you think is reasonable. DO NOT run local commands on this machine, as the wp-env manages the environment in a docker container.
