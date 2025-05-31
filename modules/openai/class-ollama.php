@@ -312,6 +312,24 @@ Used for testing and development purposes only.
 		);
 	}
 
+	private function calculate_rolling_hash( $messages ) {
+		$hash = '';
+		$last_assistant_index = -1;
+		foreach ( $messages as $index => $message ) {
+			$message = (array) $message;
+			if ( in_array( $message['role'], array( 'assistant', 'system' ), true ) ) {
+				$last_assistant_index = $index;
+			}
+		}
+		foreach ( $messages as $index => $message ) {
+			$message = (array) $message;
+			if ( ( $index <= $last_assistant_index || $last_assistant_index === -1 ) && in_array( $message['role'], array( 'user', 'assistant' ), true ) ) {
+				$hash .= "\n\n" . trim( $message['content'] );
+			}
+		}
+		return hash( 'sha256', trim( $hash ) );
+	}
+
 	/**
 	 * POST /api/chat - Chat endpoint.
 	 *
@@ -345,7 +363,67 @@ Used for testing and development purposes only.
 				return $message['role'] !== 'system';
 			}
 		);
+
+		$hash = $this->calculate_rolling_hash( $messages );
+
+		// Get post with ollama-hash meta equal to $hash, or create one if it doesn't exist
+		$existing_posts = get_posts(
+			array(
+				'post_type'   => 'notes',
+				'post_status' => 'private',
+				'numberposts' => 1,
+				'meta_query'  => array(
+					array(
+						'key'   => 'ollama-hash',
+						'value' => $hash,
+					),
+				),
+			)
+		);
+		error_log( 'existing_posts: ' . print_r( $existing_posts, true ) . ' hash: [' . $hash . ']' );
+
+		if ( ! empty( $existing_posts ) ) {
+			$post_id = $existing_posts[0]->ID;
+		} else {
+			// Create new post with ollama-hash meta
+			$post_id = wp_insert_post(
+				array(
+					'post_title'   => 'Ollama Chat ' . gmdate( 'Y-m-d H:i:s' ),
+					'post_status'  => 'private',
+					'post_type'    => 'notes',
+				)
+			);
+		}
+
 		$result = $this->module->complete_backscroll( $non_system_messages );
+
+		$content_blocks = array();
+		foreach ( $result as $message ) {
+			$message = (array) $message;
+			if ( in_array( $message['role'], array( 'user', 'assistant' ), true ) ) {
+				// Create message block
+				$content_blocks[] = get_comment_delimited_block_content(
+					'pos/ai-message',
+					array(
+						'role' => $message['role'],
+						'content' => $message['content'],
+						'id' => $message['id'] ?? '',
+					),
+					''
+				);
+			}
+		}
+
+		wp_update_post(
+			array(
+				'ID' => $post_id,
+				'post_content' => implode( "\n\n", $content_blocks ),
+				'meta_input'   => array(
+					'ollama-hash' => $this->calculate_rolling_hash( $result ),
+				),
+			)
+		);
+
 		$last_message = (array) end( $result );
 		$answer      = $last_message['content'] ?? 'Hello from PersonalOS Mock Ollama!';
 		// $answer       = 'Echo: ' . json_encode( $data  ); //$content;
