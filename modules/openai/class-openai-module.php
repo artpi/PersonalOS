@@ -918,13 +918,14 @@ class OpenAI_Module extends POS_Module {
 	 * Save conversation backscroll as a note
 	 *
 	 * @param array $backscroll Array of conversation messages
-	 * @param array $config Configuration array for finding/creating the post
-	 *                      - 'name': The post slug/name to search for
-	 *                      - 'post_title': Title for new posts (optional)
-	 *                      - 'notebook': Notebook slug to assign (optional, defaults to 'openai-chats')
+	 * @param array $search_args Search arguments for get_posts to find existing notes, also used for new post configuration
+	 *                           - 'name': The post slug/name to search for and use when creating new posts
+	 *                           - 'post_title': Title for new posts (optional, defaults to auto-generated)
+	 *                           - 'notebook': Notebook slug to assign to new posts (optional, defaults to 'ai-chats')
+	 *                           - Any other valid get_posts() arguments for finding existing posts
 	 * @return int|WP_Error Post ID on success, WP_Error on failure
 	 */
-	private function save_backscroll( array $backscroll, array $config ) {
+	public function save_backscroll( array $backscroll, array $search_args ) {
 		$notes_module = POS::get_module_by_id( 'notes' );
 		if ( ! $notes_module ) {
 			return new WP_Error( 'notes_module_not_found', 'Notes module not available' );
@@ -959,14 +960,14 @@ class OpenAI_Module extends POS_Module {
 		}
 
 		// Use notes module's list method to find existing posts
-		$existing_posts = $notes_module->list( $config, 'ai-chats' );
+		$existing_posts = $notes_module->list( $search_args, 'ai-chats' );
 
 		// Prepare post data
 		$post_data = array(
 			// TODO: generate title with AI.
-			'post_title'   => $config['post_title'] ?? 'Chat ' . gmdate( 'Y-m-d H:i:s' ),
+			'post_title'   => $search_args['post_title'] ?? 'Chat ' . gmdate( 'Y-m-d H:i:s' ),
 			'post_type'    => $notes_module->id,
-			'post_name'    => $config['name'] ?? 'chat-' . gmdate( 'Y-m-d-H-i-s' ),
+			'post_name'    => $search_args['name'] ?? 'chat-' . gmdate( 'Y-m-d-H-i-s' ),
 			'post_status'  => 'private',
 		);
 
@@ -983,7 +984,7 @@ class OpenAI_Module extends POS_Module {
 			$post_id = wp_insert_post( $post_data );
 
 			// Add to specified notebook or default to OpenAI chats
-			$notebook_slug = $config['notebook'] ?? 'ai-chats';
+			$notebook_slug = $search_args['notebook'] ?? 'ai-chats';
 			$notebook = get_term_by( 'slug', $notebook_slug, 'notebook' );
 
 			if ( ! $notebook ) {
