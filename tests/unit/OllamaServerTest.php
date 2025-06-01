@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../../modules/openai/class-ollama.php';
+require_once __DIR__ . '/../../modules/openai/class-pos-ollama-server.php';
 
 /**
  * Unit tests for POS_Ollama_Server class.
