@@ -568,7 +568,7 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$mock_response = array(
 			array(
 				'role'    => 'user',
-				'content' => 'Test message',
+				'content' => 'Test response',
 			),
 			array(
 				'role'    => 'assistant',
@@ -930,5 +930,346 @@ class OllamaServerTest extends WP_UnitTestCase {
 			}
 		);
 		$this->assertCount( 1, $user_messages );
+	}
+
+	/**
+	 * Integration test: Test real hash calculation and post matching behavior.
+	 * 
+	 * This test verifies that identical conversation histories produce the same hash
+	 * and that the hash calculation follows the expected rules.
+	 *
+	 * @covers POS_Ollama_Server::calculate_rolling_hash
+	 */
+	public function test_backscroll_hash_integration_real_calculation() {
+		// Test the actual hash calculation with real server
+		$real_openai_module = \POS::get_module_by_id( 'openai' );
+		if ( ! $real_openai_module ) {
+			$this->markTestSkipped( 'OpenAI module not available' );
+			return;
+		}
+		
+		// Set up authentication BEFORE creating the server so init_models() is called
+		if ( ! isset( $real_openai_module->settings ) ) {
+			$real_openai_module->settings = array();
+		}
+		$real_openai_module->settings['ollama_auth_token'] = array( 'value' => 'test-token-123' );
+		
+		$real_ollama_server = new POS_Ollama_Server( $real_openai_module );
+
+		// Test conversation history
+		$conversation_1 = array(
+			array(
+				'role'    => 'user',
+				'content' => 'What is WordPress?',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => 'WordPress is a content management system.',
+			),
+		);
+
+		// Same conversation with additional system message (should produce same hash)
+		$conversation_2 = array(
+			array(
+				'role'    => 'system',
+				'content' => 'You are a helpful assistant.',
+			),
+			array(
+				'role'    => 'user',
+				'content' => 'What is WordPress?',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => 'WordPress is a content management system.',
+			),
+		);
+
+		// Extended conversation with additional user message AFTER assistant
+		// This should produce the SAME hash as the first two because hash only
+		// includes messages up to and including the last assistant message
+		$conversation_3 = array(
+			array(
+				'role'    => 'user',
+				'content' => 'What is WordPress?',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => 'WordPress is a content management system.',
+			),
+			array(
+				'role'    => 'user',
+				'content' => 'Tell me more about themes.',
+			),
+		);
+
+		// Truly different conversation with different assistant response
+		$conversation_4 = array(
+			array(
+				'role'    => 'user',
+				'content' => 'What is WordPress?',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => 'WordPress is a blog publishing platform.',
+			),
+		);
+
+		// Use reflection to test the real hash calculation
+		$reflection = new ReflectionClass( $real_ollama_server );
+		$hash_method = $reflection->getMethod( 'calculate_rolling_hash' );
+		$hash_method->setAccessible( true );
+
+		$hash_1 = $hash_method->invoke( $real_ollama_server, $conversation_1 );
+		$hash_2 = $hash_method->invoke( $real_ollama_server, $conversation_2 );
+		$hash_3 = $hash_method->invoke( $real_ollama_server, $conversation_3 );
+		$hash_4 = $hash_method->invoke( $real_ollama_server, $conversation_4 );
+
+		// Verify that system messages are excluded (hash_1 should equal hash_2)
+		$this->assertEquals( $hash_1, $hash_2, 'System messages should not affect hash calculation' );
+
+		// Verify that messages after last assistant are excluded (hash_1 should equal hash_3)
+		$this->assertEquals( $hash_1, $hash_3, 'Messages after last assistant should not affect hash calculation' );
+
+		// Verify that different assistant responses produce different hashes
+		$this->assertNotEquals( $hash_1, $hash_4, 'Different assistant responses should produce different hashes' );
+
+		// Verify hash format (SHA256)
+		$this->assertIsString( $hash_1 );
+		$this->assertEquals( 64, strlen( $hash_1 ), 'Hash should be 64 characters (SHA256)' );
+		$this->assertMatchesRegularExpression( '/^[a-f0-9]{64}$/', $hash_1, 'Hash should be valid hexadecimal' );
+	}
+
+	/**
+	 * Integration test: Test that save_backscroll creates posts with correct metadata.
+	 * 
+	 * This test uses the real OpenAI module's save_backscroll method to ensure
+	 * posts are created with proper structure and metadata.
+	 */
+	public function test_backscroll_save_integration_real_posts() {
+		$real_openai_module = \POS::get_module_by_id( 'openai' );
+		if ( ! $real_openai_module ) {
+			$this->markTestSkipped( 'OpenAI module not available' );
+			return;
+		}
+
+		// Test conversation data
+		$backscroll = array(
+			array(
+				'role'    => 'user',
+				'content' => 'Hello integration test',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => 'Hello! This is an integration test response.',
+			),
+		);
+
+		// Test hash calculation
+		$test_hash = 'integration_test_hash_' . time();
+
+		// Create post using real save_backscroll
+		$post_id = $real_openai_module->save_backscroll( $backscroll, array() );
+
+		$this->assertIsInt( $post_id );
+		$this->assertGreaterThan( 0, $post_id );
+
+		// Add metadata manually since save_backscroll doesn't handle meta_input
+		update_post_meta( $post_id, 'ollama-hash', $test_hash );
+
+		// Verify post was created correctly
+		$created_post = get_post( $post_id );
+		$this->assertNotNull( $created_post );
+		$this->assertEquals( 'notes', $created_post->post_type );
+		$this->assertEquals( 'private', $created_post->post_status );
+
+		// Verify post content contains conversation
+		$this->assertStringContainsString( 'Hello integration test', $created_post->post_content );
+		$this->assertStringContainsString( 'Hello! This is an integration test response.', $created_post->post_content );
+
+		// Verify metadata was stored
+		$stored_hash = get_post_meta( $post_id, 'ollama-hash', true );
+		$this->assertEquals( $test_hash, $stored_hash );
+
+		// Test that searching by hash works
+		$found_posts = get_posts(
+			array(
+				'post_type'   => 'notes',
+				'post_status' => 'private',
+				'meta_query'  => array(
+					array(
+						'key'   => 'ollama-hash',
+						'value' => $test_hash,
+					),
+				),
+				'numberposts' => 1,
+			)
+		);
+
+		$this->assertCount( 1, $found_posts );
+		$this->assertEquals( $post_id, $found_posts[0]->ID );
+
+		// Clean up
+		wp_delete_post( $post_id, true );
+	}
+
+	/**
+	 * Integration test: Test complete workflow from hash calculation to post matching.
+	 * 
+	 * This simulates the workflow where:
+	 * 1. Initial conversation creates a post with hash
+	 * 2. Continued conversation with same history should find the same post
+	 * 3. Different conversation should create different post
+	 */
+	public function test_backscroll_complete_workflow_integration() {
+		$real_openai_module = \POS::get_module_by_id( 'openai' );
+		if ( ! $real_openai_module ) {
+			$this->markTestSkipped( 'OpenAI module not available' );
+			return;
+		}
+
+		// Set up authentication for hash calculation
+		if ( ! isset( $real_openai_module->settings ) ) {
+			$real_openai_module->settings = array();
+		}
+		$real_openai_module->settings['ollama_auth_token'] = array( 'value' => 'test-token-123' );
+		
+		$real_ollama_server = new POS_Ollama_Server( $real_openai_module );
+
+		// Step 1: Initial conversation
+		$initial_conversation = array(
+			array(
+				'role'    => 'user',
+				'content' => 'What is WordPress development?',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => 'WordPress development involves creating themes, plugins, and custom functionality.',
+			),
+		);
+
+		// Calculate hash for initial conversation
+		$reflection = new ReflectionClass( $real_ollama_server );
+		$hash_method = $reflection->getMethod( 'calculate_rolling_hash' );
+		$hash_method->setAccessible( true );
+		$initial_hash = $hash_method->invoke( $real_ollama_server, $initial_conversation );
+
+		// Create initial post
+		$initial_post_id = $real_openai_module->save_backscroll(
+			$initial_conversation,
+			array(
+				'name' => 'test-conversation-1-' . time(),
+			)
+		);
+
+		$this->assertIsInt( $initial_post_id );
+		$this->assertGreaterThan( 0, $initial_post_id );
+
+		// Add hash metadata manually
+		update_post_meta( $initial_post_id, 'ollama-hash', $initial_hash );
+
+		// Step 2: Continue the same conversation
+		$continued_conversation = array(
+			array(
+				'role'    => 'user',
+				'content' => 'What is WordPress development?',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => 'WordPress development involves creating themes, plugins, and custom functionality.',
+			),
+			array(
+				'role'    => 'user',
+				'content' => 'Can you tell me about hooks?',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => 'WordPress hooks are filters and actions that allow you to modify behavior.',
+			),
+		);
+
+		$continued_hash = $hash_method->invoke( $real_ollama_server, $continued_conversation );
+
+		// The hash of the continued conversation should be different from initial
+		$this->assertNotEquals( $initial_hash, $continued_hash );
+
+		// But if we search for a post by the previous hash, we should find the original post
+		$matching_posts = get_posts(
+			array(
+				'post_type'   => 'notes',
+				'post_status' => 'private',
+				'meta_query'  => array(
+					array(
+						'key'   => 'ollama-hash',
+						'value' => $initial_hash,
+					),
+				),
+				'numberposts' => 1,
+			)
+		);
+
+		$this->assertCount( 1, $matching_posts );
+		$this->assertEquals( $initial_post_id, $matching_posts[0]->ID );
+
+		// Step 3: Create a completely different conversation
+		$different_conversation = array(
+			array(
+				'role'    => 'user',
+				'content' => 'Tell me about PHP programming',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => 'PHP is a server-side scripting language for web development.',
+			),
+		);
+
+		$different_hash = $hash_method->invoke( $real_ollama_server, $different_conversation );
+
+		// This should produce a completely different hash
+		$this->assertNotEquals( $initial_hash, $different_hash );
+		$this->assertNotEquals( $continued_hash, $different_hash );
+
+		// Create a new post for the different conversation
+		$different_post_id = $real_openai_module->save_backscroll(
+			$different_conversation,
+			array(
+				'name' => 'test-conversation-2-' . time(),
+			)
+		);
+
+		$this->assertIsInt( $different_post_id );
+		$this->assertGreaterThan( 0, $different_post_id );
+		$this->assertNotEquals( $initial_post_id, $different_post_id );
+
+		// Add hash metadata manually
+		update_post_meta( $different_post_id, 'ollama-hash', $different_hash );
+
+		// Verify we now have 2 different posts with different hashes
+		$all_test_posts = get_posts(
+			array(
+				'post_type'   => 'notes',
+				'post_status' => 'private',
+				'meta_query'  => array(
+					array(
+						'key'     => 'ollama-hash',
+						'compare' => 'EXISTS',
+					),
+				),
+				'numberposts' => -1,
+			)
+		);
+
+		$test_post_ids = array( $initial_post_id, $different_post_id );
+		$found_test_posts = array_filter(
+			$all_test_posts,
+			function ( $post ) use ( $test_post_ids ) {
+				return in_array( $post->ID, $test_post_ids, true );
+			}
+		);
+
+		$this->assertCount( 2, $found_test_posts );
+
+		// Clean up
+		wp_delete_post( $initial_post_id, true );
+		wp_delete_post( $different_post_id, true );
 	}
 } 
