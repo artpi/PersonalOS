@@ -1062,7 +1062,7 @@ class OpenAI_Module extends POS_Module {
 		$this->save_backscroll(
 			$response,
 			array(
-				'post_name' => $params['id'],
+				'name' => $params['id'],
 			)
 		);
 

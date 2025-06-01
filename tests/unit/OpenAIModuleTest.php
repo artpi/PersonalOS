@@ -11,8 +11,8 @@ class OpenAIModuleTest extends WP_UnitTestCase {
 		wp_set_current_user( 1 );
 
 		// Create default notebook term if it doesn't exist
-		if ( ! term_exists( 'openai-chats', 'notebook' ) ) {
-			wp_insert_term( 'OpenAI Chats', 'notebook', array( 'slug' => 'openai-chats' ) );
+		if ( ! term_exists( 'ai-chats', 'notebook' ) ) {
+			wp_insert_term( 'AI Chats', 'notebook', array( 'slug' => 'ai-chats' ) );
 		}
 	}
 
@@ -52,7 +52,7 @@ class OpenAIModuleTest extends WP_UnitTestCase {
 	public function test_save_backscroll_creates_new_post() {
 		$backscroll = $this->get_sample_backscroll();
 		$config = array(
-			'name'  => 'test-chat-1',
+			'name'       => 'test-chat-1',
 			'post_title' => 'Test Chat Session',
 		);
 
@@ -89,7 +89,7 @@ class OpenAIModuleTest extends WP_UnitTestCase {
 	public function test_save_backscroll_updates_existing_post() {
 		$backscroll = $this->get_sample_backscroll();
 		$config = array(
-			'post_name'  => 'test-chat-update',
+			'name'       => 'test-chat-update',
 			'post_title' => 'Original Title',
 		);
 
@@ -110,8 +110,8 @@ class OpenAIModuleTest extends WP_UnitTestCase {
 			),
 		) );
 		$updated_config = array(
-			'post_name'  => 'test-chat-update',
-			'post_title' => 'Updated Title',
+			'name'       => 'test-chat-update',
+			'post_title' => 'Updated Title', // This won't be applied to existing posts
 		);
 
 		$post_id_2 = $method->invokeArgs( $this->module, array( $updated_backscroll, $updated_config ) );
@@ -120,6 +120,8 @@ class OpenAIModuleTest extends WP_UnitTestCase {
 		$this->assertEquals( $post_id_1, $post_id_2 );
 
 		$post = get_post( $post_id_2 );
+		// Title should remain the same since save_backscroll only updates content for existing posts
+		$this->assertEquals( 'Original Title', $post->post_title );
 		$this->assertStringContainsString( 'This is an updated message', $post->post_content );
 	}
 
@@ -132,8 +134,8 @@ class OpenAIModuleTest extends WP_UnitTestCase {
 
 		$backscroll = $this->get_sample_backscroll();
 		$config = array(
-			'post_name' => 'test-chat-custom',
-			'notebook'  => 'custom-notebook',
+			'name'     => 'test-chat-custom',
+			'notebook' => 'custom-notebook',
 		);
 
 		// Use reflection to access the private method
@@ -155,8 +157,8 @@ class OpenAIModuleTest extends WP_UnitTestCase {
 	public function test_save_backscroll_creates_notebook() {
 		$backscroll = $this->get_sample_backscroll();
 		$config = array(
-			'post_name' => 'test-chat-new-notebook',
-			'notebook'  => 'new-test-notebook',
+			'name'     => 'test-chat-new-notebook',
+			'notebook' => 'new-test-notebook',
 		);
 
 		// Ensure notebook doesn't exist - check both term_exists and get_term_by
@@ -182,6 +184,28 @@ class OpenAIModuleTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test save_backscroll error handling for missing name
+	 */
+	public function test_save_backscroll_missing_post_name() {
+		$backscroll = $this->get_sample_backscroll();
+		$config = array(); // Missing name
+
+		// Use reflection to access the private method
+		$reflection = new ReflectionClass( $this->module );
+		$method = $reflection->getMethod( 'save_backscroll' );
+		$method->setAccessible( true );
+
+		$result = $method->invokeArgs( $this->module, array( $backscroll, $config ) );
+
+		// Should succeed since name is now optional with a default
+		$this->assertIsInt( $result );
+		$this->assertGreaterThan( 0, $result );
+
+		$post = get_post( $result );
+		$this->assertStringContainsString( 'chat-', $post->post_name ); // Default name format
+	}
+
+	/**
 	 * Test save_backscroll error handling when notes module is not available
 	 */
 	public function test_save_backscroll_notes_module_unavailable() {
@@ -203,14 +227,15 @@ class OpenAIModuleTest extends WP_UnitTestCase {
 		// Create an existing post first
 		$existing_post_id = wp_insert_post( array(
 			'post_type'   => 'notes',
-			'name'   => 'existing-chat',
+			'post_name'   => 'existing-chat',
 			'post_title'  => 'Existing Chat',
 			'post_status' => 'private',
 		) );
 
 		$backscroll = $this->get_sample_backscroll();
 		$config = array(
-			'name'  => 'existing-chat',
+			'name'       => 'existing-chat',
+			'post_title' => 'Updated Chat', // This won't be applied to existing posts
 		);
 
 		// Use reflection to access the private method
@@ -224,7 +249,10 @@ class OpenAIModuleTest extends WP_UnitTestCase {
 		$this->assertEquals( $existing_post_id, $post_id );
 
 		$post = get_post( $post_id );
+		// Title should remain the same since save_backscroll only updates content for existing posts
 		$this->assertEquals( 'Existing Chat', $post->post_title );
+		// But content should be updated
+		$this->assertStringContainsString( 'wp:pos/ai-message', $post->post_content );
 	}
 
 	/**
@@ -255,7 +283,7 @@ class OpenAIModuleTest extends WP_UnitTestCase {
 		);
 
 		$config = array(
-			'post_name' => 'test-chat-filtered',
+			'name' => 'test-chat-filtered',
 		);
 
 		// Use reflection to access the private method
