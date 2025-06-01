@@ -931,6 +931,17 @@ class OpenAI_Module extends POS_Module {
 			return new WP_Error( 'notes_module_not_found', 'Notes module not available' );
 		}
 
+		// Generate title if not provided and OpenAI is configured
+		$post_title = $search_args['post_title'] ?? null;
+		if ( ! $post_title && $this->is_configured() ) {
+			$post_title = $this->generate_conversation_title( $backscroll );
+		}
+		
+		// Fall back to default title if generation failed or not configured
+		if ( ! $post_title ) {
+			$post_title = 'Chat ' . gmdate( 'Y-m-d H:i:s' );
+		}
+
 		// Create content from backscroll messages
 		$content_blocks = array();
 		foreach ( $backscroll as $message ) {
@@ -964,8 +975,7 @@ class OpenAI_Module extends POS_Module {
 
 		// Prepare post data
 		$post_data = array(
-			// TODO: generate title with AI.
-			'post_title'   => $search_args['post_title'] ?? 'Chat ' . gmdate( 'Y-m-d H:i:s' ),
+			'post_title'   => $post_title,
 			'post_type'    => $notes_module->id,
 			'post_name'    => $search_args['name'] ?? 'chat-' . gmdate( 'Y-m-d-H-i-s' ),
 			'post_status'  => 'private',
@@ -1001,6 +1011,71 @@ class OpenAI_Module extends POS_Module {
 		}
 
 		return $post_id;
+	}
+
+	/**
+	 * Generate a title for a conversation using GPT-4o-mini
+	 *
+	 * @param array $backscroll Array of conversation messages
+	 * @return string|null Generated title or null if generation failed
+	 */
+	private function generate_conversation_title( array $backscroll ): ?string {
+		// Extract meaningful content from the conversation
+		$conversation_content = '';
+		$message_count = 0;
+
+		foreach ( $backscroll as $message ) {
+			if ( is_object( $message ) ) {
+				$message = (array) $message;
+			}
+
+			if ( ! isset( $message['role'] ) || ! isset( $message['content'] ) ) {
+				continue;
+			}
+
+			// Only include user and assistant messages
+			if ( in_array( $message['role'], array( 'user', 'assistant' ), true ) ) {
+				$conversation_content .= $message['role'] . ': ' . $message['content'] . "\n";
+				$message_count++;
+
+				// Limit to first few exchanges to avoid token limits
+				if ( $message_count >= 6 ) {
+					break;
+				}
+			}
+		}
+
+		if ( empty( $conversation_content ) ) {
+			return null;
+		}
+
+		$title_prompt = array(
+			array(
+				'role'    => 'system',
+				'content' => 'You are a helpful assistant that creates short, descriptive titles for conversations. Generate a concise title (3-8 words) that captures the main topic or purpose of the conversation. Do not use quotes or special formatting.',
+			),
+			array(
+				'role'    => 'user',
+				'content' => "Please create a short title for this conversation:\n\n" . $conversation_content,
+			),
+		);
+
+		$generated_title = $this->chat_completion( $title_prompt, 'gpt-4o-mini' );
+
+		if ( is_wp_error( $generated_title ) ) {
+			return null;
+		}
+
+		// Clean up the title
+		$generated_title = trim( $generated_title, '"\'`' );
+		$generated_title = wp_strip_all_tags( $generated_title );
+
+		// Ensure it's not too long
+		if ( strlen( $generated_title ) > 100 ) {
+			$generated_title = substr( $generated_title, 0, 97 ) . '...';
+		}
+
+		return $generated_title;
 	}
 
 	public function vercel_chat( WP_REST_Request $request ) {
