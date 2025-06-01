@@ -1,6 +1,6 @@
 <?php
 
-class OpenAIModuleIntegrationTest extends WP_UnitTestCase {
+class OpenAIModuleVercelChatTest extends WP_UnitTestCase {
 	private $module = null;
 	private $notes_module = null;
 
@@ -11,8 +11,8 @@ class OpenAIModuleIntegrationTest extends WP_UnitTestCase {
 		wp_set_current_user( 1 );
 
 		// Create default notebook term if it doesn't exist
-		if ( ! term_exists( 'openai-chats', 'notebook' ) ) {
-			wp_insert_term( 'OpenAI Chats', 'notebook', array( 'slug' => 'openai-chats' ) );
+		if ( ! term_exists( 'ai-chats', 'notebook' ) ) {
+			wp_insert_term( 'AI Chats', 'notebook', array( 'slug' => 'ai-chats' ) );
 		}
 	}
 
@@ -30,21 +30,14 @@ class OpenAIModuleIntegrationTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test vercel_chat integration with save_backscroll
-	 * 
-	 * @group integration
+	 * Test vercel_chat method with save_backscroll
 	 */
 	public function test_vercel_chat_saves_conversation() {
-		// Skip if OpenAI is not configured (no API key)
-		if ( ! $this->module->is_configured() ) {
-			$this->markTestSkipped( 'OpenAI module not configured with API key' );
-		}
-
-		$chat_id = 'test-integration-chat-' . time();
+		$chat_id = 'test-unit-chat-' . time();
 		$params = array(
 			'id'      => $chat_id,
 			'message' => array(
-				'content' => 'Hello, this is a test message for integration testing.',
+				'content' => 'Hello, this is a test message for unit testing.',
 			),
 		);
 
@@ -54,17 +47,14 @@ class OpenAIModuleIntegrationTest extends WP_UnitTestCase {
 		$mock_response = array(
 			array(
 				'role'    => 'user',
-				'content' => 'Hello, this is a test message for integration testing.',
+				'content' => 'Hello, this is a test message for unit testing.',
 			),
 			array(
 				'role'    => 'assistant',
-				'content' => 'Hello! I understand this is a test message for integration testing. How can I help you today?',
+				'content' => 'Hello! I understand this is a test message for unit testing. How can I help you today?',
 			),
 		);
 
-		// Use a different approach - we'll capture the output and check for saved posts
-		// Since vercel_chat calls die(), we need to handle this carefully
-		
 		// Set up transient to simulate existing conversation
 		set_transient( 'vercel_chat_' . $chat_id, array(), 60 * 60 );
 
@@ -75,7 +65,7 @@ class OpenAIModuleIntegrationTest extends WP_UnitTestCase {
 		// Since vercel_chat ends with die(), we need to test save_backscroll directly
 		// but in the context of how vercel_chat would call it
 		$config = array(
-			'post_name' => $chat_id,
+			'name' => $chat_id,
 		);
 
 		// Use reflection to access the private method
@@ -97,13 +87,13 @@ class OpenAIModuleIntegrationTest extends WP_UnitTestCase {
 
 		// Verify content structure
 		$this->assertStringContainsString( 'wp:pos/ai-message', $post->post_content );
-		$this->assertStringContainsString( 'Hello, this is a test message for integration testing.', $post->post_content );
+		$this->assertStringContainsString( 'Hello, this is a test message for unit testing.', $post->post_content );
 		$this->assertStringContainsString( 'Hello! I understand this is a test message', $post->post_content );
 
 		// Verify notebook assignment
 		$notebooks = wp_get_object_terms( $post_id, 'notebook' );
 		$this->assertCount( 1, $notebooks );
-		$this->assertEquals( 'openai-chats', $notebooks[0]->slug );
+		$this->assertEquals( 'ai-chats', $notebooks[0]->slug );
 
 		// Test updating the same conversation
 		$updated_response = array_merge( $mock_response, array(
@@ -130,8 +120,6 @@ class OpenAIModuleIntegrationTest extends WP_UnitTestCase {
 
 	/**
 	 * Test vercel_chat with missing content
-	 * 
-	 * @group integration
 	 */
 	public function test_vercel_chat_missing_content() {
 		$params = array(
@@ -150,8 +138,6 @@ class OpenAIModuleIntegrationTest extends WP_UnitTestCase {
 
 	/**
 	 * Test vercel_chat with messages array format
-	 * 
-	 * @group integration
 	 */
 	public function test_vercel_chat_with_messages_array() {
 		$chat_id = 'test-messages-array-' . time();
@@ -203,8 +189,6 @@ class OpenAIModuleIntegrationTest extends WP_UnitTestCase {
 
 	/**
 	 * Test transient handling in vercel_chat
-	 * 
-	 * @group integration
 	 */
 	public function test_vercel_chat_transient_handling() {
 		$chat_id = 'test-transient-' . time();
@@ -245,5 +229,45 @@ class OpenAIModuleIntegrationTest extends WP_UnitTestCase {
 		// Verify transient was set
 		$stored_transient = get_transient( 'vercel_chat_' . $chat_id );
 		$this->assertEquals( $response, $stored_transient );
+	}
+
+	/**
+	 * Test save_backscroll config parameter handling in vercel_chat context
+	 */
+	public function test_save_backscroll_config_in_vercel_chat() {
+		$chat_id = 'test-config-' . time();
+		$backscroll = array(
+			array(
+				'role'    => 'user',
+				'content' => 'Test config message',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => 'Config response',
+			),
+		);
+
+		// Test the config array that vercel_chat passes to save_backscroll
+		$config = array(
+			'name' => $chat_id,
+		);
+
+		// Use reflection to access the private method
+		$reflection = new ReflectionClass( $this->module );
+		$method = $reflection->getMethod( 'save_backscroll' );
+		$method->setAccessible( true );
+
+		$post_id = $method->invokeArgs( $this->module, array( $backscroll, $config ) );
+
+		// Verify the post was created with correct properties
+		$post = get_post( $post_id );
+		$this->assertEquals( $chat_id, $post->post_name );
+		$this->assertStringContainsString( 'Chat ', $post->post_title ); // Default title format
+		$this->assertEquals( 'private', $post->post_status );
+
+		// Verify default notebook assignment (ai-chats)
+		$notebooks = wp_get_object_terms( $post_id, 'notebook' );
+		$this->assertCount( 1, $notebooks );
+		$this->assertEquals( 'ai-chats', $notebooks[0]->slug );
 	}
 } 
