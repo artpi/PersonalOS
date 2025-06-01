@@ -914,10 +914,20 @@ class OpenAI_Module extends POS_Module {
 		return json_decode( $body );
 	}
 
-	private function save_backscroll( array $backscroll, string $id ) {
+	/**
+	 * Save conversation backscroll as a note
+	 *
+	 * @param array $backscroll Array of conversation messages
+	 * @param array $config Configuration array for finding/creating the post
+	 *                      - 'name': The post slug/name to search for
+	 *                      - 'post_title': Title for new posts (optional)
+	 *                      - 'notebook': Notebook slug to assign (optional, defaults to 'openai-chats')
+	 * @return int|WP_Error Post ID on success, WP_Error on failure
+	 */
+	private function save_backscroll( array $backscroll, array $config ) {
 		$notes_module = POS::get_module_by_id( 'notes' );
 		if ( ! $notes_module ) {
-			return;
+			return new WP_Error( 'notes_module_not_found', 'Notes module not available' );
 		}
 
 		// Create content from backscroll messages
@@ -939,52 +949,57 @@ class OpenAI_Module extends POS_Module {
 				$content_blocks[] = get_comment_delimited_block_content(
 					'pos/ai-message',
 					array(
-						'role' => $role,
+						'role'    => $role,
 						'content' => $content,
-						'id' => $message['id'] ?? '',
+						'id'      => $message['id'] ?? '',
 					),
 					''
 				);
 			}
 		}
 
+		// Use notes module's list method to find existing posts
+		$existing_posts = $notes_module->list( $config, 'ai-chats' );
+
 		// Prepare post data
 		$post_data = array(
-			'post_title'   => 'Chat ' . gmdate( 'Y-m-d H:i:s' ),
+			// TODO: generate title with AI.
+			'post_title'   => $config['post_title'] ?? 'Chat ' . gmdate( 'Y-m-d H:i:s' ),
 			'post_type'    => $notes_module->id,
-			'post_name'    => $id,
-			'post_content' => implode( "\n\n", $content_blocks ),
+			'post_name'    => $config['name'] ?? 'chat-' . gmdate( 'Y-m-d-H-i-s' ),
 			'post_status'  => 'private',
 		);
 
-		$existing_posts = get_posts(
-			array(
-				'post_type'      => $notes_module->id,
-				'posts_per_page' => 1,
-				'name' => $id,
-			)
-		);
-		error_log( 'Existing posts: ' . print_r( $existing_posts, true ) );
 		// Create or update post
 		if ( ! empty( $existing_posts ) ) {
-			$post_data['ID'] = $existing_posts[0]->ID;
-			wp_update_post( $post_data );
+			$post_id = wp_update_post(
+				array(
+					'ID'           => $existing_posts[0]->ID,
+					'post_content' => implode( "\n\n", $content_blocks ),
+				)
+			);
 		} else {
+			$post_data['post_content'] = implode( "\n\n", $content_blocks );
 			$post_id = wp_insert_post( $post_data );
 
-			// Add to OpenAI notebook
-			$openai_notebook = get_term_by( 'slug', 'openai-chats', 'notebook' );
-			if ( ! $openai_notebook ) {
-				$term_result = wp_insert_term( 'OpenAI Chats', 'notebook', array( 'slug' => 'openai-chats' ) );
+			// Add to specified notebook or default to OpenAI chats
+			$notebook_slug = $config['notebook'] ?? 'ai-chats';
+			$notebook = get_term_by( 'slug', $notebook_slug, 'notebook' );
+
+			if ( ! $notebook ) {
+				$notebook_name = 'ai-chats' === $notebook_slug ? 'AI Chats' : ucwords( str_replace( '-', ' ', $notebook_slug ) );
+				$term_result = wp_insert_term( $notebook_name, 'notebook', array( 'slug' => $notebook_slug ) );
 				if ( ! is_wp_error( $term_result ) ) {
-					$openai_notebook = get_term( $term_result['term_id'], 'notebook' );
+					$notebook = get_term( $term_result['term_id'], 'notebook' );
 				}
 			}
 
-			if ( $openai_notebook ) {
-				wp_set_object_terms( $post_id, array( $openai_notebook->term_id ), 'notebook' );
+			if ( $notebook ) {
+				wp_set_object_terms( $post_id, array( $notebook->term_id ), 'notebook' );
 			}
 		}
+
+		return $post_id;
 	}
 
 	public function vercel_chat( WP_REST_Request $request ) {
@@ -1056,7 +1071,12 @@ class OpenAI_Module extends POS_Module {
 			}
 		} );
 		set_transient( 'vercel_chat_' . $params['id'], $response, 60 * 60 );
-		$this->save_backscroll( $response, $params['id'] );
+		$this->save_backscroll(
+			$response,
+			array(
+				'post_name' => $params['id'],
+			)
+		);
 
 		// $vercel_sdk->sendText( $response->choices[0]->message->content );
 		$vercel_sdk->finishStep(
