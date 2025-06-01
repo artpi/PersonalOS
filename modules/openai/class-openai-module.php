@@ -1,7 +1,7 @@
 <?php
 
 require_once __DIR__ . '/class-openai-tool.php';
-require_once __DIR__ . '/class-ollama.php';
+require_once __DIR__ . '/class-pos-ollama-server.php';
 
 class OpenAI_Module extends POS_Module {
 	public $id          = 'openai';
@@ -35,7 +35,10 @@ class OpenAI_Module extends POS_Module {
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
 		$this->register_cli_command( 'tool', 'cli_openai_tool' );
+
 		$this->register_block( 'tool', array( 'render_callback' => array( $this, 'render_tool_block' ) ) );
+		$this->register_block( 'message', array() );
+
 		require_once __DIR__ . '/chat-page.php';
 	}
 
@@ -901,6 +904,95 @@ class OpenAI_Module extends POS_Module {
 		return json_decode( $body );
 	}
 
+	/**
+	 * Save conversation backscroll as a note
+	 *
+	 * @param array $backscroll Array of conversation messages
+	 * @param array $search_args Search arguments for get_posts to find existing notes, also used for new post configuration
+	 *                           - 'name': The post slug/name to search for and use when creating new posts
+	 *                           - 'post_title': Title for new posts (optional, defaults to auto-generated)
+	 *                           - 'notebook': Notebook slug to assign to new posts (optional, defaults to 'ai-chats')
+	 *                           - Any other valid get_posts() arguments for finding existing posts
+	 * @return int|WP_Error Post ID on success, WP_Error on failure
+	 */
+	public function save_backscroll( array $backscroll, array $search_args ) {
+		$notes_module = POS::get_module_by_id( 'notes' );
+		if ( ! $notes_module ) {
+			return new WP_Error( 'notes_module_not_found', 'Notes module not available' );
+		}
+
+		// Create content from backscroll messages
+		$content_blocks = array();
+		foreach ( $backscroll as $message ) {
+			if ( is_object( $message ) ) {
+				$message = (array) $message;
+			}
+
+			if ( ! isset( $message['role'] ) ) {
+				continue;
+			}
+
+			$role = $message['role'];
+			$content = $message['content'] ?? '';
+
+			if ( in_array( $role, array( 'user', 'assistant' ), true ) ) {
+				// Create message block
+				$content_blocks[] = get_comment_delimited_block_content(
+					'pos/ai-message',
+					array(
+						'role'    => $role,
+						'content' => $content,
+						'id'      => $message['id'] ?? '',
+					),
+					''
+				);
+			}
+		}
+
+		// Use notes module's list method to find existing posts
+		$existing_posts = $notes_module->list( $search_args, 'ai-chats' );
+
+		// Prepare post data
+		$post_data = array(
+			// TODO: generate title with AI.
+			'post_title'   => $search_args['post_title'] ?? 'Chat ' . gmdate( 'Y-m-d H:i:s' ),
+			'post_type'    => $notes_module->id,
+			'post_name'    => $search_args['name'] ?? 'chat-' . gmdate( 'Y-m-d-H-i-s' ),
+			'post_status'  => 'private',
+		);
+
+		// Create or update post
+		if ( ! empty( $existing_posts ) ) {
+			$post_id = wp_update_post(
+				array(
+					'ID'           => $existing_posts[0]->ID,
+					'post_content' => implode( "\n\n", $content_blocks ),
+				)
+			);
+		} else {
+			$post_data['post_content'] = implode( "\n\n", $content_blocks );
+			$post_id = wp_insert_post( $post_data );
+
+			// Add to specified notebook or default to OpenAI chats
+			$notebook_slug = $search_args['notebook'] ?? 'ai-chats';
+			$notebook = get_term_by( 'slug', $notebook_slug, 'notebook' );
+
+			if ( ! $notebook ) {
+				$notebook_name = 'ai-chats' === $notebook_slug ? 'AI Chats' : ucwords( str_replace( '-', ' ', $notebook_slug ) );
+				$term_result = wp_insert_term( $notebook_name, 'notebook', array( 'slug' => $notebook_slug ) );
+				if ( ! is_wp_error( $term_result ) ) {
+					$notebook = get_term( $term_result['term_id'], 'notebook' );
+				}
+			}
+
+			if ( $notebook ) {
+				wp_set_object_terms( $post_id, array( $notebook->term_id ), 'notebook' );
+			}
+		}
+
+		return $post_id;
+	}
+
 	public function vercel_chat( WP_REST_Request $request ) {
 		$params = $request->get_json_params();
 
@@ -967,7 +1059,13 @@ class OpenAI_Module extends POS_Module {
 				$vercel_sdk->sendToolCall( $data->id, $data->function->name, json_decode( $data->function->arguments, true ) );
 			}
 		} );
-		set_transient( 'vercel_chat_' . $params['id'], $openai_messages, 60 * 60 );
+		set_transient( 'vercel_chat_' . $params['id'], $response, 60 * 60 );
+		$this->save_backscroll(
+			$response,
+			array(
+				'name' => $params['id'],
+			)
+		);
 
 		// $vercel_sdk->sendText( $response->choices[0]->message->content );
 		$vercel_sdk->finishStep( 'stop', array( 'promptTokens' => 0, 'completionTokens' => 0 ), false );

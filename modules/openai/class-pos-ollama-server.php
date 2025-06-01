@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/class-openai-module.php';
+
 /**
  * Ollama Mock Server Class
  *
@@ -30,7 +32,7 @@
  */
 class POS_Ollama_Server {
 
-	public $module;
+	public \OpenAI_Module $module; // Reference to OpenAI_Module
 	public $rest_namespace = 'ollama/v1';
 	/**
 	 * Array of available models in this mock server.
@@ -45,10 +47,10 @@ class POS_Ollama_Server {
 	public function __construct( $module ) {
 		$this->module = $module;
 		$token = $this->module->get_setting( 'ollama_auth_token' );
-		$this->module->settings[ 'ollama_auth_token' ] = array(
+		$this->module->settings['ollama_auth_token'] = array(
 			'type'  => 'text',
 			'name'  => 'Token for authorizing OLLAMA mock API.',
-			'label'   => strlen( $token ) < 3 ? 'Set a token to enable Ollama-compatible API for external clients' : 'OLLAMA Api accessible at <a href="' . add_query_arg( 'token', $token, get_rest_url( null, $this->rest_namespace  ) ) . '" target="_blank">here</a>',
+			'label'   => strlen( $token ) < 3 ? 'Set a token to enable Ollama-compatible API for external clients' : 'OLLAMA Api accessible at <a href="' . add_query_arg( 'token', $token, get_rest_url( null, $this->rest_namespace ) ) . '" target="_blank">here</a>',
 			'default' => '0',
 		);
 		if ( strlen( $token ) >= 3 ) {
@@ -312,6 +314,24 @@ Used for testing and development purposes only.
 		);
 	}
 
+	private function calculate_rolling_hash( $messages ) {
+		$hash = '';
+		$last_assistant_index = -1;
+		foreach ( $messages as $index => $message ) {
+			$message = (array) $message;
+			if ( in_array( $message['role'], array( 'assistant', 'system' ), true ) ) {
+				$last_assistant_index = $index;
+			}
+		}
+		foreach ( $messages as $index => $message ) {
+			$message = (array) $message;
+			if ( ( $index <= $last_assistant_index || $last_assistant_index === -1 ) && in_array( $message['role'], array( 'user', 'assistant' ), true ) ) {
+				$hash .= "\n\n" . trim( $message['content'] );
+			}
+		}
+		return hash( 'sha256', trim( $hash ) );
+	}
+
 	/**
 	 * POST /api/chat - Chat endpoint.
 	 *
@@ -345,7 +365,38 @@ Used for testing and development purposes only.
 				return $message['role'] !== 'system';
 			}
 		);
+
+		$hash = $this->calculate_rolling_hash( $messages );
+
 		$result = $this->module->complete_backscroll( $non_system_messages );
+
+		// Use the OpenAI module's save_backscroll method with hash as identifier
+		$post_id = $this->module->save_backscroll(
+			$result,
+			array(
+				'meta_input' => array(
+					'ollama-hash' => $hash,
+				),
+			)
+		);
+
+		if ( is_wp_error( $post_id ) ) {
+			return new WP_REST_Response(
+				array( 'error' => 'Failed to save conversation: ' . $post_id->get_error_message() ),
+				500
+			);
+		}
+
+		// In case we have edited an existing post, we are updating the hash with the result information so the subsequent search will find the correct post.
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'meta_input'   => array(
+					'ollama-hash' => $this->calculate_rolling_hash( $result ),
+				),
+			)
+		);
+
 		$last_message = (array) end( $result );
 		$answer      = $last_message['content'] ?? 'Hello from PersonalOS Mock Ollama!';
 		// $answer       = 'Echo: ' . json_encode( $data  ); //$content;

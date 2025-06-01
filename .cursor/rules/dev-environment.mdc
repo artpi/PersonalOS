@@ -6,9 +6,32 @@ alwaysApply: true
 The dev environment is managed by the `wp-env` package.
 In order to run code and run tests, you need to use the proper syntax to run commands.
 
-For example:
+## Testing Commands
 
-- To run unit tests, you would `npm run test:unit`
-- To read the debug.log you would `npm run wp-env run cli -- tail -n 100 wp-content/debug.log`
+### Unit Tests
+- To run all unit tests: `npm run test:unit`
+- To run specific unit test class: `npm run test:unit -- --filter=ClassName`
+- Example: `npm run test:unit -- --filter=OpenAIModuleTest`
 
-Feel free to do both as often as you think is reasonable. DO NOT run local commands on this machine, as the wp-env manages the environment in a docker container.
+### Integration Tests
+- Integration tests in this project are tests that run API calls to external APIs. All other tests are unit.
+- To run all integration tests: `npm run test:integration`
+- To run specific integration test class: `npm run test:integration -- --filter=ClassName`
+- **IMPORTANT**: Do NOT run integration tests automatically - only run when specifically requested
+
+### Other Useful Commands
+- To read the debug.log: `npm run wp-env run cli -- tail -n 100 wp-content/debug.log`
+- To check PHP syntax/linting: Use the linter errors shown in the interface
+- To run specific test groups: `npm run test:unit -- --group=groupname`
+
+## Testing Guidelines
+
+1. **Always run unit tests** after making code changes to verify functionality
+2. **Run specific test classes** when working on particular modules (faster feedback)
+3. **Only run integration tests** when specifically asked or when testing full system flows
+4. **Feel free to run unit tests often** - they are fast and help catch regressions
+5. **DO NOT run local commands** on this machine, as wp-env manages the environment in a docker container
+
+## Test Structure
+- Unit tests: `tests/unit/` - Test individual methods and classes in isolation
+- Integration tests: `tests/integration/` - Test full workflows and system interactions

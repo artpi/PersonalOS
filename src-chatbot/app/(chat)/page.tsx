@@ -1,9 +1,12 @@
 // import { cookies } from 'next/headers'; // Removed for static export: caused "used headers" error
 
+'use client';
+
 import { Chat } from '@/components/chat';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { generateUUID } from '@/lib/utils';
 import { DataStreamHandler } from '@/components/data-stream-handler';
+import { useEffect, useState } from 'react';
 // import { auth } from '../(auth)/auth'; // auth() call disabled for static export
 // import { redirect } from 'next/navigation'; // Redirect disabled for static export
 // import type { Session } from 'next-auth'; // Removed as next-auth is uninstalled
@@ -26,7 +29,15 @@ interface MockSession {
   expires: string;
 }
 
-export default async function Page() {
+export default function Page() {
+  // Generate unique ID on client-side to avoid static export issue
+  const [id, setId] = useState<string>('');
+  
+  useEffect(() => {
+    // Generate a unique ID after component mounts on client-side
+    setId(generateUUID());
+  }, []);
+
   // const sessionFromAuth = await auth(); // auth() call disabled for static export
   console.warn('auth() call in app/(chat)/page.tsx disabled. Using mock session.');
 
@@ -47,12 +58,21 @@ export default async function Page() {
   //   redirect('/api/auth/guest');
   // }
 
-  const id = generateUUID();
+  console.log( 'id: ' + id );
 
   // For static export, cookie reading is disabled. Always use default model.
   // const cookieStore = await cookies(); // Call to cookies() disabled
   // const modelIdFromCookie = cookieStore.get('chat-model');
   console.warn('Cookie reading in app/(chat)/page.tsx disabled for static export. Using default chat model.');
+
+  // Show loading state until ID is generated
+  if (!id) {
+    return (
+      <div className="flex items-center justify-center h-dvh">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <>
