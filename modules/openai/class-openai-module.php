@@ -936,7 +936,7 @@ class OpenAI_Module extends POS_Module {
 		if ( ! $post_title && $this->is_configured() ) {
 			$post_title = $this->generate_conversation_title( $backscroll );
 		}
-		
+
 		// Fall back to default title if generation failed or not configured
 		if ( ! $post_title ) {
 			$post_title = 'Chat ' . gmdate( 'Y-m-d H:i:s' );

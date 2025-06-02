@@ -374,8 +374,11 @@ Used for testing and development purposes only.
 		$post_id = $this->module->save_backscroll(
 			$result,
 			array(
-				'meta_input' => array(
-					'ollama-hash' => $hash,
+				'meta_query' => array(
+					array(
+						'key'   => 'ollama-hash',
+						'value' => $hash,
+					),
 				),
 			)
 		);

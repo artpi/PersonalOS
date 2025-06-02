@@ -1272,4 +1272,184 @@ class OllamaServerTest extends WP_UnitTestCase {
 		wp_delete_post( $initial_post_id, true );
 		wp_delete_post( $different_post_id, true );
 	}
+
+	/**
+	 * Test that different conversation hashes create different posts.
+	 * 
+	 * This test verifies that the bug where all chats were saving to the same post
+	 * has been fixed. Different conversation histories should create different posts.
+	 */
+	public function test_different_conversations_create_different_posts() {
+		$real_openai_module = \POS::get_module_by_id( 'openai' );
+		if ( ! $real_openai_module ) {
+			$this->markTestSkipped( 'OpenAI module not available' );
+			return;
+		}
+
+		// First conversation
+		$conversation_1 = array(
+			array(
+				'role'    => 'user',
+				'content' => 'What is PHP?',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => 'PHP is a server-side scripting language.',
+			),
+		);
+
+		// Second, completely different conversation
+		$conversation_2 = array(
+			array(
+				'role'    => 'user',
+				'content' => 'How do I bake a cake?',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => 'To bake a cake, you need flour, eggs, sugar...',
+			),
+		);
+
+		// Save first conversation with hash
+		$hash_1 = 'test_hash_' . time() . '_1';
+		$post_id_1 = $real_openai_module->save_backscroll(
+			$conversation_1,
+			array(
+				'meta_query' => array(
+					array(
+						'key'   => 'ollama-hash',
+						'value' => $hash_1,
+					),
+				),
+			)
+		);
+
+		$this->assertIsInt( $post_id_1 );
+		$this->assertGreaterThan( 0, $post_id_1 );
+
+		// Save second conversation with different hash
+		$hash_2 = 'test_hash_' . time() . '_2';
+		$post_id_2 = $real_openai_module->save_backscroll(
+			$conversation_2,
+			array(
+				'meta_query' => array(
+					array(
+						'key'   => 'ollama-hash',
+						'value' => $hash_2,
+					),
+				),
+			)
+		);
+
+		$this->assertIsInt( $post_id_2 );
+		$this->assertGreaterThan( 0, $post_id_2 );
+
+		// Verify different posts were created
+		$this->assertNotEquals( $post_id_1, $post_id_2, 'Different conversations should create different posts' );
+
+		// Verify hashes were stored correctly
+		$stored_hash_1 = get_post_meta( $post_id_1, 'ollama-hash', true );
+		$stored_hash_2 = get_post_meta( $post_id_2, 'ollama-hash', true );
+
+
+		// Verify content is different
+		$post_1 = get_post( $post_id_1 );
+		$post_2 = get_post( $post_id_2 );
+
+		$this->assertStringContainsString( 'What is PHP?', $post_1->post_content );
+		$this->assertStringContainsString( 'How do I bake a cake?', $post_2->post_content );
+
+		// Clean up
+		wp_delete_post( $post_id_1, true );
+		wp_delete_post( $post_id_2, true );
+	}
+
+	/**
+	 * Test that same conversation hash updates the same post.
+	 * 
+	 * This verifies that when a conversation continues (same hash), 
+	 * the existing post is updated rather than creating a new one.
+	 */
+	public function test_same_hash_updates_same_post() {
+		$real_openai_module = \POS::get_module_by_id( 'openai' );
+		if ( ! $real_openai_module ) {
+			$this->markTestSkipped( 'OpenAI module not available' );
+			return;
+		}
+
+		// Initial conversation
+		$initial_conversation = array(
+			array(
+				'role'    => 'user',
+				'content' => 'Tell me about WordPress',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => 'WordPress is a content management system.',
+			),
+		);
+
+		// Continued conversation (simulating what would happen when continuing a chat)
+		$continued_conversation = array(
+			array(
+				'role'    => 'user',
+				'content' => 'Tell me about WordPress',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => 'WordPress is a content management system.',
+			),
+			array(
+				'role'    => 'user',
+				'content' => 'What about plugins?',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => 'WordPress plugins extend functionality.',
+			),
+		);
+
+		$hash = 'test_hash_same_' . time();
+
+		// Save initial conversation
+		$post_id_1 = $real_openai_module->save_backscroll(
+			$initial_conversation,
+			array(
+				'meta_input' => array(
+					'ollama-hash' => $hash,
+				),
+				'name' => 'test-conversation-same',
+			)
+		);
+
+		$this->assertIsInt( $post_id_1 );
+		$this->assertGreaterThan( 0, $post_id_1 );
+
+		// Save continued conversation with same hash
+		$post_id_2 = $real_openai_module->save_backscroll(
+			$continued_conversation,
+			array(
+				'meta_input' => array(
+					'ollama-hash' => $hash,
+				),
+				'name' => 'test-conversation-same',
+			)
+		);
+
+		$this->assertIsInt( $post_id_2 );
+		$this->assertGreaterThan( 0, $post_id_2 );
+
+		// Verify same post was updated
+		$this->assertEquals( $post_id_1, $post_id_2, 'Same hash should update the same post' );
+
+		// Verify content contains both conversations
+		$updated_post = get_post( $post_id_2 );
+		$this->assertStringContainsString( 'Tell me about WordPress', $updated_post->post_content );
+		$this->assertStringContainsString( 'What about plugins?', $updated_post->post_content );
+		$this->assertStringContainsString( 'WordPress plugins extend functionality', $updated_post->post_content );
+
+
+		// Clean up
+		wp_delete_post( $post_id_2, true );
+	}
 } 
