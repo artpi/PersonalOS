@@ -915,7 +915,7 @@ class OpenAI_Module extends POS_Module {
 	}
 
 	/**
-	 * Save conversation backscroll as a note
+	 * Save conversation backscroll as a note. This WILL NOT set any meta fields passed to meta_query.
 	 *
 	 * @param array $backscroll Array of conversation messages
 	 * @param array $search_args Search arguments for get_posts to find existing notes, also used for new post configuration
