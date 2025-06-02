@@ -370,6 +370,14 @@ Used for testing and development purposes only.
 
 		$result = $this->module->complete_backscroll( $non_system_messages );
 
+		// Handle error from complete_backscroll
+		if ( is_wp_error( $result ) ) {
+			return new WP_REST_Response(
+				array( 'error' => 'Failed to complete conversation: ' . $result->get_error_message() ),
+				500
+			);
+		}
+
 		// Use the OpenAI module's save_backscroll method with hash as identifier
 		$post_id = $this->module->save_backscroll(
 			$result,
@@ -379,7 +387,7 @@ Used for testing and development purposes only.
 						'key'   => 'ollama-hash',
 						'value' => $hash,
 					),
-				),
+				)
 			)
 		);
 
