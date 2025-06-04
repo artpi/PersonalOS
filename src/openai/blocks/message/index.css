@@ -69,17 +69,214 @@
 	position: relative;
 }
 
-.wp-block-pos-ai-message .message-content:focus {
-	outline: none;
-	border-color: #3b82f6;
-	box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1), 0 1px 3px rgba(0, 0, 0, 0.1);
-	background: #ffffff;
-}
-
-.wp-block-pos-ai-message .message-content:empty::before {
-	content: "Type your message...";
+.wp-block-pos-ai-message .empty-placeholder {
 	color: #9ca3af;
 	font-style: italic;
+}
+
+/* Markdown Content Styles */
+.wp-block-pos-ai-message .markdown-content {
+	word-wrap: break-word;
+	overflow-wrap: break-word;
+}
+
+.wp-block-pos-ai-message .markdown-content h1,
+.wp-block-pos-ai-message .markdown-content h2,
+.wp-block-pos-ai-message .markdown-content h3,
+.wp-block-pos-ai-message .markdown-content h4,
+.wp-block-pos-ai-message .markdown-content h5,
+.wp-block-pos-ai-message .markdown-content h6 {
+	margin: 20px 0 12px 0;
+	font-weight: 600;
+	line-height: 1.3;
+}
+
+.wp-block-pos-ai-message .markdown-content h1:first-child,
+.wp-block-pos-ai-message .markdown-content h2:first-child,
+.wp-block-pos-ai-message .markdown-content h3:first-child,
+.wp-block-pos-ai-message .markdown-content h4:first-child,
+.wp-block-pos-ai-message .markdown-content h5:first-child,
+.wp-block-pos-ai-message .markdown-content h6:first-child {
+	margin-top: 0;
+}
+
+.wp-block-pos-ai-message .markdown-content h1 {
+	font-size: 1.5em;
+	border-bottom: 2px solid currentColor;
+	padding-bottom: 4px;
+}
+
+.wp-block-pos-ai-message .markdown-content h2 {
+	font-size: 1.3em;
+	border-bottom: 1px solid currentColor;
+	padding-bottom: 2px;
+}
+
+.wp-block-pos-ai-message .markdown-content h3 {
+	font-size: 1.2em;
+}
+
+.wp-block-pos-ai-message .markdown-content h4 {
+	font-size: 1.1em;
+}
+
+.wp-block-pos-ai-message .markdown-content h5,
+.wp-block-pos-ai-message .markdown-content h6 {
+	font-size: 1em;
+}
+
+.wp-block-pos-ai-message .markdown-content ul,
+.wp-block-pos-ai-message .markdown-content ol {
+	margin: 12px 0;
+	padding-left: 24px;
+}
+
+.wp-block-pos-ai-message .markdown-content ul {
+	list-style-type: disc;
+}
+
+.wp-block-pos-ai-message .markdown-content ol {
+	list-style-type: decimal;
+}
+
+.wp-block-pos-ai-message .markdown-content li {
+	margin: 6px 0;
+	line-height: 1.6;
+}
+
+.wp-block-pos-ai-message .markdown-content li ul,
+.wp-block-pos-ai-message .markdown-content li ol {
+	margin: 6px 0;
+}
+
+.wp-block-pos-ai-message .markdown-content p {
+	margin: 12px 0;
+	line-height: 1.6;
+}
+
+.wp-block-pos-ai-message .markdown-content p:first-child {
+	margin-top: 0;
+}
+
+.wp-block-pos-ai-message .markdown-content p:last-child {
+	margin-bottom: 0;
+}
+
+/* Better handling of line breaks within paragraphs */
+.wp-block-pos-ai-message .markdown-content br {
+	margin: 4px 0;
+}
+
+.wp-block-pos-ai-message .markdown-content strong {
+	font-weight: 600;
+}
+
+.wp-block-pos-ai-message .markdown-content em {
+	font-style: italic;
+}
+
+/* Improved inline code styling */
+.wp-block-pos-ai-message .markdown-content code {
+	background: rgba(0, 0, 0, 0.1);
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+	font-size: 0.85em;
+	border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Improved code block styling */
+.wp-block-pos-ai-message .markdown-content pre {
+	background: rgba(0, 0, 0, 0.05);
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: 8px;
+	padding: 16px;
+	margin: 16px 0;
+	overflow-x: auto;
+	font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+	font-size: 0.85em;
+	line-height: 1.5;
+	white-space: pre;
+	position: relative;
+}
+
+.wp-block-pos-ai-message .markdown-content pre code {
+	background: none;
+	padding: 0;
+	border-radius: 0;
+	border: none;
+	font-size: inherit;
+	line-height: inherit;
+}
+
+/* Code block language indicator */
+.wp-block-pos-ai-message .markdown-content pre[class*="language-"]::before {
+	content: attr(class);
+	position: absolute;
+	top: 8px;
+	right: 12px;
+	font-size: 0.7em;
+	color: rgba(0, 0, 0, 0.5);
+	text-transform: uppercase;
+	font-weight: 500;
+}
+
+.wp-block-pos-ai-message .markdown-content a {
+	color: #3b82f6;
+	text-decoration: underline;
+	word-break: break-word;
+}
+
+.wp-block-pos-ai-message .markdown-content a:hover {
+	color: #1d4ed8;
+}
+
+.wp-block-pos-ai-message .markdown-content blockquote {
+	border-left: 4px solid currentColor;
+	margin: 16px 0;
+	padding-left: 16px;
+	font-style: italic;
+	opacity: 0.8;
+}
+
+.wp-block-pos-ai-message .markdown-content table {
+	border-collapse: collapse;
+	margin: 16px 0;
+	width: 100%;
+}
+
+.wp-block-pos-ai-message .markdown-content th,
+.wp-block-pos-ai-message .markdown-content td {
+	border: 1px solid rgba(0, 0, 0, 0.2);
+	padding: 8px 12px;
+	text-align: left;
+}
+
+.wp-block-pos-ai-message .markdown-content th {
+	background: rgba(0, 0, 0, 0.1);
+	font-weight: 600;
+}
+
+.wp-block-pos-ai-message .markdown-content del {
+	text-decoration: line-through;
+	opacity: 0.7;
+}
+
+.wp-block-pos-ai-message .markdown-content u {
+	text-decoration: underline;
+}
+
+/* Task lists */
+.wp-block-pos-ai-message .markdown-content input[type="checkbox"] {
+	margin-right: 8px;
+}
+
+.wp-block-pos-ai-message .markdown-content .task-list-item {
+	list-style: none;
+}
+
+.wp-block-pos-ai-message .markdown-content .task-list-item input[type="checkbox"] {
+	margin-left: -24px;
 }
 
 /* User message styling */
@@ -99,14 +296,35 @@
 	margin-left: 32px;
 }
 
-.wp-block-pos-ai-message.message-role-user .message-content:focus {
-	background: #2563eb;
-	border-color: #1d4ed8;
-	box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2), 0 1px 3px rgba(0, 0, 0, 0.1);
+.wp-block-pos-ai-message.message-role-user .empty-placeholder {
+	color: rgba(255, 255, 255, 0.7);
 }
 
-.wp-block-pos-ai-message.message-role-user .message-content:empty::before {
-	color: rgba(255, 255, 255, 0.7);
+.wp-block-pos-ai-message.message-role-user .markdown-content code {
+	background: rgba(255, 255, 255, 0.2);
+	border-color: rgba(255, 255, 255, 0.1);
+}
+
+.wp-block-pos-ai-message.message-role-user .markdown-content pre {
+	background: rgba(255, 255, 255, 0.1);
+	border-color: rgba(255, 255, 255, 0.2);
+}
+
+.wp-block-pos-ai-message.message-role-user .markdown-content a {
+	color: #bfdbfe;
+}
+
+.wp-block-pos-ai-message.message-role-user .markdown-content a:hover {
+	color: #dbeafe;
+}
+
+.wp-block-pos-ai-message.message-role-user .markdown-content th,
+.wp-block-pos-ai-message.message-role-user .markdown-content td {
+	border-color: rgba(255, 255, 255, 0.3);
+}
+
+.wp-block-pos-ai-message.message-role-user .markdown-content th {
+	background: rgba(255, 255, 255, 0.2);
 }
 
 /* Assistant message styling */
@@ -125,10 +343,23 @@
 	color: #0c4a6e;
 }
 
-.wp-block-pos-ai-message.message-role-assistant .message-content:focus {
-	background: #e0f2fe;
-	border-color: #0ea5e9;
-	box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.1), 0 1px 3px rgba(0, 0, 0, 0.1);
+.wp-block-pos-ai-message.message-role-assistant .markdown-content code {
+	background: rgba(14, 165, 233, 0.1);
+	border-color: rgba(14, 165, 233, 0.1);
+}
+
+.wp-block-pos-ai-message.message-role-assistant .markdown-content pre {
+	background: rgba(14, 165, 233, 0.05);
+	border-color: rgba(14, 165, 233, 0.1);
+}
+
+.wp-block-pos-ai-message.message-role-assistant .markdown-content th,
+.wp-block-pos-ai-message.message-role-assistant .markdown-content td {
+	border-color: rgba(14, 165, 233, 0.2);
+}
+
+.wp-block-pos-ai-message.message-role-assistant .markdown-content th {
+	background: rgba(14, 165, 233, 0.1);
 }
 
 /* System message styling */
@@ -148,10 +379,23 @@
 	border-left: 3px solid #f59e0b;
 }
 
-.wp-block-pos-ai-message.message-role-system .message-content:focus {
-	background: #fef3c7;
-	border-color: #f59e0b;
-	box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1), 0 1px 3px rgba(0, 0, 0, 0.1);
+.wp-block-pos-ai-message.message-role-system .markdown-content code {
+	background: rgba(245, 158, 11, 0.1);
+	border-color: rgba(245, 158, 11, 0.1);
+}
+
+.wp-block-pos-ai-message.message-role-system .markdown-content pre {
+	background: rgba(245, 158, 11, 0.05);
+	border-color: rgba(245, 158, 11, 0.1);
+}
+
+.wp-block-pos-ai-message.message-role-system .markdown-content th,
+.wp-block-pos-ai-message.message-role-system .markdown-content td {
+	border-color: rgba(245, 158, 11, 0.2);
+}
+
+.wp-block-pos-ai-message.message-role-system .markdown-content th {
+	background: rgba(245, 158, 11, 0.1);
 }
 
 /* Hover effects */
@@ -189,35 +433,6 @@
 	box-shadow: 0 0 0 2px #f59e0b, 0 4px 12px rgba(245, 158, 11, 0.4);
 }
 
-/* Rich text formatting */
-.wp-block-pos-ai-message .message-content strong {
-	font-weight: 600;
-}
-
-.wp-block-pos-ai-message .message-content em {
-	font-style: italic;
-}
-
-.wp-block-pos-ai-message .message-content code {
-	background: rgba(0, 0, 0, 0.1);
-	padding: 2px 4px;
-	border-radius: 4px;
-	font-family: 'Monaco', 'Courier New', monospace;
-	font-size: 13px;
-}
-
-.wp-block-pos-ai-message.message-role-user .message-content code {
-	background: rgba(255, 255, 255, 0.2);
-}
-
-.wp-block-pos-ai-message.message-role-assistant .message-content code {
-	background: rgba(14, 165, 233, 0.1);
-}
-
-.wp-block-pos-ai-message.message-role-system .message-content code {
-	background: rgba(245, 158, 11, 0.1);
-}
-
 /* Mobile responsiveness */
 @media (max-width: 768px) {
 	.wp-block-pos-ai-message {
@@ -231,5 +446,35 @@
 	
 	.wp-block-pos-ai-message.message-role-user .message-content {
 		margin-left: 24px;
+	}
+
+	.wp-block-pos-ai-message .markdown-content h1 {
+		font-size: 1.3em;
+	}
+
+	.wp-block-pos-ai-message .markdown-content h2 {
+		font-size: 1.2em;
+	}
+
+	.wp-block-pos-ai-message .markdown-content h3 {
+		font-size: 1.1em;
+	}
+
+	.wp-block-pos-ai-message .markdown-content pre {
+		padding: 12px;
+		font-size: 0.8em;
+		overflow-x: auto;
+	}
+
+	.wp-block-pos-ai-message .markdown-content table {
+		font-size: 0.8em;
+		overflow-x: auto;
+		display: block;
+		white-space: nowrap;
+	}
+
+	.wp-block-pos-ai-message .markdown-content th,
+	.wp-block-pos-ai-message .markdown-content td {
+		padding: 6px 8px;
 	}
 } 

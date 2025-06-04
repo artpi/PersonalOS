@@ -24,22 +24,23 @@
 		"start": "wp-scripts start",
 		"wp-env": "wp-env",
 		"dev": "wp-scripts start",
-		"test:unit": "wp-env run tests-cli --env-cwd=wp-content/plugins/personalos ./vendor/bin/phpunit --testsuite=unit",
-		"test:integration": "wp-env run tests-cli --env-cwd=wp-content/plugins/personalos ./vendor/bin/phpunit --testsuite=integration"
+		"test:unit:backend": "wp-env run tests-cli --env-cwd=wp-content/plugins/personalos ./vendor/bin/phpunit --testsuite=unit",
+		"test:integration:backend": "wp-env run tests-cli --env-cwd=wp-content/plugins/personalos ./vendor/bin/phpunit --testsuite=integration"
 	},
 	"dependencies": {
 		"@wordpress/compose": "^6.27.0",
 		"@wordpress/data": "^9.20.0",
+		"@wordpress/dataviews": "^4.10.0",
 		"@wordpress/edit-post": "^7.27.2",
 		"@wordpress/icons": "^10.15.1",
 		"@wordpress/plugins": "^6.18.0",
-		"@wordpress/dataviews": "^4.10.0"
+		"showdown": "^2.1.0"
 	},
 	"devDependencies": {
+		"@wordpress/dependency-extraction-webpack-plugin": "^6.14.0",
 		"@wordpress/env": "^9.2.0",
 		"@wordpress/scripts": "^30.7.0",
 		"eslint": "^8.56.0",
-		"prettier": "npm:wp-prettier@3.0.3",
-		"@wordpress/dependency-extraction-webpack-plugin": "^6.14.0"
+		"prettier": "npm:wp-prettier@3.0.3"
 	}
 }
