@@ -1,0 +1,131 @@
+name: PHP Unit Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        php-version: [8.2]
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ matrix.php-version }}
+        tools: composer
+        extensions: mbstring, zip, curl, xml, json
+        
+    - name: Install Composer dependencies
+      run: composer install --no-progress --prefer-dist --optimize-autoloader
+      
+    - name: Install Node dependencies
+      run: npm ci
+      
+    - name: Start wp-env
+      run: |
+        npm run wp-env start
+        sleep 30  # Give more time for services to start
+      
+    - name: Debug wp-env status
+      run: |
+        docker ps
+        npm run wp-env run tests-cli -- echo "Test environment is accessible"
+        
+    - name: Wait for WordPress to be ready
+      run: |
+        echo "Waiting for WordPress test site..."
+        timeout 120 bash -c 'until curl -f http://localhost:8902/wp-admin/install.php 2>/dev/null; do echo "Waiting..."; sleep 3; done' || echo "WordPress may not be ready yet"
+        
+    - name: Check database connectivity
+      run: |
+        npm run wp-env run tests-cli -- wp db check || echo "Database check failed"
+        npm run wp-env run tests-cli -- wp config list || echo "Config list failed"
+        
+    - name: Run unit tests
+      run: npm run test:unit
+      continue-on-error: true
+      id: unit-tests
+      
+    - name: Run integration tests
+      run: npm run test:integration
+      continue-on-error: true
+      id: integration-tests
+      
+    - name: Collect test outputs
+      if: always()
+      run: |
+        mkdir -p test-outputs
+        echo "Unit test exit code: ${{ steps.unit-tests.outcome }}" > test-outputs/unit-status.txt
+        echo "Integration test exit code: ${{ steps.integration-tests.outcome }}" > test-outputs/integration-status.txt
+        
+    - name: Generate test report
+      if: always()
+      run: |
+        echo "## PHP Unit Test Results" > test-results.md
+        echo "" >> test-results.md
+        echo "### Unit Tests" >> test-results.md
+        if [ "${{ steps.unit-tests.outcome }}" == "success" ]; then
+          echo "✅ Unit tests passed" >> test-results.md
+        else
+          echo "❌ Unit tests failed" >> test-results.md
+        fi
+        echo "" >> test-results.md
+        echo "### Integration Tests" >> test-results.md
+        if [ "${{ steps.integration-tests.outcome }}" == "success" ]; then
+          echo "✅ Integration tests passed" >> test-results.md
+        else
+          echo "❌ Integration tests failed" >> test-results.md
+        fi
+        echo "" >> test-results.md
+        echo "**Generated on**: $(date)" >> test-results.md
+        echo "**PHP Version**: ${{ matrix.php-version }}" >> test-results.md
+        echo "**Runner**: ${{ runner.os }}" >> test-results.md
+        
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-php-${{ matrix.php-version }}
+        path: |
+          test-results.md
+          test-outputs/
+        
+    - name: Comment PR with test results
+      if: github.event_name == 'pull_request' && always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          if (fs.existsSync('test-results.md')) {
+            const testResults = fs.readFileSync('test-results.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: testResults
+            });
+          } else {
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ Test results file not found. Check the workflow logs for details.'
+            });
+          }

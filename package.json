@@ -24,8 +24,10 @@
 		"start": "wp-scripts start",
 		"wp-env": "wp-env",
 		"dev": "wp-scripts start",
-		"test:unit": "wp-env run tests-cli --env-cwd=wp-content/plugins/personalos ./vendor/bin/phpunit --testsuite=unit",
-		"test:integration": "wp-env run tests-cli --env-cwd=wp-content/plugins/personalos ./vendor/bin/phpunit --testsuite=integration"
+		"test:unit": "wp-env run tests-cli --env-cwd=/var/www/html/wp-content/plugins/PersonalOS ./vendor/bin/phpunit --testsuite=unit",
+		"test:integration": "wp-env run tests-cli --env-cwd=/var/www/html/wp-content/plugins/PersonalOS ./vendor/bin/phpunit --testsuite=integration",
+		"test": "./run-tests.sh",
+		"test:all": "./run-tests.sh"
 	},
 	"dependencies": {
 		"@wordpress/compose": "^6.27.0",
