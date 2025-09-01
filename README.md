@@ -26,3 +26,26 @@ I consider this a humble start. I intend to grow this feature list until it beco
 ## How to install
 
 [Install](./docs/INSTALL.md)
+
+## Development
+
+### Testing
+
+This project includes comprehensive PHP unit testing infrastructure. See [docs/testing.md](./docs/testing.md) for detailed information.
+
+Quick start:
+```bash
+# Run all tests
+npm run test
+
+# Run unit tests only
+npm run test:unit
+
+# Run integration tests only
+npm run test:integration
+
+# Show help
+npm run test:help
+```
+
+Tests run automatically on GitHub Actions for all pushes and pull requests.

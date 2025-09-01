@@ -27,7 +27,8 @@
 		"test:unit": "wp-env run tests-cli --env-cwd=/var/www/html/wp-content/plugins/PersonalOS ./vendor/bin/phpunit --testsuite=unit",
 		"test:integration": "wp-env run tests-cli --env-cwd=/var/www/html/wp-content/plugins/PersonalOS ./vendor/bin/phpunit --testsuite=integration",
 		"test": "./run-tests.sh",
-		"test:all": "./run-tests.sh"
+		"test:all": "./run-tests.sh",
+		"test:help": "echo 'Available test commands:\n  npm run test:unit - Run unit tests only\n  npm run test:integration - Run integration tests only\n  npm run test - Run all tests with reporting\n  npm run test:help - Show this help\n\nFor more info see docs/testing.md'"
 	},
 	"dependencies": {
 		"@wordpress/compose": "^6.27.0",
