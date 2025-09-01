@@ -30,6 +30,8 @@ runs:
 
         - name: Install Composer dependencies
           run: composer install --no-progress --prefer-dist --optimize-autoloader
+          shell: bash
 
         - name: Install WordPress and start the server
           run: npm run wp-env start
+          shell: bash
