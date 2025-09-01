@@ -25,5 +25,8 @@ jobs:
     # You can define any steps you want, and they will run before the agent starts.
     # If you do not check out your code, Copilot will do this for you.
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Set up WP-Env
         uses: ./.github/actions/setup
