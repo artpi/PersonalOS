@@ -1,0 +1,35 @@
+name: Setup WP-Env
+runs:
+    using: composite
+    steps:
+        - uses: actions/setup-node@v4
+          with:
+              node-version: 20
+
+        - name: Cache node_modules
+          id: cache-node_modules
+          uses: actions/cache@v4
+          env:
+              cache-name: cache-node-modules
+          with:
+              path: |
+                  node_modules
+                  patches
+              key: ${{ runner.os }}-build-${{ env.cache-name }}-${{hashFiles('./package-lock.json', './patches/*') }}
+
+        - name: Npm install
+          if: steps.cache-node_modules.outputs.cache-hit != 'true'
+          run: npm ci
+          shell: bash
+
+        - name: Setup PHP
+          uses: shivammathur/setup-php@v2
+          with:
+              php-version: '8.4'
+              tools: composer
+
+        - name: Install Composer dependencies
+          run: composer install --no-progress --prefer-dist --optimize-autoloader
+
+        - name: Install WordPress and start the server
+          run: npm run wp-env start
