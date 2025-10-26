@@ -160,6 +160,7 @@ class IMAP_Module extends External_Service_Module {
 		}
 
 		// Get all emails from inbox
+		// Using 'ALL' for initial implementation - future: use UNSEEN or date-based search
 		$emails = imap_search( $imap, 'ALL' );
 
 		if ( ! $emails ) {
@@ -214,9 +215,9 @@ class IMAP_Module extends External_Service_Module {
 		// Prepare email data
 		$email_data = array(
 			'id'      => $email_id,
-			'subject' => isset( $header->subject ) ? $this->decode_header( $header->subject ) : '(No Subject)',
-			'from'    => isset( $header->from[0] ) ? $header->from[0]->mailbox . '@' . $header->from[0]->host : 'unknown',
-			'date'    => isset( $header->date ) ? $header->date : '',
+			'subject' => isset( $header->subject ) ? sanitize_text_field( $this->decode_header( $header->subject ) ) : '(No Subject)',
+			'from'    => isset( $header->from[0] ) ? sanitize_email( $header->from[0]->mailbox . '@' . $header->from[0]->host ) : 'unknown',
+			'date'    => isset( $header->date ) ? sanitize_text_field( $header->date ) : '',
 			'body'    => $body,
 		);
 
@@ -276,7 +277,7 @@ class IMAP_Module extends External_Service_Module {
 	private function decode_body( $body, $encoding ) {
 		switch ( $encoding ) {
 			case 3: // BASE64
-				return base64_decode( $body );
+				return base64_decode( $body, true );
 			case 4: // QUOTED-PRINTABLE
 				return quoted_printable_decode( $body );
 			default:
@@ -303,16 +304,17 @@ class IMAP_Module extends External_Service_Module {
 
 	/**
 	 * Log new email (hooked to pos_imap_new_email action)
+	 * Note: Logs truncated body content. Avoid logging sensitive information.
 	 *
 	 * @param array $email_data Email data.
 	 */
 	public function log_new_email( $email_data ) {
+		// Only log metadata for security - body may contain sensitive info
 		$this->log(
 			sprintf(
-				'New Email - Subject: %s, From: %s, Body: %s',
+				'New Email - Subject: %s, From: %s',
 				$email_data['subject'],
-				$email_data['from'],
-				substr( $email_data['body'], 0, 100 ) . '...'
+				$email_data['from']
 			)
 		);
 	}

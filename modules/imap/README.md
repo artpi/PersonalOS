@@ -13,6 +13,12 @@ This module provides IMAP email checking and sending functionality for PersonalO
 
 Configure the module settings in PersonalOS Settings:
 
+### Security Notes
+
+- **Credentials Storage**: Credentials are stored in WordPress options. Use app-specific passwords when available (e.g., Gmail App Passwords) instead of your main account password.
+- **SSL/TLS**: Always use SSL/TLS for IMAP and SMTP connections to protect credentials in transit.
+- **Sensitive Data**: Email bodies may contain sensitive information. Be cautious when processing or storing email content.
+
 ### IMAP Settings (for receiving emails)
 
 - **IMAP Server**: Your IMAP server hostname (e.g., `imap.gmail.com`)

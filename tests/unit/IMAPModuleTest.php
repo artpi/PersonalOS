@@ -94,7 +94,7 @@ class IMAP_Module_Test extends WP_UnitTestCase {
 			'body'    => 'Test email body content',
 		);
 
-		// This should not throw an error
+		// This should not throw an error and should not log body content
 		$this->module->log_new_email( $email_data );
 		$this->assertTrue( true, 'log_new_email should execute without errors' );
 	}
