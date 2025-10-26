@@ -955,22 +955,31 @@ class OpenAI_Module extends POS_Module {
 		$vercel_sdk->startStep( $params['id'] );
 
 		$response = $this->complete_backscroll(
-			$openai_messages, function( $type, $data ) use ( $vercel_sdk ) {
-			if ( $type === 'message' ) {
-				$vercel_sdk->sendText( $data->content );
-			} else if ( $type === 'tool_result' ) {
-				//error_log( 'tool_result: ' . print_r( $data, true ) );
-				$data = (object) $data;
-				$vercel_sdk->sendToolResult( $data->tool_call_id, $data->content );
-			} else if ( $type === 'tool_call' ) {
-				$data = (object) $data;
-				$vercel_sdk->sendToolCall( $data->id, $data->function->name, json_decode( $data->function->arguments, true ) );
+			$openai_messages,
+			function( $type, $data ) use ( $vercel_sdk ) {
+				if ( $type === 'message' ) {
+					$vercel_sdk->sendText( $data->content );
+				} elseif ( $type === 'tool_result' ) {
+					//error_log( 'tool_result: ' . print_r( $data, true ) );
+					$data = (object) $data;
+					$vercel_sdk->sendToolResult( $data->tool_call_id, $data->content );
+				} elseif ( $type === 'tool_call' ) {
+					$data = (object) $data;
+					$vercel_sdk->sendToolCall( $data->id, $data->function->name, json_decode( $data->function->arguments, true ) );
+				}
 			}
-		} );
+		);
 		set_transient( 'vercel_chat_' . $params['id'], $openai_messages, 60 * 60 );
 
 		// $vercel_sdk->sendText( $response->choices[0]->message->content );
-		$vercel_sdk->finishStep( 'stop', array( 'promptTokens' => 0, 'completionTokens' => 0 ), false );
+		$vercel_sdk->finishStep(
+			'stop',
+			array(
+				'promptTokens'     => 0,
+				'completionTokens' => 0,
+			),
+			false
+		);
 		die();
 	}
 
