@@ -807,7 +807,7 @@ class OpenAI_Module extends POS_Module {
 			$completion = $this->api_call(
 				'https://api.openai.com/v1/chat/completions',
 				array(
-					'model'    => 'gpt-4o',
+					'model'    => 'gpt-5',
 					'messages' => array_merge(
 						array(
 							array(

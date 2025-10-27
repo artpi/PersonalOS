@@ -18,7 +18,7 @@
  * - POST /api/push     - Push model
  * - GET  /api/ps       - List running models
  *
- * All endpoints work with the single model: personalos:4o
+ * All endpoints work with the single model: personalos:gpt5
  *
  * @package PersonalOS
  */
@@ -62,9 +62,9 @@ class POS_Ollama_Server {
 	 */
 	private function init_models(): void {
 		$this->models = array(
-			'personalos:4o' => array(
-				'name'        => 'personalos:4o',
-				'model'       => 'personalos:4o',
+			'personalos:gpt5' => array(
+				'name'        => 'personalos:gpt5',
+				'model'       => 'personalos:gpt5',
 				'modified_at' => gmdate( 'c' ),
 				'size'        => 4299915632,
 				'digest'      => 'sha256:a2af6cc3eb7fa8be8504abaf9b04e88f17a119ec3f04a3addf55f92841195f5a',
@@ -327,7 +327,7 @@ Used for testing and development purposes only.
 			);
 		}
 
-		$model    = $data['model'] ?? 'personalos:4o';
+		$model    = $data['model'] ?? 'personalos:gpt5';
 		$messages = $data['messages'] ?? array();
 		$stream   = $data['stream'] ?? false;
 
@@ -407,7 +407,7 @@ Used for testing and development purposes only.
 			);
 		}
 
-		$model    = $data['model'] ?? 'personalos:4o';
+		$model    = $data['model'] ?? 'personalos:gpt5';
 		$prompt   = $data['prompt'] ?? 'Hello!';
 		$stream   = $data['stream'] ?? false;
 		$response = 'Generated response to: ' . $prompt;
@@ -456,7 +456,7 @@ Used for testing and development purposes only.
 
 		if ( ! $this->model_exists( $name ) ) {
 			return new WP_REST_Response(
-				array( 'error' => 'Model not available. Only personalos:4o is supported.' ),
+				array( 'error' => 'Model not available. Only personalos:gpt5 is supported.' ),
 				404
 			);
 		}
