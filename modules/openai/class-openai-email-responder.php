@@ -149,7 +149,7 @@ class OpenAI_Email_Responder {
 			$body .= "\n\n" . $original_body;
 		}
 
-		return rtrim( $body ) . "\n";
+		return $body . "\n";
 	}
 
 	/**
@@ -168,11 +168,21 @@ class OpenAI_Email_Responder {
 			$headers[] = 'References: ' . $references;
 		}
 
+		$reply_to_addresses = array();
 		if ( ! empty( $email_data['reply_to'] ) ) {
-			$reply_to = is_array( $email_data['reply_to'] ) ? $email_data['reply_to'] : explode( ',', $email_data['reply_to'] );
-			$reply_to = array_filter( array_map( 'trim', $reply_to ) );
-			if ( ! empty( $reply_to ) ) {
-				$headers[] = 'Reply-To: ' . implode( ', ', $reply_to );
+			$reply_to_addresses = is_array( $email_data['reply_to'] ) ? $email_data['reply_to'] : explode( ',', $email_data['reply_to'] );
+			$reply_to_addresses = array_filter( array_map( 'trim', $reply_to_addresses ) );
+		}
+
+		if ( empty( $reply_to_addresses ) && ! empty( $email_data['from'] ) ) {
+			$reply_to_addresses = array( sanitize_email( $email_data['from'] ) );
+		}
+
+		if ( ! empty( $reply_to_addresses ) ) {
+			$reply_to_addresses = array_map( 'sanitize_email', $reply_to_addresses );
+			$reply_to_addresses = array_filter( $reply_to_addresses );
+			if ( ! empty( $reply_to_addresses ) ) {
+				$headers[] = 'Reply-To: ' . implode( ', ', $reply_to_addresses );
 			}
 		}
 
