@@ -108,4 +108,49 @@ class IMAP_Module_Test extends WP_UnitTestCase {
 		$this->assertEquals( true, $this->module->get_setting( 'imap_ssl' ), 'SSL should be enabled by default' );
 		$this->assertEquals( false, $this->module->get_setting( 'active' ), 'Module should be inactive by default' );
 	}
+
+	/**
+	 * Ensure Gmail X-Gm-Authentication-Results header is trusted.
+	 */
+	public function test_gmail_authentication_results_trusted() {
+		$headers  = "Return-Path: <artur.piszek@gmail.com>\r\n";
+		$headers .= 'X-Gm-Authentication-Results: mx.google.com; dkim=pass header.i=@gmail.com; spf=pass smtp.mailfrom=gmail.com; dmarc=pass header.from=gmail.com';
+
+		$reflection = new ReflectionClass( IMAP_Module::class );
+		$method     = $reflection->getMethod( 'evaluate_sender_trust' );
+		$method->setAccessible( true );
+
+		$result = $method->invoke( $this->module, $headers, 'gmail.com' );
+
+		$this->assertIsArray( $result );
+		$this->assertArrayHasKey( 'is_trusted', $result );
+		$this->assertTrue( $result['is_trusted'], 'Gmail authentication header should result in trusted sender.' );
+		$this->assertSame( 'mx.google.com', $result['authserv'] );
+		$this->assertSame( 'pass', $result['dmarc'] );
+		$this->assertStringContainsString( 'dmarc=pass', $result['summary'] );
+	}
+
+	/**
+	 * Ensure Authentication-Results from the configured IMAP host is trusted.
+	 */
+	public function test_authentication_results_from_imap_host_trusted() {
+		update_option( 'imap_imap_host', 's8.cyber-folks.pl' );
+
+		$headers  = "Return-Path: <artur.piszek@gmail.com>\r\n";
+		$headers .= 'Authentication-Results: s8.cyber-folks.pl; dmarc=pass header.from=gmail.com; dkim=pass header.d=gmail.com; spf=pass smtp.mailfrom=gmail.com';
+
+		$reflection = new ReflectionClass( IMAP_Module::class );
+		$method     = $reflection->getMethod( 'evaluate_sender_trust' );
+		$method->setAccessible( true );
+
+		$result = $method->invoke( $this->module, $headers, 'gmail.com' );
+
+		$this->assertIsArray( $result );
+		$this->assertTrue( $result['is_trusted'], 'Authentication-Results from configured IMAP host should be trusted.' );
+		$this->assertSame( 's8.cyber-folks.pl', $result['authserv'] );
+		$this->assertSame( 'pass', $result['dmarc'] );
+		$this->assertStringContainsString( 'dmarc=pass', $result['summary'] );
+
+		delete_option( 'imap_imap_host' );
+	}
 }

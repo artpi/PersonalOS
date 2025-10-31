@@ -124,7 +124,7 @@ class IMAP_Module extends External_Service_Module {
 	/**
 	 * Connect to IMAP server
 	 *
-	 * @return resource|false IMAP connection resource or false on failure.
+	 * @return \IMAP\Connection|false IMAP connection or false on failure.
 	 */
 	private function connect_imap() {
 		if ( ! function_exists( 'imap_open' ) ) {
@@ -209,7 +209,7 @@ class IMAP_Module extends External_Service_Module {
 	/**
 	 * Process a single email
 	 *
-	 * @param resource $imap IMAP connection.
+	 * @param \IMAP\Connection $imap IMAP connection.
 	 * @param int      $email_id Email ID.
 	 */
 	private function process_email( $imap, $email_id ) {
@@ -232,6 +232,17 @@ class IMAP_Module extends External_Service_Module {
 			$from_name = sanitize_text_field( $this->decode_header( $header->from[0]->personal ) );
 		}
 
+		$from_email  = 'unknown';
+		$from_domain = '';
+		if ( isset( $header->from[0] ) && ! empty( $header->from[0]->mailbox ) && ! empty( $header->from[0]->host ) ) {
+			$raw_from = $header->from[0]->mailbox . '@' . $header->from[0]->host;
+			$sanitized = sanitize_email( $raw_from );
+			if ( ! empty( $sanitized ) ) {
+				$from_email  = $sanitized;
+				$from_domain = $this->extract_domain( $from_email );
+			}
+		}
+
 		$reply_to = array();
 		if ( ! empty( $header->reply_to ) && is_array( $header->reply_to ) ) {
 			foreach ( $header->reply_to as $reply_to_entry ) {
@@ -248,17 +259,22 @@ class IMAP_Module extends External_Service_Module {
 		$message_id = isset( $header->message_id ) ? $this->sanitize_header_value( $header->message_id ) : '';
 		$references = isset( $header->references ) ? $this->sanitize_header_value( $header->references ) : '';
 
+		$unfolded_headers = $this->get_unfolded_headers( $imap, $email_id );
+		$auth_evaluation  = $this->evaluate_sender_trust( $unfolded_headers, $from_domain );
+
 		// Prepare email data
 		$email_data = array(
 			'id'         => $email_id,
 			'subject'    => isset( $header->subject ) ? sanitize_text_field( $this->decode_header( $header->subject ) ) : '(No Subject)',
-			'from'       => isset( $header->from[0] ) ? sanitize_email( $header->from[0]->mailbox . '@' . $header->from[0]->host ) : 'unknown',
+			'from'       => $from_email,
 			'from_name'  => $from_name,
 			'date'       => isset( $header->date ) ? sanitize_text_field( $header->date ) : '',
 			'body'       => $body,
 			'reply_to'   => $reply_to,
 			'message_id' => $message_id,
 			'references' => $references,
+			'auth'       => $auth_evaluation,
+			'is_trusted' => (bool) $auth_evaluation['is_trusted'],
 		);
 
 		// Trigger action for new email
@@ -266,9 +282,245 @@ class IMAP_Module extends External_Service_Module {
 	}
 
 	/**
+	 * Fetch unfolded raw headers for the specified email.
+	 *
+	 * @param \IMAP\Connection $imap IMAP connection.
+	 * @param int      $email_id Email ID.
+	 * @return string Unfolded raw headers.
+	 */
+	private function get_unfolded_headers( $imap, int $email_id ): string {
+		$raw_headers = imap_fetchheader( $imap, $email_id );
+		if ( ! is_string( $raw_headers ) || '' === $raw_headers ) {
+			return '';
+		}
+
+		$lines     = preg_split( '/\r\n|\r|\n/', $raw_headers );
+		$unfolded = array();
+
+		foreach ( $lines as $line ) {
+			if ( '' !== $line && ( ' ' === $line[0] || "\t" === $line[0] ) && ! empty( $unfolded ) ) {
+				$unfolded[ count( $unfolded ) - 1 ] .= ' ' . trim( $line );
+				continue;
+			}
+
+			$unfolded[] = $line;
+		}
+
+		return implode( "\r\n", $unfolded );
+	}
+
+	/**
+	 * Extract domain portion from an email address.
+	 *
+	 * @param string $email Email address.
+	 * @return string Domain portion (lowercase) or empty string.
+	 */
+	private function extract_domain( string $email ): string {
+		$email = trim( $email );
+		$at    = strrpos( $email, '@' );
+		if ( false === $at ) {
+			return '';
+		}
+
+		return strtolower( substr( $email, $at + 1 ) );
+	}
+
+	/**
+	 * Determine relaxed alignment between two domains.
+	 *
+	 * @param string $from_domain Header From domain.
+	 * @param string $auth_domain DKIM or SPF domain.
+	 * @return bool
+	 */
+	private function is_relaxed_aligned( string $from_domain, string $auth_domain ): bool {
+		$from_domain = strtolower( $from_domain );
+		$auth_domain = strtolower( $auth_domain );
+
+		if ( '' === $from_domain || '' === $auth_domain ) {
+			return false;
+		}
+
+		if ( $from_domain === $auth_domain ) {
+			return true;
+		}
+
+		return (bool) preg_match( '/(^|\.)' . preg_quote( $from_domain, '/' ) . '$/i', $auth_domain );
+	}
+
+	/**
+	 * Evaluate sender trust based on Authentication-Results and header alignment.
+	 *
+	 * @param string $unfolded_headers Unfolded headers for parsing.
+	 * @param string $from_domain      Header From domain.
+	 * @param array  $trusted_authserv_ids Trusted authserv identifiers.
+	 * @return array
+	 */
+	private function evaluate_sender_trust( string $unfolded_headers, string $from_domain, array $trusted_authserv_ids = array( 'mx.google.com', 'outlook.com' ) ): array {
+		$result = array(
+			'is_trusted'          => false,
+			'summary'             => 'no authentication results',
+			'authserv'            => '',
+			'dmarc'               => '',
+			'dkim'                => '',
+			'dkim_domain'         => '',
+			'spf'                 => '',
+			'spf_domain'          => '',
+			'return_path'         => '',
+			'return_path_domain'  => '',
+			'return_path_aligned' => false,
+			'auth_headers'        => array(),
+		);
+
+		if ( '' === $unfolded_headers ) {
+			return $result;
+		}
+
+		$return_path = '';
+		if ( preg_match( '/Return-Path:\s*<?([^\s>]+)>?/i', $unfolded_headers, $matches ) ) {
+			$return_candidate = sanitize_email( $matches[1] );
+			if ( ! empty( $return_candidate ) ) {
+				$return_path = $return_candidate;
+			}
+		}
+
+		$result['return_path'] = $return_path;
+		if ( '' !== $return_path ) {
+			$return_domain                   = $this->extract_domain( $return_path );
+			$result['return_path_domain']    = $return_domain;
+			$result['return_path_aligned']   = $this->is_relaxed_aligned( $from_domain, $return_domain );
+		}
+
+		$records            = array();
+		$auth_debug_headers = array();
+		foreach ( preg_split( '/\r\n|\r|\n/', $unfolded_headers ) as $line ) {
+			$trimmed_line = trim( $line );
+			if ( '' === $trimmed_line ) {
+				continue;
+			}
+			if ( 0 === stripos( $trimmed_line, 'Authentication-Results:' ) ) {
+				$records[]          = trim( substr( $trimmed_line, strlen( 'Authentication-Results:' ) ) );
+				$auth_debug_headers[] = $trimmed_line;
+				continue;
+			}
+			if ( 0 === stripos( $trimmed_line, 'X-Gm-Authentication-Results:' ) ) {
+				$records[]          = trim( substr( $trimmed_line, strlen( 'X-Gm-Authentication-Results:' ) ) );
+				$auth_debug_headers[] = $trimmed_line;
+				continue;
+			}
+			if ( 0 === stripos( $trimmed_line, 'Received-SPF:' ) || 0 === stripos( $trimmed_line, 'Authentication-Results-Original:' ) ) {
+				$auth_debug_headers[] = $trimmed_line;
+				continue;
+			}
+			if ( 0 === stripos( $trimmed_line, 'DKIM-Signature:' ) || 0 === stripos( $trimmed_line, 'X-Google-DKIM-Signature:' ) ) {
+				$auth_debug_headers[] = $trimmed_line;
+			}
+		}
+		$result['auth_headers'] = $auth_debug_headers;
+
+		$trusted_authserv_ids = array_map( 'strtolower', $trusted_authserv_ids );
+		$imap_host            = strtolower( trim( (string) $this->get_setting( 'imap_host' ) ) );
+		if ( '' !== $imap_host ) {
+			$trusted_authserv_ids[] = $imap_host;
+		}
+		/**
+		 * Filter the list of trusted Authentication-Results authserv identifiers.
+		 *
+		 * @since 0.2.4
+		 *
+		 * @param array  $trusted_authserv_ids Authserv identifiers considered trusted.
+		 * @param string $from_domain          Parsed From domain for the message.
+		 * @param string $unfolded_headers     Full raw headers.
+		 */
+		$trusted_authserv_ids = apply_filters( 'pos_imap_trusted_authserv', array_unique( $trusted_authserv_ids ), $from_domain, $unfolded_headers );
+
+		if ( empty( $records ) ) {
+			if ( ! empty( $auth_debug_headers ) ) {
+				$this->log( 'Authentication headers collected (no results): ' . implode( ' || ', array_slice( $auth_debug_headers, 0, 5 ) ) );
+			}
+			return $result;
+		}
+
+		$trusted_lookup = array();
+		foreach ( $trusted_authserv_ids as $id ) {
+			$trusted_lookup[] = strtolower( $id );
+		}
+
+		foreach ( $records as $record ) {
+			if ( ! preg_match( '/^\s*([^\s;]+)\s*;(.+)$/i', $record, $record_matches ) ) {
+				continue;
+			}
+
+			$authserv = strtolower( trim( $record_matches[1] ) );
+			$rest     = ' ' . $record_matches[2] . ' ';
+
+			if ( ! in_array( $authserv, $trusted_lookup, true ) ) {
+				continue;
+			}
+
+			$dmarc = '';
+			if ( preg_match( '/\bdmarc\s*=\s*(pass|fail|temperror|permerror)\b/i', $rest, $dmarc_matches ) ) {
+				$dmarc = strtolower( $dmarc_matches[1] );
+			}
+
+			$dkim = '';
+			if ( preg_match( '/\bdkim\s*=\s*(pass|fail|none|neutral|policy|temperror|permerror)\b/i', $rest, $dkim_matches ) ) {
+				$dkim = strtolower( $dkim_matches[1] );
+			}
+
+			$spf = '';
+			if ( preg_match( '/\bspf\s*=\s*(pass|fail|softfail|neutral|none|temperror|permerror)\b/i', $rest, $spf_matches ) ) {
+				$spf = strtolower( $spf_matches[1] );
+			}
+
+			$dkim_domain = '';
+			if ( preg_match( '/\bdkim[^;]*\bd=\s*([^\s;]+)\b/i', $rest, $dkim_domain_matches ) ) {
+				$dkim_domain = strtolower( $dkim_domain_matches[1] );
+			}
+
+			$spf_domain = '';
+			if ( preg_match( '/\bsmtp\.mailfrom=\s*([^\s;]+)\b/i', $rest, $spf_domain_matches ) ) {
+				$spf_domain = strtolower( $spf_domain_matches[1] );
+			}
+
+			$result['authserv']    = $authserv;
+			$result['dmarc']       = $dmarc;
+			$result['dkim']        = $dkim;
+			$result['dkim_domain'] = $dkim_domain;
+			$result['spf']         = $spf;
+			$result['spf_domain']  = $spf_domain;
+
+			if ( 'pass' === $dmarc ) {
+				$result['is_trusted'] = true;
+				$result['summary']    = 'dmarc=pass @ ' . $authserv;
+				return $result;
+			}
+
+			if ( 'pass' === $dkim && ( '' === $dkim_domain || $this->is_relaxed_aligned( $from_domain, $dkim_domain ) ) ) {
+				$result['is_trusted'] = true;
+				$result['summary']    = 'dkim=pass aligned @ ' . $authserv;
+				return $result;
+			}
+
+			if ( 'pass' === $spf && ( '' === $spf_domain || $this->is_relaxed_aligned( $from_domain, $spf_domain ) ) ) {
+				$result['is_trusted'] = true;
+				$result['summary']    = 'spf=pass aligned @ ' . $authserv;
+				return $result;
+			}
+
+			$result['summary'] = 'auth present without pass @ ' . $authserv;
+		}
+
+		if ( ! $result['is_trusted'] && ! empty( $auth_debug_headers ) ) {
+			$this->log( 'Authentication headers evaluated (no trust): ' . implode( ' || ', array_slice( $auth_debug_headers, 0, 5 ) ) );
+		}
+
+		return $result;
+	}
+
+	/**
 	 * Get email body (always returns plain text)
 	 *
-	 * @param resource $imap IMAP connection.
+	 * @param \IMAP\Connection $imap IMAP connection.
 	 * @param int      $email_id Email ID.
 	 * @param object   $structure Email structure.
 	 * @return string Email body as plain text.
@@ -397,11 +649,27 @@ class IMAP_Module extends External_Service_Module {
 			$body_preview .= '...';
 		}
 
+		$trusted_flag = ( isset( $email_data['is_trusted'] ) && $email_data['is_trusted'] ) ? '[trusted]' : '[untrusted]';
+		$auth_summary = 'none';
+		if ( isset( $email_data['auth'] ) && is_array( $email_data['auth'] ) && ! empty( $email_data['auth']['summary'] ) ) {
+			$auth_summary = $email_data['auth']['summary'];
+		}
+		$auth_debug = '';
+		if ( isset( $email_data['auth'] ) && ! empty( $email_data['auth']['auth_headers'] ) && is_array( $email_data['auth']['auth_headers'] ) ) {
+			$headers = array_slice( $email_data['auth']['auth_headers'], 0, 2 );
+			if ( ! empty( $headers ) ) {
+				$auth_debug = ' | hdr: ' . implode( ' || ', $headers );
+			}
+		}
+
 		$this->log(
 			sprintf(
-				'New Email - Subject: %s, From: %s, Body: %s',
+				'New Email %s - Subject: %s, From: %s, Auth: %s%s, Body: %s',
+				$trusted_flag,
 				$email_data['subject'],
 				$email_data['from'],
+				$auth_summary,
+				$auth_debug,
 				$body_preview
 			)
 		);

@@ -29,6 +29,25 @@ class OpenAI_Email_Responder {
 	 * @param array $email_data Email data from the IMAP module.
 	 */
 	public function handle_new_email( array $email_data ): void {
+		if ( empty( $email_data['is_trusted'] ) ) {
+			$from_address = isset( $email_data['from'] ) ? sanitize_email( $email_data['from'] ) : '';
+			if ( '' === $from_address ) {
+				$from_address = 'unknown';
+			}
+			$this->module->log( 'Auto-reply skipped: sender not verified for ' . $from_address . '.', E_USER_WARNING );
+			return;
+		}
+
+		$matched_user = $this->resolve_user_from_email( $email_data );
+		if ( ! $matched_user instanceof WP_User ) {
+			$from_address = isset( $email_data['from'] ) ? sanitize_email( $email_data['from'] ) : '';
+			if ( '' === $from_address ) {
+				$from_address = 'unknown';
+			}
+			$this->module->log( 'Auto-reply skipped: no matching user for ' . $from_address . '.', E_USER_WARNING );
+			return;
+		}
+
 		$recipient = $this->get_reply_address( $email_data );
 		if ( empty( $recipient ) ) {
 			$this->module->log( 'Auto-reply skipped: no valid recipient.' );
@@ -45,8 +64,23 @@ class OpenAI_Email_Responder {
 
 		$assistant_reply = '';
 		$used_fallback   = false;
+		$conversation    = null;
 
-		$conversation = $this->module->complete_backscroll( $backscroll );
+		$previous_user       = wp_get_current_user();
+		$previous_user_id    = ( $previous_user instanceof WP_User ) ? (int) $previous_user->ID : 0;
+		$previous_user_login = ( $previous_user instanceof WP_User ) ? $previous_user->user_login : '';
+
+		wp_set_current_user( $matched_user->ID, $matched_user->user_login );
+
+		try {
+			$conversation = $this->module->complete_backscroll( $backscroll );
+		} finally {
+			if ( $previous_user_id > 0 ) {
+				wp_set_current_user( $previous_user_id, $previous_user_login );
+			} else {
+				wp_set_current_user( 0 );
+			}
+		}
 		if ( is_wp_error( $conversation ) ) {
 			$this->module->log( 'Auto-reply AI failure: ' . $conversation->get_error_message(), E_USER_ERROR );
 			$used_fallback = true;
@@ -199,6 +233,52 @@ class OpenAI_Email_Responder {
 		}
 
 		return $intro . "\n" . implode( "\n", $quoted_lines );
+	}
+
+	/**
+	 * Resolve the WordPress user associated with the incoming email.
+	 *
+	 * @param array $email_data Email data from the IMAP module.
+	 * @return WP_User|null Matching user or null when not found.
+	 */
+	private function resolve_user_from_email( array $email_data ) {
+		$candidates = array();
+
+		if ( ! empty( $email_data['reply_to'] ) ) {
+			$reply_to = $email_data['reply_to'];
+			if ( ! is_array( $reply_to ) ) {
+				$reply_to = explode( ',', (string) $reply_to );
+			}
+
+			foreach ( $reply_to as $address ) {
+				$sanitized = sanitize_email( $address );
+				if ( is_email( $sanitized ) ) {
+					$candidates[] = $sanitized;
+				}
+			}
+		}
+
+		if ( ! empty( $email_data['from'] ) ) {
+			$from_address = sanitize_email( $email_data['from'] );
+			if ( is_email( $from_address ) ) {
+				$candidates[] = $from_address;
+			}
+		}
+
+		if ( empty( $candidates ) ) {
+			return null;
+		}
+
+		$candidates = array_unique( $candidates );
+
+		foreach ( $candidates as $candidate ) {
+			$user = get_user_by( 'email', $candidate );
+			if ( $user instanceof WP_User ) {
+				return $user;
+			}
+		}
+
+		return null;
 	}
 
 	/**

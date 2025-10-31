@@ -65,6 +65,7 @@ class POS_Test_EML_Parser {
 			'message_id' => isset( $headers['Message-ID'] ) ? $headers['Message-ID'] : '',
 			'references' => isset( $headers['References'] ) ? $headers['References'] : '',
 			'reply_to'   => $reply_to,
+			'is_trusted' => true,
 		);
 	}
 
@@ -275,6 +276,13 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 	protected $responder;
 
 	/**
+	 * Sender user ID used for testing.
+	 *
+	 * @var int
+	 */
+	protected $sender_user_id = 0;
+
+	/**
 	 * Set up test environment.
 	 */
 	public function setUp(): void {
@@ -293,6 +301,15 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 		$filtered_modules[] = $this->imap_spy;
 
 		POS::$modules = $filtered_modules;
+
+		$this->sender_user_id = $this->factory()->user->create(
+			array(
+				'user_login'   => 'arturpiszek',
+				'user_email'   => 'artur.piszek@gmail.com',
+				'role'         => 'subscriber',
+				'display_name' => 'Artur Piszek',
+			)
+		);
 	}
 
 	/**
@@ -305,6 +322,11 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 		}
 
 		POS::$modules = $this->original_modules;
+
+		if ( $this->sender_user_id ) {
+			wp_delete_user( $this->sender_user_id );
+			$this->sender_user_id = 0;
+		}
 
 		parent::tearDown();
 	}
@@ -526,5 +548,49 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 		$this->assertSame( 'Re: (No Subject)', $sent['subject'] );
 		$this->assertStringStartsWith( 'Thank you for your message.', $sent['body'] );
 		$this->assertQuotedOriginal( $sent['body'], $email_data );
+	}
+
+	/**
+	 * Test that untrusted senders are ignored.
+	 */
+	public function test_handle_new_email_skips_untrusted_sender() {
+		$email_data = $this->load_email_fixture( 'original_msg.eml', array( 'is_trusted' => false ) );
+
+		$this->create_responder(
+			function( MockObject $openai_module ) {
+				$openai_module
+					->expects( $this->never() )
+					->method( 'complete_backscroll' );
+			}
+		);
+
+		$this->responder->handle_new_email( $email_data );
+
+		$this->assertCount( 0, $this->imap_spy->sent );
+	}
+
+	/**
+	 * Test that senders without a matching user are ignored.
+	 */
+	public function test_handle_new_email_skips_when_user_not_found() {
+		$email_data = $this->load_email_fixture(
+			'original_msg.eml',
+			array(
+				'from'     => 'unknown@example.com',
+				'reply_to' => array( 'unknown@example.com' ),
+			)
+		);
+
+		$this->create_responder(
+			function( MockObject $openai_module ) {
+				$openai_module
+					->expects( $this->never() )
+					->method( 'complete_backscroll' );
+			}
+		);
+
+		$this->responder->handle_new_email( $email_data );
+
+		$this->assertCount( 0, $this->imap_spy->sent );
 	}
 }
