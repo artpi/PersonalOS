@@ -176,7 +176,7 @@ class IMAP_Module extends External_Service_Module {
 
 		// Get all emails from inbox
 		// Using 'ALL' for initial implementation - future: use UNSEEN or date-based search
-		$emails = imap_search( $imap, 'ALL' );
+		$emails = imap_search( $imap, 'UNSEEN' );
 
 		if ( ! $emails ) {
 			$this->log( 'No emails found in inbox' );
@@ -192,9 +192,9 @@ class IMAP_Module extends External_Service_Module {
 		// Process each email
 		foreach ( $emails as $email_id ) {
 			// Skip already processed emails
-			// if ( $email_id <= $last_processed_id ) {
-			// 	continue;
-			// }
+			if ( $email_id <= $last_processed_id ) {
+				continue;
+			}
 
 			$this->process_email( $imap, $email_id );
 
