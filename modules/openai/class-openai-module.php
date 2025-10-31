@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/class-openai-tool.php';
 require_once __DIR__ . '/class-ollama.php';
+require_once __DIR__ . '/class-openai-email-responder.php';
 
 class OpenAI_Module extends POS_Module {
 	public $id          = 'openai';
@@ -25,6 +26,13 @@ class OpenAI_Module extends POS_Module {
 		),
 	);
 
+	/**
+	 * Email responder instance.
+	 *
+	 * @var OpenAI_Email_Responder
+	 */
+	protected $email_responder;
+
 	public function is_configured() {
 		return ! empty( $this->settings['api_key'] );
 	}
@@ -37,6 +45,8 @@ class OpenAI_Module extends POS_Module {
 		$this->register_cli_command( 'tool', 'cli_openai_tool' );
 		$this->register_block( 'tool', array( 'render_callback' => array( $this, 'render_tool_block' ) ) );
 		require_once __DIR__ . '/chat-page.php';
+
+		$this->email_responder = new OpenAI_Email_Responder( $this );
 	}
 
 	public function render_tool_block( $attributes ) {

@@ -77,6 +77,20 @@ class IMAP_Module extends External_Service_Module {
 	);
 
 	/**
+	 * Cached From address used during a mail send.
+	 *
+	 * @var string
+	 */
+	protected $current_from_address = '';
+
+	/**
+	 * Cached From name used during a mail send.
+	 *
+	 * @var string
+	 */
+	protected $current_from_name = 'PersonalOS';
+
+	/**
 	 * Constructor
 	 */
 	public function __construct() {
@@ -213,13 +227,38 @@ class IMAP_Module extends External_Service_Module {
 		// Get email body
 		$body = $this->get_email_body( $imap, $email_id, $structure );
 
+		$from_name = '';
+		if ( isset( $header->from[0]->personal ) ) {
+			$from_name = sanitize_text_field( $this->decode_header( $header->from[0]->personal ) );
+		}
+
+		$reply_to = array();
+		if ( ! empty( $header->reply_to ) && is_array( $header->reply_to ) ) {
+			foreach ( $header->reply_to as $reply_to_entry ) {
+				if ( empty( $reply_to_entry->mailbox ) || empty( $reply_to_entry->host ) ) {
+					continue;
+				}
+				$address = sanitize_email( $reply_to_entry->mailbox . '@' . $reply_to_entry->host );
+				if ( ! empty( $address ) ) {
+					$reply_to[] = $address;
+				}
+			}
+		}
+
+		$message_id = isset( $header->message_id ) ? $this->sanitize_header_value( $header->message_id ) : '';
+		$references = isset( $header->references ) ? $this->sanitize_header_value( $header->references ) : '';
+
 		// Prepare email data
 		$email_data = array(
-			'id'      => $email_id,
-			'subject' => isset( $header->subject ) ? sanitize_text_field( $this->decode_header( $header->subject ) ) : '(No Subject)',
-			'from'    => isset( $header->from[0] ) ? sanitize_email( $header->from[0]->mailbox . '@' . $header->from[0]->host ) : 'unknown',
-			'date'    => isset( $header->date ) ? sanitize_text_field( $header->date ) : '',
-			'body'    => $body,
+			'id'         => $email_id,
+			'subject'    => isset( $header->subject ) ? sanitize_text_field( $this->decode_header( $header->subject ) ) : '(No Subject)',
+			'from'       => isset( $header->from[0] ) ? sanitize_email( $header->from[0]->mailbox . '@' . $header->from[0]->host ) : 'unknown',
+			'from_name'  => $from_name,
+			'date'       => isset( $header->date ) ? sanitize_text_field( $header->date ) : '',
+			'body'       => $body,
+			'reply_to'   => $reply_to,
+			'message_id' => $message_id,
+			'references' => $references,
 		);
 
 		// Trigger action for new email
@@ -328,6 +367,23 @@ class IMAP_Module extends External_Service_Module {
 	}
 
 	/**
+	 * Sanitize header values for safe use in outgoing headers.
+	 *
+	 * @param mixed $value Header value.
+	 * @return string Sanitized header value.
+	 */
+	private function sanitize_header_value( $value ) {
+		if ( is_array( $value ) ) {
+			$value = implode( ' ', $value );
+		}
+
+		$value = (string) $value;
+		$value = preg_replace( '/[\r\n]+/', ' ', $value );
+
+		return trim( $value );
+	}
+
+	/**
 	 * Log new email (hooked to pos_imap_new_email action)
 	 * Note: Logs truncated body content. Avoid logging sensitive information.
 	 *
@@ -371,20 +427,67 @@ class IMAP_Module extends External_Service_Module {
 			return false;
 		}
 
-		// Use wp_mail with custom PHPMailer configuration
+		$this->current_from_name    = 'PersonalOS';
+		$this->current_from_address = $this->resolve_from_address();
+
+		if ( ! is_email( $this->current_from_address ) ) {
+			$this->log( 'Unable to determine valid From address for SMTP send.', E_USER_ERROR );
+			return false;
+		}
+
+		$this->log( 'Using From address ' . $this->current_from_address . ' for outgoing mail.' );
+
+		add_filter( 'wp_mail_from', array( $this, 'filter_wp_mail_from' ) );
+		add_filter( 'wp_mail_from_name', array( $this, 'filter_wp_mail_from_name' ) );
 		add_action( 'phpmailer_init', array( $this, 'configure_phpmailer' ) );
+		add_action( 'wp_mail_failed', array( $this, 'log_wp_mail_failure' ) );
 
 		$result = wp_mail( $to, $subject, $body, $headers );
 
 		remove_action( 'phpmailer_init', array( $this, 'configure_phpmailer' ) );
+		remove_action( 'wp_mail_failed', array( $this, 'log_wp_mail_failure' ) );
+		remove_filter( 'wp_mail_from', array( $this, 'filter_wp_mail_from' ) );
+		remove_filter( 'wp_mail_from_name', array( $this, 'filter_wp_mail_from_name' ) );
 
 		if ( $result ) {
 			$this->log( 'Email sent successfully to: ' . $to );
 		} else {
-			$this->log( 'Failed to send email to: ' . $to, E_USER_ERROR );
+			$this->log( 'Failed to send email to: ' . $to . ' Subject: ' . $subject, E_USER_ERROR );
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Resolve a valid From address for outgoing mail.
+	 *
+	 * @return string
+	 */
+	private function resolve_from_address(): string {
+		$from_address = sanitize_email( $this->get_setting( 'smtp_username' ) );
+		if ( is_email( $from_address ) ) {
+			return $from_address;
+		}
+
+		$admin_email = sanitize_email( get_option( 'admin_email' ) );
+		if ( is_email( $admin_email ) ) {
+			return $admin_email;
+		}
+
+		$site_domain = wp_parse_url( home_url(), PHP_URL_HOST );
+		if ( empty( $site_domain ) ) {
+			$site_domain = 'localhost.local';
+		}
+		if ( false === strpos( $site_domain, '.' ) ) {
+			$site_domain .= '.local';
+		}
+
+		$fallback_address = sanitize_email( 'no-reply@' . $site_domain );
+		if ( is_email( $fallback_address ) ) {
+			return $fallback_address;
+		}
+
+		return '';
 	}
 
 	/**
@@ -393,6 +496,7 @@ class IMAP_Module extends External_Service_Module {
 	 * @param PHPMailer $phpmailer PHPMailer instance.
 	 */
 	public function configure_phpmailer( $phpmailer ) {
+		$this->log( 'configure_phpmailer invoked.' );
 		// phpcs:disable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 		$phpmailer->isSMTP();
 		$phpmailer->Host       = $this->get_setting( 'smtp_host' );
@@ -401,8 +505,93 @@ class IMAP_Module extends External_Service_Module {
 		$phpmailer->Username   = $this->get_setting( 'smtp_username' );
 		$phpmailer->Password   = $this->get_setting( 'smtp_password' );
 		$phpmailer->SMTPSecure = ( (int) $this->get_setting( 'smtp_port' ) === 465 ) ? 'ssl' : 'tls';
-		$phpmailer->From       = $this->get_setting( 'smtp_username' );
-		$phpmailer->FromName   = 'PersonalOS';
+
+		$from_address = $this->current_from_address;
+		if ( ! is_email( $from_address ) ) {
+			$from_address = $this->resolve_from_address();
+		}
+
+		$from_name = $this->current_from_name;
+		if ( empty( $from_name ) ) {
+			$from_name = 'PersonalOS';
+		}
+
+		if ( is_email( $from_address ) ) {
+			try {
+				$phpmailer->setFrom( $from_address, $from_name, false );
+				$phpmailer->Sender = $from_address;
+				$this->log( 'Configured PHPMailer From: ' . $from_address . ' (Host: ' . $phpmailer->Host . ')' );
+			} catch ( \PHPMailer\PHPMailer\Exception $exception ) {
+				$this->log( 'Failed to set From address: ' . $exception->getMessage(), E_USER_WARNING );
+			}
+		} else {
+			$this->log( 'No valid From address available, falling back to WordPress default.', E_USER_WARNING );
+		}
 		// phpcs:enable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+	}
+
+	/**
+	 * Filter callback to override wp_mail From address.
+	 *
+	 * @param string $from Original From address.
+	 * @return string Filtered From address.
+	 */
+	public function filter_wp_mail_from( $from ) {
+		if ( is_email( $this->current_from_address ) ) {
+			return $this->current_from_address;
+		}
+
+		$resolved = $this->resolve_from_address();
+		return is_email( $resolved ) ? $resolved : $from;
+	}
+
+	/**
+	 * Filter callback to override wp_mail From name.
+	 *
+	 * @param string $name Original From name.
+	 * @return string Filtered From name.
+	 */
+	public function filter_wp_mail_from_name( $name ) {
+		if ( ! empty( $this->current_from_name ) ) {
+			return $this->current_from_name;
+		}
+
+		return ! empty( $name ) ? $name : 'PersonalOS';
+	}
+
+	/**
+	 * Log wp_mail failures with additional context.
+	 *
+	 * @param WP_Error $wp_error WP_Error instance containing failure details.
+	 */
+	public function log_wp_mail_failure( $wp_error ) {
+		if ( ! is_wp_error( $wp_error ) ) {
+			$this->log( 'wp_mail failed without WP_Error context.', E_USER_ERROR );
+			return;
+		}
+
+		$error_messages = $wp_error->get_error_messages();
+		$error_codes    = $wp_error->get_error_codes();
+		$error_message  = implode( '; ', array_map( 'trim', $error_messages ) );
+		$error_data     = $wp_error->get_error_data();
+
+		if ( ! is_scalar( $error_data ) ) {
+			$error_data = wp_json_encode( $error_data );
+			if ( false === $error_data ) {
+				$error_data = 'Unable to encode error data.';
+			}
+		}
+
+		$codes_output = ! empty( $error_codes ) ? implode( ', ', $error_codes ) : 'n/a';
+
+		$this->log(
+			sprintf(
+				'wp_mail failure (codes: %s): %s | data: %s',
+				$codes_output,
+				$error_message,
+				esc_html( (string) $error_data )
+			),
+			E_USER_ERROR
+		);
 	}
 }
