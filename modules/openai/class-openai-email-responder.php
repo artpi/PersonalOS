@@ -143,13 +143,62 @@ class OpenAI_Email_Responder {
 		}
 
 		$body          = $assistant_reply;
-		$original_body = isset( $email_data['body'] ) ? (string) $email_data['body'] : '';
+		$quoted_block  = $this->format_quoted_original( $email_data );
 
-		if ( '' !== trim( $original_body ) ) {
-			$body .= "\n\n" . $original_body;
+		if ( '' !== $quoted_block ) {
+			$body .= "\n\n" . $quoted_block;
 		}
 
 		return $body . "\n";
+	}
+
+	/**
+	 * Build a quoted block representing the original message contents.
+	 *
+	 * @param array $email_data Email data from the IMAP module.
+	 * @return string Quoted original message.
+	 */
+	private function format_quoted_original( array $email_data ): string {
+		$original_body = isset( $email_data['body'] ) ? (string) $email_data['body'] : '';
+		$original_body = trim( $original_body );
+
+		if ( '' === $original_body ) {
+			return '';
+		}
+
+		$from_email = isset( $email_data['from'] ) ? trim( (string) $email_data['from'] ) : '';
+		$from_name  = isset( $email_data['from_name'] ) ? trim( (string) $email_data['from_name'] ) : '';
+		$from_line  = 'unknown sender';
+
+		if ( '' !== $from_name && '' !== $from_email ) {
+			$from_line = $from_name . ' <' . $from_email . '>';
+		} elseif ( '' !== $from_name ) {
+			$from_line = $from_name;
+		} elseif ( '' !== $from_email ) {
+			$from_line = $from_email;
+		}
+
+		$date_header = isset( $email_data['date'] ) ? trim( (string) $email_data['date'] ) : '';
+		$intro_parts = array();
+
+		if ( '' !== $date_header ) {
+			$intro_parts[] = $date_header;
+		}
+
+		$intro_parts[] = $from_line;
+
+		$intro = 'On ' . implode( ', ', $intro_parts ) . ' wrote:';
+
+		$normalized_body = str_replace( array( "\r\n", "\r" ), "\n", $original_body );
+		$lines           = explode( "\n", $normalized_body );
+		$quoted_lines    = array();
+
+		foreach ( $lines as $line ) {
+			$line          = rtrim( $line );
+			$quoted_lines[] = '' === $line ? '>' : '> ' . $line;
+		}
+
+		return $intro . "\n" . implode( "\n", $quoted_lines );
 	}
 
 	/**
@@ -168,21 +217,11 @@ class OpenAI_Email_Responder {
 			$headers[] = 'References: ' . $references;
 		}
 
-		$reply_to_addresses = array();
-		if ( ! empty( $email_data['reply_to'] ) ) {
-			$reply_to_addresses = is_array( $email_data['reply_to'] ) ? $email_data['reply_to'] : explode( ',', $email_data['reply_to'] );
-			$reply_to_addresses = array_filter( array_map( 'trim', $reply_to_addresses ) );
-		}
-
-		if ( empty( $reply_to_addresses ) && ! empty( $email_data['from'] ) ) {
-			$reply_to_addresses = array( sanitize_email( $email_data['from'] ) );
-		}
-
-		if ( ! empty( $reply_to_addresses ) ) {
-			$reply_to_addresses = array_map( 'sanitize_email', $reply_to_addresses );
-			$reply_to_addresses = array_filter( $reply_to_addresses );
-			if ( ! empty( $reply_to_addresses ) ) {
-				$headers[] = 'Reply-To: ' . implode( ', ', $reply_to_addresses );
+		$imap_module = POS::get_module_by_id( 'imap' );
+		if ( $imap_module && method_exists( $imap_module, 'get_default_from_address' ) ) {
+			$reply_to_address = sanitize_email( $imap_module->get_default_from_address() );
+			if ( is_email( $reply_to_address ) ) {
+				$headers[] = 'Reply-To: PersonalOS <' . $reply_to_address . '>';
 			}
 		}
 

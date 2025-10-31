@@ -491,6 +491,15 @@ class IMAP_Module extends External_Service_Module {
 	}
 
 	/**
+	 * Get the default From address used for outgoing mail.
+	 *
+	 * @return string
+	 */
+	public function get_default_from_address(): string {
+		return $this->resolve_from_address();
+	}
+
+	/**
 	 * Configure PHPMailer for SMTP
 	 *
 	 * @param PHPMailer $phpmailer PHPMailer instance.

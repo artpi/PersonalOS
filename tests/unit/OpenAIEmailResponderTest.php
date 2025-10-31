@@ -237,6 +237,15 @@ class POS_Test_IMAP_Module_Spy {
 
 		return true;
 	}
+
+	/**
+	 * Provide a default From address for Reply-To expectations.
+	 *
+	 * @return string
+	 */
+	public function get_default_from_address(): string {
+		return 'ai@personalos.test';
+	}
 }
 
 /**
@@ -335,6 +344,55 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Assert that the response body contains the quoted original message.
+	 *
+	 * @param string $body Response body.
+	 * @param array  $email_data Email data.
+	 */
+	protected function assertQuotedOriginal( string $body, array $email_data ): void {
+		$original_body = isset( $email_data['body'] ) ? (string) $email_data['body'] : '';
+		$original_body = trim( $original_body );
+
+		if ( '' === $original_body ) {
+			return;
+		}
+
+		$from_email = isset( $email_data['from'] ) ? trim( (string) $email_data['from'] ) : '';
+		$from_name  = isset( $email_data['from_name'] ) ? trim( (string) $email_data['from_name'] ) : '';
+		$from_line  = 'unknown sender';
+
+		if ( '' !== $from_name && '' !== $from_email ) {
+			$from_line = $from_name . ' <' . $from_email . '>';
+		} elseif ( '' !== $from_name ) {
+			$from_line = $from_name;
+		} elseif ( '' !== $from_email ) {
+			$from_line = $from_email;
+		}
+
+		$date_header = isset( $email_data['date'] ) ? trim( (string) $email_data['date'] ) : '';
+		$intro_parts = array();
+
+		if ( '' !== $date_header ) {
+			$intro_parts[] = $date_header;
+		}
+
+		$intro_parts[] = $from_line;
+
+		$intro = 'On ' . implode( ', ', $intro_parts ) . ' wrote:';
+
+		self::assertStringContainsString( $intro, $body );
+
+		$normalized_body = str_replace( array( "\r\n", "\r" ), "\n", $original_body );
+		$lines           = explode( "\n", $normalized_body );
+
+		foreach ( $lines as $line ) {
+			$line        = rtrim( $line );
+			$quoted_line = '' === $line ? '>' : '> ' . $line;
+			self::assertStringContainsString( $quoted_line, $body );
+		}
+	}
+
+	/**
 	 * Test that an AI generated reply is sent and original message appended.
 	 */
 	public function test_handle_new_email_sends_ai_reply() {
@@ -376,14 +434,14 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 		$this->assertSame( 'artur.piszek@gmail.com', $sent['to'] );
 		$this->assertSame( 'Re: (No Subject)', $sent['subject'] );
 		$this->assertStringStartsWith( 'Greetings Artur! Here is what you need to know.', $sent['body'] );
-		$this->assertStringContainsString( $expected_body, $sent['body'] );
+		$this->assertQuotedOriginal( $sent['body'], $email_data );
 		$this->assertContains( 'In-Reply-To: <CABPa1J96sEuS68V9czgyQybQH0f50t-=ESper-d6yHB55pfDjg@mail.gmail.com>', $sent['headers'] );
 		$this->assertContains( 'References: <CABPa1J96sEuS68V9czgyQybQH0f50t-=ESper-d6yHB55pfDjg@mail.gmail.com>', $sent['headers'] );
-		$this->assertContains( 'Reply-To: artur.piszek@gmail.com', $sent['headers'] );
+		$this->assertContains( 'Reply-To: PersonalOS <ai@personalos.test>', $sent['headers'] );
 	}
 
 	/**
-	 * Test that the original body is preserved verbatim and Reply-To header targets the sender.
+	 * Test that the original body is quoted and Reply-To header targets our AI address.
 	 */
 	public function test_handle_new_email_preserves_original_body_and_reply_to() {
 		$email_data = $this->load_email_fixture( 'original_msg.eml' );
@@ -410,9 +468,9 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 		$this->assertCount( 1, $this->imap_spy->sent );
 		$sent = $this->imap_spy->sent[0];
 
-		$expected_body = $assistant . "\n\n" . $email_data['body'] . "\n";
-		$this->assertSame( $expected_body, $sent['body'] );
-		$this->assertContains( 'Reply-To: artur.piszek@gmail.com', $sent['headers'] );
+		$this->assertStringStartsWith( $assistant, $sent['body'] );
+		$this->assertQuotedOriginal( $sent['body'], $email_data );
+		$this->assertContains( 'Reply-To: PersonalOS <ai@personalos.test>', $sent['headers'] );
 	}
 
 	/**
@@ -467,6 +525,6 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 
 		$this->assertSame( 'Re: (No Subject)', $sent['subject'] );
 		$this->assertStringStartsWith( 'Thank you for your message.', $sent['body'] );
-		$this->assertStringContainsString( $email_data['body'], $sent['body'] );
+		$this->assertQuotedOriginal( $sent['body'], $email_data );
 	}
 }
