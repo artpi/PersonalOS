@@ -18,6 +18,6 @@
 		}
 	},
 	"lifecycleScripts": {
-		"afterStart": "wp-env run cli wp-content/plugins/personalos/wpenv-afterstart.sh"
+		"afterStart": "wp-env run cli wp-content/plugins/$(basename $PWD)/wpenv-afterstart.sh"
 	}
 }
