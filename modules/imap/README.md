@@ -2,6 +2,10 @@
 
 This module provides IMAP email checking and sending functionality for PersonalOS.
 
+## Requirements
+
+This module requires the PHP IMAP extension to be installed.
+
 ## Features
 
 - **Automatic Email Checking**: Checks your inbox every minute via wp-cron

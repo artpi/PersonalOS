@@ -81,10 +81,11 @@ class IMAP_Module extends External_Service_Module {
 	 */
 	public function __construct() {
 		parent::__construct();
-		$this->register_sync( 'minutely' );
 
-		// Register custom cron interval for checking every minute
+		// Register custom cron interval for checking every minute (must be before register_sync)
 		add_filter( 'cron_schedules', array( $this, 'add_minutely_cron_interval' ) );
+
+		$this->register_sync( 'minutely' );
 
 		// Register action to log emails
 		add_action( 'pos_imap_new_email', array( $this, 'log_new_email' ), 10, 1 );
@@ -177,9 +178,9 @@ class IMAP_Module extends External_Service_Module {
 		// Process each email
 		foreach ( $emails as $email_id ) {
 			// Skip already processed emails
-			if ( $email_id <= $last_processed_id ) {
-				continue;
-			}
+			// if ( $email_id <= $last_processed_id ) {
+			// 	continue;
+			// }
 
 			$this->process_email( $imap, $email_id );
 
