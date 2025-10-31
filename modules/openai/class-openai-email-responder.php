@@ -38,6 +38,13 @@ class OpenAI_Email_Responder {
 			return;
 		}
 
+		// Detect auto-responders and skip replying to them
+		if ( $this->is_auto_responder( $email_data ) ) {
+			$from_address = isset( $email_data['from'] ) ? sanitize_email( $email_data['from'] ) : 'unknown';
+			$this->module->log( 'Auto-reply skipped: detected auto-responder from ' . $from_address . '.' );
+			return;
+		}
+
 		$matched_user = $this->resolve_user_from_email( $email_data );
 		if ( ! $matched_user instanceof WP_User ) {
 			$from_address = isset( $email_data['from'] ) ? sanitize_email( $email_data['from'] ) : '';
@@ -107,6 +114,83 @@ class OpenAI_Email_Responder {
 		} else {
 			$this->module->log( 'Auto-reply failed for ' . $recipient, E_USER_ERROR );
 		}
+	}
+
+	/**
+	 * Detect if an email is from an auto-responder.
+	 *
+	 * @param array $email_data Email data from the IMAP module.
+	 * @return bool True if auto-responder detected.
+	 */
+	private function is_auto_responder( array $email_data ): bool {
+		// Check subject for common auto-responder patterns
+		$subject = isset( $email_data['subject'] ) ? strtolower( trim( (string) $email_data['subject'] ) ) : '';
+		$auto_responder_subjects = array(
+			'out of office',
+			'out of the office',
+			'automatic reply',
+			'automatische antwort',
+			'réponse automatique',
+			'risposta automatica',
+			'away from office',
+			'away message',
+			'vacation',
+			'autoreply',
+			'auto-reply',
+			'auto reply',
+			'delivery status notification',
+			'returned mail',
+			'undeliverable',
+			'mail delivery failed',
+			'failure notice',
+		);
+
+		foreach ( $auto_responder_subjects as $pattern ) {
+			if ( false !== strpos( $subject, $pattern ) ) {
+				return true;
+			}
+		}
+
+		// Check from address for common auto-responder patterns
+		$from = isset( $email_data['from'] ) ? strtolower( trim( (string) $email_data['from'] ) ) : '';
+		$auto_responder_addresses = array(
+			'noreply',
+			'no-reply',
+			'donotreply',
+			'do-not-reply',
+			'mailer-daemon',
+			'postmaster',
+			'autoresponder',
+			'auto-responder',
+		);
+
+		foreach ( $auto_responder_addresses as $pattern ) {
+			if ( false !== strpos( $from, $pattern ) ) {
+				return true;
+			}
+		}
+
+		// Check for common auto-responder headers if available in auth data
+		if ( ! empty( $email_data['auth'] ) && is_array( $email_data['auth'] ) && ! empty( $email_data['auth']['auth_headers'] ) ) {
+			$headers_str = strtolower( implode( "\n", $email_data['auth']['auth_headers'] ) );
+			$auto_responder_header_patterns = array(
+				'auto-submitted: auto-replied',
+				'auto-submitted: auto-generated',
+				'x-autoresponse:',
+				'x-autoreply:',
+				'precedence: bulk',
+				'precedence: junk',
+				'precedence: list',
+			);
+
+			foreach ( $auto_responder_header_patterns as $pattern ) {
+				if ( false !== strpos( $headers_str, $pattern ) ) {
+					return true;
+				}
+			}
+		}
+
+		return false;
 	}
 
 	/**

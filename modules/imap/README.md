@@ -44,8 +44,6 @@ Configure the module settings in PersonalOS Settings:
 ### Activation
 
 - **IMAP Sync Active**: Enable to start automatic email checking
-- **Require Trusted Sender**: Only process emails from authenticated senders (DMARC/DKIM/SPF pass). **Recommended for security.**
-- **Allowed Sender Domains**: Optional comma-separated list of trusted domains (e.g., `example.com, trusted.org`). Leave empty to allow all authenticated senders.
 
 ## Security Features
 
@@ -56,15 +54,18 @@ The module automatically checks email authentication headers:
 - **DKIM**: DomainKeys Identified Mail
 - **SPF**: Sender Policy Framework
 
-Each processed email includes an `is_trusted` flag based on these checks. Enable "Require Trusted Sender" to automatically block unauthenticated emails.
-
-### Sender Domain Filtering
-
-Configure "Allowed Sender Domains" to whitelist specific domains. This prevents unauthorized parties from triggering actions by sending emails to your inbox, even if they pass authentication.
+Each processed email includes an `is_trusted` flag and detailed authentication data. Emails are routed to different action hooks based on their authentication status.
 
 ### Loop Detection
 
-The module tracks processed Message-IDs for 24 hours to prevent infinite loops if your email processing sends emails back to the monitored inbox.
+The module tracks processed Message-IDs using WordPress transients (24-hour expiration) to prevent infinite loops if your email processing sends emails back to the monitored inbox.
+
+### Auto-Responder Detection
+
+The AI email responder automatically detects and skips auto-responders based on:
+- Common auto-responder subject patterns (out of office, automatic reply, etc.)
+- Auto-responder email addresses (noreply@, mailer-daemon@, etc.)
+- Auto-responder headers (Auto-Submitted, X-Autoresponse, etc.)
 
 ### Action Hook Security
 
@@ -76,6 +77,7 @@ The module provides separate action hooks based on email authentication status:
 add_action( 'pos_imap_new_email', function( $email_data ) {
     // This email has passed authentication checks
     // Safe to process sensitive actions
+    // Hook handlers decide what security they need
     // ...
 }, 10, 1 );
 ```
@@ -91,7 +93,7 @@ add_action( 'pos_imap_new_email_unverified', function( $email_data ) {
 }, 10, 1 );
 ```
 
-Both hooks receive the same email data structure with authentication details included.
+Both hooks receive the same email data structure with authentication details included. It's up to the hook handlers to decide what additional security checks they need.
 
 ## Usage
 
