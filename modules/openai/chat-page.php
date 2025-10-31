@@ -16,7 +16,7 @@ $personalos_chatbot_full_html_content = '';
 
 function personalos_map_notebook_to_para_item( $notebook ) {
 	return array(
-		'id'   => $notebook->slug,
+		'id' => $notebook->slug,
 		'name' => $notebook->name,
 		'icon' => 'FileIcon',
 	);
@@ -27,18 +27,18 @@ function personalos_chat_config() {
 	return array(
 		'rest_api_url' => rest_url( '/' ),
 		'wp_admin_url' => admin_url(),
-		'site_title'   => get_bloginfo( 'name' ),
-		'nonce'        => wp_create_nonce( 'wp_rest' ),
-		'projects'     => array_map(
+		'site_title' => get_bloginfo( 'name' ),
+		'nonce' => wp_create_nonce( 'wp_rest' ),
+		'projects' => array_map(
 			'personalos_map_notebook_to_para_item',
 			POS::get_module_by_id( 'notes' )->get_notebooks_by_flag( 'project' )
 		),
-		'starred'      => array_map(
+		'starred' => array_map(
 			'personalos_map_notebook_to_para_item',
 			POS::get_module_by_id( 'notes' )->get_notebooks_by_flag( 'star' )
 		),
-		'user'         => array(
-			'id'    => get_current_user_id(),
+		'user' => array(
+			'id' => get_current_user_id(),
 			'login' => wp_get_current_user()->user_login,
 		),
 	);
