@@ -14,65 +14,77 @@ class IMAP_Module extends External_Service_Module {
 	public $description = 'Connect to IMAP email inbox and send emails';
 
 	public $settings = array(
-		'imap_host'     => array(
+		'imap_host'       => array(
 			'type'    => 'text',
 			'name'    => 'IMAP Server',
 			'label'   => 'IMAP server hostname (e.g., imap.gmail.com)',
 			'default' => '',
 		),
-		'imap_port'     => array(
+		'imap_port'       => array(
 			'type'    => 'text',
 			'name'    => 'IMAP Port',
 			'label'   => 'IMAP server port (e.g., 993 for SSL)',
 			'default' => '993',
 		),
-		'imap_username' => array(
+		'imap_username'   => array(
 			'type'    => 'text',
 			'name'    => 'IMAP Username',
 			'label'   => 'Your email address or username',
 			'default' => '',
 		),
-		'imap_password' => array(
+		'imap_password'   => array(
 			'type'    => 'text',
 			'name'    => 'IMAP Password',
 			'label'   => 'Your email password or app-specific password',
 			'default' => '',
 		),
-		'imap_ssl'      => array(
+		'imap_ssl'        => array(
 			'type'    => 'bool',
 			'name'    => 'Use SSL',
 			'label'   => 'Connect using SSL/TLS',
 			'default' => true,
 		),
-		'smtp_host'     => array(
+		'smtp_host'       => array(
 			'type'    => 'text',
 			'name'    => 'SMTP Server',
 			'label'   => 'SMTP server hostname for sending emails (e.g., smtp.gmail.com)',
 			'default' => '',
 		),
-		'smtp_port'     => array(
+		'smtp_port'       => array(
 			'type'    => 'text',
 			'name'    => 'SMTP Port',
 			'label'   => 'SMTP server port (e.g., 587 for TLS, 465 for SSL)',
 			'default' => '587',
 		),
-		'smtp_username' => array(
+		'smtp_username'   => array(
 			'type'    => 'text',
 			'name'    => 'SMTP Username',
 			'label'   => 'SMTP username (usually same as IMAP username)',
 			'default' => '',
 		),
-		'smtp_password' => array(
+		'smtp_password'   => array(
 			'type'    => 'text',
 			'name'    => 'SMTP Password',
 			'label'   => 'SMTP password (usually same as IMAP password)',
 			'default' => '',
 		),
-		'active'        => array(
+		'active'          => array(
 			'type'    => 'bool',
 			'name'    => 'IMAP Sync Active',
 			'label'   => 'Enable automatic email checking',
 			'default' => false,
+		),
+		'require_trust'   => array(
+			'type'    => 'bool',
+			'name'    => 'Require Trusted Sender',
+			'label'   => 'Only process emails from authenticated senders (DMARC/DKIM/SPF pass). Recommended for security.',
+			'default' => true,
+		),
+		'allowed_senders' => array(
+			'type'    => 'textarea',
+			'name'    => 'Allowed Sender Domains',
+			'label'   => 'Comma-separated list of trusted sender domains (e.g., example.com, trusted.org). Leave empty to allow all authenticated senders.',
+			'default' => '',
 		),
 	);
 
@@ -91,6 +103,13 @@ class IMAP_Module extends External_Service_Module {
 	protected $current_from_name = 'PersonalOS';
 
 	/**
+	 * Track recently processed Message-IDs to detect loops.
+	 *
+	 * @var array
+	 */
+	private $processed_message_ids = array();
+
+	/**
 	 * Constructor
 	 */
 	public function __construct() {
@@ -101,8 +120,9 @@ class IMAP_Module extends External_Service_Module {
 
 		$this->register_sync( 'minutely' );
 
-		// Register action to log emails
+		// Register actions to log emails
 		add_action( 'pos_imap_new_email', array( $this, 'log_new_email' ), 10, 1 );
+		add_action( 'pos_imap_new_email_unverified', array( $this, 'log_new_email_unverified' ), 10, 1 );
 	}
 
 	/**
@@ -259,8 +279,47 @@ class IMAP_Module extends External_Service_Module {
 		$message_id = isset( $header->message_id ) ? $this->sanitize_header_value( $header->message_id ) : '';
 		$references = isset( $header->references ) ? $this->sanitize_header_value( $header->references ) : '';
 
+		// Check for processing loops - if we've seen this Message-ID recently, skip it
+		if ( ! empty( $message_id ) && $this->is_recently_processed( $message_id ) ) {
+			$this->log( 'Skipping email (potential loop detected): Message-ID already processed recently: ' . $message_id, E_USER_WARNING );
+			return;
+		}
+
 		$unfolded_headers = $this->get_unfolded_headers( $imap, $email_id );
 		$auth_evaluation  = $this->evaluate_sender_trust( $unfolded_headers, $from_domain );
+
+		// Security check: Require trusted sender if enabled
+		if ( $this->get_setting( 'require_trust' ) && ! $auth_evaluation['is_trusted'] ) {
+			$this->log(
+				sprintf(
+					'Blocked untrusted email - From: %s, Subject: %s, Auth: %s',
+					$from_email,
+					isset( $header->subject ) ? substr( sanitize_text_field( $this->decode_header( $header->subject ) ), 0, 50 ) : '(No Subject)',
+					$auth_evaluation['summary']
+				),
+				E_USER_WARNING
+			);
+			return;
+		}
+
+		// Security check: Validate sender domain against allowed list
+		if ( ! $this->is_sender_allowed( $from_domain ) ) {
+			$this->log(
+				sprintf(
+					'Blocked email from disallowed domain - From: %s (%s), Subject: %s',
+					$from_email,
+					$from_domain,
+					isset( $header->subject ) ? substr( sanitize_text_field( $this->decode_header( $header->subject ) ), 0, 50 ) : '(No Subject)'
+				),
+				E_USER_WARNING
+			);
+			return;
+		}
+
+		// Track this Message-ID to prevent loops
+		if ( ! empty( $message_id ) ) {
+			$this->mark_as_processed( $message_id );
+		}
 
 		// Prepare email data
 		$email_data = array(
@@ -277,8 +336,26 @@ class IMAP_Module extends External_Service_Module {
 			'is_trusted' => (bool) $auth_evaluation['is_trusted'],
 		);
 
-		// Trigger action for new email
-		do_action( 'pos_imap_new_email', $email_data );
+		// Trigger appropriate action based on authentication status
+		if ( $email_data['is_trusted'] ) {
+			/**
+			 * Fires when a verified/authenticated email is received.
+			 *
+			 * @since 0.2.4
+			 *
+			 * @param array $email_data Email data with authentication passed.
+			 */
+			do_action( 'pos_imap_new_email', $email_data );
+		} else {
+			/**
+			 * Fires when an unverified/unauthenticated email is received.
+			 *
+			 * @since 0.2.4
+			 *
+			 * @param array $email_data Email data with authentication failed.
+			 */
+			do_action( 'pos_imap_new_email_unverified', $email_data );
+		}
 	}
 
 	/**
@@ -307,6 +384,105 @@ class IMAP_Module extends External_Service_Module {
 		}
 
 		return implode( "\r\n", $unfolded );
+	}
+
+	/**
+	 * Check if a Message-ID was recently processed (loop detection).
+	 *
+	 * @param string $message_id Message-ID to check.
+	 * @return bool True if recently processed.
+	 */
+	private function is_recently_processed( string $message_id ): bool {
+		// Load from persistent storage
+		$stored = get_option( $this->get_setting_option_name( 'processed_message_ids' ), array() );
+		if ( ! is_array( $stored ) ) {
+			$stored = array();
+		}
+
+		// Check in-memory cache first (for same sync run)
+		if ( in_array( $message_id, $this->processed_message_ids, true ) ) {
+			return true;
+		}
+
+		// Check persistent storage (24-hour window)
+		$cutoff = time() - DAY_IN_SECONDS;
+		foreach ( $stored as $stored_id => $timestamp ) {
+			if ( $stored_id === $message_id && $timestamp > $cutoff ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Mark a Message-ID as processed.
+	 *
+	 * @param string $message_id Message-ID to mark.
+	 */
+	private function mark_as_processed( string $message_id ): void {
+		// Add to in-memory cache
+		$this->processed_message_ids[] = $message_id;
+
+		// Add to persistent storage with cleanup
+		$stored = get_option( $this->get_setting_option_name( 'processed_message_ids' ), array() );
+		if ( ! is_array( $stored ) ) {
+			$stored = array();
+		}
+
+		// Clean old entries (older than 24 hours)
+		$cutoff = time() - DAY_IN_SECONDS;
+		$stored = array_filter(
+			$stored,
+			function( $timestamp ) use ( $cutoff ) {
+				return $timestamp > $cutoff;
+			}
+		);
+
+		// Add current message
+		$stored[ $message_id ] = time();
+
+		// Limit to 1000 entries to prevent unlimited growth
+		if ( count( $stored ) > 1000 ) {
+			$stored = array_slice( $stored, -1000, null, true );
+		}
+
+		update_option( $this->get_setting_option_name( 'processed_message_ids' ), $stored );
+	}
+
+	/**
+	 * Check if sender domain is allowed.
+	 *
+	 * @param string $from_domain Sender domain.
+	 * @return bool True if allowed.
+	 */
+	private function is_sender_allowed( string $from_domain ): bool {
+		$allowed_senders = $this->get_setting( 'allowed_senders' );
+
+		// If no allowed senders configured, allow all
+		if ( empty( $allowed_senders ) ) {
+			return true;
+		}
+
+		// Parse allowed domains (comma-separated)
+		$allowed_domains = array_map( 'trim', explode( ',', $allowed_senders ) );
+		$allowed_domains = array_filter( $allowed_domains );
+		$allowed_domains = array_map( 'strtolower', $allowed_domains );
+
+		$from_domain = strtolower( trim( $from_domain ) );
+
+		// Check exact match or subdomain match
+		foreach ( $allowed_domains as $allowed_domain ) {
+			if ( $from_domain === $allowed_domain ) {
+				return true;
+			}
+			// Allow subdomains (e.g., mail.example.com matches example.com)
+			if ( substr( $from_domain, -( strlen( $allowed_domain ) + 1 ) ) === '.' . $allowed_domain ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -636,8 +812,7 @@ class IMAP_Module extends External_Service_Module {
 	}
 
 	/**
-	 * Log new email (hooked to pos_imap_new_email action)
-	 * Note: Logs truncated body content. Avoid logging sensitive information.
+	 * Log verified/trusted email (hooked to pos_imap_new_email action)
 	 *
 	 * @param array $email_data Email data.
 	 */
@@ -649,7 +824,28 @@ class IMAP_Module extends External_Service_Module {
 			$body_preview .= '...';
 		}
 
-		$trusted_flag = ( isset( $email_data['is_trusted'] ) && $email_data['is_trusted'] ) ? '[trusted]' : '[untrusted]';
+		$auth_summary = 'none';
+		if ( isset( $email_data['auth'] ) && is_array( $email_data['auth'] ) && ! empty( $email_data['auth']['summary'] ) ) {
+			$auth_summary = $email_data['auth']['summary'];
+		}
+
+		$this->log(
+			sprintf(
+				'[VERIFIED] Email - Subject: %s, From: %s, Auth: %s, Body: %s',
+				$email_data['subject'],
+				$email_data['from'],
+				$auth_summary,
+				$body_preview
+			)
+		);
+	}
+
+	/**
+	 * Log unverified/untrusted email (hooked to pos_imap_new_email_unverified action)
+	 *
+	 * @param array $email_data Email data.
+	 */
+	public function log_new_email_unverified( $email_data ) {
 		$auth_summary = 'none';
 		if ( isset( $email_data['auth'] ) && is_array( $email_data['auth'] ) && ! empty( $email_data['auth']['summary'] ) ) {
 			$auth_summary = $email_data['auth']['summary'];
@@ -664,14 +860,13 @@ class IMAP_Module extends External_Service_Module {
 
 		$this->log(
 			sprintf(
-				'New Email %s - Subject: %s, From: %s, Auth: %s%s, Body: %s',
-				$trusted_flag,
+				'[UNVERIFIED] Email - Subject: %s, From: %s, Auth: %s%s',
 				$email_data['subject'],
 				$email_data['from'],
 				$auth_summary,
-				$auth_debug,
-				$body_preview
-			)
+				$auth_debug
+			),
+			E_USER_WARNING
 		);
 	}
 
