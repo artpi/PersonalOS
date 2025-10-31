@@ -227,34 +227,46 @@ class IMAP_Module extends External_Service_Module {
 	}
 
 	/**
-	 * Get email body
+	 * Get email body (always returns plain text)
 	 *
 	 * @param resource $imap IMAP connection.
 	 * @param int      $email_id Email ID.
 	 * @param object   $structure Email structure.
-	 * @return string Email body.
+	 * @return string Email body as plain text.
 	 */
 	private function get_email_body( $imap, $email_id, $structure ) {
-		$body = '';
+		$body        = '';
+		$html_body   = '';
+		$is_html     = false;
 
 		// Check if email has parts (multipart)
 		if ( isset( $structure->parts ) && count( $structure->parts ) ) {
-			// Multipart email
+			// Multipart email - collect both plain and HTML parts
 			foreach ( $structure->parts as $part_num => $part ) {
 				// Look for text/plain or text/html
 				if ( $part->subtype === 'PLAIN' || $part->subtype === 'HTML' ) {
-					$body = imap_fetchbody( $imap, $email_id, $part_num + 1 );
+					$part_body = imap_fetchbody( $imap, $email_id, $part_num + 1 );
 
 					// Decode based on encoding
 					if ( isset( $part->encoding ) ) {
-						$body = $this->decode_body( $body, $part->encoding );
+						$part_body = $this->decode_body( $part_body, $part->encoding );
 					}
 
-					// Prefer plain text, but take HTML if plain not available
-					if ( $part->subtype === 'PLAIN' && ! empty( $body ) ) {
+					if ( $part->subtype === 'PLAIN' && ! empty( $part_body ) ) {
+						// Found plain text - use it immediately
+						$body = $part_body;
 						break;
+					} elseif ( $part->subtype === 'HTML' && ! empty( $part_body ) ) {
+						// Store HTML as fallback
+						$html_body = $part_body;
 					}
 				}
+			}
+
+			// If no plain text found, use HTML and convert to plain text
+			if ( empty( $body ) && ! empty( $html_body ) ) {
+				$body    = $html_body;
+				$is_html = true;
 			}
 		} else {
 			// Simple email
@@ -263,6 +275,18 @@ class IMAP_Module extends External_Service_Module {
 			if ( isset( $structure->encoding ) ) {
 				$body = $this->decode_body( $body, $structure->encoding );
 			}
+
+			// Check if simple email is HTML type
+			if ( isset( $structure->subtype ) && 'HTML' === $structure->subtype ) {
+				$is_html = true;
+			}
+		}
+
+		// Convert HTML to plain text if needed
+		if ( $is_html && ! empty( $body ) ) {
+			$body = wp_strip_all_tags( $body );
+			// Decode HTML entities
+			$body = html_entity_decode( $body, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 		}
 
 		return $body;
@@ -310,12 +334,19 @@ class IMAP_Module extends External_Service_Module {
 	 * @param array $email_data Email data.
 	 */
 	public function log_new_email( $email_data ) {
-		// Only log metadata for security - body may contain sensitive info
+		// Truncate body for security (body may contain sensitive info)
+		$body = isset( $email_data['body'] ) ? $email_data['body'] : '';
+		$body_preview = ! empty( $body ) ? substr( $body, 0, 200 ) : '(empty)';
+		if ( strlen( $body ) > 200 ) {
+			$body_preview .= '...';
+		}
+
 		$this->log(
 			sprintf(
-				'New Email - Subject: %s, From: %s',
+				'New Email - Subject: %s, From: %s, Body: %s',
 				$email_data['subject'],
-				$email_data['from']
+				$email_data['from'],
+				$body_preview
 			)
 		);
 	}
