@@ -96,7 +96,7 @@ class OpenAI_Email_Responder {
 			}
 		}
 
-		$subject = $this->prepare_subject( isset( $email_data['subject'] ) ? $email_data['subject'] : '' );
+		$subject = 'Re: ' . trim( isset( $email_data['subject'] ) ? $email_data['subject'] : '' );
 		$body    = $this->compose_reply_body( $assistant_reply, $email_data );
 		$headers = $this->prepare_headers( $email_data );
 
@@ -122,16 +122,23 @@ class OpenAI_Email_Responder {
 		$body       = isset( $email_data['body'] ) ? substr( $email_data['body'], 0, 500 ) : '';
 
 		$classification_prompt = sprintf(
-			"Analyze this email and determine if it should be skipped (not replied to).\n\n" .
-			"From: %s <%s>\n" .
-			"Subject: %s\n" .
-			"Body (first 500 chars): %s\n\n" .
-			"Classify this email. Skip if it's:\n" .
-			"- Auto-responder (out of office, vacation reply, etc.)\n" .
-			"- Spam or marketing\n" .
-			"- Delivery failure notification\n" .
-			"- Automated system message\n\n" .
-			"Respond with JSON only: {\"skip\": true/false, \"reason\": \"brief reason\"}",
+			<<<'PROMPT'
+Analyze this email and determine if it should be skipped (not replied to).
+
+From: %s <%s>
+Subject: %s
+Body (first 500 chars): %s
+
+Classify this email. Skip if it's:
+- Auto-responder (out of office, vacation reply, etc.)
+- Spam or marketing
+- Delivery failure notification
+- Automated system message
+
+Always respond if this is a question, inquiry or a task. You ONLY want to skip automated-looking emails.
+YOU ARE A PERSONAL ASSISTANT. DO NOT SKIP INQUIRY
+Respond with JSON only: {'skip': true/false, 'reason': 'brief reason'}
+PROMPT,
 			$from_name,
 			$from_email,
 			$subject,
@@ -148,7 +155,7 @@ class OpenAI_Email_Responder {
 		$response = $this->module->api_call(
 			'https://api.openai.com/v1/chat/completions',
 			array(
-				'model'             => 'gpt-4o-mini',
+				'model'             => 'gpt-4.1-mini',
 				'messages'          => $messages,
 				'response_format'   => array( 'type' => 'json_object' ),
 				'temperature'       => 0.3,
@@ -214,21 +221,6 @@ class OpenAI_Email_Responder {
 				'content' => $this->normalize_backscroll_content( implode( "\n", $lines ) ),
 			),
 		);
-	}
-
-	/**
-	 * Prepare the response subject, ensuring a proper "Re:" prefix.
-	 *
-	 * @param string $subject Original subject.
-	 * @return string Reply subject.
-	 */
-	private function prepare_subject( string $subject ): string {
-		$subject = trim( $subject );
-		if ( preg_match( '/^Re:/i', $subject ) ) {
-			return $subject;
-		}
-		// Always prepend Re: for proper threading, even for empty subjects
-		return 'Re: ' . ( '' !== $subject ? $subject : '(No Subject)' );
 	}
 
 	/**
