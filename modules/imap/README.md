@@ -1,162 +1,114 @@
-# IMAP Email Module
+# IMAP Email Module - User Guide
 
-This module provides IMAP email checking and sending functionality for PersonalOS.
+Welcome to the IMAP Email Module for PersonalOS! This module allows you to receive and automatically respond to emails using AI.
+
+## What This Module Does
+
+The IMAP module connects to your email inbox and:
+- **Checks for new emails** every minute automatically
+- **Verifies sender authenticity** using email authentication (DMARC/DKIM/SPF)
+- **Responds automatically** to verified emails using AI
+- **Prevents loops** by tracking which emails have been processed
 
 ## Requirements
 
-This module requires the PHP IMAP extension to be installed.
+Your web server needs the PHP IMAP extension installed. Most hosting providers have this enabled by default.
 
-## Features
+## Setup Instructions
 
-- **Automatic Email Checking**: Checks your inbox every minute via wp-cron
-- **Email Actions**: Triggers a `pos_imap_new_email` action for each email retrieved
-- **Email Sending**: Send emails using PHPMailer with SMTP
-- **Email Logging**: Logs email subject, sender, and body to error_log
+### Step 1: Get Your Email Settings
 
-## Configuration
+You'll need to collect these details from your email provider:
 
-Configure the module settings in PersonalOS Settings:
+**For Gmail:**
+- IMAP Server: `imap.gmail.com`
+- IMAP Port: `993`
+- SMTP Server: `smtp.gmail.com`
+- SMTP Port: `587`
+- **Important**: You need to generate an "App Password" (not your regular Gmail password)
+  - Go to Google Account → Security → 2-Step Verification → App Passwords
+  - Generate a new app password for "Mail"
+  - Use this password in the settings below
 
-### Security Notes
+**For Other Providers:**
+Contact your email provider or check their documentation for IMAP/SMTP settings.
 
-- **Credentials Storage**: Credentials are stored in WordPress options. Use app-specific passwords when available (e.g., Gmail App Passwords) instead of your main account password.
-- **SSL/TLS**: Always use SSL/TLS for IMAP and SMTP connections to protect credentials in transit.
-- **Sensitive Data**: Email bodies may contain sensitive information. Be cautious when processing or storing email content.
-- **Email Authentication**: The module checks DMARC, DKIM, and SPF authentication headers to verify sender identity.
-- **Access Control**: Enable "Require Trusted Sender" to block emails that fail authentication checks.
-- **Loop Prevention**: Automatic detection prevents processing the same email multiple times within 24 hours.
+### Step 2: Configure the Module
 
-### IMAP Settings (for receiving emails)
+1. Go to **PersonalOS Settings** in your WordPress admin
+2. Find the **IMAP Email** section
+3. Fill in the following settings:
 
-- **IMAP Server**: Your IMAP server hostname (e.g., `imap.gmail.com`)
-- **IMAP Port**: Usually `993` for SSL
-- **IMAP Username**: Your email address
+**IMAP Settings (for receiving emails):**
+- **IMAP Server**: Your email provider's IMAP server address
+- **IMAP Port**: Usually `993` for secure connections
+- **IMAP Username**: Your full email address
 - **IMAP Password**: Your email password or app-specific password
-- **Use SSL**: Enable SSL/TLS connection (recommended)
+- **Use SSL**: Keep this checked (recommended for security)
 
-### SMTP Settings (for sending emails)
-
-- **SMTP Server**: Your SMTP server hostname (e.g., `smtp.gmail.com`)
+**SMTP Settings (for sending emails):**
+- **SMTP Server**: Your email provider's SMTP server address
 - **SMTP Port**: Usually `587` for TLS or `465` for SSL
-- **SMTP Username**: Usually same as IMAP username
-- **SMTP Password**: Usually same as IMAP password
+- **SMTP Username**: Usually the same as your IMAP username
+- **SMTP Password**: Usually the same as your IMAP password
 
-### Activation
+**Activation:**
+- **IMAP Sync Active**: Check this box to start checking your inbox
 
-- **IMAP Sync Active**: Enable to start automatic email checking
+4. Click **Save Changes**
 
-## Security Features
+### Step 3: Test It
 
-### Email Authentication Verification
+Send a test email to the email address you configured. Within a minute, the system should:
+1. Detect the new email
+2. Verify it's from a trusted sender
+3. Generate an AI response
+4. Send the reply back to you
 
-The module automatically checks email authentication headers:
-- **DMARC**: Domain-based Message Authentication, Reporting & Conformance
-- **DKIM**: DomainKeys Identified Mail
-- **SPF**: Sender Policy Framework
+## How the AI Responder Works
 
-Each processed email includes an `is_trusted` flag and detailed authentication data. Emails are routed to different action hooks based on their authentication status.
+When a verified email arrives:
 
-### Loop Detection
+1. **Classification**: The AI first checks if it's an auto-responder, spam, or system message. These are automatically skipped.
 
-The module tracks processed Message-IDs using WordPress transients (24-hour expiration) to prevent infinite loops if your email processing sends emails back to the monitored inbox.
+2. **User Matching**: The system looks for a WordPress user account matching the sender's email address. Only emails from registered users get auto-replies.
 
-### Auto-Responder Detection
+3. **AI Generation**: The AI reads your email and generates a personalized response based on the content.
 
-The AI email responder automatically detects and skips auto-responders based on:
-- Common auto-responder subject patterns (out of office, automatic reply, etc.)
-- Auto-responder email addresses (noreply@, mailer-daemon@, etc.)
-- Auto-responder headers (Auto-Submitted, X-Autoresponse, etc.)
+4. **Threading**: Replies maintain proper email threading (using "Re:" prefix and email headers) so conversations stay organized in your inbox.
 
-### Action Hook Security
+5. **No Loops**: The system tracks processed emails and won't reply to the same message twice or respond to auto-responders.
 
-The module provides separate action hooks based on email authentication status:
+## Security Notes
 
-**`pos_imap_new_email`** - Triggered only for verified/authenticated emails (DMARC/DKIM/SPF pass)
+- **Use App-Specific Passwords**: For Gmail and other providers with 2-factor authentication, always use app-specific passwords instead of your main password.
 
-```php
-add_action( 'pos_imap_new_email', function( $email_data ) {
-    // This email has passed authentication checks
-    // Safe to process sensitive actions
-    // Hook handlers decide what security they need
-    // ...
-}, 10, 1 );
-```
+- **Verified Senders Only**: The AI only responds to emails from senders that pass email authentication checks (DMARC, DKIM, or SPF). This prevents spoofed emails.
 
-**`pos_imap_new_email_unverified`** - Triggered only for unverified/unauthenticated emails
+- **User Account Required**: Auto-replies only go to email addresses registered in your WordPress user accounts.
 
-```php
-add_action( 'pos_imap_new_email_unverified', function( $email_data ) {
-    // This email failed authentication checks
-    // Be cautious - may be spoofed
-    // Only use for logging, notifications, or non-sensitive actions
-    error_log( 'Unverified email from: ' . $email_data['from'] );
-}, 10, 1 );
-```
+- **SSL/TLS Encryption**: Always use SSL/TLS for both IMAP and SMTP connections to protect your credentials and email content.
 
-Both hooks receive the same email data structure with authentication details included. It's up to the hook handlers to decide what additional security checks they need.
+## Troubleshooting
 
-## Usage
+**"No emails are being processed"**
+- Check that "IMAP Sync Active" is enabled
+- Verify your IMAP credentials are correct
+- Make sure your server has the PHP IMAP extension
+- Check error logs for connection issues
 
-### Receiving Emails
+**"AI isn't responding to emails"**
+- Verify the sender's email matches a WordPress user account
+- Check that the email passes authentication (look for verification logs)
+- Ensure OpenAI API is configured and has credits available
 
-Once activated, the module will check your inbox every minute. For verified emails, it triggers the `pos_imap_new_email` action. For unverified emails, it triggers `pos_imap_new_email_unverified`:
+**"Getting authentication errors"**
+- For Gmail, make sure you're using an App Password, not your regular password
+- Check that IMAP access is enabled in your email provider settings
+- Verify the port numbers are correct (993 for IMAP, 587/465 for SMTP)
 
-```php
-// Handle verified emails only (recommended for sensitive operations)
-add_action( 'pos_imap_new_email', function( $email_data ) {
-    // $email_data contains:
-    // - 'subject': Email subject (sanitized)
-    // - 'from': Sender email address (sanitized)
-    // - 'from_name': Sender display name
-    // - 'body': Email body (plain text)
-    // - 'date': Email date
-    // - 'id': Email ID
-    // - 'reply_to': Array of Reply-To addresses
-    // - 'message_id': Message-ID header
-    // - 'references': References header
-    // - 'is_trusted': Boolean - always true in this hook
-    // - 'auth': Array with detailed authentication info
-    //   - 'summary': Human-readable auth status
-    //   - 'dmarc', 'dkim', 'spf': Authentication results
-    //   - 'dkim_domain', 'spf_domain': Authenticated domains
-    
-    // Process verified email...
-}, 10, 1 );
+---
 
-// Handle unverified emails separately (optional - for logging/monitoring)
-add_action( 'pos_imap_new_email_unverified', function( $email_data ) {
-    // Same structure as above, but is_trusted is always false
-    // Use with caution - email may be spoofed
-}, 10, 1 );
-```
+## Technical Details
 
-### Sending Emails
-
-To send an email:
-
-```php
-$imap_module = POS::get_module_by_id( 'imap' );
-$imap_module->send_email(
-    'recipient@example.com',
-    'Subject',
-    'Email body content'
-);
-```
-
-## Gmail Configuration
-
-For Gmail, you'll need to:
-
-1. Enable IMAP in Gmail settings
-2. Generate an App Password (if using 2FA)
-3. Use these settings:
-   - IMAP Server: `imap.gmail.com`
-   - IMAP Port: `993`
-   - SMTP Server: `smtp.gmail.com`
-   - SMTP Port: `587`
-
-## Future Enhancements
-
-- Email attachment handling
-- Email filtering and processing rules
-- Integration with other PersonalOS modules
+For developers who want to extend or customize the IMAP module, see [TECHNICAL.md](TECHNICAL.md) for hook documentation and advanced configuration options.

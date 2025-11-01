@@ -303,18 +303,20 @@ class IMAP_Module extends External_Service_Module {
 			 *
 			 * @since 0.2.4
 			 *
-			 * @param array $email_data Email data with authentication passed.
+			 * @param array  $email_data Email data with authentication passed.
+			 * @param object $this       IMAP module instance.
 			 */
-			do_action( 'pos_imap_new_email', $email_data );
+			do_action( 'pos_imap_new_email', $email_data, $this );
 		} else {
 			/**
 			 * Fires when an unverified/unauthenticated email is received.
 			 *
 			 * @since 0.2.4
 			 *
-			 * @param array $email_data Email data with authentication failed.
+			 * @param array  $email_data Email data with authentication failed.
+			 * @param object $this       IMAP module instance.
 			 */
-			do_action( 'pos_imap_new_email_unverified', $email_data );
+			do_action( 'pos_imap_new_email_unverified', $email_data, $this );
 		}
 	}
 

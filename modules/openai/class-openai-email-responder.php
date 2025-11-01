@@ -20,28 +20,22 @@ class OpenAI_Email_Responder {
 	 */
 	public function __construct( OpenAI_Module $module ) {
 		$this->module = $module;
-		add_action( 'pos_imap_new_email', array( $this, 'handle_new_email' ), 20, 1 );
+		add_action( 'pos_imap_new_email', array( $this, 'handle_new_email' ), 20, 2 );
 	}
 
 	/**
 	 * Handle new incoming emails and respond using the AI conversation completion.
 	 *
-	 * @param array $email_data Email data from the IMAP module.
+	 * @param array $email_data   Email data from the IMAP module.
+	 * @param object $imap_module IMAP module instance.
 	 */
-	public function handle_new_email( array $email_data ): void {
-		if ( empty( $email_data['is_trusted'] ) ) {
-			$from_address = isset( $email_data['from'] ) ? sanitize_email( $email_data['from'] ) : '';
-			if ( '' === $from_address ) {
-				$from_address = 'unknown';
-			}
-			$this->module->log( 'Auto-reply skipped: sender not verified for ' . $from_address . '.', E_USER_WARNING );
-			return;
-		}
-
-		// Detect auto-responders and skip replying to them
-		if ( $this->is_auto_responder( $email_data ) ) {
+	public function handle_new_email( array $email_data, $imap_module = null ): void {
+		// Classify the email first to check if it's an auto-responder or spam
+		$classification = $this->classify_email( $email_data );
+		if ( ! empty( $classification['skip'] ) ) {
+			$reason = isset( $classification['reason'] ) ? $classification['reason'] : 'unknown';
 			$from_address = isset( $email_data['from'] ) ? sanitize_email( $email_data['from'] ) : 'unknown';
-			$this->module->log( 'Auto-reply skipped: detected auto-responder from ' . $from_address . '.' );
+			$this->module->log( 'Auto-reply skipped: ' . $reason . ' from ' . $from_address . '.' );
 			return;
 		}
 
@@ -61,7 +55,10 @@ class OpenAI_Email_Responder {
 			return;
 		}
 
-		$imap_module = POS::get_module_by_id( 'imap' );
+		// Use the passed IMAP module or get it if not provided
+		if ( ! $imap_module ) {
+			$imap_module = POS::get_module_by_id( 'imap' );
+		}
 		if ( ! $imap_module || ! method_exists( $imap_module, 'send_email' ) ) {
 			$this->module->log( 'Auto-reply skipped: IMAP module not available.', E_USER_WARNING );
 			return;
@@ -94,13 +91,9 @@ class OpenAI_Email_Responder {
 		} else {
 			$assistant_reply = $this->extract_assistant_reply( $conversation );
 			if ( '' === $assistant_reply ) {
-				$this->module->log( 'Auto-reply AI returned no assistant message.', E_USER_WARNING );
-				$used_fallback = true;
+				$this->module->log( 'Auto-reply skipped: AI returned no assistant message.' );
+				return;
 			}
-		}
-
-		if ( $used_fallback ) {
-			$assistant_reply = 'Thank you for your message.';
 		}
 
 		$subject = $this->prepare_subject( isset( $email_data['subject'] ) ? $email_data['subject'] : '' );
@@ -110,87 +103,80 @@ class OpenAI_Email_Responder {
 		$sent = $imap_module->send_email( $recipient, $subject, $body, $headers );
 
 		if ( $sent ) {
-			$this->module->log( ( $used_fallback ? 'Fallback auto-reply sent to ' : 'AI auto-reply sent to ' ) . $recipient );
+			$this->module->log( 'AI auto-reply sent to ' . $recipient );
 		} else {
 			$this->module->log( 'Auto-reply failed for ' . $recipient, E_USER_ERROR );
 		}
 	}
 
 	/**
-	 * Detect if an email is from an auto-responder.
+	 * Classify email using AI to detect auto-responders, spam, etc.
 	 *
 	 * @param array $email_data Email data from the IMAP module.
-	 * @return bool True if auto-responder detected.
+	 * @return array Classification result with 'skip' boolean and 'reason' string.
 	 */
-	private function is_auto_responder( array $email_data ): bool {
-		// Check subject for common auto-responder patterns
-		$subject = isset( $email_data['subject'] ) ? strtolower( trim( (string) $email_data['subject'] ) ) : '';
-		$auto_responder_subjects = array(
-			'out of office',
-			'out of the office',
-			'automatic reply',
-			'automatische antwort',
-			'réponse automatique',
-			'risposta automatica',
-			'away from office',
-			'away message',
-			'vacation',
-			'autoreply',
-			'auto-reply',
-			'auto reply',
-			'delivery status notification',
-			'returned mail',
-			'undeliverable',
-			'mail delivery failed',
-			'failure notice',
+	private function classify_email( array $email_data ): array {
+		$from_email = isset( $email_data['from'] ) ? $email_data['from'] : '';
+		$from_name  = isset( $email_data['from_name'] ) ? $email_data['from_name'] : '';
+		$subject    = isset( $email_data['subject'] ) ? $email_data['subject'] : '';
+		$body       = isset( $email_data['body'] ) ? substr( $email_data['body'], 0, 500 ) : '';
+
+		$classification_prompt = sprintf(
+			"Analyze this email and determine if it should be skipped (not replied to).\n\n" .
+			"From: %s <%s>\n" .
+			"Subject: %s\n" .
+			"Body (first 500 chars): %s\n\n" .
+			"Classify this email. Skip if it's:\n" .
+			"- Auto-responder (out of office, vacation reply, etc.)\n" .
+			"- Spam or marketing\n" .
+			"- Delivery failure notification\n" .
+			"- Automated system message\n\n" .
+			"Respond with JSON only: {\"skip\": true/false, \"reason\": \"brief reason\"}",
+			$from_name,
+			$from_email,
+			$subject,
+			$body
 		);
 
-		foreach ( $auto_responder_subjects as $pattern ) {
-			if ( false !== strpos( $subject, $pattern ) ) {
-				return true;
-			}
-		}
-
-		// Check from address for common auto-responder patterns
-		$from = isset( $email_data['from'] ) ? strtolower( trim( (string) $email_data['from'] ) ) : '';
-		$auto_responder_addresses = array(
-			'noreply',
-			'no-reply',
-			'donotreply',
-			'do-not-reply',
-			'mailer-daemon',
-			'postmaster',
-			'autoresponder',
-			'auto-responder',
+		$messages = array(
+			array(
+				'role'    => 'user',
+				'content' => $classification_prompt,
+			),
 		);
 
-		foreach ( $auto_responder_addresses as $pattern ) {
-			if ( false !== strpos( $from, $pattern ) ) {
-				return true;
-			}
+		$response = $this->module->api_call(
+			'https://api.openai.com/v1/chat/completions',
+			array(
+				'model'             => 'gpt-4o-mini',
+				'messages'          => $messages,
+				'response_format'   => array( 'type' => 'json_object' ),
+				'temperature'       => 0.3,
+				'max_tokens'        => 100,
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			$this->module->log( 'Email classification failed: ' . $response->get_error_message(), E_USER_WARNING );
+			// Default to not skipping on error
+			return array( 'skip' => false, 'reason' => '' );
 		}
 
-		// Check for common auto-responder headers if available in auth data
-		if ( ! empty( $email_data['auth'] ) && is_array( $email_data['auth'] ) && ! empty( $email_data['auth']['auth_headers'] ) ) {
-			$headers_str = strtolower( implode( "\n", $email_data['auth']['auth_headers'] ) );
-			$auto_responder_header_patterns = array(
-				'auto-submitted: auto-replied',
-				'auto-submitted: auto-generated',
-				'x-autoresponse:',
-				'x-autoreply:',
-				'precedence: bulk',
-				'precedence: junk',
-				'precedence: list',
-			);
-
-			foreach ( $auto_responder_header_patterns as $pattern ) {
-				if ( false !== strpos( $headers_str, $pattern ) ) {
-					return true;
-				}
-			}
+		if ( ! isset( $response->choices[0]->message->content ) ) {
+			$this->module->log( 'Email classification returned invalid response', E_USER_WARNING );
+			return array( 'skip' => false, 'reason' => '' );
 		}
 
-		return false;
+		$result = json_decode( $response->choices[0]->message->content, true );
+		if ( ! is_array( $result ) ) {
+			$this->module->log( 'Email classification returned invalid JSON', E_USER_WARNING );
+			return array( 'skip' => false, 'reason' => '' );
+		}
+
+		return array(
+			'skip'   => ! empty( $result['skip'] ),
+			'reason' => isset( $result['reason'] ) ? $result['reason'] : '',
+		);
 	}
 
 	/**
@@ -238,30 +224,24 @@ class OpenAI_Email_Responder {
 	 */
 	private function prepare_subject( string $subject ): string {
 		$subject = trim( $subject );
-		if ( '' === $subject ) {
-			return 'Re: (No Subject)';
-		}
 		if ( preg_match( '/^Re:/i', $subject ) ) {
 			return $subject;
 		}
-		return 'Re: ' . $subject;
+		// Always prepend Re: for proper threading, even for empty subjects
+		return 'Re: ' . ( '' !== $subject ? $subject : '(No Subject)' );
 	}
 
 	/**
 	 * Compose the response body by combining AI output with the original email content.
 	 *
-	 * @param string $assistant_reply Reply generated by the assistant or fallback.
+	 * @param string $assistant_reply Reply generated by the assistant.
 	 * @param array  $email_data      Email data from the IMAP module.
 	 * @return string Response body.
 	 */
 	private function compose_reply_body( string $assistant_reply, array $email_data ): string {
 		$assistant_reply = trim( $assistant_reply );
-		if ( '' === $assistant_reply ) {
-			$assistant_reply = 'Thank you for your message.';
-		}
-
-		$body          = $assistant_reply;
-		$quoted_block  = $this->format_quoted_original( $email_data );
+		$body            = $assistant_reply;
+		$quoted_block    = $this->format_quoted_original( $email_data );
 
 		if ( '' !== $quoted_block ) {
 			$body .= "\n\n" . $quoted_block;
