@@ -606,10 +606,12 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 			)
 		);
 
+		$sender_user_id = $this->sender_user_id;
+
 		// Add filter to map custom@example.com to the test user
-		$filter_callback = function( $user_id, $email, $email_data ) {
+		$filter_callback = function( $user_id, $email, $email_data ) use ( $sender_user_id ) {
 			if ( 'custom@example.com' === $email ) {
-				return $this->sender_user_id;
+				return $sender_user_id;
 			}
 			return $user_id;
 		};
@@ -690,10 +692,11 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 	 */
 	public function test_filter_maps_multiple_emails_to_same_user() {
 		$alternate_emails = array( 'work@example.com', 'personal@example.com', 'alias@example.com' );
+		$sender_user_id = $this->sender_user_id;
 
-		$filter_callback = function( $user_id, $email, $email_data ) use ( $alternate_emails ) {
+		$filter_callback = function( $user_id, $email, $email_data ) use ( $alternate_emails, $sender_user_id ) {
 			if ( in_array( $email, $alternate_emails, true ) ) {
-				return $this->sender_user_id;
+				return $sender_user_id;
 			}
 			return $user_id;
 		};
