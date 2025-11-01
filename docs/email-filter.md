@@ -61,15 +61,17 @@ Store alternate emails in user meta and map them dynamically:
 
 ```php
 add_filter( 'pos_resolve_user_from_email', function( $user_id, $email, $email_data ) {
-    // Query all users with alternate_emails meta
+    // Sanitize the email first
+    $email = sanitize_email( $email );
+    if ( ! is_email( $email ) ) {
+        return $user_id;
+    }
+    
+    // Query all users with this exact alternate email in meta
     $users = get_users( array(
-        'meta_query' => array(
-            array(
-                'key'     => 'pos_alternate_emails',
-                'value'   => $email,
-                'compare' => 'LIKE',
-            ),
-        ),
+        'meta_key'   => 'pos_alternate_emails',
+        'meta_value' => $email,
+        'number'     => 1,
     ) );
     
     if ( ! empty( $users ) ) {
@@ -86,9 +88,15 @@ Map all emails from a specific domain to a user:
 
 ```php
 add_filter( 'pos_resolve_user_from_email', function( $user_id, $email, $email_data ) {
-    // Check if email ends with @mycompany.com
-    $domain = '@mycompany.com';
-    if ( substr( $email, -strlen( $domain ) ) === $domain ) {
+    // Extract domain from email (part after @)
+    $at_pos = strrpos( $email, '@' );
+    if ( false === $at_pos ) {
+        return $user_id;
+    }
+    
+    $domain = strtolower( substr( $email, $at_pos + 1 ) );
+    
+    if ( 'mycompany.com' === $domain ) {
         return 123; // Your user ID
     }
     return $user_id;
