@@ -343,7 +343,7 @@ PROMPT,
 			 */
 			$filtered_user_id = apply_filters( 'pos_resolve_user_from_email', null, $candidate, $email_data );
 
-			if ( null !== $filtered_user_id ) {
+			if ( null !== $filtered_user_id && is_int( $filtered_user_id ) && $filtered_user_id > 0 ) {
 				$user = get_user_by( 'id', $filtered_user_id );
 				if ( $user instanceof WP_User ) {
 					return $user;

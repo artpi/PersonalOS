@@ -691,6 +691,15 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 	public function test_filter_maps_multiple_emails_to_same_user() {
 		$alternate_emails = array( 'work@example.com', 'personal@example.com', 'alias@example.com' );
 
+		$filter_callback = function( $user_id, $email, $email_data ) use ( $alternate_emails ) {
+			if ( in_array( $email, $alternate_emails, true ) ) {
+				return $this->sender_user_id;
+			}
+			return $user_id;
+		};
+
+		add_filter( 'pos_resolve_user_from_email', $filter_callback, 10, 3 );
+
 		foreach ( $alternate_emails as $test_email ) {
 			$email_data = $this->load_email_fixture(
 				'original_msg.eml',
@@ -699,15 +708,6 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 					'reply_to' => array( $test_email ),
 				)
 			);
-
-			$filter_callback = function( $user_id, $email, $email_data ) use ( $alternate_emails ) {
-				if ( in_array( $email, $alternate_emails, true ) ) {
-					return $this->sender_user_id;
-				}
-				return $user_id;
-			};
-
-			add_filter( 'pos_resolve_user_from_email', $filter_callback, 10, 3 );
 
 			$this->create_responder(
 				function( MockObject $openai_module ) {
@@ -727,11 +727,11 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 
 			$this->responder->handle_new_email( $email_data );
 
-			remove_filter( 'pos_resolve_user_from_email', $filter_callback, 10 );
-
 			$this->assertCount( 1, $this->imap_spy->sent, "Should send reply for email: $test_email" );
 			$this->imap_spy->sent = array(); // Reset for next iteration
 		}
+
+		remove_filter( 'pos_resolve_user_from_email', $filter_callback, 10 );
 	}
 
 	/**
@@ -757,6 +757,80 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 							array(
 								'role'    => 'assistant',
 								'content' => 'Fallback response',
+							),
+						)
+					);
+			}
+		);
+
+		$this->responder->handle_new_email( $email_data );
+
+		remove_filter( 'pos_resolve_user_from_email', $filter_callback, 10 );
+
+		// Should fall back to standard lookup and find the user by their real email
+		$this->assertCount( 1, $this->imap_spy->sent );
+	}
+
+	/**
+	 * Test that the filter returning non-integer value is safely ignored.
+	 */
+	public function test_filter_with_non_integer_value_is_ignored() {
+		$email_data = $this->load_email_fixture( 'original_msg.eml' );
+
+		$filter_callback = function( $user_id, $email, $email_data ) {
+			// Return non-integer value
+			return 'invalid';
+		};
+
+		add_filter( 'pos_resolve_user_from_email', $filter_callback, 10, 3 );
+
+		$this->create_responder(
+			function( MockObject $openai_module ) {
+				$openai_module
+					->expects( $this->once() )
+					->method( 'complete_backscroll' )
+					->willReturn(
+						array(
+							array(
+								'role'    => 'assistant',
+								'content' => 'Default behavior response',
+							),
+						)
+					);
+			}
+		);
+
+		$this->responder->handle_new_email( $email_data );
+
+		remove_filter( 'pos_resolve_user_from_email', $filter_callback, 10 );
+
+		// Should fall back to standard lookup and find the user by their real email
+		$this->assertCount( 1, $this->imap_spy->sent );
+	}
+
+	/**
+	 * Test that the filter returning zero or negative value is safely ignored.
+	 */
+	public function test_filter_with_zero_or_negative_value_is_ignored() {
+		$email_data = $this->load_email_fixture( 'original_msg.eml' );
+
+		$filter_callback = function( $user_id, $email, $email_data ) {
+			// Return zero
+			return 0;
+		};
+
+		add_filter( 'pos_resolve_user_from_email', $filter_callback, 10, 3 );
+
+		$this->create_responder(
+			function( MockObject $openai_module ) {
+				$openai_module
+					->expects( $this->once() )
+					->method( 'complete_backscroll' )
+					->willReturn(
+						array(
+							array(
+								'role'    => 'assistant',
+								'content' => 'Default behavior response',
 							),
 						)
 					);

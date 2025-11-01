@@ -86,7 +86,9 @@ Map all emails from a specific domain to a user:
 
 ```php
 add_filter( 'pos_resolve_user_from_email', function( $user_id, $email, $email_data ) {
-    if ( str_ends_with( $email, '@mycompany.com' ) ) {
+    // Check if email ends with @mycompany.com
+    $domain = '@mycompany.com';
+    if ( substr( $email, -strlen( $domain ) ) === $domain ) {
         return 123; // Your user ID
     }
     return $user_id;
