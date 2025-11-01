@@ -117,6 +117,7 @@ class POS {
 		require_once plugin_dir_path( __FILE__ ) . 'modules/slack/class-slack-module.php';
 		require_once plugin_dir_path( __FILE__ ) . 'modules/perplexity/class.perplexity-module.php';
 		require_once plugin_dir_path( __FILE__ ) . 'modules/todo/class-ics-module.php';
+		require_once plugin_dir_path( __FILE__ ) . 'modules/imap/class-imap-module.php';
 
 		// TODO: https://github.com/artpi/PersonalOS/issues/15 Introduce a setting to enable/disable modules. We don't want constructors to be fired when the module is not wanted.
 		$todo          = new TODO_Module();
@@ -137,6 +138,7 @@ class POS {
 			new Slack_Module(),
 			new Perplexity_Module(),
 			new ICS_Module(),
+			new IMAP_Module(),
 		);
 		self::fix_versions();
 		require_once plugin_dir_path( __FILE__ ) . 'class-pos-settings.php';

@@ -16,5 +16,8 @@
 		"tests": {
 			"port": 8902
 		}
+	},
+	"lifecycleScripts": {
+		"afterStart": "wp-env run cli wp-content/plugins/$(basename $PWD)/wpenv-afterstart.sh"
 	}
 }
