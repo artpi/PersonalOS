@@ -593,4 +593,217 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 
 		$this->assertCount( 0, $this->imap_spy->sent );
 	}
+
+	/**
+	 * Test that the pos_resolve_user_from_email filter allows mapping custom emails to users.
+	 */
+	public function test_filter_maps_custom_email_to_user() {
+		$email_data = $this->load_email_fixture(
+			'original_msg.eml',
+			array(
+				'from'     => 'custom@example.com',
+				'reply_to' => array( 'custom@example.com' ),
+			)
+		);
+
+		// Add filter to map custom@example.com to the test user
+		$filter_callback = function( $user_id, $email, $email_data ) {
+			if ( 'custom@example.com' === $email ) {
+				return $this->sender_user_id;
+			}
+			return $user_id;
+		};
+
+		add_filter( 'pos_resolve_user_from_email', $filter_callback, 10, 3 );
+
+		$this->create_responder(
+			function( MockObject $openai_module ) {
+				$openai_module
+					->expects( $this->once() )
+					->method( 'complete_backscroll' )
+					->willReturn(
+						array(
+							array(
+								'role'    => 'assistant',
+								'content' => 'Hello from custom email!',
+							),
+						)
+					);
+			}
+		);
+
+		$this->responder->handle_new_email( $email_data );
+
+		remove_filter( 'pos_resolve_user_from_email', $filter_callback, 10 );
+
+		$this->assertCount( 1, $this->imap_spy->sent );
+		$sent = $this->imap_spy->sent[0];
+		$this->assertSame( 'custom@example.com', $sent['to'] );
+		$this->assertStringStartsWith( 'Hello from custom email!', $sent['body'] );
+	}
+
+	/**
+	 * Test that the filter receives correct parameters.
+	 */
+	public function test_filter_receives_correct_parameters() {
+		$email_data = $this->load_email_fixture(
+			'original_msg.eml',
+			array(
+				'from'     => 'test@example.com',
+				'reply_to' => array( 'test@example.com' ),
+			)
+		);
+
+		$filter_called = false;
+		$received_email = null;
+		$received_email_data = null;
+
+		$filter_callback = function( $user_id, $email, $email_data ) use ( &$filter_called, &$received_email, &$received_email_data ) {
+			$filter_called = true;
+			$received_email = $email;
+			$received_email_data = $email_data;
+			return null; // Use default behavior
+		};
+
+		add_filter( 'pos_resolve_user_from_email', $filter_callback, 10, 3 );
+
+		$this->create_responder(
+			function( MockObject $openai_module ) {
+				$openai_module
+					->expects( $this->never() )
+					->method( 'complete_backscroll' );
+			}
+		);
+
+		$this->responder->handle_new_email( $email_data );
+
+		remove_filter( 'pos_resolve_user_from_email', $filter_callback, 10 );
+
+		$this->assertTrue( $filter_called, 'Filter should have been called' );
+		$this->assertSame( 'test@example.com', $received_email );
+		$this->assertIsArray( $received_email_data );
+		$this->assertSame( 'test@example.com', $received_email_data['from'] );
+	}
+
+	/**
+	 * Test that the filter can map multiple emails to the same user.
+	 */
+	public function test_filter_maps_multiple_emails_to_same_user() {
+		$alternate_emails = array( 'work@example.com', 'personal@example.com', 'alias@example.com' );
+
+		foreach ( $alternate_emails as $test_email ) {
+			$email_data = $this->load_email_fixture(
+				'original_msg.eml',
+				array(
+					'from'     => $test_email,
+					'reply_to' => array( $test_email ),
+				)
+			);
+
+			$filter_callback = function( $user_id, $email, $email_data ) use ( $alternate_emails ) {
+				if ( in_array( $email, $alternate_emails, true ) ) {
+					return $this->sender_user_id;
+				}
+				return $user_id;
+			};
+
+			add_filter( 'pos_resolve_user_from_email', $filter_callback, 10, 3 );
+
+			$this->create_responder(
+				function( MockObject $openai_module ) {
+					$openai_module
+						->expects( $this->once() )
+						->method( 'complete_backscroll' )
+						->willReturn(
+							array(
+								array(
+									'role'    => 'assistant',
+									'content' => 'Response!',
+								),
+							)
+						);
+				}
+			);
+
+			$this->responder->handle_new_email( $email_data );
+
+			remove_filter( 'pos_resolve_user_from_email', $filter_callback, 10 );
+
+			$this->assertCount( 1, $this->imap_spy->sent, "Should send reply for email: $test_email" );
+			$this->imap_spy->sent = array(); // Reset for next iteration
+		}
+	}
+
+	/**
+	 * Test that the filter returning invalid user ID falls back to default behavior.
+	 */
+	public function test_filter_with_invalid_user_id_falls_back() {
+		$email_data = $this->load_email_fixture( 'original_msg.eml' );
+
+		$filter_callback = function( $user_id, $email, $email_data ) {
+			// Return invalid user ID
+			return 999999;
+		};
+
+		add_filter( 'pos_resolve_user_from_email', $filter_callback, 10, 3 );
+
+		$this->create_responder(
+			function( MockObject $openai_module ) {
+				$openai_module
+					->expects( $this->once() )
+					->method( 'complete_backscroll' )
+					->willReturn(
+						array(
+							array(
+								'role'    => 'assistant',
+								'content' => 'Fallback response',
+							),
+						)
+					);
+			}
+		);
+
+		$this->responder->handle_new_email( $email_data );
+
+		remove_filter( 'pos_resolve_user_from_email', $filter_callback, 10 );
+
+		// Should fall back to standard lookup and find the user by their real email
+		$this->assertCount( 1, $this->imap_spy->sent );
+	}
+
+	/**
+	 * Test that returning null from filter uses default behavior.
+	 */
+	public function test_filter_returning_null_uses_default_behavior() {
+		$email_data = $this->load_email_fixture( 'original_msg.eml' );
+
+		$filter_callback = function( $user_id, $email, $email_data ) {
+			return null; // Explicitly return null to use default behavior
+		};
+
+		add_filter( 'pos_resolve_user_from_email', $filter_callback, 10, 3 );
+
+		$this->create_responder(
+			function( MockObject $openai_module ) {
+				$openai_module
+					->expects( $this->once() )
+					->method( 'complete_backscroll' )
+					->willReturn(
+						array(
+							array(
+								'role'    => 'assistant',
+								'content' => 'Default lookup response',
+							),
+						)
+					);
+			}
+		);
+
+		$this->responder->handle_new_email( $email_data );
+
+		remove_filter( 'pos_resolve_user_from_email', $filter_callback, 10 );
+
+		// Should use standard lookup and find the user
+		$this->assertCount( 1, $this->imap_spy->sent );
+	}
 }

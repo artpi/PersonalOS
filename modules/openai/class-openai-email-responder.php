@@ -328,6 +328,28 @@ PROMPT,
 		$candidates = array_unique( $candidates );
 
 		foreach ( $candidates as $candidate ) {
+			/**
+			 * Filter to map email addresses to WordPress user IDs.
+			 *
+			 * This allows users to associate additional email addresses with their account
+			 * without changing their primary email. Return a user ID to override the default
+			 * email lookup, or null to use the standard behavior.
+			 *
+			 * @since 0.2.5
+			 *
+			 * @param int|null $user_id     User ID to use, or null for default lookup.
+			 * @param string   $email       Email address being checked.
+			 * @param array    $email_data  Full email data from IMAP module.
+			 */
+			$filtered_user_id = apply_filters( 'pos_resolve_user_from_email', null, $candidate, $email_data );
+
+			if ( null !== $filtered_user_id ) {
+				$user = get_user_by( 'id', $filtered_user_id );
+				if ( $user instanceof WP_User ) {
+					return $user;
+				}
+			}
+
 			$user = get_user_by( 'email', $candidate );
 			if ( $user instanceof WP_User ) {
 				return $user;
