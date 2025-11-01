@@ -67,7 +67,6 @@ class OpenAI_Email_Responder {
 		$backscroll = $this->build_backscroll_for_email( $email_data );
 
 		$assistant_reply = '';
-		$used_fallback   = false;
 		$conversation    = null;
 
 		$previous_user       = wp_get_current_user();
@@ -87,7 +86,7 @@ class OpenAI_Email_Responder {
 		}
 		if ( is_wp_error( $conversation ) ) {
 			$this->module->log( 'Auto-reply AI failure: ' . $conversation->get_error_message(), E_USER_ERROR );
-			$used_fallback = true;
+			return;
 		} else {
 			$assistant_reply = $this->extract_assistant_reply( $conversation );
 			if ( '' === $assistant_reply ) {
@@ -96,6 +95,7 @@ class OpenAI_Email_Responder {
 			}
 		}
 
+		// Do not modify empty subjects - changing them breaks email threading
 		$subject = 'Re: ' . trim( isset( $email_data['subject'] ) ? $email_data['subject'] : '' );
 		$body    = $this->compose_reply_body( $assistant_reply, $email_data );
 		$headers = $this->prepare_headers( $email_data );
@@ -327,6 +327,20 @@ PROMPT,
 
 		foreach ( $candidates as $candidate ) {
 			$user = get_user_by( 'email', $candidate );
+			/**
+			 * Filter to map email addresses to WordPress users.
+			 *
+			 * This allows users to associate additional email addresses with their account
+			 * without changing their primary email. Return a WP_User object to override the default
+			 * email lookup, or null/false to use the standard behavior.
+			 *
+			 * @since 0.2.5
+			 *
+			 * @param WP_User|false|null $user       WP_User object if found, false if not found, or null for default lookup.
+			 * @param string              $email      Email address being checked.
+			 * @param array               $email_data Full email data from IMAP module.
+			 */
+			$user = apply_filters( 'pos_resolve_user_from_email', $user, $candidate, $email_data );
 			if ( $user instanceof WP_User ) {
 				return $user;
 			}
