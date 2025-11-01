@@ -131,12 +131,10 @@ Body (first 500 chars): %s
 
 Classify this email. Skip if it's:
 - Auto-responder (out of office, vacation reply, etc.)
-- Spam or marketing
 - Delivery failure notification
 - Automated system message
-
-Always respond if this is a question, inquiry or a task. You ONLY want to skip automated-looking emails.
-YOU ARE A PERSONAL ASSISTANT. DO NOT SKIP INQUIRY
+You ONLY want to skip automated-looking emails.
+YOU ARE A PERSONAL ASSISTANT. DO NOT SKIP INQUIRY, QUESTIONS OR TASKS.
 Respond with JSON only: {'skip': true/false, 'reason': 'brief reason'}
 PROMPT,
 			$from_name,
