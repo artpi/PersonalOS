@@ -158,7 +158,8 @@ To customize the AI responder behavior, you can:
 
 1. **Filter the classification prompt** (hook not yet implemented)
 2. **Filter the response generation** (hook not yet implemented)
-3. **Unhook the default responder and create your own:**
+3. **Filter email-to-user mapping**: Use the `pos_resolve_user_from_email` filter to map additional email addresses to WordPress users
+4. **Unhook the default responder and create your own:**
 
 ```php
 // Remove default responder
@@ -170,6 +171,41 @@ function my_custom_email_handler( $email_data, $imap_module ) {
     // Your custom logic here
 }
 ```
+
+#### `pos_resolve_user_from_email` Filter
+
+Filter to map email addresses to WordPress users. This allows users to associate additional email addresses with their account without changing their primary email.
+
+**Parameters:**
+- `$user` (WP_User|false|null): WP_User object if found by email lookup, false if not found, or null
+- `$email` (string): Email address being checked
+- `$email_data` (array): Full email data from IMAP module
+
+**Returns:** WP_User|false|null
+- Return a WP_User object to override the default email lookup
+- Return null, false, or any non-WP_User value to skip this email address (continue to next candidate or skip email)
+
+**Since:** 0.2.5
+
+**Example Usage:**
+```php
+add_filter( 'pos_resolve_user_from_email', function( $user, $email, $email_data ) {
+    // Map custom work email to user ID 5
+    if ( 'work@example.com' === $email ) {
+        return get_user_by( 'id', 5 );
+    }
+    
+    // Map all @mycompany.com emails to current user
+    if ( str_ends_with( $email, '@mycompany.com' ) ) {
+        return wp_get_current_user();
+    }
+    
+    // Use default behavior (return original $user)
+    return $user;
+}, 10, 3 );
+```
+
+**Note:** The filter is called for each email candidate (reply-to addresses first, then from address). If the filter returns a valid WP_User object, that user is used. If it returns null, false, or any invalid value, the resolver continues to the next candidate or skips the email entirely if no valid user is found.
 
 ## Configuration
 
