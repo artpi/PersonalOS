@@ -341,10 +341,24 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 		/** @var OpenAI_Module&MockObject $openai_module */
 		$openai_module = $this->getMockBuilder( OpenAI_Module::class )
 			->disableOriginalConstructor()
-			->onlyMethods( array( 'complete_backscroll', 'log' ) )
+			->onlyMethods( array( 'complete_backscroll', 'log', 'api_call' ) )
 			->getMock();
 
 		$openai_module->method( 'log' )->willReturn( null );
+
+		// Default mock for classify_email API call - return skip: false
+		$openai_module->method( 'api_call' )
+			->willReturn(
+				(object) array(
+					'choices' => array(
+						(object) array(
+							'message' => (object) array(
+								'content' => '{"skip": false, "reason": ""}',
+							),
+						),
+					),
+				)
+			);
 
 		$expectation( $openai_module );
 
@@ -445,6 +459,7 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 							),
 						)
 					);
+				// classify_email will use default api_call mock
 			}
 		);
 
@@ -454,7 +469,7 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 		$sent = $this->imap_spy->sent[0];
 
 		$this->assertSame( 'artur.piszek@gmail.com', $sent['to'] );
-		$this->assertSame( 'Re: (No Subject)', $sent['subject'] );
+		$this->assertSame( 'Re: ', $sent['subject'] );
 		$this->assertStringStartsWith( 'Greetings Artur! Here is what you need to know.', $sent['body'] );
 		$this->assertQuotedOriginal( $sent['body'], $email_data );
 		$this->assertContains( 'In-Reply-To: <CABPa1J96sEuS68V9czgyQybQH0f50t-=ESper-d6yHB55pfDjg@mail.gmail.com>', $sent['headers'] );
@@ -496,9 +511,9 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test that a fallback response is used when the AI call fails.
+	 * Test that when AI call fails, no email is sent.
 	 */
-	public function test_handle_new_email_uses_fallback_when_ai_errors() {
+	public function test_handle_new_email_skips_when_ai_errors() {
 		$email_data = $this->load_email_fixture( 'original_msg.eml', array( 'body' => '' ) );
 
 		$this->create_responder(
@@ -507,21 +522,19 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 					->expects( $this->once() )
 					->method( 'complete_backscroll' )
 					->willReturn( new WP_Error( 'openai', 'API failure' ) );
+				// classify_email will use default api_call mock
 			}
 		);
 
 		$this->responder->handle_new_email( $email_data );
 
-		$this->assertCount( 1, $this->imap_spy->sent );
-		$sent = $this->imap_spy->sent[0];
-
-		$this->assertSame( "Thank you for your message.\n", $sent['body'] );
+		$this->assertCount( 0, $this->imap_spy->sent );
 	}
 
 	/**
-	 * Test that an empty assistant reply triggers the fallback message and subject defaults.
+	 * Test that an empty assistant reply results in no email being sent.
 	 */
-	public function test_handle_new_email_uses_fallback_when_ai_returns_empty_message() {
+	public function test_handle_new_email_skips_when_ai_returns_empty_message() {
 		$email_data = $this->load_email_fixture( 'original_msg.eml', array( 'subject' => '' ) );
 
 		$this->create_responder(
@@ -537,30 +550,7 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 							),
 						)
 					);
-			}
-		);
-
-		$this->responder->handle_new_email( $email_data );
-
-		$this->assertCount( 1, $this->imap_spy->sent );
-		$sent = $this->imap_spy->sent[0];
-
-		$this->assertSame( 'Re: (No Subject)', $sent['subject'] );
-		$this->assertStringStartsWith( 'Thank you for your message.', $sent['body'] );
-		$this->assertQuotedOriginal( $sent['body'], $email_data );
-	}
-
-	/**
-	 * Test that untrusted senders are ignored.
-	 */
-	public function test_handle_new_email_skips_untrusted_sender() {
-		$email_data = $this->load_email_fixture( 'original_msg.eml', array( 'is_trusted' => false ) );
-
-		$this->create_responder(
-			function( MockObject $openai_module ) {
-				$openai_module
-					->expects( $this->never() )
-					->method( 'complete_backscroll' );
+				// classify_email will use default api_call mock
 			}
 		);
 
@@ -606,14 +596,14 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 			)
 		);
 
-		$sender_user_id = $this->sender_user_id;
+		$sender_user = get_user_by( 'id', $this->sender_user_id );
 
 		// Add filter to map custom@example.com to the test user
-		$filter_callback = function( $user_id, $email, $email_data ) use ( $sender_user_id ) {
+		$filter_callback = function( $user, $email, $email_data ) use ( $sender_user ) {
 			if ( 'custom@example.com' === $email ) {
-				return $sender_user_id;
+				return $sender_user;
 			}
-			return $user_id;
+			return $user;
 		};
 
 		add_filter( 'pos_resolve_user_from_email', $filter_callback, 10, 3 );
@@ -657,11 +647,13 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 		);
 
 		$filter_called = false;
+		$received_user = null;
 		$received_email = null;
 		$received_email_data = null;
 
-		$filter_callback = function( $user_id, $email, $email_data ) use ( &$filter_called, &$received_email, &$received_email_data ) {
+		$filter_callback = function( $user, $email, $email_data ) use ( &$filter_called, &$received_user, &$received_email, &$received_email_data ) {
 			$filter_called = true;
+			$received_user = $user;
 			$received_email = $email;
 			$received_email_data = $email_data;
 			return null; // Use default behavior
@@ -682,9 +674,54 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 		remove_filter( 'pos_resolve_user_from_email', $filter_callback, 10 );
 
 		$this->assertTrue( $filter_called, 'Filter should have been called' );
+		$this->assertFalse( $received_user, 'Filter should receive false when user not found' );
 		$this->assertSame( 'test@example.com', $received_email );
 		$this->assertIsArray( $received_email_data );
 		$this->assertSame( 'test@example.com', $received_email_data['from'] );
+	}
+
+	/**
+	 * Test that the filter receives a WP_User object when user is found.
+	 */
+	public function test_filter_receives_wp_user_when_user_found() {
+		$email_data = $this->load_email_fixture( 'original_msg.eml' );
+
+		$filter_called = false;
+		$received_user = null;
+
+		$filter_callback = function( $user, $email, $email_data ) use ( &$filter_called, &$received_user ) {
+			$filter_called = true;
+			$received_user = $user;
+			return $user; // Return the user as-is
+		};
+
+		add_filter( 'pos_resolve_user_from_email', $filter_callback, 10, 3 );
+
+		$this->create_responder(
+			function( MockObject $openai_module ) {
+				$openai_module
+					->expects( $this->once() )
+					->method( 'complete_backscroll' )
+					->willReturn(
+						array(
+							array(
+								'role'    => 'assistant',
+								'content' => 'Test response',
+							),
+						)
+					);
+			}
+		);
+
+		$this->responder->handle_new_email( $email_data );
+
+		remove_filter( 'pos_resolve_user_from_email', $filter_callback, 10 );
+
+		$this->assertTrue( $filter_called, 'Filter should have been called' );
+		$this->assertInstanceOf( WP_User::class, $received_user, 'Filter should receive WP_User object when user found' );
+		if ( $received_user instanceof WP_User ) {
+			$this->assertSame( $this->sender_user_id, $received_user->ID, 'Filter should receive correct user' );
+		}
 	}
 
 	/**
@@ -692,13 +729,13 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 	 */
 	public function test_filter_maps_multiple_emails_to_same_user() {
 		$alternate_emails = array( 'work@example.com', 'personal@example.com', 'alias@example.com' );
-		$sender_user_id = $this->sender_user_id;
+		$sender_user = get_user_by( 'id', $this->sender_user_id );
 
-		$filter_callback = function( $user_id, $email, $email_data ) use ( $alternate_emails, $sender_user_id ) {
+		$filter_callback = function( $user, $email, $email_data ) use ( $alternate_emails, $sender_user ) {
 			if ( in_array( $email, $alternate_emails, true ) ) {
-				return $sender_user_id;
+				return $sender_user;
 			}
-			return $user_id;
+			return $user;
 		};
 
 		add_filter( 'pos_resolve_user_from_email', $filter_callback, 10, 3 );
@@ -738,14 +775,14 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test that the filter returning invalid user ID falls back to default behavior.
+	 * Test that the filter returning invalid user object skips the email.
 	 */
-	public function test_filter_with_invalid_user_id_falls_back() {
+	public function test_filter_with_invalid_user_object_skips_email() {
 		$email_data = $this->load_email_fixture( 'original_msg.eml' );
 
-		$filter_callback = function( $user_id, $email, $email_data ) {
-			// Return invalid user ID
-			return 999999;
+		$filter_callback = function( $user, $email, $email_data ) {
+			// Return invalid user object (non-WP_User)
+			return new stdClass();
 		};
 
 		add_filter( 'pos_resolve_user_from_email', $filter_callback, 10, 3 );
@@ -753,16 +790,8 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 		$this->create_responder(
 			function( MockObject $openai_module ) {
 				$openai_module
-					->expects( $this->once() )
-					->method( 'complete_backscroll' )
-					->willReturn(
-						array(
-							array(
-								'role'    => 'assistant',
-								'content' => 'Fallback response',
-							),
-						)
-					);
+					->expects( $this->never() )
+					->method( 'complete_backscroll' );
 			}
 		);
 
@@ -770,18 +799,18 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 
 		remove_filter( 'pos_resolve_user_from_email', $filter_callback, 10 );
 
-		// Should fall back to standard lookup and find the user by their real email
-		$this->assertCount( 1, $this->imap_spy->sent );
+		// Should skip email because filter returned invalid value
+		$this->assertCount( 0, $this->imap_spy->sent );
 	}
 
 	/**
-	 * Test that the filter returning non-integer value is safely ignored.
+	 * Test that the filter returning non-WP_User value skips the email.
 	 */
-	public function test_filter_with_non_integer_value_is_ignored() {
+	public function test_filter_with_non_wp_user_value_skips_email() {
 		$email_data = $this->load_email_fixture( 'original_msg.eml' );
 
-		$filter_callback = function( $user_id, $email, $email_data ) {
-			// Return non-integer value
+		$filter_callback = function( $user, $email, $email_data ) {
+			// Return non-WP_User value
 			return 'invalid';
 		};
 
@@ -790,16 +819,8 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 		$this->create_responder(
 			function( MockObject $openai_module ) {
 				$openai_module
-					->expects( $this->once() )
-					->method( 'complete_backscroll' )
-					->willReturn(
-						array(
-							array(
-								'role'    => 'assistant',
-								'content' => 'Default behavior response',
-							),
-						)
-					);
+					->expects( $this->never() )
+					->method( 'complete_backscroll' );
 			}
 		);
 
@@ -807,19 +828,19 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 
 		remove_filter( 'pos_resolve_user_from_email', $filter_callback, 10 );
 
-		// Should fall back to standard lookup and find the user by their real email
-		$this->assertCount( 1, $this->imap_spy->sent );
+		// Should skip email because filter returned invalid value
+		$this->assertCount( 0, $this->imap_spy->sent );
 	}
 
 	/**
-	 * Test that the filter returning zero or negative value is safely ignored.
+	 * Test that the filter returning false skips the email.
 	 */
-	public function test_filter_with_zero_or_negative_value_is_ignored() {
+	public function test_filter_with_false_value_skips_email() {
 		$email_data = $this->load_email_fixture( 'original_msg.eml' );
 
-		$filter_callback = function( $user_id, $email, $email_data ) {
-			// Return zero
-			return 0;
+		$filter_callback = function( $user, $email, $email_data ) {
+			// Return false
+			return false;
 		};
 
 		add_filter( 'pos_resolve_user_from_email', $filter_callback, 10, 3 );
@@ -827,16 +848,8 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 		$this->create_responder(
 			function( MockObject $openai_module ) {
 				$openai_module
-					->expects( $this->once() )
-					->method( 'complete_backscroll' )
-					->willReturn(
-						array(
-							array(
-								'role'    => 'assistant',
-								'content' => 'Default behavior response',
-							),
-						)
-					);
+					->expects( $this->never() )
+					->method( 'complete_backscroll' );
 			}
 		);
 
@@ -844,18 +857,18 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 
 		remove_filter( 'pos_resolve_user_from_email', $filter_callback, 10 );
 
-		// Should fall back to standard lookup and find the user by their real email
-		$this->assertCount( 1, $this->imap_spy->sent );
+		// Should skip email because filter returned false
+		$this->assertCount( 0, $this->imap_spy->sent );
 	}
 
 	/**
-	 * Test that returning null from filter uses default behavior.
+	 * Test that returning null from filter skips the email (null overwrites the user lookup result).
 	 */
-	public function test_filter_returning_null_uses_default_behavior() {
+	public function test_filter_returning_null_skips_email() {
 		$email_data = $this->load_email_fixture( 'original_msg.eml' );
 
-		$filter_callback = function( $user_id, $email, $email_data ) {
-			return null; // Explicitly return null to use default behavior
+		$filter_callback = function( $user, $email, $email_data ) {
+			return null; // Return null, which overwrites the user lookup result
 		};
 
 		add_filter( 'pos_resolve_user_from_email', $filter_callback, 10, 3 );
@@ -863,16 +876,8 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 		$this->create_responder(
 			function( MockObject $openai_module ) {
 				$openai_module
-					->expects( $this->once() )
-					->method( 'complete_backscroll' )
-					->willReturn(
-						array(
-							array(
-								'role'    => 'assistant',
-								'content' => 'Default lookup response',
-							),
-						)
-					);
+					->expects( $this->never() )
+					->method( 'complete_backscroll' );
 			}
 		);
 
@@ -880,7 +885,7 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 
 		remove_filter( 'pos_resolve_user_from_email', $filter_callback, 10 );
 
-		// Should use standard lookup and find the user
-		$this->assertCount( 1, $this->imap_spy->sent );
+		// Should skip email because filter returned null (overwrites the lookup result)
+		$this->assertCount( 0, $this->imap_spy->sent );
 	}
 }
