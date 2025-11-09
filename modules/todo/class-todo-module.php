@@ -197,7 +197,7 @@ class TODO_Module extends POS_Module {
 	}
 
 	public function get_items_for_openai( $args ) {
-		$items = $this->list( array(), 'now' );
+		$items = $this->list( array() );
 		return array_map(
 			function( $item ) {
 				return array(
