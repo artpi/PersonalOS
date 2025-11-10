@@ -42,6 +42,9 @@ jobs:
           mkdir -p "$deploy_dir"
           cp "${{ steps.build.outputs.zip-path }}" "$deploy_dir/wp-personal-os.zip"
 
+      - name: Install lftp
+        run: sudo apt-get update && sudo apt-get install -y lftp
+
       - name: Upload ZIP via FTP
         env:
           FTP_USER: ${{ secrets.GH_ACTION_FTP_LOGIN }}
