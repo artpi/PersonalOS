@@ -74,7 +74,7 @@ class TodoAIToolsTest extends WP_UnitTestCase {
 		$todo_in_now = $this->module->create(
 			array(
 				'post_title'   => 'TODO in now',
-				'post_excerpt' => 'This should be visible',
+				'post_excerpt' => 'This should be visible in default list',
 			),
 			array( 'now', 'inbox' )
 		);
@@ -83,35 +83,41 @@ class TodoAIToolsTest extends WP_UnitTestCase {
 		$todo_in_inbox = $this->module->create(
 			array(
 				'post_title'   => 'TODO in inbox only',
-				'post_excerpt' => 'This should now be visible after fix',
+				'post_excerpt' => 'This should NOT be visible in default list',
 			),
 			array( 'inbox' )
 		);
 
-		// Get TODOs using the AI tool
+		// Test 1: Default behavior (should list from 'now' notebook)
 		$result = $tool->invoke( array() );
-
 		$this->assertIsArray( $result, 'Tool should return an array' );
-		
-		// Find TODOs in the result
 		$titles = array_column( $result, 'title' );
+		$this->assertContains( 'TODO in now', $titles, 'TODO in now notebook should be visible by default' );
+		$this->assertNotContains( 'TODO in inbox only', $titles, 'TODO only in inbox should NOT be visible by default' );
 		
-		// The TODO in 'now' should be visible
-		$this->assertContains( 'TODO in now', $titles, 'TODO in now notebook should be visible' );
+		// Test 2: Explicitly list from 'inbox' notebook
+		$result_inbox = $tool->invoke( array( 'notebook' => 'inbox' ) );
+		$titles_inbox = array_column( $result_inbox, 'title' );
+		$this->assertContains( 'TODO in inbox only', $titles_inbox, 'TODO in inbox should be visible when explicitly requesting inbox' );
+		$this->assertContains( 'TODO in now', $titles_inbox, 'TODO in now should also be visible in inbox since it has both notebooks' );
 		
-		// The TODO only in 'inbox' should now be visible after the fix
-		$this->assertContains( 'TODO in inbox only', $titles, 'TODO only in inbox should now be visible after fix' );
+		// Test 3: List from all notebooks
+		$result_all = $tool->invoke( array( 'notebook' => 'all' ) );
+		$titles_all = array_column( $result_all, 'title' );
+		$this->assertContains( 'TODO in now', $titles_all, 'TODO in now should be visible when listing all' );
+		$this->assertContains( 'TODO in inbox only', $titles_all, 'TODO in inbox should be visible when listing all' );
 	}
 
 	public function test_ai_tool_create_and_list_integration() {
-		// This test demonstrates the full workflow after fix:
+		// This test demonstrates the full workflow:
 		// 1. Create a TODO using AI tool (it goes to inbox)
-		// 2. List it using AI tool (it now appears because list shows all todos)
+		// 2. By default, listing shows 'now' notebook, so created TODO won't appear
+		// 3. But when listing with 'all' or 'inbox', it will appear
 		
 		$create_tool = OpenAI_Tool::get_tool( 'todo_create_item' );
 		$list_tool = OpenAI_Tool::get_tool( 'todo_get_items' );
 
-		// Create a TODO using AI (without specifying notebook)
+		// Create a TODO using AI (without specifying notebook, so it goes to inbox)
 		$created_todo = $create_tool->invoke( array(
 			'post_title'   => 'AI Created TODO',
 			'post_excerpt' => 'Created via AI, should go to inbox',
@@ -119,15 +125,55 @@ class TodoAIToolsTest extends WP_UnitTestCase {
 
 		$this->assertInstanceOf( 'WP_Post', $created_todo );
 
-		// Try to list TODOs
-		$todos = $list_tool->invoke( array() );
-		$titles = array_column( $todos, 'title' );
+		// List with default (now) - should NOT appear
+		$todos_default = $list_tool->invoke( array() );
+		$titles_default = array_column( $todos_default, 'title' );
+		$this->assertNotContains( 
+			'AI Created TODO', 
+			$titles_default, 
+			'Default listing shows "now" notebook, so inbox-only TODO should not appear'
+		);
 
-		// After the fix, the just-created TODO should be visible
+		// List with 'all' - should appear
+		$todos_all = $list_tool->invoke( array( 'notebook' => 'all' ) );
+		$titles_all = array_column( $todos_all, 'title' );
 		$this->assertContains( 
 			'AI Created TODO', 
-			$titles, 
-			'After fix: AI-created TODO (in inbox) should be visible when listing'
+			$titles_all, 
+			'When listing all notebooks, AI-created TODO should be visible'
+		);
+
+		// List with 'inbox' - should appear
+		$todos_inbox = $list_tool->invoke( array( 'notebook' => 'inbox' ) );
+		$titles_inbox = array_column( $todos_inbox, 'title' );
+		$this->assertContains( 
+			'AI Created TODO', 
+			$titles_inbox, 
+			'When listing inbox notebook, AI-created TODO should be visible'
+		);
+	}
+
+	public function test_ai_tool_create_with_now_and_list() {
+		// This test shows that when creating with 'now' notebook, it appears in default listing
+		$create_tool = OpenAI_Tool::get_tool( 'todo_create_item' );
+		$list_tool = OpenAI_Tool::get_tool( 'todo_get_items' );
+
+		// Create a TODO with 'now' notebook
+		$created_todo = $create_tool->invoke( array(
+			'post_title'   => 'AI Created TODO for now',
+			'post_excerpt' => 'Created via AI with now notebook',
+			'notebook'     => 'now',
+		) );
+
+		$this->assertInstanceOf( 'WP_Post', $created_todo );
+
+		// List with default (now) - should appear
+		$todos_default = $list_tool->invoke( array() );
+		$titles_default = array_column( $todos_default, 'title' );
+		$this->assertContains( 
+			'AI Created TODO for now', 
+			$titles_default, 
+			'When TODO is created with "now" notebook, it should appear in default listing'
 		);
 	}
 }
