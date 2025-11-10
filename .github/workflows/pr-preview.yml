@@ -43,7 +43,7 @@ jobs:
           cp "${{ steps.build.outputs.zip-path }}" "$deploy_dir/wp-personal-os.zip"
 
       - name: Upload ZIP via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4
+        uses: SamKirkland/FTP-Deploy-Action@v4.6.0
         with:
           server: s8.cyber-folks.pl
           username: ${{ secrets.GH_ACTION_FTP_LOGIN }}
