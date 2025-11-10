@@ -30,7 +30,26 @@ class POS_Settings {
 						continue;
 					}
 					$option_name = $module->get_setting_option_name( $setting_id );
-					register_setting( 'pos_' . $module->id, $option_name );
+
+					// Register setting with appropriate sanitization callback
+					$sanitize_callback = null;
+					if ( $setting['type'] === 'bool' ) {
+						$sanitize_callback = function( $value ) {
+							return ! empty( $value ) ? '1' : '';
+						};
+					} elseif ( $setting['type'] === 'text' ) {
+						$sanitize_callback = 'sanitize_text_field';
+					} elseif ( $setting['type'] === 'textarea' ) {
+						$sanitize_callback = 'sanitize_textarea_field';
+					}
+
+					register_setting(
+						'pos_' . $module->id,
+						$option_name,
+						array(
+							'sanitize_callback' => $sanitize_callback,
+						)
+					);
 
 					add_settings_field(
 						'pos_field_' . $setting['name'],
@@ -133,20 +152,43 @@ class POS_Settings {
 		// show error/update messages
 		settings_errors( 'pos_messages' );
 
-		$current_tab = isset( $_GET[ 'module' ] ) ? $_GET[ 'module' ] : 'notes';
+		//phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$current_tab = isset( $_GET['module'] ) ? sanitize_key( $_GET['module'] ) : 'notes';
+
+		// Validate that the current tab is a valid module ID
+		$valid_module_ids = array_map(
+			function( $mod ) {
+				return $mod->id;
+			},
+			$this->modules
+		);
+		if ( ! in_array( $current_tab, $valid_module_ids, true ) ) {
+			$current_tab = 'notes';
+		}
 		?>
 
 		<div class="wrap">
 			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
 			<nav class="nav-tab-wrapper">
 				<?php
-				foreach( $this->modules as $mod ) {
+				foreach ( $this->modules as $mod ) {
 					// CSS class for a current tab
 					$current = $mod->id === $current_tab ? ' nav-tab-active' : '';
 					// URL
-					$url = add_query_arg( array( 'page' => 'pos', 'module' => $mod->id ), '' );
+					$url = add_query_arg(
+						array(
+							'page'   => 'pos',
+							'module' => $mod->id,
+						),
+						admin_url( 'options-general.php' )
+					);
 					// printing the tab link
-					echo "<a class=\"nav-tab{$current}\" href=\"{$url}\">{$mod->name}</a>";
+					printf(
+						'<a class="nav-tab%s" href="%s">%s</a>',
+						esc_attr( $current ),
+						esc_url( $url ),
+						esc_html( $mod->name )
+					);
 				}
 				?>
 		</nav>
