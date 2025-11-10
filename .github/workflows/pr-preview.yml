@@ -48,7 +48,7 @@ jobs:
           server: s8.cyber-folks.pl
           username: ${{ secrets.GH_ACTION_FTP_LOGIN }}
           password: ${{ secrets.GH_ACTION_FTP_PASS }}
-          server-dir: preview
+          server-dir: preview/
           local-dir: deploy/preview/${{ github.event.number }}/
           dangerous-clean-slate: true
           log-level: verbose
