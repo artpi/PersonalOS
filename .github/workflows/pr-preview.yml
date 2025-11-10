@@ -1,0 +1,71 @@
+name: PR Build and Playground ZIP
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build-and-publish:
+    if: ${{ github.event.pull_request.state == 'open' && github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR merge ref
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.number }}/merge
+          fetch-depth: 0
+
+      - name: Build plugin
+        id: build
+        uses: ./.github/actions/build-plugin
+        with:
+          node-version: '20'
+          php-version: '8.2'
+          composer-no-dev: 'true'
+
+      - name: Upload plugin ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp-personal-os-pr-${{ github.event.number }}
+          path: ${{ steps.build.outputs.zip-path }}
+          if-no-files-found: error
+          compression-level: 9
+
+      - name: Prepare deploy directory
+        run: |
+          deploy_dir="deploy/preview/${{ github.event.number }}"
+          rm -rf "$deploy_dir"
+          mkdir -p "$deploy_dir"
+          cp "${{ steps.build.outputs.zip-path }}" "$deploy_dir/wp-personal-os.zip"
+
+      - name: Upload ZIP via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4
+        with:
+          server: s8.cyber-folks.pl
+          username: ${{ secrets.GH_ACTION_FTP_LOGIN }}
+          password: ${{ secrets.GH_ACTION_FTP_PASS }}
+          server-dir: preview/${{ github.event.number }}/
+          local-dir: deploy/preview/${{ github.event.number }}/
+          dangerous-clean-slate: true
+
+      - name: Comment preview links
+        uses: marocchino/sticky-pull-request-comment@v2
+        env:
+          ARTIFACT_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          header: personalos-preview
+          message: |
+            🚀 **Plugin build ready for testing**
+
+            Artifact: [Download from workflow run](${{ env.ARTIFACT_RUN_URL }})
+
+            Playground ZIP: `http://pr.personalos.net/preview/${{ github.event.number }}/wp-personal-os.zip`
+
+            Launch in Playground: [Open WordPress Playground](https://playground.wordpress.net/?networking=yes#{%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginData%22:{%22resource%22:%22url%22,%22url%22:%22http://pr.personalos.net/preview/${{ github.event.number }}/wp-personal-os.zip%22}}],%22landingPage%22:%22/wp-admin/admin.php?page=personalos-settings%22,%22login%22:true})
+
+            Paste the ZIP URL into a WordPress Playground blueprint to load this PR build.
+

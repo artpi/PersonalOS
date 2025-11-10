@@ -1,0 +1,64 @@
+name: Build PersonalOS Plugin
+description: Install dependencies, build assets, and create the plugin ZIP.
+inputs:
+  node-version:
+    description: Node.js version to use.
+    required: false
+    default: '20'
+  php-version:
+    description: PHP version to use.
+    required: false
+    default: '8.2'
+  composer-no-dev:
+    description: Whether to install Composer dependencies without dev packages.
+    required: false
+    default: 'true'
+  zip-path:
+    description: Expected plugin ZIP path produced by build.
+    required: false
+    default: wp-personal-os.zip
+outputs:
+  zip-path:
+    description: Path to the generated plugin ZIP file.
+    value: ${{ steps.zip-path.outputs.path }}
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: npm
+
+    - name: Install Node.js dependencies
+      run: npm ci
+      shell: bash
+
+    - name: Set up PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ inputs.php-version }}
+        tools: composer
+        extensions: mbstring, zip, imap
+
+    - name: Install Composer dependencies
+      run: |
+        if [ "${{ inputs.composer-no-dev }}" = "true" ]; then
+          composer install --no-interaction --no-progress --no-scripts --optimize-autoloader --no-dev
+        else
+          composer install --no-interaction --no-progress --no-scripts --optimize-autoloader
+        fi
+      shell: bash
+
+    - name: Build plugin assets
+      run: npx --yes @wordpress/scripts@30.7.0 build
+      shell: bash
+
+    - name: Create plugin ZIP
+      run: npx --yes @wordpress/scripts@30.7.0 plugin-zip
+      shell: bash
+
+    - id: zip-path
+      run: echo "path=${{ inputs.zip-path }}" >> "$GITHUB_OUTPUT"
+      shell: bash
+
