@@ -43,14 +43,24 @@ jobs:
           cp "${{ steps.build.outputs.zip-path }}" "$deploy_dir/wp-personal-os.zip"
 
       - name: Upload ZIP via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
-        with:
-          server: s8.cyber-folks.pl
-          username: ${{ secrets.GH_ACTION_FTP_LOGIN }}
-          password: ${{ secrets.GH_ACTION_FTP_PASS }}
-          server-dir: preview/
-          local-dir: deploy/preview/${{ github.event.number }}/
-          dangerous-clean-slate: true
+        env:
+          FTP_USER: ${{ secrets.GH_ACTION_FTP_LOGIN }}
+          FTP_PASS: ${{ secrets.GH_ACTION_FTP_PASS }}
+          PR_NUMBER: ${{ github.event.number }}
+        run: |
+          set -euo pipefail
+          DEPLOY_DIR="deploy/preview/${PR_NUMBER}/"
+          REMOTE_DIR="preview/${PR_NUMBER}/"
+          lftp -u "$FTP_USER","$FTP_PASS" s8.cyber-folks.pl <<EOF
+          set ssl:verify-certificate no
+          set ftp:passive-mode on
+          set ftp:ssl-force true
+          set ftp:ssl-protect-data true
+          set cmd:fail-exit true
+          mkdir -p "$REMOTE_DIR"
+          mirror --reverse --delete --verbose "$DEPLOY_DIR" "$REMOTE_DIR"
+          bye
+          EOF
           log-level: verbose
 
       - name: Comment preview links
