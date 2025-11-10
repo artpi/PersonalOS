@@ -554,6 +554,15 @@ class OpenAI_Module extends POS_Module {
 				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
+		register_rest_route(
+			$this->rest_namespace,
+			'/openai/responses',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'responses_api' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
 	}
 	public function check_permission() {
 		return current_user_can( 'manage_options' );
@@ -805,6 +814,105 @@ class OpenAI_Module extends POS_Module {
 		$params = $request->get_json_params();
 		$backscroll = $params['messages'];
 		return $this->complete_backscroll( $backscroll );
+	}
+
+	public function responses_api( WP_REST_Request $request ) {
+		$params = $request->get_json_params();
+		$messages = $params['messages'] ?? array();
+		return $this->complete_responses( $messages );
+	}
+
+	public function complete_responses( array $messages, callable $callback = null ) {
+		$tool_definitions = array_map(
+			function ( $tool ) {
+				return $tool->get_function_signature();
+			},
+			array_values( OpenAI_Tool::get_tools() ),
+		);
+		$max_loops = 10;
+		do {
+			--$max_loops;
+			$response = $this->api_call(
+				'https://api.openai.com/v1/responses',
+				array(
+					'model'        => 'gpt-4o',
+					'instructions' => $this->create_system_prompt(),
+					'messages'     => $messages,
+					'tools'        => $tool_definitions,
+				)
+			);
+
+			if ( is_wp_error( $response ) ) {
+				return $response;
+			}
+
+			if ( isset( $response->message, $response->code ) ) {
+				return new WP_Error( $response->code, $response->message );
+			}
+
+			if ( ! isset( $response->status ) ) {
+				return new WP_Error( 'no-status', 'No status in response', array( $response, $messages ) );
+			}
+
+			// Add the response output to messages
+			if ( ! empty( $response->output ) ) {
+				foreach ( $response->output as $output_item ) {
+					$messages[] = $output_item;
+					if ( $callback && isset( $output_item->type ) && $output_item->type === 'message' ) {
+						$callback( 'message', $output_item );
+					}
+				}
+			}
+
+			// Handle tool calls
+			if ( $response->status === 'requires_action' && ! empty( $response->required_action->tool_calls ) ) {
+				$tool_calls = $response->required_action->tool_calls;
+				foreach ( $tool_calls as $tool_call ) {
+					if ( $callback ) {
+						$callback( 'tool_call', $tool_call );
+					}
+					$arguments = json_decode( $tool_call->function->arguments, true );
+					$tool      = array_filter(
+						OpenAI_Tool::get_tools(),
+						function ( $tool ) use ( $tool_call ) {
+							return $tool->name === $tool_call->function->name;
+						}
+					);
+					$tool      = reset( $tool );
+					if ( ! $tool ) {
+						return new WP_Error( 'tool-not-found', 'Tool not found ' . $tool_call->function->name );
+					}
+
+					$result = $tool->invoke( $arguments );
+
+					if ( is_wp_error( $result ) ) {
+						return $result;
+					}
+					if ( ! is_string( $result ) ) {
+						$result = wp_json_encode( $result, JSON_PRETTY_PRINT );
+					}
+					$res = array(
+						'role'         => 'tool',
+						'name'         => $tool_call->function->name,
+						'content'      => $result,
+						'tool_call_id' => $tool_call->id,
+					);
+					if ( $callback ) {
+						$callback( 'tool_result', $res );
+					}
+					$messages[] = $res;
+				}
+			} else {
+				if ( $callback && ! empty( $response->output ) ) {
+					foreach ( $response->output as $output_item ) {
+						if ( isset( $output_item->type ) && $output_item->type === 'message' ) {
+							$callback( 'message', $output_item );
+						}
+					}
+				}
+			}
+		} while ( $response->status === 'requires_action' && $max_loops > 0 );
+		return $messages;
 	}
 
 	public function complete_backscroll( array $backscroll, callable $callback = null ) {
