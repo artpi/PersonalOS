@@ -42,29 +42,17 @@ jobs:
           mkdir -p "$deploy_dir"
           cp "${{ steps.build.outputs.zip-path }}" "$deploy_dir/wp-personal-os.zip"
 
-      - name: Install lftp
-        run: sudo apt-get update && sudo apt-get install -y lftp
-
       - name: Upload ZIP via FTP
         env:
           FTP_USER: ${{ secrets.GH_ACTION_FTP_LOGIN }}
           FTP_PASS: ${{ secrets.GH_ACTION_FTP_PASS }}
           PR_NUMBER: ${{ github.event.number }}
         run: |
-          set -euo pipefail
-          DEPLOY_DIR="deploy/preview/${PR_NUMBER}/"
-          REMOTE_DIR="preview/${PR_NUMBER}/"
-          lftp -u "$FTP_USER","$FTP_PASS" s8.cyber-folks.pl <<EOF
-          set ssl:verify-certificate no
-          set ftp:passive-mode on
-          set ftp:ssl-force true
-          set ftp:ssl-protect-data true
-          set cmd:fail-exit true
-          mkdir -p "$REMOTE_DIR"
-          mirror --reverse --delete --verbose "$DEPLOY_DIR" "$REMOTE_DIR"
-          bye
-          EOF
-          log-level: verbose
+          set -eu
+          curl --ftp-ssl --ftp-pasv --insecure --ftp-create-dirs \
+            --user "$FTP_USER:$FTP_PASS" \
+            --upload-file "deploy/preview/${PR_NUMBER}/wp-personal-os.zip" \
+            "ftp://s8.cyber-folks.pl/preview/${PR_NUMBER}/wp-personal-os.zip"
 
       - name: Comment preview links
         uses: marocchino/sticky-pull-request-comment@v2
