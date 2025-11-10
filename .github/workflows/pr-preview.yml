@@ -48,10 +48,14 @@ jobs:
           FTP_PASS: ${{ secrets.GH_ACTION_FTP_PASS }}
           PR_NUMBER: ${{ github.event.number }}
         run: |
-          set -eu
-          curl --ftp-ssl --ftp-pasv --insecure --ftp-create-dirs \
+          ZIP_FILE="deploy/preview/${PR_NUMBER}/wp-personal-os.zip"
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "Error: ZIP file not found at $ZIP_FILE"
+            exit 1
+          fi
+          curl -vvv --ftp-ssl --ftp-pasv --insecure --ssl-no-revoke --ftp-create-dirs \
             --user "$FTP_USER:$FTP_PASS" \
-            --upload-file "deploy/preview/${PR_NUMBER}/wp-personal-os.zip" \
+            --upload-file "$ZIP_FILE" \
             "ftp://s8.cyber-folks.pl/preview/${PR_NUMBER}/wp-personal-os.zip"
 
       - name: Comment preview links
