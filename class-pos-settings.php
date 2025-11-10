@@ -11,6 +11,13 @@ class POS_Settings {
 		}
 	}
 
+	/**
+	 * Initialize settings for all modules.
+	 *
+	 * Each module's settings are registered to a separate option group (pos_{module_id}).
+	 * This ensures that saving settings for one module does not affect other modules' settings.
+	 * WordPress's Settings API only processes options that are registered to the submitted group.
+	 */
 	public function settings_init() {
 
 		foreach ( $this->modules as $module ) {
@@ -41,6 +48,8 @@ class POS_Settings {
 						$sanitize_callback = 'sanitize_text_field';
 					} elseif ( $setting['type'] === 'textarea' ) {
 						$sanitize_callback = 'sanitize_textarea_field';
+					} elseif ( $setting['type'] === 'select' ) {
+						$sanitize_callback = 'sanitize_text_field';
 					}
 
 					register_setting(
@@ -111,6 +120,21 @@ class POS_Settings {
 
 	}
 
+	public function get_select_options( $options, $value ) {
+		$html = '';
+		foreach ( $options as $option_value => $option_label ) {
+			$html .= sprintf( '<option value="%1$s" %2$s>%3$s</option>', esc_attr( $option_value ), selected( $option_value, $value, false ), esc_html( $option_label ) );
+		}
+		return $html;
+	}
+
+	/**
+	 * Generate select options HTML.
+	 *
+	 * @param array  $options Array of option value => label pairs.
+	 * @param string $value Currently selected value.
+	 * @return string HTML for select options.
+	 */
 	public function get_select_options( $options, $value ) {
 		$html = '';
 		foreach ( $options as $option_value => $option_label ) {
