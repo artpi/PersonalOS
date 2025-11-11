@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { chatModels } from '@/lib/ai/models';
 import { cn } from '@/lib/utils';
+import { getConfig } from '@/lib/constants';
 
 import { CheckCircleFillIcon, ChevronDownIcon } from './icons';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
@@ -33,21 +34,43 @@ interface MockSession {
 export function ModelSelector({
   session, // Type will be MockSession now
   selectedModelId,
+  onModelChange,
   className,
 }: {
   session: MockSession; // Changed from Session to MockSession
   selectedModelId: string;
+  onModelChange?: (modelId: string) => void;
 } & React.ComponentProps<typeof Button>) {
   const [open, setOpen] = useState(false);
   const [optimisticModelId, setOptimisticModelId] =
     useOptimistic(selectedModelId);
 
-  const userType = session.user.type;
-  const { availableChatModelIds } = entitlementsByUserType[userType];
+  const config = getConfig();
+  const chatPromptsFromConfig = useMemo(() => config.chat_prompts || [], [config.chat_prompts]);
+  
+  // Use prompts from config if available, otherwise fall back to hardcoded models
+  const availableChatModels = useMemo(() => {
+    if (chatPromptsFromConfig.length > 0) {
+      // Convert ChatPrompt to ChatModel format
+      return chatPromptsFromConfig.map((prompt) => ({
+        id: prompt.id,
+        name: prompt.name,
+        description: prompt.description,
+      }));
+    }
+    // Fallback to hardcoded models
+    const userType = session.user.type;
+    const { availableChatModelIds } = entitlementsByUserType[userType];
+    return chatModels.filter((chatModel) =>
+      availableChatModelIds.includes(chatModel.id),
+    );
+  }, [chatPromptsFromConfig, session.user.type]);
 
-  const availableChatModels = chatModels.filter((chatModel) =>
-    availableChatModelIds.includes(chatModel.id),
-  );
+  // Debug: log available models
+  if (typeof window !== 'undefined' && chatPromptsFromConfig.length > 0) {
+    console.log('Available chat prompts from config:', chatPromptsFromConfig);
+    console.log('Available chat models:', availableChatModels);
+  }
 
   const selectedChatModel = useMemo(
     () =>
@@ -83,21 +106,22 @@ export function ModelSelector({
             <DropdownMenuItem
               data-testid={`model-selector-item-${id}`}
               key={id}
-              onSelect={() => {
+              onSelect={(e) => {
+                e.preventDefault();
                 setOpen(false);
 
                 startTransition(() => {
                   setOptimisticModelId(id);
                   saveChatModelAsCookie(id);
+                  // Notify parent component of model change
+                  if (onModelChange) {
+                    onModelChange(id);
+                  }
                 });
               }}
               data-active={id === optimisticModelId}
-              asChild
             >
-              <button
-                type="button"
-                className="gap-4 group/item flex flex-row justify-between items-center w-full"
-              >
+              <div className="gap-4 group/item flex flex-row justify-between items-center w-full">
                 <div className="flex flex-col gap-1 items-start">
                   <div>{chatModel.name}</div>
                   <div className="text-xs text-muted-foreground">
@@ -108,7 +132,7 @@ export function ModelSelector({
                 <div className="text-foreground dark:text-foreground opacity-0 group-data-[active=true]/item:opacity-100">
                   <CheckCircleFillIcon />
                 </div>
-              </button>
+              </div>
             </DropdownMenuItem>
           );
         })}

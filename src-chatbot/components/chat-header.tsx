@@ -30,12 +30,14 @@ interface MockSession {
 function PureChatHeader({
   chatId,
   selectedModelId,
+  onModelChange,
   selectedVisibilityType,
   isReadonly,
   session, // Type will be MockSession now
 }: {
   chatId: string;
   selectedModelId: string;
+  onModelChange?: (modelId: string) => void;
   selectedVisibilityType: VisibilityType;
   isReadonly: boolean;
   session: MockSession; // Changed from Session to MockSession
@@ -72,6 +74,7 @@ function PureChatHeader({
         <ModelSelector
           session={session}
           selectedModelId={selectedModelId}
+          onModelChange={onModelChange}
           className="order-1 md:order-2"
         />
       )}

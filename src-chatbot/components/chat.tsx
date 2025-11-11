@@ -2,7 +2,7 @@
 
 import type { Attachment, UIMessage } from 'ai';
 import { useChat } from '@ai-sdk/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChatHeader } from '@/components/chat-header';
 import { generateUUID } from '@/lib/utils';
 import { Artifact } from './artifact';
@@ -48,6 +48,14 @@ export function Chat({
   // This is just a constant from the page - no need to store it anywhere
   const id = currentConfig.conversation_id || initialId;
 
+  // Manage selected model state so it can be updated by ModelSelector
+  const [currentSelectedModel, setCurrentSelectedModel] = useState(selectedChatModel);
+
+  // Sync state when prop changes
+  useEffect(() => {
+    setCurrentSelectedModel(selectedChatModel);
+  }, [selectedChatModel]);
+
   const {
     messages,
     setMessages,
@@ -75,7 +83,7 @@ export function Chat({
 		return ({
 		id,
 		message: body.messages.at(-1),
-        selectedChatModel,
+        selectedChatModel: currentSelectedModel,
       });
     },
     onError: (error) => {
@@ -94,7 +102,8 @@ export function Chat({
       <div className="flex flex-col min-w-0 h-dvh bg-background">
         <ChatHeader
           chatId={id}
-          selectedModelId={selectedChatModel}
+          selectedModelId={currentSelectedModel}
+          onModelChange={setCurrentSelectedModel}
           selectedVisibilityType={selectedVisibilityType}
           isReadonly={isReadonly}
           session={session}
