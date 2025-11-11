@@ -1,3 +1,10 @@
+export interface ChatPrompt {
+	id: string;
+	name: string;
+	description: string;
+	model: string;
+}
+
 export type Config = {
 	site_title: string;
 	wp_admin_url: string;
@@ -6,6 +13,7 @@ export type Config = {
 	conversation_id?: string; // Generated in PHP on each page load
 	projects: PARAItem[];
 	starred: PARAItem[];
+	chat_prompts?: ChatPrompt[];
 	user: {
 		id: number;
 		login: string;

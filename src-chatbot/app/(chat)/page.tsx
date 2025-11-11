@@ -58,13 +58,18 @@ export default async function Page() {
   // const modelIdFromCookie = cookieStore.get('chat-model');
   console.warn('Cookie reading in app/(chat)/page.tsx disabled for static export. Using default chat model.');
 
+  // Use first prompt from config if available, otherwise use default
+  const defaultModel = config.chat_prompts && config.chat_prompts.length > 0
+    ? config.chat_prompts[0].id
+    : DEFAULT_CHAT_MODEL;
+
   return (
     <>
       <Chat
         key={id}
         id={id}
         initialMessages={[]}
-        selectedChatModel={DEFAULT_CHAT_MODEL}
+        selectedChatModel={defaultModel}
         selectedVisibilityType="private"
         isReadonly={false} // For static export, assume not readonly as it's a new chat for a mock guest
         session={session} // Pass the mock session

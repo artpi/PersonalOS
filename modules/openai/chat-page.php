@@ -43,6 +43,20 @@ function personalos_generate_uuid() {
 
 // This has to match the Config type in src-chatbot/lib/window.d.ts - Cursor please always check this
 function personalos_chat_config() {
+	$notes_module = POS::get_module_by_id( 'notes' );
+	$chat_prompts = $notes_module->list( array(), 'prompts-chat' );
+	
+	$prompts_data = array();
+	foreach ( $chat_prompts as $prompt ) {
+		$pos_model = get_post_meta( $prompt->ID, 'pos_model', true );
+		$prompts_data[] = array(
+			'id'          => $prompt->post_name, // Use post slug as ID
+			'name'        => $prompt->post_title,
+			'description' => wp_trim_words( wp_strip_all_tags( $prompt->post_content ), 20 ),
+			'model'       => $pos_model ? $pos_model : '', // pos_model meta field
+		);
+	}
+	
 	return array(
 		'rest_api_url'   => rest_url( '/' ),
 		'wp_admin_url'   => admin_url(),
@@ -57,6 +71,7 @@ function personalos_chat_config() {
 			'personalos_map_notebook_to_para_item',
 			POS::get_module_by_id( 'notes' )->get_notebooks_by_flag( 'star' )
 		),
+		'chat_prompts'    => $prompts_data,
 		'user'            => array(
 			'id'    => get_current_user_id(),
 			'login' => wp_get_current_user()->user_login,

@@ -981,7 +981,7 @@ class OpenAI_Module extends POS_Module {
 		return $this->complete_responses( $messages );
 	}
 
-	public function complete_responses( array $messages, callable $callback = null, ?string $previous_response_id = null ) {
+	public function complete_responses( array $messages, callable $callback = null, ?string $previous_response_id = null, ?\WP_Post $prompt = null ) {
 		// Filter out perplexity_search when using Responses API since we have built-in web_search
 		$tools = array_filter(
 			OpenAI_Tool::get_tools(),
@@ -999,6 +999,19 @@ class OpenAI_Module extends POS_Module {
 		$tool_definitions[] = array(
 			'type' => 'web_search',
 		);
+
+		// Get model from prompt meta if available, otherwise use default
+		$model = 'gpt-4o';
+		if ( $prompt ) {
+			$pos_model = get_post_meta( $prompt->ID, 'pos_model', true );
+			if ( $pos_model ) {
+				$model = $pos_model;
+			}
+			$this->log( '[complete_responses] Using prompt: ' . $prompt->post_title . ' (ID: ' . $prompt->ID . ') with model: ' . $model );
+		} else {
+			$this->log( '[complete_responses] No prompt provided, using default model: ' . $model );
+		}
+
 		$max_loops = 10;
 		$full_messages = $messages; // Keep full history for return value
 		do {
@@ -1007,8 +1020,8 @@ class OpenAI_Module extends POS_Module {
 
 			// Build the API request payload
 			$request_data = array(
-				'model'        => 'gpt-4o',
-				'instructions' => $this->create_system_prompt(),
+				'model'        => $model,
+				'instructions' => $this->create_system_prompt( $prompt ),
 				'tools'        => $tool_definitions,
 				'store'        => true, // Store responses for previous_response_id to work
 			);
@@ -1332,6 +1345,27 @@ class OpenAI_Module extends POS_Module {
 
 		$this->log( '[vercel_chat] User message: ' . $user_message_content );
 
+		// Get prompt by slug if selectedChatModel is provided
+		$prompt = null;
+		if ( ! empty( $params['selectedChatModel'] ) ) {
+			$this->log( '[vercel_chat] Looking for prompt with slug: ' . $params['selectedChatModel'] );
+			$notes_module = POS::get_module_by_id( 'notes' );
+			$prompts = $notes_module->list( array(), 'prompts-chat' );
+			foreach ( $prompts as $prompt_post ) {
+				if ( $prompt_post->post_name === $params['selectedChatModel'] ) {
+					$prompt = $prompt_post;
+					$pos_model = get_post_meta( $prompt->ID, 'pos_model', true );
+					$this->log( '[vercel_chat] Found prompt: ' . $prompt->post_title . ' (ID: ' . $prompt->ID . ', slug: ' . $prompt->post_name . ', pos_model: ' . ( $pos_model ? $pos_model : 'none' ) . ')' );
+					break;
+				}
+			}
+			if ( ! $prompt ) {
+				$this->log( '[vercel_chat] WARNING: Prompt not found for slug: ' . $params['selectedChatModel'] );
+			}
+		} else {
+			$this->log( '[vercel_chat] No selectedChatModel provided in params' );
+		}
+
 		// Get previous response ID from transient
 		$previous_response_id = get_transient( 'vercel_chat_response_id_' . $params['id'] );
 		if ( false === $previous_response_id ) {
@@ -1408,7 +1442,8 @@ class OpenAI_Module extends POS_Module {
 					set_transient( 'vercel_chat_response_id_' . $conversation_id, $data, 60 * 60 );
 				}
 			},
-			$previous_response_id
+			$previous_response_id,
+			$prompt
 		);
 
 		$this->log( '[vercel_chat] complete_responses returned. Is WP_Error: ' . ( is_wp_error( $response ) ? 'yes' : 'no' ) );
@@ -1419,13 +1454,13 @@ class OpenAI_Module extends POS_Module {
 			if ( ! empty( $error_data ) ) {
 				$this->log( '[vercel_chat] ERROR data: ' . wp_json_encode( $error_data ) );
 			}
-			
+
 			// If error is related to missing tool output, clear the response ID to start fresh
 			if ( strpos( $error_message, 'No tool output found' ) !== false || strpos( $error_message, 'function call' ) !== false ) {
 				$this->log( '[vercel_chat] Clearing response ID due to tool call error' );
 				delete_transient( 'vercel_chat_response_id_' . $conversation_id );
 			}
-			
+
 			$vercel_sdk->finishStep(
 				'error',
 				array(
