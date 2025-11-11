@@ -4,6 +4,7 @@ import { Chat } from '@/components/chat';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { generateUUID } from '@/lib/utils';
 import { DataStreamHandler } from '@/components/data-stream-handler';
+import { getConfig } from '@/lib/constants';
 // import { auth } from '../(auth)/auth'; // auth() call disabled for static export
 // import { redirect } from 'next/navigation'; // Redirect disabled for static export
 // import type { Session } from 'next-auth'; // Removed as next-auth is uninstalled
@@ -47,7 +48,10 @@ export default async function Page() {
   //   redirect('/api/auth/guest');
   // }
 
-  const id = generateUUID();
+  // Use conversation_id from PHP config if available (generated fresh on each page load),
+  // otherwise generate one (fallback for static export or if config is missing)
+  const config = getConfig();
+  const id = config.conversation_id || generateUUID();
 
   // For static export, cookie reading is disabled. Always use default model.
   // const cookieStore = await cookies(); // Call to cookies() disabled

@@ -22,22 +22,42 @@ function personalos_map_notebook_to_para_item( $notebook ) {
 	);
 }
 
+/**
+ * Generate a UUID v4
+ *
+ * @return string UUID
+ */
+function personalos_generate_uuid() {
+	return sprintf(
+		'%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+		wp_rand( 0, 0xffff ),
+		wp_rand( 0, 0xffff ),
+		wp_rand( 0, 0xffff ),
+		wp_rand( 0, 0x0fff ) | 0x4000,
+		wp_rand( 0, 0x3fff ) | 0x8000,
+		wp_rand( 0, 0xffff ),
+		wp_rand( 0, 0xffff ),
+		wp_rand( 0, 0xffff )
+	);
+}
+
 // This has to match the Config type in src-chatbot/lib/window.d.ts - Cursor please always check this
 function personalos_chat_config() {
 	return array(
-		'rest_api_url' => rest_url( '/' ),
-		'wp_admin_url' => admin_url(),
-		'site_title'   => get_bloginfo( 'name' ),
-		'nonce'        => wp_create_nonce( 'wp_rest' ),
-		'projects'     => array_map(
+		'rest_api_url'   => rest_url( '/' ),
+		'wp_admin_url'   => admin_url(),
+		'site_title'     => get_bloginfo( 'name' ),
+		'nonce'          => wp_create_nonce( 'wp_rest' ),
+		'conversation_id' => personalos_generate_uuid(), // Generate fresh ID on each page load
+		'projects'        => array_map(
 			'personalos_map_notebook_to_para_item',
 			POS::get_module_by_id( 'notes' )->get_notebooks_by_flag( 'project' )
 		),
-		'starred'      => array_map(
+		'starred'         => array_map(
 			'personalos_map_notebook_to_para_item',
 			POS::get_module_by_id( 'notes' )->get_notebooks_by_flag( 'star' )
 		),
-		'user'         => array(
+		'user'            => array(
 			'id'    => get_current_user_id(),
 			'login' => wp_get_current_user()->user_login,
 		),
