@@ -44,6 +44,7 @@ class OpenAI_Module extends POS_Module {
 		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
 		$this->register_cli_command( 'tool', 'cli_openai_tool' );
 
+		$this->register_cli_command( 'responses', 'cli_openai_responses' );
 		$this->register_block( 'tool', array( 'render_callback' => array( $this, 'render_tool_block' ) ) );
 		$this->register_block( 'message', array() );
 
@@ -98,6 +99,167 @@ class OpenAI_Module extends POS_Module {
 			WP_CLI::error( 'Tool not found' );
 		}
 		WP_CLI::log( print_r( $tool->invoke( ! empty( $args[1] ) ? json_decode( $args[1], true ) : array() ), true ) );
+	}
+
+	/**
+	 * Test OpenAI responses API using WP-CLI.
+	 *
+	 * Allows sending a messages payload to the new responses endpoint and outputs
+	 * streamed events and the final message list for inspection.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [<messages>]
+	 * : JSON encoded array of messages to send. If omitted, a sample prompt is used.
+	 *
+	 * [--file=<path>]
+	 * : Path to a JSON file containing the messages payload.
+	 *
+	 * [--messages=<json>]
+	 * : Alternative way to provide JSON messages payload.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp pos openai responses
+	 *     wp pos openai responses '[{"role":"user","content":[{"type":"input_text","text":"Hello!"}]}]'
+	 *     wp pos openai responses --file=messages.json
+	 *
+	 * @param array $args       Positional CLI arguments.
+	 * @param array $assoc_args Associative CLI arguments.
+	 *
+	 * @return void
+	 */
+	public function cli_openai_responses( array $args, array $assoc_args = array() ): void {
+		$messages_payload = '';
+
+		if ( ! empty( $assoc_args['file'] ) ) {
+			$file_path = $assoc_args['file'];
+			if ( ! file_exists( $file_path ) ) {
+				WP_CLI::error(
+					sprintf(
+						'File not found: %s',
+						$file_path
+					)
+				);
+			}
+			$messages_payload = file_get_contents( $file_path );
+			if ( false === $messages_payload ) {
+				WP_CLI::error(
+					sprintf(
+						'Unable to read file: %s',
+						$file_path
+					)
+				);
+			}
+		} elseif ( ! empty( $assoc_args['messages'] ) ) {
+			$messages_payload = (string) $assoc_args['messages'];
+		} elseif ( ! empty( $args[0] ) ) {
+			$messages_payload = (string) $args[0];
+		}
+
+		if ( '' !== $messages_payload ) {
+			$messages = json_decode( $messages_payload, true );
+			if ( null === $messages && JSON_ERROR_NONE !== json_last_error() ) {
+				WP_CLI::error(
+					sprintf(
+						'Invalid JSON provided. Error: %s',
+						json_last_error_msg()
+					)
+				);
+			}
+			if ( ! is_array( $messages ) ) {
+				WP_CLI::error( 'Messages payload must decode to an array.' );
+			}
+		} else {
+			$messages = array(
+				array(
+					'role'    => 'user',
+					'content' => array(
+						array(
+							'type' => 'input_text',
+							'text' => 'Introduce yourself and summarise the PersonalOS plugin.',
+						),
+					),
+				),
+			);
+			WP_CLI::log( 'No messages provided, using default sample prompt.' );
+		}
+
+		$result = $this->complete_responses(
+			$messages,
+			function ( string $event_type, $event ) {
+				switch ( $event_type ) {
+					case 'tool_call':
+						$tool_name = 'unknown';
+						if ( isset( $event->name ) ) {
+							$tool_name = $event->name;
+						} elseif ( isset( $event->function->name ) ) {
+							$tool_name = $event->function->name;
+						}
+						WP_CLI::log(
+							sprintf(
+								'Tool call requested: %s',
+								$tool_name
+							)
+						);
+						break;
+					case 'tool_result':
+						WP_CLI::log(
+							sprintf(
+								'Tool result (%s): %s',
+								isset( $event['name'] ) ? $event['name'] : 'unknown',
+								isset( $event['content'] ) && is_string( $event['content'] ) ? $event['content'] : wp_json_encode( $event, JSON_PRETTY_PRINT )
+							)
+						);
+						break;
+					case 'message':
+						$content = array();
+						if ( isset( $event->content ) && is_array( $event->content ) ) {
+							foreach ( $event->content as $chunk ) {
+								if ( isset( $chunk->text ) ) {
+									$content[] = $chunk->text;
+								}
+							}
+						}
+						if ( ! empty( $content ) ) {
+							WP_CLI::log(
+								sprintf(
+									'[assistant] %s',
+									implode( "\n", $content )
+								)
+							);
+						}
+						break;
+					default:
+						WP_CLI::log(
+							sprintf(
+								'Unhandled event (%s): %s',
+								$event_type,
+								wp_json_encode( $event, JSON_PRETTY_PRINT )
+							)
+						);
+						break;
+				}
+			}
+		);
+
+		if ( is_wp_error( $result ) ) {
+			$error_data = $result->get_error_data();
+			if ( ! empty( $error_data ) && is_array( $error_data ) && isset( $error_data[0] ) ) {
+				WP_CLI::log( 'Raw API response:' );
+				WP_CLI::log( wp_json_encode( $error_data[0], JSON_PRETTY_PRINT ) );
+			}
+			WP_CLI::error( $result->get_error_message() );
+		}
+
+		WP_CLI::log(
+			wp_json_encode(
+				$result,
+				JSON_PRETTY_PRINT
+			)
+		);
+
+		WP_CLI::success( 'Responses API call completed.' );
 	}
 
 	public function admin_menu() {
@@ -823,27 +985,60 @@ class OpenAI_Module extends POS_Module {
 	}
 
 	public function complete_responses( array $messages, callable $callback = null ) {
+		// Filter out perplexity_search when using Responses API since we have built-in web_search
+		$tools = array_filter(
+			OpenAI_Tool::get_tools(),
+			function ( $tool ) {
+				return $tool->name !== 'perplexity_search';
+			}
+		);
 		$tool_definitions = array_map(
 			function ( $tool ) {
-				return $tool->get_function_signature();
+				return $tool->get_function_signature_for_realtime_api();
 			},
-			array_values( OpenAI_Tool::get_tools() ),
+			array_values( $tools ),
+		);
+		// Add built-in web search tool
+		$tool_definitions[] = array(
+			'type' => 'web_search',
 		);
 		$max_loops = 10;
+		$previous_response_id = null;
+		$full_messages = $messages; // Keep full history for return value
 		do {
 			--$max_loops;
+			$has_function_calls = false;
+
+			// Build the API request payload
+			$request_data = array(
+				'model'        => 'gpt-4o',
+				'instructions' => $this->create_system_prompt(),
+				'tools'        => $tool_definitions,
+				'store'        => true, // Store responses for previous_response_id to work
+			);
+
+			// Use previous_response_id if available, otherwise use input
+			if ( $previous_response_id ) {
+				$request_data['previous_response_id'] = $previous_response_id;
+				// Add tool results as new input items (only tool results, not full history)
+				if ( ! empty( $messages ) ) {
+					$request_data['input'] = $messages;
+				}
+			} else {
+				$request_data['input'] = $messages;
+			}
+
 			$response = $this->api_call(
 				'https://api.openai.com/v1/responses',
-				array(
-					'model'        => 'gpt-4o',
-					'instructions' => $this->create_system_prompt(),
-					'messages'     => $messages,
-					'tools'        => $tool_definitions,
-				)
+				$request_data
 			);
 
 			if ( is_wp_error( $response ) ) {
 				return $response;
+			}
+
+			if ( isset( $response->error ) ) {
+				return new WP_Error( $response->error->code ?? 'openai-error', $response->error->message ?? 'OpenAI API error' );
 			}
 
 			if ( isset( $response->message, $response->code ) ) {
@@ -854,65 +1049,93 @@ class OpenAI_Module extends POS_Module {
 				return new WP_Error( 'no-status', 'No status in response', array( $response, $messages ) );
 			}
 
-			// Add the response output to messages
-			if ( ! empty( $response->output ) ) {
-				foreach ( $response->output as $output_item ) {
-					$messages[] = $output_item;
-					if ( $callback && isset( $output_item->type ) && $output_item->type === 'message' ) {
-						$callback( 'message', $output_item );
-					}
-				}
+			// Capture the response ID for use in subsequent calls
+			if ( isset( $response->id ) ) {
+				$previous_response_id = $response->id;
 			}
 
-			// Handle tool calls
-			if ( $response->status === 'requires_action' && ! empty( $response->required_action->tool_calls ) ) {
-				$tool_calls = $response->required_action->tool_calls;
-				foreach ( $tool_calls as $tool_call ) {
-					if ( $callback ) {
-						$callback( 'tool_call', $tool_call );
-					}
-					$arguments = json_decode( $tool_call->function->arguments, true );
-					$tool      = array_filter(
-						OpenAI_Tool::get_tools(),
-						function ( $tool ) use ( $tool_call ) {
-							return $tool->name === $tool_call->function->name;
+			// Handle function calls from output array (Responses API format)
+			$tool_results = array();
+			$has_builtin_tool_calls = false;
+			if ( ! empty( $response->output ) ) {
+				foreach ( $response->output as $output_item ) {
+					// Handle function calls
+					if ( isset( $output_item->type ) && $output_item->type === 'function_call' ) {
+						$has_function_calls = true;
+						if ( $callback ) {
+							$callback( 'tool_call', $output_item );
 						}
-					);
-					$tool      = reset( $tool );
-					if ( ! $tool ) {
-						return new WP_Error( 'tool-not-found', 'Tool not found ' . $tool_call->function->name );
-					}
 
-					$result = $tool->invoke( $arguments );
+						// Built-in tools like web_search are handled by OpenAI automatically
+						// Check if this is a built-in tool that doesn't need local execution
+						$is_builtin_tool = isset( $output_item->name ) && in_array( $output_item->name, array( 'web_search' ), true );
 
-					if ( is_wp_error( $result ) ) {
-						return $result;
-					}
-					if ( ! is_string( $result ) ) {
-						$result = wp_json_encode( $result, JSON_PRETTY_PRINT );
-					}
-					$res = array(
-						'role'         => 'tool',
-						'name'         => $tool_call->function->name,
-						'content'      => $result,
-						'tool_call_id' => $tool_call->id,
-					);
-					if ( $callback ) {
-						$callback( 'tool_result', $res );
-					}
-					$messages[] = $res;
-				}
-			} else {
-				if ( $callback && ! empty( $response->output ) ) {
-					foreach ( $response->output as $output_item ) {
-						if ( isset( $output_item->type ) && $output_item->type === 'message' ) {
+						if ( $is_builtin_tool ) {
+							// Built-in tools are executed by OpenAI automatically
+							// We need to continue the loop to get the results, but don't submit tool results
+							$has_builtin_tool_calls = true;
+							continue;
+						}
+
+						$arguments = json_decode( $output_item->arguments ?? '{}', true );
+						$tool      = array_filter(
+							$tools,
+							function ( $tool ) use ( $output_item ) {
+								return $tool->name === $output_item->name;
+							}
+						);
+						$tool      = reset( $tool );
+						if ( ! $tool ) {
+							return new WP_Error( 'tool-not-found', 'Tool not found ' . $output_item->name );
+						}
+
+						$result = $tool->invoke( $arguments );
+
+						if ( is_wp_error( $result ) ) {
+							return $result;
+						}
+						if ( ! is_string( $result ) ) {
+							$result = wp_json_encode( $result, JSON_PRETTY_PRINT );
+						}
+						// Format tool result for Responses API
+						// When using previous_response_id, tool results must be formatted as function_call_output
+						// with the call_id matching the function call from the previous response
+						$res = array(
+							'type'    => 'function_call_output',
+							'call_id' => $output_item->call_id ?? null,
+							'output'  => $result,
+						);
+						if ( $callback ) {
+							$callback( 'tool_result', $res );
+						}
+						$tool_results[] = $res;
+						// Add to full history - wrap function_call_output for return value
+						$full_messages[] = array(
+							'role'    => 'assistant',
+							'content' => array( $res ),
+						);
+					} elseif ( isset( $output_item->type ) && $output_item->type === 'message' ) {
+						// Add messages to the conversation for final return
+						$full_messages[] = $output_item;
+						if ( $callback ) {
 							$callback( 'message', $output_item );
 						}
 					}
 				}
 			}
-		} while ( $response->status === 'requires_action' && $max_loops > 0 );
-		return $messages;
+
+			// For subsequent calls, only pass tool results (not full history)
+			if ( $previous_response_id && ! empty( $tool_results ) ) {
+				$messages = $tool_results;
+			} elseif ( $previous_response_id && $has_builtin_tool_calls ) {
+				// For built-in tools, don't pass any input - OpenAI handles execution automatically
+				$messages = array();
+			} elseif ( $previous_response_id ) {
+				// If no tool results but we have a previous response, use empty array
+				$messages = array();
+			}
+		} while ( ( $has_function_calls || $has_builtin_tool_calls ) && $max_loops > 0 );
+		return $full_messages;
 	}
 
 	public function complete_backscroll( array $backscroll, callable $callback = null ) {
