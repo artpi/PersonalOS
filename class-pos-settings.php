@@ -11,6 +11,13 @@ class POS_Settings {
 		}
 	}
 
+	/**
+	 * Initialize settings for all modules.
+	 *
+	 * Each module's settings are registered to a separate option group (pos_{module_id}).
+	 * This ensures that saving settings for one module does not affect other modules' settings.
+	 * WordPress's Settings API only processes options that are registered to the submitted group.
+	 */
 	public function settings_init() {
 
 		foreach ( $this->modules as $module ) {
@@ -23,14 +30,35 @@ class POS_Settings {
 					function( $args ) use ( $module ) {
 						echo '<p>' . esc_html( $module->get_module_description() ) . '</p>';
 					},
-					'pos'
+					'pos_' . $module->id
 				);
 				foreach ( $settings as $setting_id => $setting ) {
 					if ( empty( $setting['type'] ) || empty( $setting['name'] ) ) {
 						continue;
 					}
 					$option_name = $module->get_setting_option_name( $setting_id );
-					register_setting( 'pos', $option_name );
+
+					// Register setting with appropriate sanitization callback
+					$sanitize_callback = null;
+					if ( $setting['type'] === 'bool' ) {
+						$sanitize_callback = function( $value ) {
+							return ! empty( $value ) ? '1' : '';
+						};
+					} elseif ( $setting['type'] === 'text' ) {
+						$sanitize_callback = 'sanitize_text_field';
+					} elseif ( $setting['type'] === 'textarea' ) {
+						$sanitize_callback = 'sanitize_textarea_field';
+					} elseif ( $setting['type'] === 'select' ) {
+						$sanitize_callback = 'sanitize_text_field';
+					}
+
+					register_setting(
+						'pos_' . $module->id,
+						$option_name,
+						array(
+							'sanitize_callback' => $sanitize_callback,
+						)
+					);
 
 					add_settings_field(
 						'pos_field_' . $setting['name'],
@@ -82,7 +110,7 @@ class POS_Settings {
 							}
 
 						},
-						'pos',
+						'pos_' . $module->id,
 						'pos_section_' . $module->id,
 						array()
 					);
@@ -92,6 +120,13 @@ class POS_Settings {
 
 	}
 
+	/**
+	 * Generate select options HTML.
+	 *
+	 * @param array  $options Array of option value => label pairs.
+	 * @param string $value Currently selected value.
+	 * @return string HTML for select options.
+	 */
 	public function get_select_options( $options, $value ) {
 		$html = '';
 		foreach ( $options as $option_value => $option_label ) {
@@ -104,8 +139,7 @@ class POS_Settings {
 	 * Add the top level menu page.
 	 */
 	public function options_page() {
-		add_submenu_page(
-			'options-general.php',
+		add_options_page(
 			'Personal OS',
 			'PersonalOS',
 			'manage_options',
@@ -133,16 +167,54 @@ class POS_Settings {
 
 		// show error/update messages
 		settings_errors( 'pos_messages' );
+
+		//phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$current_tab = isset( $_GET['module'] ) ? sanitize_key( $_GET['module'] ) : 'notes';
+
+		// Validate that the current tab is a valid module ID
+		$valid_module_ids = array_map(
+			function( $mod ) {
+				return $mod->id;
+			},
+			$this->modules
+		);
+		if ( ! in_array( $current_tab, $valid_module_ids, true ) ) {
+			$current_tab = 'notes';
+		}
 		?>
+
 		<div class="wrap">
 			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
+			<nav class="nav-tab-wrapper">
+				<?php
+				foreach ( $this->modules as $mod ) {
+					// CSS class for a current tab
+					$current = $mod->id === $current_tab ? ' nav-tab-active' : '';
+					// URL
+					$url = add_query_arg(
+						array(
+							'page'   => 'pos',
+							'module' => $mod->id,
+						),
+						admin_url( 'options-general.php' )
+					);
+					// printing the tab link
+					printf(
+						'<a class="nav-tab%s" href="%s">%s</a>',
+						esc_attr( $current ),
+						esc_url( $url ),
+						esc_html( $mod->name )
+					);
+				}
+				?>
+		</nav>
 			<form action="options.php" method="post">
 				<?php
 				// output security fields for the registered setting "wporg"
-				settings_fields( 'pos' );
+				settings_fields( 'pos_' . $current_tab );
 				// output setting sections and their fields
 				// (sections are registered for "wporg", each field is registered to a specific section)
-				do_settings_sections( 'pos' );
+				do_settings_sections( 'pos_' . $current_tab );
 				// output save settings button
 				submit_button( 'Save Settings' );
 				?>
