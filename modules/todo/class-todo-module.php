@@ -222,7 +222,7 @@ class TODO_Module extends POS_Module {
 	 * Format a todo post object into an array for OpenAI API.
 	 *
 	 * @param WP_Post $item The todo post object.
-	 * @return array Formatted array with title, excerpt, url, and notebooks.
+	 * @return array Formatted array with title, excerpt, url, notebooks, ID, and post_status.
 	 */
 	public function format_todo_item( $item ) {
 		$notebooks = wp_get_object_terms( $item->ID, 'notebook', array( 'fields' => 'slugs' ) );
@@ -231,10 +231,12 @@ class TODO_Module extends POS_Module {
 		}
 
 		return array(
-			'title'     => $item->post_title,
-			'excerpt'   => $item->post_excerpt,
-			'url'       => admin_url( 'post.php?post=' . $item->ID . '&action=edit' ),
-			'notebooks' => $notebooks,
+			'title'       => $item->post_title,
+			'excerpt'     => $item->post_excerpt,
+			'url'         => admin_url( 'post.php?post=' . $item->ID . '&action=edit' ),
+			'notebooks'   => $notebooks,
+			'ID'          => $item->ID,
+			'post_status' => $item->post_status,
 		);
 	}
 

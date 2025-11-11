@@ -34,13 +34,13 @@ class TodoAIToolsTest extends WP_UnitTestCase {
 			'post_excerpt' => 'This TODO was created by AI tool',
 		) );
 
-		$this->assertInstanceOf( 'WP_Post', $result, 'Tool should return a WP_Post object' );
-		$this->assertEquals( 'Test AI TODO', $result->post_title );
-		$this->assertEquals( 'This TODO was created by AI tool', $result->post_excerpt );
-		$this->assertEquals( 'private', $result->post_status );
+		$this->assertIsArray( $result, 'Tool should return an array' );
+		$this->assertEquals( 'Test AI TODO', $result['title'] );
+		$this->assertEquals( 'This TODO was created by AI tool', $result['excerpt'] );
+		$this->assertEquals( 'private', $result['post_status'] );
 
 		// Verify the TODO is in the inbox notebook
-		$notebooks = wp_list_pluck( wp_get_object_terms( $result->ID, 'notebook' ), 'slug' );
+		$notebooks = wp_list_pluck( wp_get_object_terms( $result['ID'], 'notebook' ), 'slug' );
 		$this->assertContains( 'inbox', $notebooks, 'Created TODO should be in inbox notebook' );
 	}
 
@@ -56,10 +56,10 @@ class TodoAIToolsTest extends WP_UnitTestCase {
 			'notebook'     => 'now',
 		) );
 
-		$this->assertInstanceOf( 'WP_Post', $result, 'Tool should return a WP_Post object' );
+		$this->assertIsArray( $result, 'Tool should return an array' );
 
 		// Verify the TODO is in both inbox and now notebooks
-		$notebooks = wp_list_pluck( wp_get_object_terms( $result->ID, 'notebook' ), 'slug' );
+		$notebooks = wp_list_pluck( wp_get_object_terms( $result['ID'], 'notebook' ), 'slug' );
 		$this->assertContains( 'inbox', $notebooks, 'Created TODO should be in inbox notebook' );
 		$this->assertContains( 'now', $notebooks, 'Created TODO should be in now notebook when specified' );
 	}
@@ -123,7 +123,7 @@ class TodoAIToolsTest extends WP_UnitTestCase {
 			'post_excerpt' => 'Created via AI, should go to inbox',
 		) );
 
-		$this->assertInstanceOf( 'WP_Post', $created_todo );
+		$this->assertIsArray( $created_todo );
 
 		// List with default (now) - should NOT appear
 		$todos_default = $list_tool->invoke( array() );
@@ -165,7 +165,7 @@ class TodoAIToolsTest extends WP_UnitTestCase {
 			'notebook'     => 'now',
 		) );
 
-		$this->assertInstanceOf( 'WP_Post', $created_todo );
+		$this->assertIsArray( $created_todo );
 
 		// List with default (now) - should appear
 		$todos_default = $list_tool->invoke( array() );
