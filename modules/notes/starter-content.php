@@ -23,6 +23,7 @@ $starter_content = $this->create_term_if_not_exists( 'Starter Content', 'starter
 
 $prompts = $this->create_term_if_not_exists( 'AI Prompts', 'prompts', array(), array( 'parent' => $term_resources ) );
 $podcast_prompts = $this->create_term_if_not_exists( 'Prompts: Podcast', 'prompts-podcast', array(), array( 'parent' => $prompts ) );
+$chat_prompts = $this->create_term_if_not_exists( 'Prompts: Chat', 'prompts-chat', array(), array( 'parent' => $prompts ) );
 
 $ai_memory = $this->create_term_if_not_exists( 'AI Memory', 'ai-memory', array(), array( 'parent' => $term_resources ) );
 $this->create_term_if_not_exists( 'Nice Quotes', 'nice-quotes', array(), array( 'parent' => $term_resources ) );
@@ -125,3 +126,23 @@ $this->create(
 	EOF,
 	array( 'prompts-podcast', 'prompts', 'starter-content' )
 );
+
+// Chat prompts.
+
+$chat_prompt_1 = $this->create(
+	'Helpful Assistant - GPT-4.1',
+	'<!-- wp:paragraph -->
+<p>You are a helpful assistant. Keep your responses concise, clear, and actionable. Focus on being practical and solution-oriented.</p>
+<!-- /wp:paragraph -->',
+	array( 'prompts-chat', 'prompts', 'starter-content' )
+);
+update_post_meta( $chat_prompt_1, 'pos_model', 'gpt-4.1' );
+
+$chat_prompt_2 = $this->create(
+	'Helpful Assistant - GPT-5',
+	'<!-- wp:paragraph -->
+<p>You are a helpful assistant. Keep your responses concise, clear, and actionable. Focus on being practical and solution-oriented.</p>
+<!-- /wp:paragraph -->',
+	array( 'prompts-chat', 'prompts', 'starter-content' )
+);
+update_post_meta( $chat_prompt_2, 'pos_model', 'gpt-5' );
