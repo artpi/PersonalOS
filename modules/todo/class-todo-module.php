@@ -132,7 +132,28 @@ class TODO_Module extends POS_Module {
 
 	public function register_openai_tools( $tools ) {
 		$self = $this;
-		$tools[] = new OpenAI_Tool( 'todo_get_items', 'List TODOs', array(), array( $this, 'get_items_for_openai' ) );
+		$tools[] = new OpenAI_Tool(
+			'todo_get_items',
+			'List TODOs from a specific notebook. Defaults to "now" notebook if not specified.',
+			array(
+				'notebook' => array(
+					'type'        => array( 'string', 'null' ),
+					'description' => 'slug of the notebook to list TODOs from. If not specified, defaults to "now". Use "all" to list from all notebooks.',
+					'enum'        => array_merge(
+						array( 'all' ),
+						array_values(
+							array_map(
+								function( $notebook ) {
+									return $notebook->slug;
+								},
+								get_terms( array( 'taxonomy' => 'notebook' ) )
+							)
+						)
+					),
+				),
+			),
+			array( $this, 'get_items_for_openai' )
+		);
 		$tools[] = new OpenAI_Tool_Writeable(
 			'todo_create_item',
 			'Create TODO. Always ask for confirmation if not explicitly asked to create a TODO. Always return the URL in response. Never read the URL when reading out loud.',
@@ -167,7 +188,8 @@ class TODO_Module extends POS_Module {
 				if ( isset( $args['notebook'] ) ) {
 					$notebooks[] = $args['notebook'];
 				}
-				return get_post( $self->create( $create_args, $notebooks ) );
+				$post = get_post( $self->create( $create_args, $notebooks ) );
+				return $self->format_todo_item( $post );
 			}
 		);
 
@@ -196,16 +218,39 @@ class TODO_Module extends POS_Module {
 		return $scheduled_events;
 	}
 
+	/**
+	 * Format a todo post object into an array for OpenAI API.
+	 *
+	 * @param WP_Post $item The todo post object.
+	 * @return array Formatted array with title, excerpt, url, and notebooks.
+	 */
+	public function format_todo_item( $item ) {
+		$notebooks = wp_get_object_terms( $item->ID, 'notebook', array( 'fields' => 'slugs' ) );
+		if ( is_wp_error( $notebooks ) ) {
+			$notebooks = array();
+		}
+
+		return array(
+			'title'     => $item->post_title,
+			'excerpt'   => $item->post_excerpt,
+			'url'       => admin_url( 'post.php?post=' . $item->ID . '&action=edit' ),
+			'notebooks' => $notebooks,
+		);
+	}
+
 	public function get_items_for_openai( $args ) {
-		$items = $this->list( array(), 'now' );
+		// Default to 'now' notebook if not specified, or use 'all' to list from all notebooks
+		$notebook = isset( $args['notebook'] ) ? $args['notebook'] : 'now';
+
+		// If notebook is 'all', don't filter by notebook
+		if ( $notebook === 'all' ) {
+			$items = $this->list( array() );
+		} else {
+			$items = $this->list( array(), $notebook );
+		}
+
 		return array_map(
-			function( $item ) {
-				return array(
-					'title'   => $item->post_title,
-					'excerpt' => $item->post_excerpt,
-					'url'     => admin_url( 'post.php?post=' . $item->ID . '&action=edit' ),
-				);
-			},
+			array( $this, 'format_todo_item' ),
 			$items
 		);
 	}
