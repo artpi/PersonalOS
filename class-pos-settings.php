@@ -120,14 +120,6 @@ class POS_Settings {
 
 	}
 
-	public function get_select_options( $options, $value ) {
-		$html = '';
-		foreach ( $options as $option_value => $option_label ) {
-			$html .= sprintf( '<option value="%1$s" %2$s>%3$s</option>', esc_attr( $option_value ), selected( $option_value, $value, false ), esc_html( $option_label ) );
-		}
-		return $html;
-	}
-
 	/**
 	 * Generate select options HTML.
 	 *
