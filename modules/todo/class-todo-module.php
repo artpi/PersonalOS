@@ -188,7 +188,8 @@ class TODO_Module extends POS_Module {
 				if ( isset( $args['notebook'] ) ) {
 					$notebooks[] = $args['notebook'];
 				}
-				return get_post( $self->create( $create_args, $notebooks ) );
+				$post = get_post( $self->create( $create_args, $notebooks ) );
+				return $self->format_todo_item( $post );
 			}
 		);
 
@@ -217,6 +218,26 @@ class TODO_Module extends POS_Module {
 		return $scheduled_events;
 	}
 
+	/**
+	 * Format a todo post object into an array for OpenAI API.
+	 *
+	 * @param WP_Post $item The todo post object.
+	 * @return array Formatted array with title, excerpt, url, and notebooks.
+	 */
+	public function format_todo_item( $item ) {
+		$notebooks = wp_get_object_terms( $item->ID, 'notebook', array( 'fields' => 'slugs' ) );
+		if ( is_wp_error( $notebooks ) ) {
+			$notebooks = array();
+		}
+
+		return array(
+			'title'     => $item->post_title,
+			'excerpt'   => $item->post_excerpt,
+			'url'       => admin_url( 'post.php?post=' . $item->ID . '&action=edit' ),
+			'notebooks' => $notebooks,
+		);
+	}
+
 	public function get_items_for_openai( $args ) {
 		// Default to 'now' notebook if not specified, or use 'all' to list from all notebooks
 		$notebook = isset( $args['notebook'] ) ? $args['notebook'] : 'now';
@@ -229,13 +250,7 @@ class TODO_Module extends POS_Module {
 		}
 
 		return array_map(
-			function( $item ) {
-				return array(
-					'title'   => $item->post_title,
-					'excerpt' => $item->post_excerpt,
-					'url'     => admin_url( 'post.php?post=' . $item->ID . '&action=edit' ),
-				);
-			},
+			array( $this, 'format_todo_item' ),
 			$items
 		);
 	}
