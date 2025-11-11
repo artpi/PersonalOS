@@ -3,6 +3,7 @@ export type Config = {
 	wp_admin_url: string;
 	rest_api_url: string;
 	nonce: string;
+	conversation_id?: string; // Generated in PHP on each page load
 	projects: PARAItem[];
 	starred: PARAItem[];
 	user: {

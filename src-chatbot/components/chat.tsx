@@ -28,7 +28,7 @@ interface MockSession {
 }
 
 export function Chat({
-  id,
+  id: initialId,
   initialMessages,
   selectedChatModel,
   selectedVisibilityType,
@@ -43,6 +43,10 @@ export function Chat({
   session: MockSession; // Changed from Session to MockSession
 }) {
   const currentConfig = getConfig();
+  
+  // Use conversation_id from PHP config (generated fresh on each page load and injected into window.config)
+  // This is just a constant from the page - no need to store it anywhere
+  const id = currentConfig.conversation_id || initialId;
 
   const {
     messages,

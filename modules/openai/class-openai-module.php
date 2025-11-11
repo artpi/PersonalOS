@@ -984,7 +984,7 @@ class OpenAI_Module extends POS_Module {
 		return $this->complete_responses( $messages );
 	}
 
-	public function complete_responses( array $messages, callable $callback = null ) {
+	public function complete_responses( array $messages, callable $callback = null, ?string $previous_response_id = null ) {
 		// Filter out perplexity_search when using Responses API since we have built-in web_search
 		$tools = array_filter(
 			OpenAI_Tool::get_tools(),
@@ -1003,7 +1003,6 @@ class OpenAI_Module extends POS_Module {
 			'type' => 'web_search',
 		);
 		$max_loops = 10;
-		$previous_response_id = null;
 		$full_messages = $messages; // Keep full history for return value
 		do {
 			--$max_loops;
@@ -1052,11 +1051,21 @@ class OpenAI_Module extends POS_Module {
 			// Capture the response ID for use in subsequent calls
 			if ( isset( $response->id ) ) {
 				$previous_response_id = $response->id;
+				if ( $callback ) {
+					$callback( 'response_id', $response->id );
+				}
 			}
 
 			// Handle function calls from output array (Responses API format)
 			$tool_results = array();
 			$has_builtin_tool_calls = false;
+
+			// If status is in_progress, continue polling (especially for built-in tools like web_search)
+			if ( isset( $response->status ) && $response->status === 'in_progress' ) {
+				// Continue the loop to poll for results
+				$has_builtin_tool_calls = true;
+				continue;
+			}
 			if ( ! empty( $response->output ) ) {
 				foreach ( $response->output as $output_item ) {
 					// Handle function calls
@@ -1089,10 +1098,26 @@ class OpenAI_Module extends POS_Module {
 							return new WP_Error( 'tool-not-found', 'Tool not found ' . $output_item->name );
 						}
 
-						$result = $tool->invoke( $arguments );
+						try {
+							$result = $tool->invoke( $arguments );
+						} catch ( \Exception $e ) {
+							$this->log( 'Tool invocation error for ' . $output_item->name . ': ' . $e->getMessage() );
+							$result = new WP_Error(
+								'tool-invocation-error',
+								sprintf(
+									'Error invoking tool %s: %s',
+									$output_item->name,
+									$e->getMessage()
+								)
+							);
+						}
 
 						if ( is_wp_error( $result ) ) {
-							return $result;
+							// Convert WP_Error to a string result so the conversation can continue
+							$result = sprintf(
+								'Error: %s',
+								$result->get_error_message()
+							);
 						}
 						if ( ! is_string( $result ) ) {
 							$result = wp_json_encode( $result, JSON_PRETTY_PRINT );
@@ -1227,6 +1252,31 @@ class OpenAI_Module extends POS_Module {
 	public function api_call( $url, $data ) {
 		$api_key = $this->get_setting( 'api_key' );
 
+		// Log request details (sanitize sensitive data)
+		$log_data = $data;
+		if ( isset( $log_data['input'] ) && is_array( $log_data['input'] ) ) {
+			// Log input messages but truncate long content
+			$log_data['input'] = array_map(
+				function( $item ) {
+					if ( isset( $item['content'] ) && is_array( $item['content'] ) ) {
+						$item['content'] = array_map(
+							function( $content_item ) {
+								if ( isset( $content_item['text'] ) && strlen( $content_item['text'] ) > 200 ) {
+									$content_item['text'] = substr( $content_item['text'], 0, 200 ) . '... (truncated)';
+								}
+								return $content_item;
+							},
+							$item['content']
+						);
+					}
+					return $item;
+				},
+				$log_data['input']
+			);
+		}
+		$this->log( '[api_call] Request to: ' . $url );
+		$this->log( '[api_call] Request data: ' . wp_json_encode( $log_data ) );
+
 		$response = wp_remote_post(
 			$url,
 			array(
@@ -1238,11 +1288,29 @@ class OpenAI_Module extends POS_Module {
 				'body'    => wp_json_encode( $data ),
 			)
 		);
-		$body     = wp_remote_retrieve_body( $response );
+
+		$response_code = wp_remote_retrieve_response_code( $response );
+		$this->log( '[api_call] Response code: ' . $response_code );
+
+		$body = wp_remote_retrieve_body( $response );
 		if ( is_wp_error( $response ) ) {
+			$this->log( '[api_call] WP_Error: ' . $response->get_error_message(), 'ERROR' );
 			return $response;
 		}
-		return json_decode( $body );
+
+		$decoded_body = json_decode( $body );
+		if ( $response_code >= 400 ) {
+			$this->log( '[api_call] Error response body: ' . substr( $body, 0, 500 ), 'ERROR' );
+		} else {
+			// Log a summary of successful responses (truncate if too long)
+			$response_summary = wp_json_encode( $decoded_body );
+			if ( strlen( $response_summary ) > 500 ) {
+				$response_summary = substr( $response_summary, 0, 500 ) . '... (truncated)';
+			}
+			$this->log( '[api_call] Response summary: ' . $response_summary );
+		}
+
+		return $decoded_body;
 	}
 
 	/**
@@ -1412,6 +1480,8 @@ class OpenAI_Module extends POS_Module {
 	public function vercel_chat( WP_REST_Request $request ) {
 		$params = $request->get_json_params();
 
+		$this->log( '[vercel_chat] Request received. Params: ' . wp_json_encode( $params ) );
+
 		$user_message_content = null;
 		if ( isset( $params['message']['content'] ) ) {
 			$user_message_content = $params['message']['content'];
@@ -1423,45 +1493,43 @@ class OpenAI_Module extends POS_Module {
 		}
 
 		if ( ! $user_message_content ) {
+			$this->log( '[vercel_chat] ERROR: Missing message content' );
 			return new WP_Error( 'missing_message_content', 'User message content is required and could not be determined from the request.', array( 'status' => 400 ) );
 		}
 
-		$model = $params['selectedChatModel'] ?? ( $params['model'] ?? 'gpt-4o' ); // Use selectedChatModel or model from request, else default
-		$model = 'gpt-4o';
-		// Construct the payload for OpenAI API
-		// If the Vercel SDK sends a full 'messages' array, we might want to pass it through
-		// For now, we'll stick to the simpler structure based on 'message.content' or the last user message
+		$this->log( '[vercel_chat] User message: ' . $user_message_content );
 
-		$openai_messages = get_transient( 'vercel_chat_' . $params['id'] );
-		if ( ! $openai_messages ) {
-			$openai_messages = array();
+		// Get previous response ID from transient
+		$previous_response_id = get_transient( 'vercel_chat_response_id_' . $params['id'] );
+		if ( false === $previous_response_id ) {
+			$previous_response_id = null;
 		}
-		$openai_messages[] = array(
+
+		$this->log( '[vercel_chat] Previous response ID: ' . ( $previous_response_id ?? 'none' ) );
+
+		// Convert user message to Responses API format
+		$user_message = array(
 			'role'    => 'user',
-			'content' => $user_message_content,
+			'content' => array(
+				array(
+					'type' => 'input_text',
+					'text' => $user_message_content,
+				),
+			),
 		);
 
-		// If the incoming request already has a messages array that's compatible,
-		// we could consider using it, but the user's example structure was simpler.
-		// For now, we will construct a new messages array with just the latest user message.
-		// If a more complex history is sent via `params['messages']`, that could be a future enhancement.
+		// For Responses API, if we have a previous_response_id, we only send new input
+		// Otherwise, we send the full message
+		$messages = $previous_response_id ? array( $user_message ) : array( $user_message );
 
-		$openai_payload = array(
-			'model'    => $model,
-			'messages' => $openai_messages,
-			// Add other parameters like temperature, max_tokens if needed
-			// e.g., 'temperature' => $params['temperature'] ?? 0.7,
-		);
+		$this->log( '[vercel_chat] Messages to send: ' . wp_json_encode( $messages ) );
 
-		// If other parameters like 'stream' are passed, include them
-		// if ( isset( $params['stream'] ) ) {
-		// 	$openai_payload['stream'] = $params['stream'];
-		// }
 		require_once __DIR__ . '/class.vercel-ai-sdk.php';
 		$vercel_sdk = new Vercel_AI_SDK();
 		Vercel_AI_SDK::sendHttpStreamHeaders();
 		$vercel_sdk->startStep( $params['id'] );
 
+<<<<<<< HEAD
 		$response = $this->complete_backscroll(
 			$openai_messages,
 			function( $type, $data ) use ( $vercel_sdk ) {
@@ -1484,8 +1552,84 @@ class OpenAI_Module extends POS_Module {
 				'name' => $params['id'],
 			)
 		);
+=======
+		$this->log( '[vercel_chat] Started Vercel SDK step' );
+>>>>>>> 36d4ac6 (Make it work on the chat page)
 
-		// $vercel_sdk->sendText( $response->choices[0]->message->content );
+		$conversation_id = $params['id'];
+		$module_instance = $this;
+		$response = $this->complete_responses(
+			$messages,
+			function( $type, $data ) use ( $vercel_sdk, $conversation_id, $module_instance ) {
+				$module_instance->log( '[vercel_chat] Callback event: ' . $type . ' - ' . wp_json_encode( $data ) );
+				if ( $type === 'message' ) {
+					// Responses API message format
+					if ( isset( $data->content ) && is_array( $data->content ) ) {
+						foreach ( $data->content as $chunk ) {
+							if ( isset( $chunk->text ) ) {
+								$module_instance->log( '[vercel_chat] Sending text chunk: ' . substr( $chunk->text, 0, 100 ) );
+								$vercel_sdk->sendText( $chunk->text );
+							}
+						}
+					}
+				} elseif ( $type === 'tool_result' ) {
+					// Responses API tool result format
+					if ( is_array( $data ) && isset( $data['output'] ) ) {
+						$call_id = $data['call_id'] ?? null;
+						$module_instance->log( '[vercel_chat] Sending tool result for call_id: ' . $call_id );
+						$vercel_sdk->sendToolResult( $call_id, $data['output'] );
+					} else {
+						$data = (object) $data;
+						$module_instance->log( '[vercel_chat] Sending tool result for tool_call_id: ' . ( $data->tool_call_id ?? 'null' ) );
+						$vercel_sdk->sendToolResult( $data->tool_call_id ?? null, $data->content ?? '' );
+					}
+				} elseif ( $type === 'tool_call' ) {
+					// Responses API tool call format
+					$data = (object) $data;
+					$tool_name = $data->name ?? ( isset( $data->function->name ) ? $data->function->name : 'unknown' );
+					$arguments = isset( $data->arguments ) ? json_decode( $data->arguments, true ) : array();
+					if ( isset( $data->function->arguments ) ) {
+						$arguments = json_decode( $data->function->arguments, true );
+					}
+					$call_id = $data->call_id ?? $data->id ?? null;
+					$module_instance->log( '[vercel_chat] Sending tool call: ' . $tool_name . ' (call_id: ' . $call_id . ')' );
+					$vercel_sdk->sendToolCall( $call_id, $tool_name, $arguments );
+				} elseif ( $type === 'response_id' ) {
+					// Store response ID for next request
+					$module_instance->log( '[vercel_chat] Storing response ID: ' . $data );
+					set_transient( 'vercel_chat_response_id_' . $conversation_id, $data, 60 * 60 );
+				}
+			},
+			$previous_response_id
+		);
+
+		$this->log( '[vercel_chat] complete_responses returned. Is WP_Error: ' . ( is_wp_error( $response ) ? 'yes' : 'no' ) );
+		if ( is_wp_error( $response ) ) {
+			$error_message = $response->get_error_message();
+			$error_data = $response->get_error_data();
+			$this->log( '[vercel_chat] ERROR: ' . $error_message );
+			if ( ! empty( $error_data ) ) {
+				$this->log( '[vercel_chat] ERROR data: ' . wp_json_encode( $error_data ) );
+			}
+			
+			// If error is related to missing tool output, clear the response ID to start fresh
+			if ( strpos( $error_message, 'No tool output found' ) !== false || strpos( $error_message, 'function call' ) !== false ) {
+				$this->log( '[vercel_chat] Clearing response ID due to tool call error' );
+				delete_transient( 'vercel_chat_response_id_' . $conversation_id );
+			}
+			
+			$vercel_sdk->finishStep(
+				'error',
+				array(
+					'promptTokens'     => 0,
+					'completionTokens' => 0,
+				),
+				false
+			);
+			die();
+		}
+
+		$this->log( '[vercel_chat] Finishing step successfully' );
 		$vercel_sdk->finishStep(
 			'stop',
 			array(

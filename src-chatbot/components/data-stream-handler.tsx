@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import { artifactDefinitions, ArtifactKind } from './artifact';
 // import { Suggestion } from '@/lib/db/schema'; // Removed
 import { initialArtifactData, useArtifact } from '@/hooks/use-artifact';
+import { getConfig } from '@/lib/constants';
 
 // Define local Suggestion type as the original schema is removed
 interface Suggestion {
@@ -33,7 +34,11 @@ export type DataStreamDelta = {
   content: string | Suggestion;
 };
 
-export function DataStreamHandler({ id }: { id: string }) {
+export function DataStreamHandler({ id: initialId }: { id: string }) {
+  const config = getConfig();
+  // Use conversation_id from PHP config if available (generated fresh on each page load),
+  // otherwise use the prop ID (fallback for static export)
+  const id = config.conversation_id || initialId;
   const { data: dataStream } = useChat({ id });
   const { artifact, setArtifact, setMetadata } = useArtifact();
   const lastProcessedIndex = useRef(-1);
