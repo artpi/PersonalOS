@@ -81,8 +81,8 @@ class SettingsTest extends WP_UnitTestCase {
 	public function test_settings_registered() {
 		global $wp_registered_settings;
 
-		// Trigger settings initialization
-		do_action( 'admin_init' );
+		// Trigger settings initialization directly to avoid header issues in tests
+		$this->settings_instance->settings_init();
 
 		// Check that settings are registered with correct option names
 		$this->assertArrayHasKey( 'test_module_1_api_key', $wp_registered_settings );
@@ -97,8 +97,8 @@ class SettingsTest extends WP_UnitTestCase {
 	public function test_settings_registered_to_correct_groups() {
 		global $wp_registered_settings;
 
-		// Trigger settings initialization
-		do_action( 'admin_init' );
+		// Trigger settings initialization directly to avoid header issues in tests
+		$this->settings_instance->settings_init();
 
 		// Verify settings are in their respective module groups
 		$this->assertEquals( 'pos_test_module_1', $wp_registered_settings['test_module_1_api_key']['group'] );
@@ -122,8 +122,8 @@ class SettingsTest extends WP_UnitTestCase {
 		$_POST['test_module_1_api_key'] = 'updated_key_1';
 		$_POST['test_module_1_enabled'] = ''; // Unchecked
 
-		// Trigger settings initialization
-		do_action( 'admin_init' );
+		// Trigger settings initialization directly to avoid header issues in tests
+		$this->settings_instance->settings_init();
 
 		// Update the options as WordPress would do
 		update_option( 'test_module_1_api_key', sanitize_text_field( $_POST['test_module_1_api_key'] ) );
@@ -142,8 +142,8 @@ class SettingsTest extends WP_UnitTestCase {
 	 * Test checkbox sanitization callback.
 	 */
 	public function test_checkbox_sanitization() {
-		// Trigger settings initialization
-		do_action( 'admin_init' );
+		// Trigger settings initialization directly to avoid header issues in tests
+		$this->settings_instance->settings_init();
 
 		global $wp_registered_settings;
 		
@@ -169,8 +169,8 @@ class SettingsTest extends WP_UnitTestCase {
 	 * Test text field sanitization.
 	 */
 	public function test_text_sanitization() {
-		// Trigger settings initialization
-		do_action( 'admin_init' );
+		// Trigger settings initialization directly to avoid header issues in tests
+		$this->settings_instance->settings_init();
 
 		global $wp_registered_settings;
 		
