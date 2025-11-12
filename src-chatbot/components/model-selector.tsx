@@ -41,16 +41,10 @@ export function ModelSelector({
   selectedModelId: string;
   onModelChange?: (modelId: string) => void;
 } & React.ComponentProps<typeof Button>) {
-  console.log('[ModelSelector] RENDER START - selectedModelId:', selectedModelId);
-  
   const [open, setOpen] = useState(false);
   
   // Get config only when needed, memoized to prevent re-renders
-  const config = useMemo(() => {
-    const cfg = getConfig();
-    console.log('[ModelSelector] getConfig() called, pos_last_chat_model:', cfg.pos_last_chat_model);
-    return cfg;
-  }, []);
+  const config = useMemo(() => getConfig(), []);
   
   const chatPromptsFromConfig = useMemo(() => config.chat_prompts || [], [config.chat_prompts]);
   
@@ -74,12 +68,9 @@ export function ModelSelector({
 
   // Compute the valid model ID directly (no state updates during render)
   const computeValidModelId = useMemo(() => {
-    console.log('[ModelSelector] Computing valid model ID...');
     const configModelId = typeof window !== 'undefined' && window.config?.pos_last_chat_model
       ? window.config.pos_last_chat_model.trim()
       : '';
-    
-    console.log('[ModelSelector] configModelId from window:', configModelId);
     
     // Determine which model ID to use
     let targetModelId: string;
@@ -89,84 +80,39 @@ export function ModelSelector({
       targetModelId = selectedModelId;
     }
     
-    console.log('[ModelSelector] targetModelId:', targetModelId);
-    
     // Validate that the model exists in available models
     const availableModelIds = availableChatModels.map(m => m.id);
-    console.log('[ModelSelector] availableModelIds:', availableModelIds);
     const isValid = availableModelIds.includes(targetModelId);
-    console.log('[ModelSelector] isValid:', isValid);
     
-    let result: string;
     if (isValid) {
-      result = targetModelId;
+      return targetModelId;
     } else {
       // Fallback to first available model or prop
-      result = availableModelIds.length > 0 ? availableModelIds[0] : selectedModelId;
-      console.log('[ModelSelector] Model invalid, falling back to:', result);
+      return availableModelIds.length > 0 ? availableModelIds[0] : selectedModelId;
     }
-    
-    console.log('[ModelSelector] computeValidModelId result:', result);
-    return result;
   }, [selectedModelId, availableChatModels]);
   
   // Use state only for user selections, initialize from computed value
-  const [optimisticModelId, setOptimisticModelId] = useState(() => {
-    console.log('[ModelSelector] useState initializer, computeValidModelId:', computeValidModelId);
-    return computeValidModelId;
-  });
-  
-  console.log('[ModelSelector] Current optimisticModelId:', optimisticModelId);
+  const [optimisticModelId, setOptimisticModelId] = useState(computeValidModelId);
   
   // Sync state only when computed value changes (but not on every render)
   const prevComputedRef = useRef(computeValidModelId);
   useEffect(() => {
-    console.log('[ModelSelector] useEffect triggered - computeValidModelId:', computeValidModelId, 'prev:', prevComputedRef.current, 'optimisticModelId:', optimisticModelId);
     if (computeValidModelId !== prevComputedRef.current) {
-      console.log('[ModelSelector] computeValidModelId changed, updating ref');
       prevComputedRef.current = computeValidModelId;
       if (computeValidModelId !== optimisticModelId) {
-        console.log('[ModelSelector] Syncing model - calling setOptimisticModelId:', {
-          from: optimisticModelId,
-          to: computeValidModelId
-        });
         setOptimisticModelId(computeValidModelId);
-      } else {
-        console.log('[ModelSelector] computeValidModelId changed but optimisticModelId already matches, skipping update');
       }
-    } else {
-      console.log('[ModelSelector] computeValidModelId unchanged, skipping');
     }
-  }, [computeValidModelId, optimisticModelId]); // Include optimisticModelId to log it
+  }, [computeValidModelId, optimisticModelId]);
 
-  // Debug: log available models (only once when they change)
-  useEffect(() => {
-    if (typeof window !== 'undefined' && chatPromptsFromConfig.length > 0) {
-      console.log('Available chat prompts from config:', chatPromptsFromConfig);
-      console.log('Available chat models:', availableChatModels);
-    }
-  }, [chatPromptsFromConfig, availableChatModels]);
-
-  const selectedChatModel = useMemo(() => {
-    console.log('[ModelSelector] Finding selectedChatModel for optimisticModelId:', optimisticModelId);
-    const found = availableChatModels.find(
-      (chatModel) => chatModel.id === optimisticModelId,
-    );
-    console.log('[ModelSelector] Found model:', found?.name || 'NOT FOUND', 'id:', found?.id);
-    return found;
-  }, [optimisticModelId, availableChatModels]);
-  
-  // Debug: log when selected model changes
-  useEffect(() => {
-    console.log('[ModelSelector] Selected model changed:', {
-      optimisticModelId,
-      availableModelIds: availableChatModels.map(m => m.id),
-      found: selectedChatModel?.name || 'NOT FOUND',
-      selectedChatModelId: selectedChatModel?.id
-    });
-  }, [optimisticModelId, availableChatModels, selectedChatModel]);
-  
-  console.log('[ModelSelector] RENDER END - optimisticModelId:', optimisticModelId, 'selectedChatModel:', selectedChatModel?.name);
+  const selectedChatModel = useMemo(
+    () =>
+      availableChatModels.find(
+        (chatModel) => chatModel.id === optimisticModelId,
+      ),
+    [optimisticModelId, availableChatModels],
+  );
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -189,6 +135,7 @@ export function ModelSelector({
       <DropdownMenuContent align="start" className="min-w-[300px]">
         {availableChatModels.map((chatModel) => {
           const { id } = chatModel;
+          const isActive = id === optimisticModelId;
 
           return (
             <DropdownMenuItem
@@ -211,19 +158,18 @@ export function ModelSelector({
                   }
                 });
               }}
-              data-active={id === optimisticModelId}
+              data-active={isActive ? 'true' : 'false'}
+              className="gap-4 group/item flex flex-row justify-between items-center"
             >
-              <div className="gap-4 group/item flex flex-row justify-between items-center w-full">
-                <div className="flex flex-col gap-1 items-start">
-                  <div>{chatModel.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {chatModel.description}
-                  </div>
+              <div className="flex flex-col gap-1 items-start">
+                <div>{chatModel.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {chatModel.description}
                 </div>
+              </div>
 
-                <div className="text-foreground dark:text-foreground opacity-0 group-data-[active=true]/item:opacity-100">
-                  <CheckCircleFillIcon />
-                </div>
+              <div className="text-foreground dark:text-foreground opacity-0 group-data-[active=true]/item:opacity-100">
+                <CheckCircleFillIcon />
               </div>
             </DropdownMenuItem>
           );
