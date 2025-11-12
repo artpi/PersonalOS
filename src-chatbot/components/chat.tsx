@@ -73,7 +73,6 @@ export function Chat({
       if (configModel !== '' && configModel !== prevConfigModelRef.current) {
         prevConfigModelRef.current = configModel;
         if (configModel !== currentSelectedModel) {
-          console.log('[Chat] Updating model from config:', configModel);
           setCurrentSelectedModel(configModel);
           return;
         }
@@ -83,7 +82,6 @@ export function Chat({
     if (selectedChatModel !== prevSelectedChatModelRef.current) {
       prevSelectedChatModelRef.current = selectedChatModel;
       if (selectedChatModel !== currentSelectedModel) {
-        console.log('[Chat] Updating model from prop:', selectedChatModel);
         setCurrentSelectedModel(selectedChatModel);
       }
     }

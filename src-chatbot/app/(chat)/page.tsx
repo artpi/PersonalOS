@@ -59,14 +59,6 @@ export default async function Page() {
     : config.chat_prompts && config.chat_prompts.length > 0
     ? config.chat_prompts[0].id
     : DEFAULT_CHAT_MODEL;
-  
-  console.log('[Page] defaultModel computed:', {
-    pos_last_chat_model: config.pos_last_chat_model,
-    chat_prompts_length: config.chat_prompts?.length,
-    first_prompt_id: config.chat_prompts?.[0]?.id,
-    DEFAULT_CHAT_MODEL,
-    defaultModel
-  });
 
   return (
     <>

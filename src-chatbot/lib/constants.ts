@@ -51,6 +51,7 @@ export function getConfig(): Config {
 	projects: mockSidebarProjects,
 	starred: mockSidebarStarred,
 	chat_prompts: [],
+	pos_last_chat_model: '',
 	user: {
 		id: 1,
 		login: 'User',
