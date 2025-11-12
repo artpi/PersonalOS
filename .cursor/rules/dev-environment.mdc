@@ -10,5 +10,6 @@ For example:
 
 - To run unit tests, you would `npm run test:unit`
 - To read the debug.log you would `npm run wp-env run cli -- tail -n 100 wp-content/debug.log`
+- To run a wp-cli "wp pos" command you would do `npm run wp-env run cli wp pos`
 
 Feel free to do both as often as you think is reasonable. DO NOT run local commands on this machine, as the wp-env manages the environment in a docker container.

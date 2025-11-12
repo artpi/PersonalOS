@@ -19,12 +19,8 @@
 		"wp-phpunit/wp-phpunit": "^6.5"
 	},
 	"scripts": {
-		"lint": [
-			"phpcs -s --standard=phpcs.xml ./"
-		],
-		"phpcbf": [
-			"phpcbf --standard=phpcs.xml ./"
-		]
+		"lint": "phpcs -s --standard=phpcs.xml",
+		"phpcbf": "phpcbf --standard=phpcs.xml"
 	},
 	"config": {
 		"allow-plugins": {
