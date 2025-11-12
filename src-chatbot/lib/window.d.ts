@@ -1,10 +1,20 @@
+export interface ChatPrompt {
+	id: string;
+	name: string;
+	description: string;
+	model: string;
+}
+
 export type Config = {
 	site_title: string;
 	wp_admin_url: string;
 	rest_api_url: string;
 	nonce: string;
+	conversation_id?: string; // Generated in PHP on each page load
 	projects: PARAItem[];
 	starred: PARAItem[];
+	chat_prompts?: ChatPrompt[];
+	pos_last_chat_model?: string; // Last chat model used by the user
 	user: {
 		id: number;
 		login: string;

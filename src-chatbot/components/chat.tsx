@@ -2,7 +2,7 @@
 
 import type { Attachment, UIMessage } from 'ai';
 import { useChat } from '@ai-sdk/react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChatHeader } from '@/components/chat-header';
 import { generateUUID } from '@/lib/utils';
 import { Artifact } from './artifact';
@@ -28,7 +28,7 @@ interface MockSession {
 }
 
 export function Chat({
-  id,
+  id: initialId,
   initialMessages,
   selectedChatModel,
   selectedVisibilityType,
@@ -43,6 +43,49 @@ export function Chat({
   session: MockSession; // Changed from Session to MockSession
 }) {
   const currentConfig = getConfig();
+  
+  // Use conversation_id from PHP config (generated fresh on each page load and injected into window.config)
+  // This is just a constant from the page - no need to store it anywhere
+  const id = currentConfig.conversation_id || initialId;
+
+  // Manage selected model state so it can be updated by ModelSelector
+  // Initialize from config if available (client-side), otherwise use prop
+  const [currentSelectedModel, setCurrentSelectedModel] = useState(() => {
+    // On client side, check window.config for pos_last_chat_model
+    if (typeof window !== 'undefined' && window.config?.pos_last_chat_model) {
+      const configModel = window.config.pos_last_chat_model.trim();
+      if (configModel !== '') {
+        return configModel;
+      }
+    }
+    return selectedChatModel;
+  });
+
+  // Use ref to track previous values to prevent loops
+  const prevSelectedChatModelRef = useRef(selectedChatModel);
+  const prevConfigModelRef = useRef<string | null>(null);
+
+  // Sync state when prop changes or when config becomes available
+  useEffect(() => {
+    // Check if config has a saved model that's different from current
+    if (typeof window !== 'undefined' && window.config?.pos_last_chat_model) {
+      const configModel = window.config.pos_last_chat_model.trim();
+      if (configModel !== '' && configModel !== prevConfigModelRef.current) {
+        prevConfigModelRef.current = configModel;
+        if (configModel !== currentSelectedModel) {
+          setCurrentSelectedModel(configModel);
+          return;
+        }
+      }
+    }
+    // Otherwise sync with prop only if it changed
+    if (selectedChatModel !== prevSelectedChatModelRef.current) {
+      prevSelectedChatModelRef.current = selectedChatModel;
+      if (selectedChatModel !== currentSelectedModel) {
+        setCurrentSelectedModel(selectedChatModel);
+      }
+    }
+  }, [selectedChatModel, currentSelectedModel]);
 
   const {
     messages,
@@ -71,7 +114,7 @@ export function Chat({
 		return ({
 		id,
 		message: body.messages.at(-1),
-        selectedChatModel,
+        selectedChatModel: currentSelectedModel,
       });
     },
     onError: (error) => {
@@ -90,7 +133,8 @@ export function Chat({
       <div className="flex flex-col min-w-0 h-dvh bg-background">
         <ChatHeader
           chatId={id}
-          selectedModelId={selectedChatModel}
+          selectedModelId={currentSelectedModel}
+          onModelChange={setCurrentSelectedModel}
           selectedVisibilityType={selectedVisibilityType}
           isReadonly={isReadonly}
           session={session}

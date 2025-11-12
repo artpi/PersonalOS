@@ -18,6 +18,51 @@ export async function saveChatModelAsCookie(model: string) {
   console.warn('saveChatModelAsCookie is disabled for static export');
 }
 
+/**
+ * Save the chat model to WordPress user meta via REST API.
+ *
+ * @param model The model ID to save.
+ */
+export async function saveChatModelToUserMeta(model: string): Promise<void> {
+  // Get config from window (client-side only)
+  if (typeof window === 'undefined') {
+    console.warn('saveChatModelToUserMeta can only be called on the client side');
+    return;
+  }
+
+  const config = (window as any).config;
+  if (!config) {
+    console.error('window.config is not available');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${config.rest_api_url}wp/v2/users/me`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-WP-Nonce': config.nonce,
+      },
+      body: JSON.stringify({
+        meta: {
+          pos_last_chat_model: model,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('Chat model saved to user meta:', data.meta?.pos_last_chat_model);
+  } catch (error) {
+    console.error('Error saving chat model to user meta:', error);
+    throw error;
+  }
+}
+
 export async function generateTitleFromUserMessage({
   message,
 }: {
