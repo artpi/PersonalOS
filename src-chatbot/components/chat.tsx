@@ -2,7 +2,7 @@
 
 import type { Attachment, UIMessage } from 'ai';
 import { useChat } from '@ai-sdk/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChatHeader } from '@/components/chat-header';
 import { generateUUID } from '@/lib/utils';
 import { Artifact } from './artifact';
@@ -49,12 +49,45 @@ export function Chat({
   const id = currentConfig.conversation_id || initialId;
 
   // Manage selected model state so it can be updated by ModelSelector
-  const [currentSelectedModel, setCurrentSelectedModel] = useState(selectedChatModel);
+  // Initialize from config if available (client-side), otherwise use prop
+  const [currentSelectedModel, setCurrentSelectedModel] = useState(() => {
+    // On client side, check window.config for pos_last_chat_model
+    if (typeof window !== 'undefined' && window.config?.pos_last_chat_model) {
+      const configModel = window.config.pos_last_chat_model.trim();
+      if (configModel !== '') {
+        return configModel;
+      }
+    }
+    return selectedChatModel;
+  });
 
-  // Sync state when prop changes
+  // Use ref to track previous values to prevent loops
+  const prevSelectedChatModelRef = useRef(selectedChatModel);
+  const prevConfigModelRef = useRef<string | null>(null);
+
+  // Sync state when prop changes or when config becomes available
   useEffect(() => {
-    setCurrentSelectedModel(selectedChatModel);
-  }, [selectedChatModel]);
+    // Check if config has a saved model that's different from current
+    if (typeof window !== 'undefined' && window.config?.pos_last_chat_model) {
+      const configModel = window.config.pos_last_chat_model.trim();
+      if (configModel !== '' && configModel !== prevConfigModelRef.current) {
+        prevConfigModelRef.current = configModel;
+        if (configModel !== currentSelectedModel) {
+          console.log('[Chat] Updating model from config:', configModel);
+          setCurrentSelectedModel(configModel);
+          return;
+        }
+      }
+    }
+    // Otherwise sync with prop only if it changed
+    if (selectedChatModel !== prevSelectedChatModelRef.current) {
+      prevSelectedChatModelRef.current = selectedChatModel;
+      if (selectedChatModel !== currentSelectedModel) {
+        console.log('[Chat] Updating model from prop:', selectedChatModel);
+        setCurrentSelectedModel(selectedChatModel);
+      }
+    }
+  }, [selectedChatModel, currentSelectedModel]);
 
   const {
     messages,

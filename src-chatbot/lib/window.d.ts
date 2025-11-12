@@ -14,6 +14,7 @@ export type Config = {
 	projects: PARAItem[];
 	starred: PARAItem[];
 	chat_prompts?: ChatPrompt[];
+	pos_last_chat_model?: string; // Last chat model used by the user
 	user: {
 		id: number;
 		login: string;

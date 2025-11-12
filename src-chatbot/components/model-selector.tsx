@@ -1,8 +1,8 @@
 'use client';
 
-import { startTransition, useMemo, useOptimistic, useState } from 'react';
+import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
 
-import { saveChatModelAsCookie } from '@/app/(chat)/actions';
+import { saveChatModelAsCookie, saveChatModelToUserMeta } from '@/app/(chat)/actions';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -41,11 +41,17 @@ export function ModelSelector({
   selectedModelId: string;
   onModelChange?: (modelId: string) => void;
 } & React.ComponentProps<typeof Button>) {
+  console.log('[ModelSelector] RENDER START - selectedModelId:', selectedModelId);
+  
   const [open, setOpen] = useState(false);
-  const [optimisticModelId, setOptimisticModelId] =
-    useOptimistic(selectedModelId);
-
-  const config = getConfig();
+  
+  // Get config only when needed, memoized to prevent re-renders
+  const config = useMemo(() => {
+    const cfg = getConfig();
+    console.log('[ModelSelector] getConfig() called, pos_last_chat_model:', cfg.pos_last_chat_model);
+    return cfg;
+  }, []);
+  
   const chatPromptsFromConfig = useMemo(() => config.chat_prompts || [], [config.chat_prompts]);
   
   // Use prompts from config if available, otherwise fall back to hardcoded models
@@ -66,19 +72,101 @@ export function ModelSelector({
     );
   }, [chatPromptsFromConfig, session.user.type]);
 
-  // Debug: log available models
-  if (typeof window !== 'undefined' && chatPromptsFromConfig.length > 0) {
-    console.log('Available chat prompts from config:', chatPromptsFromConfig);
-    console.log('Available chat models:', availableChatModels);
-  }
+  // Compute the valid model ID directly (no state updates during render)
+  const computeValidModelId = useMemo(() => {
+    console.log('[ModelSelector] Computing valid model ID...');
+    const configModelId = typeof window !== 'undefined' && window.config?.pos_last_chat_model
+      ? window.config.pos_last_chat_model.trim()
+      : '';
+    
+    console.log('[ModelSelector] configModelId from window:', configModelId);
+    
+    // Determine which model ID to use
+    let targetModelId: string;
+    if (configModelId) {
+      targetModelId = configModelId;
+    } else {
+      targetModelId = selectedModelId;
+    }
+    
+    console.log('[ModelSelector] targetModelId:', targetModelId);
+    
+    // Validate that the model exists in available models
+    const availableModelIds = availableChatModels.map(m => m.id);
+    console.log('[ModelSelector] availableModelIds:', availableModelIds);
+    const isValid = availableModelIds.includes(targetModelId);
+    console.log('[ModelSelector] isValid:', isValid);
+    
+    let result: string;
+    if (isValid) {
+      result = targetModelId;
+    } else {
+      // Fallback to first available model or prop
+      result = availableModelIds.length > 0 ? availableModelIds[0] : selectedModelId;
+      console.log('[ModelSelector] Model invalid, falling back to:', result);
+    }
+    
+    console.log('[ModelSelector] computeValidModelId result:', result);
+    return result;
+  }, [selectedModelId, availableChatModels]);
+  
+  // Use state only for user selections, initialize from computed value
+  const [optimisticModelId, setOptimisticModelId] = useState(() => {
+    console.log('[ModelSelector] useState initializer, computeValidModelId:', computeValidModelId);
+    return computeValidModelId;
+  });
+  
+  console.log('[ModelSelector] Current optimisticModelId:', optimisticModelId);
+  
+  // Sync state only when computed value changes (but not on every render)
+  const prevComputedRef = useRef(computeValidModelId);
+  useEffect(() => {
+    console.log('[ModelSelector] useEffect triggered - computeValidModelId:', computeValidModelId, 'prev:', prevComputedRef.current, 'optimisticModelId:', optimisticModelId);
+    if (computeValidModelId !== prevComputedRef.current) {
+      console.log('[ModelSelector] computeValidModelId changed, updating ref');
+      prevComputedRef.current = computeValidModelId;
+      if (computeValidModelId !== optimisticModelId) {
+        console.log('[ModelSelector] Syncing model - calling setOptimisticModelId:', {
+          from: optimisticModelId,
+          to: computeValidModelId
+        });
+        setOptimisticModelId(computeValidModelId);
+      } else {
+        console.log('[ModelSelector] computeValidModelId changed but optimisticModelId already matches, skipping update');
+      }
+    } else {
+      console.log('[ModelSelector] computeValidModelId unchanged, skipping');
+    }
+  }, [computeValidModelId, optimisticModelId]); // Include optimisticModelId to log it
 
-  const selectedChatModel = useMemo(
-    () =>
-      availableChatModels.find(
-        (chatModel) => chatModel.id === optimisticModelId,
-      ),
-    [optimisticModelId, availableChatModels],
-  );
+  // Debug: log available models (only once when they change)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && chatPromptsFromConfig.length > 0) {
+      console.log('Available chat prompts from config:', chatPromptsFromConfig);
+      console.log('Available chat models:', availableChatModels);
+    }
+  }, [chatPromptsFromConfig, availableChatModels]);
+
+  const selectedChatModel = useMemo(() => {
+    console.log('[ModelSelector] Finding selectedChatModel for optimisticModelId:', optimisticModelId);
+    const found = availableChatModels.find(
+      (chatModel) => chatModel.id === optimisticModelId,
+    );
+    console.log('[ModelSelector] Found model:', found?.name || 'NOT FOUND', 'id:', found?.id);
+    return found;
+  }, [optimisticModelId, availableChatModels]);
+  
+  // Debug: log when selected model changes
+  useEffect(() => {
+    console.log('[ModelSelector] Selected model changed:', {
+      optimisticModelId,
+      availableModelIds: availableChatModels.map(m => m.id),
+      found: selectedChatModel?.name || 'NOT FOUND',
+      selectedChatModelId: selectedChatModel?.id
+    });
+  }, [optimisticModelId, availableChatModels, selectedChatModel]);
+  
+  console.log('[ModelSelector] RENDER END - optimisticModelId:', optimisticModelId, 'selectedChatModel:', selectedChatModel?.name);
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -113,6 +201,10 @@ export function ModelSelector({
                 startTransition(() => {
                   setOptimisticModelId(id);
                   saveChatModelAsCookie(id);
+                  // Save to WordPress user meta via REST API
+                  saveChatModelToUserMeta(id).catch((error) => {
+                    console.error('Failed to save chat model to user meta:', error);
+                  });
                   // Notify parent component of model change
                   if (onModelChange) {
                     onModelChange(id);
