@@ -53,15 +53,20 @@ export default async function Page() {
   const config = getConfig();
   const id = config.conversation_id || generateUUID();
 
-  // For static export, cookie reading is disabled. Always use default model.
-  // const cookieStore = await cookies(); // Call to cookies() disabled
-  // const modelIdFromCookie = cookieStore.get('chat-model');
-  console.warn('Cookie reading in app/(chat)/page.tsx disabled for static export. Using default chat model.');
-
-  // Use first prompt from config if available, otherwise use default
-  const defaultModel = config.chat_prompts && config.chat_prompts.length > 0
+  // Use pos_last_chat_model from config if available, otherwise fall back to first prompt or default
+  const defaultModel = config.pos_last_chat_model && config.pos_last_chat_model.trim() !== ''
+    ? config.pos_last_chat_model
+    : config.chat_prompts && config.chat_prompts.length > 0
     ? config.chat_prompts[0].id
     : DEFAULT_CHAT_MODEL;
+  
+  console.log('[Page] defaultModel computed:', {
+    pos_last_chat_model: config.pos_last_chat_model,
+    chat_prompts_length: config.chat_prompts?.length,
+    first_prompt_id: config.chat_prompts?.[0]?.id,
+    DEFAULT_CHAT_MODEL,
+    defaultModel
+  });
 
   return (
     <>

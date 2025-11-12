@@ -57,6 +57,9 @@ function personalos_chat_config() {
 		);
 	}
 	
+	$current_user_id = get_current_user_id();
+	$last_chat_model  = get_user_meta( $current_user_id, 'pos_last_chat_model', true );
+	
 	return array(
 		'rest_api_url'   => rest_url( '/' ),
 		'wp_admin_url'   => admin_url(),
@@ -72,8 +75,9 @@ function personalos_chat_config() {
 			POS::get_module_by_id( 'notes' )->get_notebooks_by_flag( 'star' )
 		),
 		'chat_prompts'    => $prompts_data,
+		'pos_last_chat_model' => $last_chat_model ? $last_chat_model : '',
 		'user'            => array(
-			'id'    => get_current_user_id(),
+			'id'    => $current_user_id,
 			'login' => wp_get_current_user()->user_login,
 		),
 	);

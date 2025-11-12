@@ -51,6 +51,18 @@ class OpenAI_Module extends POS_Module {
 		require_once __DIR__ . '/chat-page.php';
 
 		$this->email_responder = new OpenAI_Email_Responder( $this );
+
+		// Register user meta for REST API access.
+		register_meta(
+			'user',
+			'pos_last_chat_model',
+			array(
+				'type'         => 'string',
+				'description'  => 'Stores the last chat model used by the user.',
+				'single'       => true,
+				'show_in_rest' => true,
+			)
+		);
 	}
 
 	public function render_tool_block( $attributes ) {
