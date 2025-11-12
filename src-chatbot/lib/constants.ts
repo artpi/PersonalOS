@@ -50,6 +50,7 @@ export function getConfig(): Config {
     rest_api_url: 'http://localhost:8901/wp-json/', // Must be a valid base for API calls if used before real config loads
 	projects: mockSidebarProjects,
 	starred: mockSidebarStarred,
+	chat_prompts: [],
 	user: {
 		id: 1,
 		login: 'User',
