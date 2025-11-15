@@ -1145,7 +1145,7 @@ class OpenAI_Module extends POS_Module {
 					$vercel_sdk->sendToolCall( $data->id, $data->function->name, json_decode( $data->function->arguments, true ) );
 				}
 			}
-		} );
+		);
 		set_transient( 'vercel_chat_' . $params['id'], $response, 60 * 60 );
 		$this->save_backscroll(
 			$response,

@@ -66,6 +66,9 @@ class POS_Module {
 
 	public function register_block( $blockname, $args = array() ) {
 		$dir = dirname( __DIR__ ) . "/build/{$this->id}/blocks/{$blockname}/";
+		if ( ! file_exists( $dir . 'block.json' ) ) {
+			return;
+		}
 		register_block_type( $dir, $args );
 	}
 
