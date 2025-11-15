@@ -1,7 +1,7 @@
 <?php
 
 require_once __DIR__ . '/class-openai-tool.php';
-require_once __DIR__ . '/class-ollama.php';
+require_once __DIR__ . '/class-pos-ollama-server.php';
 require_once __DIR__ . '/class-openai-email-responder.php';
 
 class OpenAI_Module extends POS_Module {
@@ -43,7 +43,10 @@ class OpenAI_Module extends POS_Module {
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
 		$this->register_cli_command( 'tool', 'cli_openai_tool' );
+
 		$this->register_block( 'tool', array( 'render_callback' => array( $this, 'render_tool_block' ) ) );
+		$this->register_block( 'message', array() );
+
 		require_once __DIR__ . '/chat-page.php';
 
 		$this->email_responder = new OpenAI_Email_Responder( $this );
@@ -911,6 +914,170 @@ class OpenAI_Module extends POS_Module {
 		return json_decode( $body );
 	}
 
+	/**
+	 * Save conversation backscroll as a note. This WILL NOT set any meta fields passed to meta_query.
+	 *
+	 * @param array $backscroll Array of conversation messages
+	 * @param array $search_args Search arguments for get_posts to find existing notes, also used for new post configuration
+	 *                           - 'name': The post slug/name to search for and use when creating new posts
+	 *                           - 'post_title': Title for new posts (optional, defaults to auto-generated)
+	 *                           - 'notebook': Notebook slug to assign to new posts (optional, defaults to 'ai-chats')
+	 *                           - Any other valid get_posts() arguments for finding existing posts
+	 * @return int|WP_Error Post ID on success, WP_Error on failure
+	 */
+	public function save_backscroll( array $backscroll, array $search_args ) {
+		$notes_module = POS::get_module_by_id( 'notes' );
+		if ( ! $notes_module ) {
+			return new WP_Error( 'notes_module_not_found', 'Notes module not available' );
+		}
+
+		// Generate title if not provided and OpenAI is configured
+		$post_title = $search_args['post_title'] ?? null;
+		if ( ! $post_title && $this->is_configured() ) {
+			$post_title = $this->generate_conversation_title( $backscroll );
+		}
+
+		// Fall back to default title if generation failed or not configured
+		if ( ! $post_title ) {
+			$post_title = 'Chat ' . gmdate( 'Y-m-d H:i:s' );
+		}
+
+		// Create content from backscroll messages
+		$content_blocks = array();
+		foreach ( $backscroll as $message ) {
+			if ( is_object( $message ) ) {
+				$message = (array) $message;
+			}
+
+			if ( ! isset( $message['role'] ) ) {
+				continue;
+			}
+
+			$role = $message['role'];
+			$content = $message['content'] ?? '';
+
+			if ( in_array( $role, array( 'user', 'assistant' ), true ) ) {
+				// Create message block
+				$content_blocks[] = get_comment_delimited_block_content(
+					'pos/ai-message',
+					array(
+						'role'    => $role,
+						'content' => $content,
+						'id'      => $message['id'] ?? '',
+					),
+					''
+				);
+			}
+		}
+
+		// Use notes module's list method to find existing posts
+		$existing_posts = $notes_module->list( $search_args, 'ai-chats' );
+
+		// Prepare post data
+		$post_data = array(
+			'post_title'   => $post_title,
+			'post_type'    => $notes_module->id,
+			'post_name'    => $search_args['name'] ?? 'chat-' . gmdate( 'Y-m-d-H-i-s' ),
+			'post_status'  => 'private',
+		);
+
+		// Create or update post
+		if ( ! empty( $existing_posts ) ) {
+			$post_id = wp_update_post(
+				array(
+					'ID'           => $existing_posts[0]->ID,
+					'post_content' => implode( "\n\n", $content_blocks ),
+				)
+			);
+		} else {
+			$post_data['post_content'] = implode( "\n\n", $content_blocks );
+			$post_id = wp_insert_post( $post_data );
+
+			// Add to specified notebook or default to OpenAI chats
+			$notebook_slug = $search_args['notebook'] ?? 'ai-chats';
+			$notebook = get_term_by( 'slug', $notebook_slug, 'notebook' );
+
+			if ( ! $notebook ) {
+				$notebook_name = 'ai-chats' === $notebook_slug ? 'AI Chats' : ucwords( str_replace( '-', ' ', $notebook_slug ) );
+				$term_result = wp_insert_term( $notebook_name, 'notebook', array( 'slug' => $notebook_slug ) );
+				if ( ! is_wp_error( $term_result ) ) {
+					$notebook = get_term( $term_result['term_id'], 'notebook' );
+				}
+			}
+
+			if ( $notebook ) {
+				wp_set_object_terms( $post_id, array( $notebook->term_id ), 'notebook' );
+			}
+		}
+
+		return $post_id;
+	}
+
+	/**
+	 * Generate a title for a conversation using GPT-4o-mini
+	 *
+	 * @param array $backscroll Array of conversation messages
+	 * @return string|null Generated title or null if generation failed
+	 */
+	private function generate_conversation_title( array $backscroll ): ?string {
+		// Extract meaningful content from the conversation
+		$conversation_content = '';
+		$message_count = 0;
+
+		foreach ( $backscroll as $message ) {
+			if ( is_object( $message ) ) {
+				$message = (array) $message;
+			}
+
+			if ( ! isset( $message['role'] ) || ! isset( $message['content'] ) ) {
+				continue;
+			}
+
+			// Only include user and assistant messages
+			if ( in_array( $message['role'], array( 'user', 'assistant' ), true ) ) {
+				$conversation_content .= $message['role'] . ': ' . $message['content'] . "\n";
+				$message_count++;
+
+				// Limit to first few exchanges to avoid token limits
+				if ( $message_count >= 6 ) {
+					break;
+				}
+			}
+		}
+
+		if ( empty( $conversation_content ) ) {
+			return null;
+		}
+
+		$title_prompt = array(
+			array(
+				'role'    => 'system',
+				'content' => 'You are a helpful assistant that creates short, descriptive titles for conversations. Generate a concise title (3-8 words) that captures the main topic or purpose of the conversation. Do not use quotes or special formatting.',
+			),
+			array(
+				'role'    => 'user',
+				'content' => "Please create a short title for this conversation:\n\n" . $conversation_content,
+			),
+		);
+
+		$generated_title = $this->chat_completion( $title_prompt, 'gpt-4o-mini' );
+
+		if ( is_wp_error( $generated_title ) ) {
+			return null;
+		}
+
+		// Clean up the title
+		$generated_title = trim( $generated_title, '"\'`' );
+		$generated_title = wp_strip_all_tags( $generated_title );
+
+		// Ensure it's not too long
+		if ( strlen( $generated_title ) > 100 ) {
+			$generated_title = substr( $generated_title, 0, 97 ) . '...';
+		}
+
+		return $generated_title;
+	}
+
 	public function vercel_chat( WP_REST_Request $request ) {
 		$params = $request->get_json_params();
 
@@ -979,7 +1146,13 @@ class OpenAI_Module extends POS_Module {
 				}
 			}
 		);
-		set_transient( 'vercel_chat_' . $params['id'], $openai_messages, 60 * 60 );
+		set_transient( 'vercel_chat_' . $params['id'], $response, 60 * 60 );
+		$this->save_backscroll(
+			$response,
+			array(
+				'name' => $params['id'],
+			)
+		);
 
 		// $vercel_sdk->sendText( $response->choices[0]->message->content );
 		$vercel_sdk->finishStep(

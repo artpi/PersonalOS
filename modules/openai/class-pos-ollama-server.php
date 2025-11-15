@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/class-openai-module.php';
+
 /**
  * Ollama Mock Server Class
  *
@@ -18,7 +20,7 @@
  * - POST /api/push     - Push model
  * - GET  /api/ps       - List running models
  *
- * All endpoints work with the single model: personalos:gpt5
+ * All endpoints work with the single model: personalos:4o
  *
  * @package PersonalOS
  */
@@ -30,7 +32,7 @@
  */
 class POS_Ollama_Server {
 
-	public $module;
+	public \OpenAI_Module $module; // Reference to OpenAI_Module
 	public $rest_namespace = 'ollama/v1';
 	/**
 	 * Array of available models in this mock server.
@@ -46,8 +48,8 @@ class POS_Ollama_Server {
 		$this->module = $module;
 		$token = $this->module->get_setting( 'ollama_auth_token' );
 		$this->module->settings['ollama_auth_token'] = array(
-			'type'    => 'text',
-			'name'    => 'Token for authorizing OLLAMA mock API.',
+			'type'  => 'text',
+			'name'  => 'Token for authorizing OLLAMA mock API.',
 			'label'   => strlen( $token ) < 3 ? 'Set a token to enable Ollama-compatible API for external clients' : 'OLLAMA Api accessible at <a href="' . add_query_arg( 'token', $token, get_rest_url( null, $this->rest_namespace ) ) . '" target="_blank">here</a>',
 			'default' => '0',
 		);
@@ -62,9 +64,9 @@ class POS_Ollama_Server {
 	 */
 	private function init_models(): void {
 		$this->models = array(
-			'personalos:gpt5' => array(
-				'name'        => 'personalos:gpt5',
-				'model'       => 'personalos:gpt5',
+			'personalos:4o' => array(
+				'name'        => 'personalos:4o',
+				'model'       => 'personalos:4o',
 				'modified_at' => gmdate( 'c' ),
 				'size'        => 4299915632,
 				'digest'      => 'sha256:a2af6cc3eb7fa8be8504abaf9b04e88f17a119ec3f04a3addf55f92841195f5a',
@@ -312,6 +314,24 @@ Used for testing and development purposes only.
 		);
 	}
 
+	private function calculate_rolling_hash( $messages ) {
+		$hash = '';
+		$last_assistant_index = -1;
+		foreach ( $messages as $index => $message ) {
+			$message = (array) $message;
+			if ( in_array( $message['role'], array( 'assistant', 'system' ), true ) ) {
+				$last_assistant_index = $index;
+			}
+		}
+		foreach ( $messages as $index => $message ) {
+			$message = (array) $message;
+			if ( ( $index <= $last_assistant_index || $last_assistant_index === -1 ) && in_array( $message['role'], array( 'user', 'assistant' ), true ) ) {
+				$hash .= "\n\n" . trim( $message['content'] );
+			}
+		}
+		return hash( 'sha256', trim( $hash ) );
+	}
+
 	/**
 	 * POST /api/chat - Chat endpoint.
 	 *
@@ -327,7 +347,7 @@ Used for testing and development purposes only.
 			);
 		}
 
-		$model    = $data['model'] ?? 'personalos:gpt5';
+		$model    = $data['model'] ?? 'personalos:4o';
 		$messages = $data['messages'] ?? array();
 		$stream   = $data['stream'] ?? false;
 
@@ -345,7 +365,49 @@ Used for testing and development purposes only.
 				return $message['role'] !== 'system';
 			}
 		);
+
+		$hash = $this->calculate_rolling_hash( $messages );
+
 		$result = $this->module->complete_backscroll( $non_system_messages );
+
+		// Handle error from complete_backscroll
+		if ( is_wp_error( $result ) ) {
+			return new WP_REST_Response(
+				array( 'error' => 'Failed to complete conversation: ' . $result->get_error_message() ),
+				500
+			);
+		}
+
+		// Use the OpenAI module's save_backscroll method with hash as identifier
+		$post_id = $this->module->save_backscroll(
+			$result,
+			array(
+				'meta_query' => array(
+					array(
+						'key'   => 'ollama-hash',
+						'value' => $hash,
+					),
+				)
+			)
+		);
+
+		if ( is_wp_error( $post_id ) ) {
+			return new WP_REST_Response(
+				array( 'error' => 'Failed to save conversation: ' . $post_id->get_error_message() ),
+				500
+			);
+		}
+
+		// In case we have edited an existing post, we are updating the hash with the result information so the subsequent search will find the correct post.
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'meta_input'   => array(
+					'ollama-hash' => $this->calculate_rolling_hash( $result ),
+				),
+			)
+		);
+
 		$last_message = (array) end( $result );
 		$answer      = $last_message['content'] ?? 'Hello from PersonalOS Mock Ollama!';
 		// $answer       = 'Echo: ' . json_encode( $data  ); //$content;
@@ -354,38 +416,38 @@ Used for testing and development purposes only.
 			// For streaming, we'll return a simple response since WordPress doesn't handle streaming well
 			return new WP_REST_Response(
 				array(
-					'model'                => $model,
-					'created_at'           => gmdate( 'c' ),
-					'message'              => array(
+					'model'      => $model,
+					'created_at' => gmdate( 'c' ),
+					'message'    => array(
 						'role'    => 'assistant',
 						'content' => $answer,
 					),
-					'done'                 => true,
-					'total_duration'       => 1000000000,
-					'load_duration'        => 100000000,
-					'prompt_eval_count'    => 10,
+					'done'                => true,
+					'total_duration'      => 1000000000,
+					'load_duration'       => 100000000,
+					'prompt_eval_count'   => 10,
 					'prompt_eval_duration' => 200000000,
-					'eval_count'           => str_word_count( $answer ),
-					'eval_duration'        => 700000000,
+					'eval_count'          => str_word_count( $answer ),
+					'eval_duration'       => 700000000,
 				),
 				200
 			);
 		} else {
 			return new WP_REST_Response(
 				array(
-					'model'                => $model,
-					'created_at'           => gmdate( 'c' ),
-					'message'              => array(
+					'model'      => $model,
+					'created_at' => gmdate( 'c' ),
+					'message'    => array(
 						'role'    => 'assistant',
 						'content' => $answer,
 					),
-					'done'                 => true,
-					'total_duration'       => 1000000000,
-					'load_duration'        => 100000000,
-					'prompt_eval_count'    => 10,
+					'done'                => true,
+					'total_duration'      => 1000000000,
+					'load_duration'       => 100000000,
+					'prompt_eval_count'   => 10,
 					'prompt_eval_duration' => 200000000,
-					'eval_count'           => str_word_count( $answer ),
-					'eval_duration'        => 700000000,
+					'eval_count'          => str_word_count( $answer ),
+					'eval_duration'       => 700000000,
 				),
 				200
 			);
@@ -407,7 +469,7 @@ Used for testing and development purposes only.
 			);
 		}
 
-		$model    = $data['model'] ?? 'personalos:gpt5';
+		$model    = $data['model'] ?? 'personalos:4o';
 		$prompt   = $data['prompt'] ?? 'Hello!';
 		$stream   = $data['stream'] ?? false;
 		$response = 'Generated response to: ' . $prompt;
@@ -422,16 +484,16 @@ Used for testing and development purposes only.
 
 		return new WP_REST_Response(
 			array(
-				'model'                => $model,
-				'created_at'           => gmdate( 'c' ),
-				'response'             => $response,
-				'done'                 => true,
-				'total_duration'       => 1000000000,
-				'load_duration'        => 100000000,
-				'prompt_eval_count'    => str_word_count( $prompt ),
+				'model'               => $model,
+				'created_at'          => gmdate( 'c' ),
+				'response'            => $response,
+				'done'                => true,
+				'total_duration'      => 1000000000,
+				'load_duration'       => 100000000,
+				'prompt_eval_count'   => str_word_count( $prompt ),
 				'prompt_eval_duration' => 200000000,
-				'eval_count'           => str_word_count( $response ),
-				'eval_duration'        => 700000000,
+				'eval_count'          => str_word_count( $response ),
+				'eval_duration'       => 700000000,
 			),
 			200
 		);
@@ -456,7 +518,7 @@ Used for testing and development purposes only.
 
 		if ( ! $this->model_exists( $name ) ) {
 			return new WP_REST_Response(
-				array( 'error' => 'Model not available. Only personalos:gpt5 is supported.' ),
+				array( 'error' => 'Model not available. Only personalos:4o is supported.' ),
 				404
 			);
 		}
@@ -506,16 +568,16 @@ Used for testing and development purposes only.
 		$modelfile .= 'LICENSE """' . $this->get_model_license( $family ) . '"""' . "\n";
 
 		$model_info = array(
-			'personalos.attention.head_count'             => 32,
-			'personalos.attention.head_count_kv'          => 8,
+			'personalos.attention.head_count'         => 32,
+			'personalos.attention.head_count_kv'      => 8,
 			'personalos.attention.layer_norm_rms_epsilon' => 0.00001,
-			'personalos.block_count'                      => 32,
-			'personalos.context_length'                   => 8192,
-			'personalos.embedding_length'                 => 4096,
-			'personalos.feed_forward_length'              => 14336,
-			'general.architecture'                        => 'personalos',
-			'general.parameter_count'                     => 4000000000,
-			'tokenizer.ggml.model'                        => 'personalos',
+			'personalos.block_count'                  => 32,
+			'personalos.context_length'               => 8192,
+			'personalos.embedding_length'             => 4096,
+			'personalos.feed_forward_length'          => 14336,
+			'general.architecture'                    => 'personalos',
+			'general.parameter_count'                 => 4000000000,
+			'tokenizer.ggml.model'                    => 'personalos',
 		);
 
 		$tensors = array(
