@@ -1575,32 +1575,30 @@ class OpenAI_Module extends POS_Module {
 		Vercel_AI_SDK::sendHttpStreamHeaders();
 		$vercel_sdk->startStep( $params['id'] );
 
-<<<<<<< HEAD
-		$response = $this->complete_backscroll(
-			$openai_messages,
-			function( $type, $data ) use ( $vercel_sdk ) {
-				if ( $type === 'message' ) {
-					$vercel_sdk->sendText( $data->content );
-				} elseif ( $type === 'tool_result' ) {
-					//error_log( 'tool_result: ' . print_r( $data, true ) );
-					$data = (object) $data;
-					$vercel_sdk->sendToolResult( $data->tool_call_id, $data->content );
-				} elseif ( $type === 'tool_call' ) {
-					$data = (object) $data;
-					$vercel_sdk->sendToolCall( $data->id, $data->function->name, json_decode( $data->function->arguments, true ) );
-				}
-			}
-		);
-		set_transient( 'vercel_chat_' . $params['id'], $response, 60 * 60 );
-		$this->save_backscroll(
-			$response,
-			array(
-				'name' => $params['id'],
-			)
-		);
-=======
+		// $response = $this->complete_backscroll(
+		// 	$openai_messages,
+		// 	function( $type, $data ) use ( $vercel_sdk ) {
+		// 		if ( $type === 'message' ) {
+		// 			$vercel_sdk->sendText( $data->content );
+		// 		} elseif ( $type === 'tool_result' ) {
+		// 			//error_log( 'tool_result: ' . print_r( $data, true ) );
+		// 			$data = (object) $data;
+		// 			$vercel_sdk->sendToolResult( $data->tool_call_id, $data->content );
+		// 		} elseif ( $type === 'tool_call' ) {
+		// 			$data = (object) $data;
+		// 			$vercel_sdk->sendToolCall( $data->id, $data->function->name, json_decode( $data->function->arguments, true ) );
+		// 		}
+		// 	}
+		// );
+		// set_transient( 'vercel_chat_' . $params['id'], $response, 60 * 60 );
+		// $this->save_backscroll(
+		// 	$response,
+		// 	array(
+		// 		'name' => $params['id'],
+		// 	)
+		// );
+
 		$this->log( '[vercel_chat] Started Vercel SDK step' );
->>>>>>> 36d4ac6 (Make it work on the chat page)
 
 		$conversation_id = $params['id'];
 		$module_instance = $this;
