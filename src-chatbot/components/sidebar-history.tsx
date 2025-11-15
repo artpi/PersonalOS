@@ -1,6 +1,21 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+// import { isToday, isYesterday, subMonths, subWeeks } from 'date-fns'; // Not used in active code
+// import { useParams, useRouter } from 'next/navigation'; // useRouter not used in active code, useParams not used if history items not rendered
+// import type { User } from 'next-auth'; // Removed
+// import { useState } from 'react'; // Not used if delete dialog logic is removed
+// import { toast } from 'sonner'; // Not used if delete logic is removed
+// import { motion } from 'framer-motion'; // Not used if history items not rendered
+// import {
+//   AlertDialog,
+//   AlertDialogAction,
+//   AlertDialogCancel,
+//   AlertDialogContent,
+//   AlertDialogDescription,
+//   AlertDialogFooter,
+//   AlertDialogHeader,
+//   AlertDialogTitle,
+// } from '@/components/ui/alert-dialog'; // Not used if delete dialog logic is removed
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -13,111 +28,29 @@ import {
 // import useSWRInfinite from 'swr/infinite'; // Removed
 // import { LoaderIcon } from './icons'; // Not used if loading state is removed
 import type { MockSessionUser } from './sidebar-user-nav'; // Import MockSessionUser
-import { getConfig } from '@/lib/constants';
 
 // Types GroupedChats, ChatHistory and functions groupChatsByDate, getChatHistoryPaginationKey are unused due to SWR logic removal
-
-// Note type definition
-interface Note {
-  id: number;
-  title: {
-    rendered: string;
-  };
-  date: string;
-  modified: string;
-  slug: string;
-  status: string;
-}
-
 
 export function SidebarHistory({ user }: { user: MockSessionUser | undefined }) {
   // const { setOpenMobile } = useSidebar(); // Not used in active logic
   // const { id } = useParams(); // Not used in active logic
 
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    const fetchNotes = async () => {
-      try {
-        const currentConfig = getConfig();
-        if (!currentConfig) {
-          throw new Error('Configuration not available');
-        }
-
-        const response = await fetch(currentConfig.rest_api_url + 'pos/v1/notes?status[]=private&status[]=publish&notebook=132', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-WP-Nonce': currentConfig.nonce,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        
-        // Defensive programming: ensure data is valid
-        if (!data) {
-          setNotes([]);
-          return;
-        }
-        
-        // Handle both array and object responses
-        let notesArray: any[] = [];
-        if (Array.isArray(data)) {
-          notesArray = data;
-        } else if (data.data && Array.isArray(data.data)) {
-          notesArray = data.data;
-        } else if (typeof data === 'object' && data !== null) {
-          // If it's a single note object, wrap it in an array
-          notesArray = [data];
-        }
-        
-        // Validate each note has required fields and matches WordPress post structure
-        const validNotes = notesArray.filter((note: any) => 
-          note && 
-          typeof note === 'object' && 
-          note.id && 
-          (typeof note.id === 'number' || typeof note.id === 'string') &&
-          note.title &&
-          typeof note.title === 'object' &&
-          note.title.rendered
-        ).map((note: any) => ({
-          id: Number(note.id),
-          title: {
-            rendered: String(note.title.rendered || 'Untitled Note')
-          },
-          content: note.content ? {
-            rendered: String(note.content.rendered || ''),
-            protected: Boolean(note.content.protected)
-          } : undefined,
-          date: String(note.date || new Date().toISOString()),
-          modified: String(note.modified || note.date || new Date().toISOString()),
-          slug: String(note.slug || ''),
-          status: String(note.status || 'publish'),
-        }));
-        
-        setNotes(validNotes);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch notes');
-        console.error('Error fetching notes:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchNotes();
-  }, [user]);
+  // All SWR and delete logic removed as API calls are non-functional
+  // const {
+  //   data: paginatedChatHistories,
+  //   setSize,
+  //   isValidating,
+  //   isLoading,
+  //   mutate,
+  // } = useSWRInfinite<ChatHistory>(getChatHistoryPaginationKey, fetcher, {
+  //   fallbackData: [],
+  // });
+  // const router = useRouter();
+  // const [deleteId, setDeleteId] = useState<string | null>(null);
+  // const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  // const hasReachedEnd = false; // Default for static view
+  // const hasEmptyChatHistory = true; // Default for static view
+  // const handleDelete = async () => {};
 
   if (!user) {
     return (
@@ -131,11 +64,11 @@ export function SidebarHistory({ user }: { user: MockSessionUser | undefined }) 
     );
   }
 
-  if (loading) {
+  if (false) {
     return (
       <SidebarGroup>
         <div className="px-2 py-1 text-xs text-sidebar-foreground/50">
-          Notes
+          Today
         </div>
         <SidebarGroupContent>
           <div className="flex flex-col">
@@ -160,65 +93,101 @@ export function SidebarHistory({ user }: { user: MockSessionUser | undefined }) 
     );
   }
 
-  if (error) {
-    return (
-      <SidebarGroup>
-        <SidebarGroupContent>
-          <div className="px-2 text-red-500 w-full flex flex-row justify-center items-center text-sm gap-2">
-            Error loading notes: {error}
-          </div>
-        </SidebarGroupContent>
-      </SidebarGroup>
-    );
-  }
-
-  if (notes.length === 0) {
+  if (true) {
     return (
       <SidebarGroup>
         <SidebarGroupContent>
           <div className="px-2 text-zinc-500 w-full flex flex-row justify-center items-center text-sm gap-2">
-            Your notes will appear here once you create some!
+            Your conversations will appear here once you start chatting!
           </div>
         </SidebarGroupContent>
       </SidebarGroup>
     );
   }
 
+  // Original return with rendering logic is removed as it depends on non-functional API calls
+  /*
   return (
-    <SidebarGroup>
-      <div className="px-2 py-1 text-xs text-sidebar-foreground/50">
-        Notes ({notes.length})
-      </div>
-      <SidebarGroupContent>
-        <div className="flex flex-col gap-1">
-          {notes.map((note) => {
-            // Additional safety check
-            if (!note || typeof note !== 'object' || !note.id) {
-              return null;
-            }
-            
-            return (
-              <div
-                key={note.id}
-                className="rounded-md px-2 py-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer transition-colors"
-              >
-                <div className="font-medium text-sm truncate">
-                  {note.title.rendered || 'Untitled Note'}
-                </div>
-                <div className="text-xs text-sidebar-foreground/60">
-                  {(() => {
-                    try {
-                      return new Date(note.modified).toLocaleDateString();
-                    } catch {
-                      return 'Invalid date';
-                    }
-                  })()}
-                </div>
+    <>
+      <SidebarGroup>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {paginatedChatHistories &&
+              (() => {
+                const chatsFromHistory = paginatedChatHistories.flatMap(
+                  (paginatedChatHistory) => paginatedChatHistory.chats,
+                );
+
+                const groupedChats = groupChatsByDate(chatsFromHistory);
+
+                return (
+                  <div className="flex flex-col gap-6">
+                    {groupedChats.today.length > 0 && (
+                      <div>
+                        <div className="px-2 py-1 text-xs text-sidebar-foreground/50">
+                          Today
+                        </div>
+                        {groupedChats.today.map((chat) => (
+                          <ChatItem
+                            key={chat.id}
+                            chat={chat}
+                            isActive={chat.id === id}
+                            onDelete={(chatId) => {
+                              setDeleteId(chatId);
+                              setShowDeleteDialog(true);
+                            }}
+                            setOpenMobile={setOpenMobile}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    // ... other groups ... 
+                  </div>
+                );
+              })()}
+          </SidebarMenu>
+
+          <motion.div
+            onViewportEnter={() => {
+              if (!isValidating && !hasReachedEnd) {
+                setSize((size) => size + 1);
+              }
+            }}
+          />
+
+          {hasReachedEnd ? (
+            <div className="px-2 text-zinc-500 w-full flex flex-row justify-center items-center text-sm gap-2 mt-8">
+              You have reached the end of your chat history.
+            </div>
+          ) : (
+            <div className="p-2 text-zinc-500 dark:text-zinc-400 flex flex-row gap-2 items-center mt-8">
+              <div className="animate-spin">
+                <LoaderIcon />
               </div>
-            );
-          })}
-        </div>
-      </SidebarGroupContent>
-    </SidebarGroup>
+              <div>Loading Chats...</div>
+            </div>
+          )}
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your
+              chat and remove it from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
+  */
 }
