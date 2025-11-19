@@ -41,6 +41,46 @@ function personalos_generate_uuid() {
 	);
 }
 
+/**
+ * Get messages from a post and parse them into UIMessage format
+ *
+ * @param int $post_id The post ID to retrieve messages from.
+ * @return array Parsed messages.
+ */
+function personalos_get_messages_from_post( $post_id ) {
+	$post = get_post( $post_id );
+	if ( ! $post ) {
+		return array();
+	}
+
+	$blocks = parse_blocks( $post->post_content );
+	$messages = array();
+
+	foreach ( $blocks as $block ) {
+		if ( $block['blockName'] === 'pos/ai-message' ) {
+			$role = $block['attrs']['role'] ?? 'user';
+			// Handle different content structures if necessary, for now assume string content in attrs or innerContent
+			// Gutenberg blocks usually store content in innerContent for HTML, but pos/ai-message might be different.
+			// Looking at save_backscroll implementation:
+			// $content_blocks[] = get_comment_delimited_block_content( ... 'content' => $content ... )
+			// This usually implies attribute storage or innerHTML if it's a dynamic block saving.
+			// However, save_backscroll uses get_comment_delimited_block_content which suggests attributes serialization.
+			
+			$content = $block['attrs']['content'] ?? '';
+			$id = $block['attrs']['id'] ?? personalos_generate_uuid();
+
+			$messages[] = array(
+				'id' => $id,
+				'role' => $role,
+				'content' => $content,
+				'createdAt' => get_the_date( 'c', $post ), // Approximate
+			);
+		}
+	}
+
+	return $messages;
+}
+
 // This has to match the Config type in src-chatbot/lib/window.d.ts - Cursor please always check this
 function personalos_chat_config() {
 	$notes_module = POS::get_module_by_id( 'notes' );
@@ -59,24 +99,60 @@ function personalos_chat_config() {
 	
 	$current_user_id = get_current_user_id();
 	$last_chat_model  = get_user_meta( $current_user_id, 'pos_last_chat_model', true );
+
+	// Handle Conversation Bootstrapping
+	$conversation_id = 0;
+	$conversation_messages = array();
+	
+	// Only load existing conversation if ID param is explicitly provided
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( ! empty( $_GET['id'] ) ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$requested_id = intval( $_GET['id'] );
+		$post = get_post( $requested_id );
+		
+		if ( $post && ( intval( $post->post_author ) === $current_user_id || current_user_can( 'manage_options' ) ) && 'notes' === $post->post_type ) {
+			$conversation_id = $requested_id;
+			$conversation_messages = personalos_get_messages_from_post( $conversation_id );
+		}
+	}
+	
+	// Always create new conversation if no valid ID was provided
+	// This ensures each page load creates a fresh conversation post
+	if ( empty( $conversation_id ) ) {
+		// Use empty backscroll to signal creation of a new empty post
+		// This relies on save_backscroll handling empty input gracefully to create a post
+		$openai_module = POS::get_module_by_id( 'openai' );
+		if ( $openai_module ) {
+			// Generate unique slug to avoid conflicts
+			$unique_slug = 'chat-' . gmdate( 'Y-m-d-H-i-s' ) . '-' . wp_generate_password( 8, false );
+			$conversation_id = $openai_module->save_backscroll( array(), array( 'name' => $unique_slug ) );
+			if ( is_wp_error( $conversation_id ) ) {
+				$conversation_id = 0; // Fallback or handle error? For now 0 implies failure/fallback in UI
+			}
+		} else {
+			$conversation_id = 0; // Fallback
+		}
+	}
 	
 	return array(
-		'rest_api_url'   => rest_url( '/' ),
-		'wp_admin_url'   => admin_url(),
-		'site_title'     => get_bloginfo( 'name' ),
-		'nonce'          => wp_create_nonce( 'wp_rest' ),
-		'conversation_id' => personalos_generate_uuid(), // Generate fresh ID on each page load
-		'projects'        => array_map(
+		'rest_api_url'          => rest_url( '/' ),
+		'wp_admin_url'          => admin_url(),
+		'site_title'            => get_bloginfo( 'name' ),
+		'nonce'                 => wp_create_nonce( 'wp_rest' ),
+		'conversation_id'       => $conversation_id,
+		'conversation_messages' => $conversation_messages,
+		'projects'              => array_map(
 			'personalos_map_notebook_to_para_item',
 			POS::get_module_by_id( 'notes' )->get_notebooks_by_flag( 'project' )
 		),
-		'starred'         => array_map(
+		'starred'               => array_map(
 			'personalos_map_notebook_to_para_item',
 			POS::get_module_by_id( 'notes' )->get_notebooks_by_flag( 'star' )
 		),
-		'chat_prompts'    => $prompts_data,
-		'pos_last_chat_model' => $last_chat_model ? $last_chat_model : '',
-		'user'            => array(
+		'chat_prompts'          => $prompts_data,
+		'pos_last_chat_model'   => $last_chat_model ? $last_chat_model : '',
+		'user'                  => array(
 			'id'    => $current_user_id,
 			'login' => wp_get_current_user()->user_login,
 		),

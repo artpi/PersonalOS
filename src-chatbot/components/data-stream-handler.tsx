@@ -38,7 +38,8 @@ export function DataStreamHandler({ id: initialId }: { id: string }) {
   const config = getConfig();
   // Use conversation_id from PHP config if available (generated fresh on each page load),
   // otherwise use the prop ID (fallback for static export)
-  const id = config.conversation_id || initialId;
+  // Ensure it's a string
+  const id = config.conversation_id ? String(config.conversation_id) : initialId;
   const { data: dataStream } = useChat({ id });
   const { artifact, setArtifact, setMetadata } = useArtifact();
   const lastProcessedIndex = useRef(-1);

@@ -10,7 +10,8 @@ export type Config = {
 	wp_admin_url: string;
 	rest_api_url: string;
 	nonce: string;
-	conversation_id?: string; // Generated in PHP on each page load
+	conversation_id?: string | number; // Generated in PHP on each page load, can be int from WP
+	conversation_messages?: Array<any>; // Parsed messages from the conversation post
 	projects: PARAItem[];
 	starred: PARAItem[];
 	chat_prompts?: ChatPrompt[];

@@ -51,7 +51,9 @@ export default async function Page() {
   // Use conversation_id from PHP config if available (generated fresh on each page load),
   // otherwise generate one (fallback for static export or if config is missing)
   const config = getConfig();
-  const id = config.conversation_id || generateUUID();
+  // Ensure id is string
+  const id = config.conversation_id ? String(config.conversation_id) : generateUUID();
+  const initialMessages = config.conversation_messages || [];
 
   // Use pos_last_chat_model from config if available, otherwise fall back to first prompt or default
   const defaultModel = config.pos_last_chat_model && config.pos_last_chat_model.trim() !== ''
@@ -65,7 +67,7 @@ export default async function Page() {
       <Chat
         key={id}
         id={id}
-        initialMessages={[]}
+        initialMessages={initialMessages}
         selectedChatModel={defaultModel}
         selectedVisibilityType="private"
         isReadonly={false} // For static export, assume not readonly as it's a new chat for a mock guest

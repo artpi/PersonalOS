@@ -46,7 +46,8 @@ export function Chat({
   
   // Use conversation_id from PHP config (generated fresh on each page load and injected into window.config)
   // This is just a constant from the page - no need to store it anywhere
-  const id = currentConfig.conversation_id || initialId;
+  // Ensure it's a string
+  const id = currentConfig.conversation_id ? String(currentConfig.conversation_id) : initialId;
 
   // Manage selected model state so it can be updated by ModelSelector
   // Initialize from config if available (client-side), otherwise use prop

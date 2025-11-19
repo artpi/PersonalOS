@@ -48,6 +48,8 @@ export function getConfig(): Config {
 	wp_admin_url: 'http://localhost:8901/wp-admin/',
 	nonce: '',
     rest_api_url: 'http://localhost:8901/wp-json/', // Must be a valid base for API calls if used before real config loads
+	conversation_id: 'fallback-id',
+	conversation_messages: [],
 	projects: mockSidebarProjects,
 	starred: mockSidebarStarred,
 	chat_prompts: [],

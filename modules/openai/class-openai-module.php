@@ -479,6 +479,7 @@ class OpenAI_Module extends POS_Module {
 			}
 			.message.tool:hover pre {
 				display: block;
+				border-bottom: 1px dashed #ccc;
 			}
 
 			#input-container {
@@ -1343,26 +1344,50 @@ class OpenAI_Module extends POS_Module {
 	 *
 	 * @param array $backscroll Array of conversation messages
 	 * @param array $search_args Search arguments for get_posts to find existing notes, also used for new post configuration
+	 *                           - 'ID': Exact Post ID to update/use
 	 *                           - 'name': The post slug/name to search for and use when creating new posts
 	 *                           - 'post_title': Title for new posts (optional, defaults to auto-generated)
 	 *                           - 'notebook': Notebook slug to assign to new posts (optional, defaults to 'ai-chats')
 	 *                           - Any other valid get_posts() arguments for finding existing posts
+	 * @param bool $append       Whether to append the backscroll to existing content instead of overwriting
 	 * @return int|WP_Error Post ID on success, WP_Error on failure
 	 */
-	public function save_backscroll( array $backscroll, array $search_args ) {
+	public function save_backscroll( array $backscroll, array $search_args, bool $append = false ) {
 		$notes_module = POS::get_module_by_id( 'notes' );
 		if ( ! $notes_module ) {
 			return new WP_Error( 'notes_module_not_found', 'Notes module not available' );
 		}
 
+		// If explicit ID is provided, check validity and ownership
+		if ( ! empty( $search_args['ID'] ) ) {
+			$post = get_post( $search_args['ID'] );
+			if ( ! $post || 'notes' !== $post->post_type ) {
+				return new WP_Error( 'invalid_post_id', 'Invalid Post ID provided.' );
+			}
+			// Assuming permission check happens upstream or we trust internal calls
+			// But let's be safe if it's user context
+			// if ( get_current_user_id() !== (int) $post->post_author && ! current_user_can( 'manage_options' ) ) {
+			// 	return new WP_Error( 'permission_denied', 'You do not have permission to edit this conversation.' );
+			// }
+			$existing_posts = array( $post );
+		} elseif ( ! empty( $search_args['name'] ) ) {
+			// Only search for existing posts if a name/slug is provided
+			// This allows finding posts by slug when we want to update an existing conversation
+			$existing_posts = $notes_module->list( $search_args, 'ai-chats' );
+		} else {
+			// No ID and no name provided - always create a new post
+			// This is the case when bootstrapping a new conversation
+			$existing_posts = array();
+		}
+
 		// Generate title if not provided and OpenAI is configured
 		$post_title = $search_args['post_title'] ?? null;
-		if ( ! $post_title && $this->is_configured() ) {
+		if ( ! $post_title && empty( $existing_posts ) && ! empty( $backscroll ) && $this->is_configured() ) {
 			$post_title = $this->generate_conversation_title( $backscroll );
 		}
 
 		// Fall back to default title if generation failed or not configured
-		if ( ! $post_title ) {
+		if ( ! $post_title && empty( $existing_posts ) ) {
 			$post_title = 'Chat ' . gmdate( 'Y-m-d H:i:s' );
 		}
 
@@ -1373,48 +1398,106 @@ class OpenAI_Module extends POS_Module {
 				$message = (array) $message;
 			}
 
-			if ( ! isset( $message['role'] ) ) {
+			// Normalize for Response API output format (e.g. function_call_output)
+			// or just standard messages
+			$role = $message['role'] ?? null;
+			$content = $message['content'] ?? '';
+
+			// Handle tool results (function_call_output) which might not have a standard 'role' field in raw API response
+			// but here we expect standardized message objects if possible.
+			// If it's a tool result from complete_responses callback, it might have a different structure
+			// mapped to 'function_call_output' type in response output.
+			// However, the callback constructs $res with 'type' => 'function_call_output'
+			// We need to map this to a 'tool' or 'assistant' role block.
+			
+			if ( isset( $message['type'] ) && 'function_call_output' === $message['type'] ) {
+				$role = 'tool'; // Or 'function'
+				$content = is_string( $message['output'] ) ? $message['output'] : wp_json_encode( $message['output'] );
+			}
+
+			// If content is array (e.g. multimodal), stringify or extract text
+			if ( is_array( $content ) ) {
+				// Try to extract text part
+				$text_parts = array();
+				foreach ( $content as $part ) {
+					if ( isset( $part['type'] ) && 'input_text' === $part['type'] ) {
+						$text_parts[] = $part['text'];
+					} elseif ( isset( $part['text'] ) ) {
+						$text_parts[] = $part['text'];
+					}
+				}
+				if ( ! empty( $text_parts ) ) {
+					$content = implode( "\n", $text_parts );
+				} else {
+					$content = wp_json_encode( $content );
+				}
+			}
+
+			if ( ! $role ) {
 				continue;
 			}
 
-			$role = $message['role'];
-			$content = $message['content'] ?? '';
-
-			if ( in_array( $role, array( 'user', 'assistant' ), true ) ) {
+			if ( in_array( $role, array( 'user', 'assistant', 'tool', 'function' ), true ) ) {
 				// Create message block
 				$content_blocks[] = get_comment_delimited_block_content(
 					'pos/ai-message',
 					array(
 						'role'    => $role,
 						'content' => $content,
-						'id'      => $message['id'] ?? '',
+						'id'      => $message['id'] ?? personalos_generate_uuid(),
 					),
 					''
 				);
 			}
 		}
 
-		// Use notes module's list method to find existing posts
-		$existing_posts = $notes_module->list( $search_args, 'ai-chats' );
-
 		// Prepare post data
 		$post_data = array(
-			'post_title'   => $post_title,
 			'post_type'    => $notes_module->id,
-			'post_name'    => $search_args['name'] ?? 'chat-' . gmdate( 'Y-m-d-H-i-s' ),
 			'post_status'  => 'private',
 		);
+		
+		if ( ! empty( $post_title ) ) {
+			$post_data['post_title'] = $post_title;
+		}
+		if ( ! empty( $search_args['name'] ) ) {
+			$post_data['post_name'] = $search_args['name'];
+		}
 
 		// Create or update post
 		if ( ! empty( $existing_posts ) ) {
-			$post_id = wp_update_post(
-				array(
-					'ID'           => $existing_posts[0]->ID,
-					'post_content' => implode( "\n\n", $content_blocks ),
-				)
-			);
+			$post_data['ID'] = $existing_posts[0]->ID;
+			
+			if ( $append ) {
+				// Append new blocks to existing content
+				$current_content = $existing_posts[0]->post_content;
+				$new_content = implode( "\n\n", $content_blocks );
+				if ( ! empty( $new_content ) ) {
+					$post_data['post_content'] = $current_content . "\n\n" . $new_content;
+				}
+			} else {
+				// Overwrite content
+				$post_data['post_content'] = implode( "\n\n", $content_blocks );
+			}
+			
+			// Only update if there is content to update or we are not just appending empty content
+			// But here we might want to update just to ensure touch?
+			if ( isset( $post_data['post_content'] ) || ! $append ) {
+				$post_id = wp_update_post( $post_data );
+			} else {
+				$post_id = $post_data['ID'];
+			}
 		} else {
+			// Create new
 			$post_data['post_content'] = implode( "\n\n", $content_blocks );
+			// Ensure defaults for new post
+			if ( empty( $post_data['post_title'] ) ) {
+				$post_data['post_title'] = 'Chat ' . gmdate( 'Y-m-d H:i:s' );
+			}
+			if ( empty( $post_data['post_name'] ) ) {
+				$post_data['post_name'] = 'chat-' . gmdate( 'Y-m-d-H-i-s' );
+			}
+			
 			$post_id = wp_insert_post( $post_data );
 
 			// Add to specified notebook or default to OpenAI chats
@@ -1507,6 +1590,21 @@ class OpenAI_Module extends POS_Module {
 
 		$this->log( '[vercel_chat] Request received. Params: ' . wp_json_encode( $params ) );
 
+		// Validate Post ID (conversation_id)
+		$post_id = isset( $params['id'] ) ? intval( $params['id'] ) : 0;
+		if ( ! $post_id ) {
+			return new WP_Error( 'invalid_id', 'Invalid Conversation ID.', array( 'status' => 400 ) );
+		}
+
+		$post = get_post( $post_id );
+		if ( ! $post || 'notes' !== $post->post_type ) {
+			return new WP_Error( 'not_found', 'Conversation not found.', array( 'status' => 404 ) );
+		}
+
+		if ( (int) $post->post_author !== get_current_user_id() && ! current_user_can( 'manage_options' ) ) {
+			return new WP_Error( 'permission_denied', 'You do not have permission to access this conversation.', array( 'status' => 403 ) );
+		}
+
 		$user_message_content = null;
 		if ( isset( $params['message']['content'] ) ) {
 			$user_message_content = $params['message']['content'];
@@ -1540,18 +1638,29 @@ class OpenAI_Module extends POS_Module {
 			}
 			if ( ! $prompt ) {
 				$this->log( '[vercel_chat] WARNING: Prompt not found for slug: ' . $params['selectedChatModel'] );
+			} else {
+				// Save prompt ID to meta if not already set or changed?
+				// Maybe we just use the one from params for this turn.
+				// But plan says "Read pos_chat_prompt_id meta".
+				// Let's check if one is stored, if not store it.
+				$stored_prompt_id = get_post_meta( $post_id, 'pos_chat_prompt_id', true );
+				if ( ! $stored_prompt_id ) {
+					update_post_meta( $post_id, 'pos_chat_prompt_id', $prompt->ID );
+				}
 			}
 		} else {
 			$this->log( '[vercel_chat] No selectedChatModel provided in params' );
+			// Try to load from meta
+			$stored_prompt_id = get_post_meta( $post_id, 'pos_chat_prompt_id', true );
+			if ( $stored_prompt_id ) {
+				$prompt = get_post( $stored_prompt_id );
+			}
 		}
 
-		// Get previous response ID from transient
-		$previous_response_id = get_transient( 'vercel_chat_response_id_' . $params['id'] );
-		if ( false === $previous_response_id ) {
-			$previous_response_id = null;
-		}
-
-		$this->log( '[vercel_chat] Previous response ID: ' . ( $previous_response_id ?? 'none' ) );
+		// Get previous response ID from meta
+		$previous_response_id = get_post_meta( $post_id, 'pos_last_response_id', true );
+		
+		$this->log( '[vercel_chat] Previous response ID from meta: ' . ( $previous_response_id ?? 'none' ) );
 
 		// Convert user message to Responses API format
 		$user_message = array(
@@ -1564,6 +1673,9 @@ class OpenAI_Module extends POS_Module {
 			),
 		);
 
+		// Persist User Message Immediately
+		$this->save_backscroll( array( $user_message ), array( 'ID' => $post_id ), true );
+
 		// For Responses API, if we have a previous_response_id, we only send new input
 		// Otherwise, we send the full message
 		$messages = $previous_response_id ? array( $user_message ) : array( $user_message );
@@ -1575,33 +1687,11 @@ class OpenAI_Module extends POS_Module {
 		Vercel_AI_SDK::sendHttpStreamHeaders();
 		$vercel_sdk->startStep( $params['id'] );
 
-		// $response = $this->complete_backscroll(
-		// 	$openai_messages,
-		// 	function( $type, $data ) use ( $vercel_sdk ) {
-		// 		if ( $type === 'message' ) {
-		// 			$vercel_sdk->sendText( $data->content );
-		// 		} elseif ( $type === 'tool_result' ) {
-		// 			//error_log( 'tool_result: ' . print_r( $data, true ) );
-		// 			$data = (object) $data;
-		// 			$vercel_sdk->sendToolResult( $data->tool_call_id, $data->content );
-		// 		} elseif ( $type === 'tool_call' ) {
-		// 			$data = (object) $data;
-		// 			$vercel_sdk->sendToolCall( $data->id, $data->function->name, json_decode( $data->function->arguments, true ) );
-		// 		}
-		// 	}
-		// );
-		// set_transient( 'vercel_chat_' . $params['id'], $response, 60 * 60 );
-		// $this->save_backscroll(
-		// 	$response,
-		// 	array(
-		// 		'name' => $params['id'],
-		// 	)
-		// );
-
 		$this->log( '[vercel_chat] Started Vercel SDK step' );
 
-		$conversation_id = $params['id'];
+		$conversation_id = $post_id; // Use the Post ID
 		$module_instance = $this;
+		
 		$response = $this->complete_responses(
 			$messages,
 			function( $type, $data ) use ( $vercel_sdk, $conversation_id, $module_instance ) {
@@ -1609,12 +1699,20 @@ class OpenAI_Module extends POS_Module {
 				if ( $type === 'message' ) {
 					// Responses API message format
 					if ( isset( $data->content ) && is_array( $data->content ) ) {
+						$full_text = '';
 						foreach ( $data->content as $chunk ) {
 							if ( isset( $chunk->text ) ) {
 								$module_instance->log( '[vercel_chat] Sending text chunk: ' . substr( $chunk->text, 0, 100 ) );
 								$vercel_sdk->sendText( $chunk->text );
+								$full_text .= $chunk->text;
 							}
 						}
+						// Save Assistant Message
+						$assistant_msg = array(
+							'role' => 'assistant',
+							'content' => $full_text
+						);
+						$module_instance->save_backscroll( array( $assistant_msg ), array( 'ID' => $conversation_id ), true );
 					}
 				} elseif ( $type === 'tool_result' ) {
 					// Responses API tool result format
@@ -1622,7 +1720,13 @@ class OpenAI_Module extends POS_Module {
 						$call_id = $data['call_id'] ?? null;
 						$module_instance->log( '[vercel_chat] Sending tool result for call_id: ' . $call_id );
 						$vercel_sdk->sendToolResult( $call_id, $data['output'] );
+						
+						// Save Tool Result
+						// We use the data directly which matches the function_call_output structure
+						$module_instance->save_backscroll( array( $data ), array( 'ID' => $conversation_id ), true );
+
 					} else {
+						// Legacy format?
 						$data = (object) $data;
 						$module_instance->log( '[vercel_chat] Sending tool result for tool_call_id: ' . ( $data->tool_call_id ?? 'null' ) );
 						$vercel_sdk->sendToolResult( $data->tool_call_id ?? null, $data->content ?? '' );
@@ -1641,7 +1745,7 @@ class OpenAI_Module extends POS_Module {
 				} elseif ( $type === 'response_id' ) {
 					// Store response ID for next request
 					$module_instance->log( '[vercel_chat] Storing response ID: ' . $data );
-					set_transient( 'vercel_chat_response_id_' . $conversation_id, $data, 60 * 60 );
+					update_post_meta( $conversation_id, 'pos_last_response_id', $data );
 				}
 			},
 			$previous_response_id,
@@ -1660,7 +1764,7 @@ class OpenAI_Module extends POS_Module {
 			// If error is related to missing tool output, clear the response ID to start fresh
 			if ( strpos( $error_message, 'No tool output found' ) !== false || strpos( $error_message, 'function call' ) !== false ) {
 				$this->log( '[vercel_chat] Clearing response ID due to tool call error' );
-				delete_transient( 'vercel_chat_response_id_' . $conversation_id );
+				delete_post_meta( $conversation_id, 'pos_last_response_id' );
 			}
 
 			$vercel_sdk->finishStep(
