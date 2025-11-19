@@ -4,6 +4,46 @@ import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CodeBlock } from './code-block';
 
+/**
+ * Decode HTML entities and normalize text for markdown rendering
+ * Handles cases where newlines are encoded as "n" or "nn" characters
+ */
+function decodeAndNormalizeText(text: string): string {
+	let decoded = text;
+	
+	// Remove HTML tags but preserve their content
+	decoded = decoded.replace(/<[^>]*>/g, '');
+	
+	// Replace encoded newlines: "nn" = double newline, "n" = single newline
+	// Pattern: "nn" followed by "-" or space, or "n" followed by "-" or space
+	// Replace "nn" first (double newline) before single "n" to avoid double replacement
+	decoded = decoded.replace(/nn(?=\s*-)/g, '\n\n');
+	decoded = decoded.replace(/n(?=\s*-)/g, '\n');
+	
+	// Also handle cases where "nn" or "n" appears at end of line or before other whitespace
+	decoded = decoded.replace(/nn(?=\s)/g, '\n\n');
+	decoded = decoded.replace(/(?<!\n)n(?=\s)/g, '\n');
+	
+	// Decode common HTML entities
+	decoded = decoded
+		.replace(/&nbsp;/g, ' ')
+		.replace(/&amp;/g, '&')
+		.replace(/&lt;/g, '<')
+		.replace(/&gt;/g, '>')
+		.replace(/&quot;/g, '"')
+		.replace(/&#39;/g, "'")
+		.replace(/&apos;/g, "'");
+
+	// If we're in browser, use DOM to decode remaining HTML entities
+	if (typeof window !== 'undefined') {
+		const textarea = document.createElement('textarea');
+		textarea.innerHTML = decoded;
+		decoded = textarea.value;
+	}
+
+	return decoded.trim();
+}
+
 const components: Partial<Components> = {
   // @ts-expect-error
   code: CodeBlock,
@@ -96,11 +136,14 @@ const components: Partial<Components> = {
 const remarkPlugins = [remarkGfm];
 
 const NonMemoizedMarkdown = ({ children }: { children: string }) => {
-  return (
-    <ReactMarkdown remarkPlugins={remarkPlugins} components={components}>
-      {children}
-    </ReactMarkdown>
-  );
+	// Decode HTML entities and normalize the text before rendering
+	const normalizedText = decodeAndNormalizeText(children);
+
+	return (
+		<ReactMarkdown remarkPlugins={remarkPlugins} components={components}>
+			{normalizedText}
+		</ReactMarkdown>
+	);
 };
 
 export const Markdown = memo(

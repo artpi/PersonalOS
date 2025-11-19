@@ -1,56 +1,69 @@
 'use client';
 
-// import { isToday, isYesterday, subMonths, subWeeks } from 'date-fns'; // Not used in active code
-// import { useParams, useRouter } from 'next/navigation'; // useRouter not used in active code, useParams not used if history items not rendered
-// import type { User } from 'next-auth'; // Removed
-// import { useState } from 'react'; // Not used if delete dialog logic is removed
-// import { toast } from 'sonner'; // Not used if delete logic is removed
-// import { motion } from 'framer-motion'; // Not used if history items not rendered
-// import {
-//   AlertDialog,
-//   AlertDialogAction,
-//   AlertDialogCancel,
-//   AlertDialogContent,
-//   AlertDialogDescription,
-//   AlertDialogFooter,
-//   AlertDialogHeader,
-//   AlertDialogTitle,
-// } from '@/components/ui/alert-dialog'; // Not used if delete dialog logic is removed
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   SidebarGroup,
   SidebarGroupContent,
-  // SidebarMenu, // Not used in active code
-  // useSidebar, // Not used in active code
+  SidebarMenu,
+  useSidebar,
 } from '@/components/ui/sidebar';
-// import type { Chat } from '@/lib/db/schema'; // Removed
-// import { fetcher } from '@/lib/utils'; // Not used if SWR is removed
-// import { ChatItem } from './sidebar-history-item'; // Not used if history items not rendered
-// import useSWRInfinite from 'swr/infinite'; // Removed
-// import { LoaderIcon } from './icons'; // Not used if loading state is removed
-import type { MockSessionUser } from './sidebar-user-nav'; // Import MockSessionUser
+import { ChatItem } from './sidebar-history-item';
+import { LoaderIcon } from './icons';
+import type { MockSessionUser } from './sidebar-user-nav';
+import { getConfig } from '@/lib/constants';
 
-// Types GroupedChats, ChatHistory and functions groupChatsByDate, getChatHistoryPaginationKey are unused due to SWR logic removal
+interface Chat {
+  id: string;
+  title: string;
+  visibility: 'public' | 'private';
+  createdAt?: string;
+}
 
 export function SidebarHistory({ user }: { user: MockSessionUser | undefined }) {
-  // const { setOpenMobile } = useSidebar(); // Not used in active logic
-  // const { id } = useParams(); // Not used in active logic
+  const { setOpenMobile } = useSidebar();
+  const searchParams = useSearchParams();
+  const currentChatId = searchParams?.get('id');
+  const [conversations, setConversations] = useState<Chat[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // All SWR and delete logic removed as API calls are non-functional
-  // const {
-  //   data: paginatedChatHistories,
-  //   setSize,
-  //   isValidating,
-  //   isLoading,
-  //   mutate,
-  // } = useSWRInfinite<ChatHistory>(getChatHistoryPaginationKey, fetcher, {
-  //   fallbackData: [],
-  // });
-  // const router = useRouter();
-  // const [deleteId, setDeleteId] = useState<string | null>(null);
-  // const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  // const hasReachedEnd = false; // Default for static view
-  // const hasEmptyChatHistory = true; // Default for static view
-  // const handleDelete = async () => {};
+  useEffect(() => {
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchConversations = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const config = getConfig();
+        const response = await fetch(
+          `${config.rest_api_url}pos/v1/openai/conversations`,
+          {
+            headers: {
+              'X-WP-Nonce': config.nonce,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch conversations: ${response.status}`);
+        }
+
+        const data = await response.json();
+        setConversations(data);
+      } catch (err) {
+        console.error('Error fetching conversations:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load conversations');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchConversations();
+  }, [user]);
 
   if (!user) {
     return (
@@ -64,14 +77,11 @@ export function SidebarHistory({ user }: { user: MockSessionUser | undefined }) 
     );
   }
 
-  if (false) {
+  if (isLoading) {
     return (
       <SidebarGroup>
-        <div className="px-2 py-1 text-xs text-sidebar-foreground/50">
-          Today
-        </div>
         <SidebarGroupContent>
-          <div className="flex flex-col">
+          <div className="flex flex-col gap-2 px-2">
             {[44, 32, 28, 64, 52].map((item) => (
               <div
                 key={item}
@@ -93,7 +103,19 @@ export function SidebarHistory({ user }: { user: MockSessionUser | undefined }) 
     );
   }
 
-  if (true) {
+  if (error) {
+    return (
+      <SidebarGroup>
+        <SidebarGroupContent>
+          <div className="px-2 text-zinc-500 w-full flex flex-row justify-center items-center text-sm gap-2">
+            Error loading conversations
+          </div>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    );
+  }
+
+  if (conversations.length === 0) {
     return (
       <SidebarGroup>
         <SidebarGroupContent>
@@ -105,7 +127,22 @@ export function SidebarHistory({ user }: { user: MockSessionUser | undefined }) 
     );
   }
 
-  // Original return with rendering logic is removed as it depends on non-functional API calls
+  return (
+    <SidebarGroup>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {conversations.map((chat) => (
+            <ChatItem
+              key={chat.id}
+              chat={chat}
+              isActive={chat.id === currentChatId}
+              setOpenMobile={setOpenMobile}
+            />
+          ))}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
   /*
   return (
     <>

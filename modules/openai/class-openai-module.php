@@ -738,6 +738,15 @@ class OpenAI_Module extends POS_Module {
 				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
+		register_rest_route(
+			$this->rest_namespace,
+			'/openai/conversations',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'get_conversations' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
 	}
 	public function check_permission() {
 		return current_user_can( 'manage_options' );
@@ -1437,7 +1446,8 @@ class OpenAI_Module extends POS_Module {
 				continue;
 			}
 
-			if ( in_array( $role, array( 'user', 'assistant', 'tool', 'function' ), true ) ) {
+			// Only save user and assistant messages, not tool/function calls
+			if ( in_array( $role, array( 'user', 'assistant' ), true ) ) {
 				// Create message block
 				$content_blocks[] = get_comment_delimited_block_content(
 					'pos/ai-message',
@@ -1721,9 +1731,7 @@ class OpenAI_Module extends POS_Module {
 						$module_instance->log( '[vercel_chat] Sending tool result for call_id: ' . $call_id );
 						$vercel_sdk->sendToolResult( $call_id, $data['output'] );
 						
-						// Save Tool Result
-						// We use the data directly which matches the function_call_output structure
-						$module_instance->save_backscroll( array( $data ), array( 'ID' => $conversation_id ), true );
+						// Don't save tool results to conversation history
 
 					} else {
 						// Legacy format?
@@ -1803,6 +1811,58 @@ class OpenAI_Module extends POS_Module {
 			return new WP_Error( 'no-response', 'No response from OpenAI' );
 		}
 		return $response->choices[0]->message->content;
+	}
+
+	/**
+	 * Get the last 50 conversations for the current user
+	 *
+	 * @param WP_REST_Request $request The REST request object.
+	 * @return WP_REST_Response|WP_Error The conversations list or error.
+	 */
+	public function get_conversations( WP_REST_Request $request ) {
+		$current_user_id = get_current_user_id();
+		if ( ! $current_user_id ) {
+			return new WP_Error( 'unauthorized', 'You must be logged in to view conversations.', array( 'status' => 401 ) );
+		}
+
+		$notes_module = POS::get_module_by_id( 'notes' );
+		if ( ! $notes_module ) {
+			return new WP_Error( 'notes_module_not_found', 'Notes module not available', array( 'status' => 500 ) );
+		}
+
+		// Get conversations from ai-chats notebook, ordered by date (newest first)
+		$conversations = $notes_module->list(
+			array(
+				'posts_per_page' => 50,
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+				'author'         => $current_user_id, // Only get conversations by current user
+			),
+			'ai-chats'
+		);
+
+		// Filter to only include posts the user can read
+		$conversations = array_filter(
+			$conversations,
+			function( $post ) {
+				return current_user_can( 'read_post', $post->ID );
+			}
+		);
+
+		// Format conversations for the frontend
+		$formatted_conversations = array_map(
+			function( $post ) {
+				return array(
+					'id'         => (string) $post->ID,
+					'title'      => ! empty( $post->post_title ) ? $post->post_title : 'Untitled Chat',
+					'visibility' => 'private', // Conversations are always private
+					'createdAt'  => $post->post_date,
+				);
+			},
+			$conversations
+		);
+
+		return rest_ensure_response( $formatted_conversations );
 	}
 
 	public function tts( $messages, $voice = 'ballad', $data = array() ) {
