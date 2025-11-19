@@ -59,12 +59,6 @@ function personalos_get_messages_from_post( $post_id ) {
 	foreach ( $blocks as $block ) {
 		if ( $block['blockName'] === 'pos/ai-message' ) {
 			$role = $block['attrs']['role'] ?? 'user';
-			
-			// Skip tool/function messages - only show user and assistant
-			if ( ! in_array( $role, array( 'user', 'assistant' ), true ) ) {
-				continue;
-			}
-			
 			// Handle different content structures if necessary, for now assume string content in attrs or innerContent
 			// Gutenberg blocks usually store content in innerContent for HTML, but pos/ai-message might be different.
 			// Looking at save_backscroll implementation:
@@ -75,12 +69,10 @@ function personalos_get_messages_from_post( $post_id ) {
 			$content = $block['attrs']['content'] ?? '';
 			$id = $block['attrs']['id'] ?? personalos_generate_uuid();
 
-			// Format as UIMessage - support both content (deprecated) and parts
 			$messages[] = array(
 				'id' => $id,
 				'role' => $role,
-				'content' => $content, // Deprecated but still supported
-				'parts' => array( array( 'type' => 'text', 'text' => $content ) ), // New format
+				'content' => $content,
 				'createdAt' => get_the_date( 'c', $post ), // Approximate
 			);
 		}
@@ -119,15 +111,9 @@ function personalos_chat_config() {
 		$requested_id = intval( $_GET['id'] );
 		$post = get_post( $requested_id );
 		
-		if ( $post ) {
-			// Check post type and ownership
-			$is_valid_type = 'notes' === $post->post_type;
-			$is_owner = ( intval( $post->post_author ) === $current_user_id || current_user_can( 'manage_options' ) );
-			
-			if ( $is_valid_type && $is_owner ) {
-				$conversation_id = $requested_id;
-				$conversation_messages = personalos_get_messages_from_post( $conversation_id );
-			}
+		if ( $post && ( intval( $post->post_author ) === $current_user_id || current_user_can( 'manage_options' ) ) && 'notes' === $post->post_type ) {
+			$conversation_id = $requested_id;
+			$conversation_messages = personalos_get_messages_from_post( $conversation_id );
 		}
 	}
 	

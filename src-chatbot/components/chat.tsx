@@ -88,10 +88,6 @@ export function Chat({
     }
   }, [selectedChatModel, currentSelectedModel]);
 
-  // Read conversation_messages from window.config on client side
-  // Initialize with prop, but update from window.config after mount
-  const [effectiveInitialMessages, setEffectiveInitialMessages] = useState<Array<UIMessage>>(initialMessages);
-
   const {
     messages,
     setMessages,
@@ -104,7 +100,7 @@ export function Chat({
     reload,
   } = useChat({
     id,
-    initialMessages: effectiveInitialMessages,
+    initialMessages,
     experimental_throttle: 100,
     sendExtraMessageFields: true,
 	headers: {
@@ -129,21 +125,6 @@ export function Chat({
       });
     },
   });
-
-  // Load messages from window.config after mount
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.config?.conversation_messages) {
-      const messagesFromConfig = window.config.conversation_messages;
-      if (Array.isArray(messagesFromConfig) && messagesFromConfig.length > 0) {
-        // Update state and messages if config has messages and we don't have any yet
-        if (messages.length === 0) {
-          const configMsgs = messagesFromConfig as Array<UIMessage>;
-          setEffectiveInitialMessages(configMsgs);
-          setMessages(configMsgs);
-        }
-      }
-    }
-  }, [messages.length, setMessages]);
 
   const [attachments, setAttachments] = useState<Array<Attachment>>([]);
   const isArtifactVisible = useArtifactSelector((state) => state.isVisible);
