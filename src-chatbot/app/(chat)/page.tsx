@@ -5,6 +5,7 @@ import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { generateUUID } from '@/lib/utils';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { getConfig } from '@/lib/constants';
+import type { UIMessage } from 'ai';
 // import { auth } from '../(auth)/auth'; // auth() call disabled for static export
 // import { redirect } from 'next/navigation'; // Redirect disabled for static export
 // import type { Session } from 'next-auth'; // Removed as next-auth is uninstalled
@@ -53,7 +54,28 @@ export default async function Page() {
   const config = getConfig();
   // Ensure id is string
   const id = config.conversation_id ? String(config.conversation_id) : generateUUID();
-  const initialMessages = config.conversation_messages || [];
+  
+  // Convert messages from PHP format (with 'content') to UIMessage format (with 'parts')
+  const convertMessagesToUIMessages = (messages: Array<any>): Array<UIMessage> => {
+    return messages.map((message) => {
+      const content = message.content || '';
+      const parts = message.content
+        ? [{ type: 'text' as const, text: message.content }]
+        : message.parts || [];
+      return {
+        id: message.id,
+        role: message.role as UIMessage['role'],
+        parts,
+        content, // Still required by UIMessage type even though deprecated
+        createdAt: message.createdAt ? new Date(message.createdAt) : new Date(),
+        experimental_attachments: message.experimental_attachments || [],
+      };
+    });
+  };
+  
+  const initialMessages = config.conversation_messages
+    ? convertMessagesToUIMessages(config.conversation_messages)
+    : [];
 
   // Use pos_last_chat_model from config if available, otherwise fall back to first prompt or default
   const defaultModel = config.pos_last_chat_model && config.pos_last_chat_model.trim() !== ''

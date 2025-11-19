@@ -44,6 +44,33 @@ export function Chat({
 }) {
   const currentConfig = getConfig();
   
+  // Convert messages from PHP format (with 'content') to UIMessage format (with 'parts')
+  const convertMessagesToUIMessages = (messages: Array<any>): Array<UIMessage> => {
+    if (!messages || !Array.isArray(messages)) return [];
+    return messages.map((message) => {
+      const content = message.content || '';
+      const parts = message.content
+        ? [{ type: 'text' as const, text: message.content }]
+        : message.parts || [];
+      return {
+        id: message.id,
+        role: message.role as UIMessage['role'],
+        parts,
+        content, // Still required by UIMessage type even though deprecated
+        createdAt: message.createdAt ? new Date(message.createdAt) : new Date(),
+        experimental_attachments: message.experimental_attachments || [],
+      };
+    });
+  };
+  
+  // Use messages from config if available (client-side), otherwise use prop
+  const configMessages = currentConfig.conversation_messages
+    ? convertMessagesToUIMessages(currentConfig.conversation_messages)
+    : null;
+  const effectiveInitialMessages = configMessages && configMessages.length > 0
+    ? configMessages
+    : initialMessages;
+  
   // Use conversation_id from PHP config (generated fresh on each page load and injected into window.config)
   // This is just a constant from the page - no need to store it anywhere
   // Ensure it's a string
@@ -100,7 +127,7 @@ export function Chat({
     reload,
   } = useChat({
     id,
-    initialMessages,
+    initialMessages: effectiveInitialMessages,
     experimental_throttle: 100,
     sendExtraMessageFields: true,
 	headers: {
@@ -125,6 +152,13 @@ export function Chat({
       });
     },
   });
+
+  // Sync messages from config when they become available (client-side)
+  useEffect(() => {
+    if (configMessages && configMessages.length > 0 && messages.length === 0) {
+      setMessages(configMessages);
+    }
+  }, [configMessages, messages.length, setMessages]);
 
   const [attachments, setAttachments] = useState<Array<Attachment>>([]);
   const isArtifactVisible = useArtifactSelector((state) => state.isVisible);
