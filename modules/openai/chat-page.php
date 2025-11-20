@@ -64,19 +64,8 @@ function personalos_get_messages_from_post( $post_id ) {
 
 // This has to match the Config type in src-chatbot/lib/window.d.ts - Cursor please always check this
 function personalos_chat_config() {
-	$notes_module = POS::get_module_by_id( 'notes' );
-	$chat_prompts = $notes_module->list( array(), 'prompts-chat' );
-
-	$prompts_data = array();
-	foreach ( $chat_prompts as $prompt ) {
-		$pos_model = get_post_meta( $prompt->ID, 'pos_model', true );
-		$prompts_data[] = array(
-			'id'          => $prompt->post_name, // Use post slug as ID
-			'name'        => $prompt->post_title,
-			'description' => wp_trim_words( wp_strip_all_tags( $prompt->post_content ), 20 ),
-			'model'       => $pos_model ? $pos_model : '', // pos_model meta field
-		);
-	}
+	$openai_module = POS::get_module_by_id( 'openai' );
+	$prompts_data = array_values( $openai_module->get_chat_prompts() );
 
 	$current_user_id = get_current_user_id();
 	$last_chat_model  = get_user_meta( $current_user_id, 'pos_last_chat_model', true );

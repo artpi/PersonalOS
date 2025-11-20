@@ -1610,6 +1610,40 @@ class OpenAI_Module extends POS_Module {
 		return $generated_title;
 	}
 
+	/**
+	 * Get chat prompts as an associative array keyed by slug.
+	 *
+	 * @param array $args Optional. Arguments to pass to ->list() method. Use 'p' for post ID or 'name' for slug. Empty array returns all prompts.
+	 * @return array Associative array where keys are prompt slugs and values are arrays containing:
+	 *               - 'id': string (post slug)
+	 *               - 'post_id': int (WordPress post ID)
+	 *               - 'name': string (post title)
+	 *               - 'description': string (trimmed post content)
+	 *               - 'model': string (pos_model meta value)
+	 *               If $args filters to a single prompt, returns array with one element. Empty array if no matches.
+	 */
+	public function get_chat_prompts( array $args = array() ): array {
+		$notes_module = POS::get_module_by_id( 'notes' );
+
+		// Get prompts using ->list() with args
+		$prompts = $notes_module->list( $args, 'prompts-chat' );
+
+		// Map results to config array
+		$prompts_by_slug = array();
+		foreach ( $prompts as $prompt_post ) {
+			$pos_model = get_post_meta( $prompt_post->ID, 'pos_model', true );
+			$prompts_by_slug[ $prompt_post->post_name ] = array(
+				'id'          => $prompt_post->post_name,
+				'post_id'     => $prompt_post->ID,
+				'name'        => $prompt_post->post_title,
+				'description' => wp_trim_words( wp_strip_all_tags( $prompt_post->post_content ), 20 ),
+				'model'       => $pos_model ? $pos_model : '',
+			);
+		}
+
+		return $prompts_by_slug;
+	}
+
 	public function vercel_chat( WP_REST_Request $request ) {
 		$params = $request->get_json_params();
 
@@ -1630,7 +1664,6 @@ class OpenAI_Module extends POS_Module {
 			return new WP_Error( 'permission_denied', 'You do not have permission to access this conversation.', array( 'status' => 403 ) );
 		}
 
-
 		$user_message_content = null;
 		if ( isset( $params['message']['content'] ) ) {
 			$user_message_content = $params['message']['content'];
@@ -1649,43 +1682,43 @@ class OpenAI_Module extends POS_Module {
 		$this->log( '[vercel_chat] User message: ' . $user_message_content );
 
 		// Get prompt by slug if selectedChatModel is provided
-		$prompt = null;
+		$prompt_config = null;
 		if ( ! empty( $params['selectedChatModel'] ) ) {
 			$this->log( '[vercel_chat] Looking for prompt with slug: ' . $params['selectedChatModel'] );
-			$notes_module = POS::get_module_by_id( 'notes' );
-			$prompts = $notes_module->list( array(), 'prompts-chat' );
-			foreach ( $prompts as $prompt_post ) {
-				if ( $prompt_post->post_name === $params['selectedChatModel'] ) {
-					$prompt = $prompt_post;
-					$pos_model = get_post_meta( $prompt->ID, 'pos_model', true );
-					$this->log( '[vercel_chat] Found prompt: ' . $prompt->post_title . ' (ID: ' . $prompt->ID . ', slug: ' . $prompt->post_name . ', pos_model: ' . ( $pos_model ? $pos_model : 'none' ) . ')' );
-					break;
-				}
-			}
-			if ( ! $prompt ) {
-				$this->log( '[vercel_chat] WARNING: Prompt not found for slug: ' . $params['selectedChatModel'] );
-			} else {
+			$prompts_by_slug = $this->get_chat_prompts( array( 'name' => $params['selectedChatModel'] ) );
+			$prompt_config = ! empty( $prompts_by_slug ) ? reset( $prompts_by_slug ) : null;
+			if ( $prompt_config ) {
+				$this->log( '[vercel_chat] Found prompt: ' . $prompt_config['name'] . ' (ID: ' . $prompt_config['post_id'] . ', slug: ' . $prompt_config['id'] . ', pos_model: ' . ( $prompt_config['model'] ? $prompt_config['model'] : 'none' ) . ')' );
 				// Save prompt ID to meta if not already set or changed?
 				// Maybe we just use the one from params for this turn.
 				// But plan says "Read pos_chat_prompt_id meta".
 				// Let's check if one is stored, if not store it.
 				$stored_prompt_id = get_post_meta( $post_id, 'pos_chat_prompt_id', true );
 				if ( ! $stored_prompt_id ) {
-					update_post_meta( $post_id, 'pos_chat_prompt_id', $prompt->ID );
+					update_post_meta( $post_id, 'pos_chat_prompt_id', $prompt_config['post_id'] );
 				}
+			} else {
+				$this->log( '[vercel_chat] WARNING: Prompt not found for slug: ' . $params['selectedChatModel'] );
 			}
 		} else {
 			$this->log( '[vercel_chat] No selectedChatModel provided in params' );
 			// Try to load from meta
 			$stored_prompt_id = get_post_meta( $post_id, 'pos_chat_prompt_id', true );
 			if ( $stored_prompt_id ) {
-				$prompt = get_post( $stored_prompt_id );
+				$prompts_by_slug = $this->get_chat_prompts( array( 'p' => (int) $stored_prompt_id ) );
+				$prompt_config = ! empty( $prompts_by_slug ) ? reset( $prompts_by_slug ) : null;
 			}
+		}
+
+		// Get WP_Post object if we have a prompt config (needed for complete_responses)
+		$prompt = null;
+		if ( $prompt_config ) {
+			$prompt = get_post( $prompt_config['post_id'] );
 		}
 
 		// Get previous response ID from meta
 		$previous_response_id = get_post_meta( $post_id, 'pos_last_response_id', true );
-		
+
 		$this->log( '[vercel_chat] Previous response ID from meta: ' . ( $previous_response_id ?? 'none' ) );
 
 		// Convert user message to Responses API format
