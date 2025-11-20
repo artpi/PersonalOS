@@ -23,25 +23,6 @@ function personalos_map_notebook_to_para_item( $notebook ) {
 }
 
 /**
- * Generate a UUID v4
- *
- * @return string UUID
- */
-function personalos_generate_uuid() {
-	return sprintf(
-		'%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-		wp_rand( 0, 0xffff ),
-		wp_rand( 0, 0xffff ),
-		wp_rand( 0, 0xffff ),
-		wp_rand( 0, 0x0fff ) | 0x4000,
-		wp_rand( 0, 0x3fff ) | 0x8000,
-		wp_rand( 0, 0xffff ),
-		wp_rand( 0, 0xffff ),
-		wp_rand( 0, 0xffff )
-	);
-}
-
-/**
  * Get messages from a post and parse them into UIMessage format
  *
  * @param int $post_id The post ID to retrieve messages from.
@@ -65,9 +46,9 @@ function personalos_get_messages_from_post( $post_id ) {
 			// $content_blocks[] = get_comment_delimited_block_content( ... 'content' => $content ... )
 			// This usually implies attribute storage or innerHTML if it's a dynamic block saving.
 			// However, save_backscroll uses get_comment_delimited_block_content which suggests attributes serialization.
-			
+
 			$content = $block['attrs']['content'] ?? '';
-			$id = $block['attrs']['id'] ?? personalos_generate_uuid();
+			$id = $block['attrs']['id'] ?? 'generated_' . uniqid();
 
 			$messages[] = array(
 				'id' => $id,
@@ -103,7 +84,7 @@ function personalos_chat_config() {
 	// Handle Conversation Bootstrapping
 	$conversation_id = 0;
 	$conversation_messages = array();
-	
+
 	// Only load existing conversation if ID param is explicitly provided
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	if ( ! empty( $_GET['id'] ) ) {

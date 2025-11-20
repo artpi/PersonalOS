@@ -1400,6 +1400,14 @@ class OpenAI_Module extends POS_Module {
 			$post_title = 'Chat ' . gmdate( 'Y-m-d H:i:s' );
 		}
 
+		// Determine post ID for checking pos_last_response_id
+		$post_id_for_meta = null;
+		if ( ! empty( $search_args['ID'] ) ) {
+			$post_id_for_meta = $search_args['ID'];
+		} elseif ( ! empty( $existing_posts ) ) {
+			$post_id_for_meta = $existing_posts[0]->ID;
+		}
+
 		// Create content from backscroll messages
 		$content_blocks = array();
 		foreach ( $backscroll as $message ) {
@@ -1448,13 +1456,29 @@ class OpenAI_Module extends POS_Module {
 
 			// Only save user and assistant messages, not tool/function calls
 			if ( in_array( $role, array( 'user', 'assistant' ), true ) ) {
+				// Generate message ID: use provided ID, or pos_last_response_id for assistant messages, or fallback to uniqid
+				$message_id = $message['id'] ?? null;
+				if ( ! $message_id ) {
+					// For assistant messages, try to use pos_last_response_id if available
+					if ( 'assistant' === $role && $post_id_for_meta ) {
+						$response_id = get_post_meta( $post_id_for_meta, 'pos_last_response_id', true );
+						if ( $response_id ) {
+							$message_id = $response_id;
+						}
+					}
+					// Fallback to uniqid with generated_ prefix
+					if ( ! $message_id ) {
+						$message_id = 'generated_' . uniqid();
+					}
+				}
+
 				// Create message block
 				$content_blocks[] = get_comment_delimited_block_content(
 					'pos/ai-message',
 					array(
 						'role'    => $role,
 						'content' => $content,
-						'id'      => $message['id'] ?? personalos_generate_uuid(),
+						'id'      => $message_id,
 					),
 					''
 				);
@@ -1720,8 +1744,8 @@ class OpenAI_Module extends POS_Module {
 						}
 						// Save Assistant Message
 						$assistant_msg = array(
-							'role' => 'assistant',
-							'content' => $full_text
+							'role'    => 'assistant',
+							'content' => $full_text,
 						);
 						$module_instance->save_backscroll( array( $assistant_msg ), array( 'ID' => $conversation_id ), true );
 					}
