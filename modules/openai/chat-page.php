@@ -96,7 +96,7 @@ function personalos_chat_config() {
 		$requested_id = intval( $_GET['id'] );
 		$post = get_post( $requested_id );
 
-		if ( $post && ( intval( $post->post_author ) === $current_user_id || current_user_can( 'manage_options' ) ) && 'notes' === $post->post_type ) {
+		if ( $post && current_user_can( 'edit_post', $post->ID ) && 'notes' === $post->post_type ) {
 			$conversation_id = $requested_id;
 			$conversation_messages = personalos_get_messages_from_post( $conversation_id );
 		}
