@@ -202,7 +202,7 @@ class POS_Module {
 			E_USER_ERROR   => 'ERROR',
 		);
 
-		if ( in_array( $level, $map, true ) ) {
+		if ( array_key_exists( $level, $map ) ) {
 			$level = $map[ $level ];
 		} elseif ( ! is_string( $level ) ) {
 			$level = 'DEBUG';

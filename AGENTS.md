@@ -7,6 +7,15 @@ This is a WordPress plugin serving as Personal Operating System with todos, note
 - .cursor/rules/wordpress-coding-standards/wordpress-coding-standards-php.mdc to learn about standards for php
 - .cursor/rules/wordpress-coding-standards/wordpress-coding-standards-javascript.mdc to learn about standards for js.
 
+## Module Technical Documentation
+
+Modules can have TECHNICAL.md files that document their technical implementation details, architecture, and design decisions. These files are valuable for understanding how specific modules work.
+
+### Current TECHNICAL.md files
+
+- `modules/imap/TECHNICAL.md` - Technical documentation for the IMAP module
+- `modules/openai/TECHNICAL.md` - Technical documentation for the OpenAI module
+
 ## Coding
 
 Assume environment is set up.
