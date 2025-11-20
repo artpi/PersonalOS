@@ -66,7 +66,7 @@ function personalos_get_messages_from_post( $post_id ) {
 function personalos_chat_config() {
 	$notes_module = POS::get_module_by_id( 'notes' );
 	$chat_prompts = $notes_module->list( array(), 'prompts-chat' );
-	
+
 	$prompts_data = array();
 	foreach ( $chat_prompts as $prompt ) {
 		$pos_model = get_post_meta( $prompt->ID, 'pos_model', true );
@@ -77,9 +77,13 @@ function personalos_chat_config() {
 			'model'       => $pos_model ? $pos_model : '', // pos_model meta field
 		);
 	}
-	
+
 	$current_user_id = get_current_user_id();
 	$last_chat_model  = get_user_meta( $current_user_id, 'pos_last_chat_model', true );
+
+	// Get the 'ai-chats' notebook term ID
+	$ai_chats_notebook = get_term_by( 'slug', 'ai-chats', 'notebook' );
+	$ai_chats_notebook_id = $ai_chats_notebook ? $ai_chats_notebook->term_id : 0;
 
 	// Handle Conversation Bootstrapping
 	$conversation_id = 0;
@@ -91,7 +95,7 @@ function personalos_chat_config() {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$requested_id = intval( $_GET['id'] );
 		$post = get_post( $requested_id );
-		
+
 		if ( $post && ( intval( $post->post_author ) === $current_user_id || current_user_can( 'manage_options' ) ) && 'notes' === $post->post_type ) {
 			$conversation_id = $requested_id;
 			$conversation_messages = personalos_get_messages_from_post( $conversation_id );
@@ -123,6 +127,7 @@ function personalos_chat_config() {
 		'nonce'                 => wp_create_nonce( 'wp_rest' ),
 		'conversation_id'       => $conversation_id,
 		'conversation_messages' => $conversation_messages,
+		'ai_chats_notebook_id'  => $ai_chats_notebook_id,
 		'projects'              => array_map(
 			'personalos_map_notebook_to_para_item',
 			POS::get_module_by_id( 'notes' )->get_notebooks_by_flag( 'project' )

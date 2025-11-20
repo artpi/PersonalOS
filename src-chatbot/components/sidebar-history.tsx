@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   SidebarGroup,
@@ -21,49 +21,90 @@ interface Chat {
 }
 
 export function SidebarHistory({ user }: { user: MockSessionUser | undefined }) {
-  const { setOpenMobile } = useSidebar();
+  const { setOpenMobile, open, openMobile } = useSidebar();
   const searchParams = useSearchParams();
   const currentChatId = searchParams?.get('id');
   const [conversations, setConversations] = useState<Chat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const prevOpenRef = useRef(false);
+  const prevOpenMobileRef = useRef(false);
 
-  useEffect(() => {
+  const fetchConversations = useCallback(async () => {
     if (!user) {
       setIsLoading(false);
       return;
     }
 
-    const fetchConversations = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const config = getConfig();
-        const response = await fetch(
-          `${config.rest_api_url}pos/v1/openai/conversations`,
-          {
-            headers: {
-              'X-WP-Nonce': config.nonce,
-            },
-          }
-        );
+    try {
+      setIsLoading(true);
+      setError(null);
+      const config = getConfig();
+      
+      // Use the hardcoded 'ai-chats' notebook term ID from config
+      const aiChatsNotebookId = config.ai_chats_notebook_id;
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch conversations: ${response.status}`);
-        }
-
-        const data = await response.json();
-        setConversations(data);
-      } catch (err) {
-        console.error('Error fetching conversations:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load conversations');
-      } finally {
-        setIsLoading(false);
+      if (!aiChatsNotebookId) {
+        // If notebook doesn't exist, return empty array
+        setConversations([]);
+        return;
       }
-    };
 
-    fetchConversations();
+      // Fetch notes filtered by the notebook term ID
+      const notesResponse = await fetch(
+        `${config.rest_api_url}pos/v1/notes?notebook=${aiChatsNotebookId}&per_page=50&orderby=date&order=desc&status=private,publish`,
+        {
+          headers: {
+            'X-WP-Nonce': config.nonce,
+          },
+        }
+      );
+
+      if (!notesResponse.ok) {
+        throw new Error(`Failed to fetch notes: ${notesResponse.status}`);
+      }
+
+      const notes = await notesResponse.json();
+      
+      // Transform notes to match Chat interface
+      const formattedConversations: Chat[] = notes.map((note: {
+        id: number;
+        title: { rendered: string };
+        date: string;
+      }) => ({
+        id: String(note.id),
+        title: note.title?.rendered || 'Untitled Chat',
+        visibility: 'private' as const,
+        createdAt: note.date,
+      }));
+
+      setConversations(formattedConversations);
+    } catch (err) {
+      console.error('Error fetching conversations:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load conversations');
+    } finally {
+      setIsLoading(false);
+    }
   }, [user]);
+
+  // Fetch conversations on mount and when user changes
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
+
+  // Refresh conversations when sidebar opens (desktop or mobile)
+  // Only refresh when transitioning from closed to open
+  useEffect(() => {
+    const wasClosed = !prevOpenRef.current && !prevOpenMobileRef.current;
+    const isNowOpen = open || openMobile;
+    
+    if (wasClosed && isNowOpen) {
+      fetchConversations();
+    }
+    
+    prevOpenRef.current = open;
+    prevOpenMobileRef.current = openMobile;
+  }, [open, openMobile, fetchConversations]);
 
   if (!user) {
     return (
