@@ -116,7 +116,7 @@ function personalos_chat_config() {
 			$conversation_messages = personalos_get_messages_from_post( $conversation_id );
 		}
 	}
-	
+
 	// Always create new conversation if no valid ID was provided
 	// This ensures each page load creates a fresh conversation post
 	if ( empty( $conversation_id ) ) {
@@ -134,7 +134,7 @@ function personalos_chat_config() {
 			$conversation_id = 0; // Fallback
 		}
 	}
-	
+
 	return array(
 		'rest_api_url'          => rest_url( '/' ),
 		'wp_admin_url'          => admin_url(),

@@ -160,6 +160,36 @@ export function Chat({
     }
   }, [configMessages, messages.length, setMessages]);
 
+  // Add post ID to URL when first message is detected
+  const hasAddedIdToUrl = useRef(false);
+  useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+    
+    // Skip if we've already added the ID to the URL
+    if (hasAddedIdToUrl.current) return;
+    
+    // Skip if there are no messages yet (waiting for first message)
+    if (messages.length === 0) return;
+    
+    // Skip if ID is not a valid number (should be a post ID)
+    const postId = parseInt(id, 10);
+    if (isNaN(postId) || postId === 0) return;
+    
+    // Check if URL already has an id parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('id')) {
+      hasAddedIdToUrl.current = true;
+      return;
+    }
+    
+    // Add id parameter to URL without reloading
+    urlParams.set('id', String(postId));
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}${window.location.hash}`;
+    window.history.replaceState({}, '', newUrl);
+    hasAddedIdToUrl.current = true;
+  }, [id, messages.length]);
+
   const [attachments, setAttachments] = useState<Array<Attachment>>([]);
   const isArtifactVisible = useArtifactSelector((state) => state.isVisible);
 

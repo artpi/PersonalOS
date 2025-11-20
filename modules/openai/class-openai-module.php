@@ -1418,7 +1418,7 @@ class OpenAI_Module extends POS_Module {
 			// mapped to 'function_call_output' type in response output.
 			// However, the callback constructs $res with 'type' => 'function_call_output'
 			// We need to map this to a 'tool' or 'assistant' role block.
-			
+
 			if ( isset( $message['type'] ) && 'function_call_output' === $message['type'] ) {
 				$role = 'tool'; // Or 'function'
 				$content = is_string( $message['output'] ) ? $message['output'] : wp_json_encode( $message['output'] );
@@ -1611,9 +1611,10 @@ class OpenAI_Module extends POS_Module {
 			return new WP_Error( 'not_found', 'Conversation not found.', array( 'status' => 404 ) );
 		}
 
-		if ( (int) $post->post_author !== get_current_user_id() && ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( 'read_post', $post_id ) ) {
 			return new WP_Error( 'permission_denied', 'You do not have permission to access this conversation.', array( 'status' => 403 ) );
 		}
+
 
 		$user_message_content = null;
 		if ( isset( $params['message']['content'] ) ) {
@@ -1695,13 +1696,13 @@ class OpenAI_Module extends POS_Module {
 		require_once __DIR__ . '/class.vercel-ai-sdk.php';
 		$vercel_sdk = new Vercel_AI_SDK();
 		Vercel_AI_SDK::sendHttpStreamHeaders();
-		$vercel_sdk->startStep( $params['id'] );
+		$vercel_sdk->startStep( $post_id );
 
 		$this->log( '[vercel_chat] Started Vercel SDK step' );
 
 		$conversation_id = $post_id; // Use the Post ID
 		$module_instance = $this;
-		
+
 		$response = $this->complete_responses(
 			$messages,
 			function( $type, $data ) use ( $vercel_sdk, $conversation_id, $module_instance ) {
@@ -1730,7 +1731,7 @@ class OpenAI_Module extends POS_Module {
 						$call_id = $data['call_id'] ?? null;
 						$module_instance->log( '[vercel_chat] Sending tool result for call_id: ' . $call_id );
 						$vercel_sdk->sendToolResult( $call_id, $data['output'] );
-						
+
 						// Don't save tool results to conversation history
 
 					} else {
