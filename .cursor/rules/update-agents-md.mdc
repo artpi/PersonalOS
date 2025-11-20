@@ -1,0 +1,22 @@
+---
+description: Rule for updating AGENTS.md when new TECHNICAL.md files are created in modules
+globs: modules/**/TECHNICAL.md
+alwaysApply: false
+---
+# Updating AGENTS.md for TECHNICAL.md files
+
+Whenever a new TECHNICAL.md file is created in any module directory, you MUST:
+
+1. Update `AGENTS.md` to include the new TECHNICAL.md file in the "Current TECHNICAL.md files" section
+2. List the file using the format: `- \`modules/[module-name]/TECHNICAL.md\` - Brief description of what the module does`
+
+
+## Example
+
+If you create `modules/newmodule/TECHNICAL.md`, add this line to AGENTS.md:
+
+```
+- `modules/newmodule/TECHNICAL.md` - Technical documentation for the NewModule module
+```
+
+This ensures that all technical documentation is discoverable and documented in the main AGENTS.md file.
