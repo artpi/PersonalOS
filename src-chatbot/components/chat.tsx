@@ -2,7 +2,7 @@
 
 import type { Attachment, UIMessage } from 'ai';
 import { useChat } from '@ai-sdk/react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChatHeader } from '@/components/chat-header';
 import { generateUUID } from '@/lib/utils';
 import { Artifact } from './artifact';
@@ -28,7 +28,7 @@ interface MockSession {
 }
 
 export function Chat({
-  id,
+  id: initialId,
   initialMessages,
   selectedChatModel,
   selectedVisibilityType,
@@ -43,6 +43,77 @@ export function Chat({
   session: MockSession; // Changed from Session to MockSession
 }) {
   const currentConfig = getConfig();
+  
+  // Convert messages from PHP format (with 'content') to UIMessage format (with 'parts')
+  const convertMessagesToUIMessages = (messages: Array<any>): Array<UIMessage> => {
+    if (!messages || !Array.isArray(messages)) return [];
+    return messages.map((message) => {
+      const content = message.content || '';
+      const parts = message.content
+        ? [{ type: 'text' as const, text: message.content }]
+        : message.parts || [];
+      return {
+        id: message.id,
+        role: message.role as UIMessage['role'],
+        parts,
+        content, // Still required by UIMessage type even though deprecated
+        createdAt: message.createdAt ? new Date(message.createdAt) : new Date(),
+        experimental_attachments: message.experimental_attachments || [],
+      };
+    });
+  };
+  
+  // Use messages from config if available (client-side), otherwise use prop
+  const configMessages = currentConfig.conversation_messages
+    ? convertMessagesToUIMessages(currentConfig.conversation_messages)
+    : null;
+  const effectiveInitialMessages = configMessages && configMessages.length > 0
+    ? configMessages
+    : initialMessages;
+  
+  // Use conversation_id from PHP config (generated fresh on each page load and injected into window.config)
+  // This is just a constant from the page - no need to store it anywhere
+  // Ensure it's a string
+  const id = currentConfig.conversation_id ? String(currentConfig.conversation_id) : initialId;
+
+  // Manage selected model state so it can be updated by ModelSelector
+  // Initialize from config if available (client-side), otherwise use prop
+  const [currentSelectedModel, setCurrentSelectedModel] = useState(() => {
+    // On client side, check window.config for pos_last_chat_model
+    if (typeof window !== 'undefined' && window.config?.pos_last_chat_model) {
+      const configModel = window.config.pos_last_chat_model.trim();
+      if (configModel !== '') {
+        return configModel;
+      }
+    }
+    return selectedChatModel;
+  });
+
+  // Use ref to track previous values to prevent loops
+  const prevSelectedChatModelRef = useRef(selectedChatModel);
+  const prevConfigModelRef = useRef<string | null>(null);
+
+  // Sync state when prop changes or when config becomes available
+  useEffect(() => {
+    // Check if config has a saved model that's different from current
+    if (typeof window !== 'undefined' && window.config?.pos_last_chat_model) {
+      const configModel = window.config.pos_last_chat_model.trim();
+      if (configModel !== '' && configModel !== prevConfigModelRef.current) {
+        prevConfigModelRef.current = configModel;
+        if (configModel !== currentSelectedModel) {
+          setCurrentSelectedModel(configModel);
+          return;
+        }
+      }
+    }
+    // Otherwise sync with prop only if it changed
+    if (selectedChatModel !== prevSelectedChatModelRef.current) {
+      prevSelectedChatModelRef.current = selectedChatModel;
+      if (selectedChatModel !== currentSelectedModel) {
+        setCurrentSelectedModel(selectedChatModel);
+      }
+    }
+  }, [selectedChatModel, currentSelectedModel]);
 
   const {
     messages,
@@ -56,7 +127,7 @@ export function Chat({
     reload,
   } = useChat({
     id,
-    initialMessages,
+    initialMessages: effectiveInitialMessages,
     experimental_throttle: 100,
     sendExtraMessageFields: true,
 	headers: {
@@ -71,7 +142,7 @@ export function Chat({
 		return ({
 		id,
 		message: body.messages.at(-1),
-        selectedChatModel,
+        selectedChatModel: currentSelectedModel,
       });
     },
     onError: (error) => {
@@ -82,6 +153,43 @@ export function Chat({
     },
   });
 
+  // Sync messages from config when they become available (client-side)
+  useEffect(() => {
+    if (configMessages && configMessages.length > 0 && messages.length === 0) {
+      setMessages(configMessages);
+    }
+  }, [configMessages, messages.length, setMessages]);
+
+  // Add post ID to URL when first message is detected
+  const hasAddedIdToUrl = useRef(false);
+  useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+    
+    // Skip if we've already added the ID to the URL
+    if (hasAddedIdToUrl.current) return;
+    
+    // Skip if there are no messages yet (waiting for first message)
+    if (messages.length === 0) return;
+    
+    // Skip if ID is not a valid number (should be a post ID)
+    const postId = parseInt(id, 10);
+    if (isNaN(postId) || postId === 0) return;
+    
+    // Check if URL already has an id parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('id')) {
+      hasAddedIdToUrl.current = true;
+      return;
+    }
+    
+    // Add id parameter to URL without reloading
+    urlParams.set('id', String(postId));
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}${window.location.hash}`;
+    window.history.replaceState({}, '', newUrl);
+    hasAddedIdToUrl.current = true;
+  }, [id, messages.length]);
+
   const [attachments, setAttachments] = useState<Array<Attachment>>([]);
   const isArtifactVisible = useArtifactSelector((state) => state.isVisible);
 
@@ -90,7 +198,8 @@ export function Chat({
       <div className="flex flex-col min-w-0 h-dvh bg-background">
         <ChatHeader
           chatId={id}
-          selectedModelId={selectedChatModel}
+          selectedModelId={currentSelectedModel}
+          onModelChange={setCurrentSelectedModel}
           selectedVisibilityType={selectedVisibilityType}
           isReadonly={isReadonly}
           session={session}

@@ -150,8 +150,10 @@ export function AppSidebar({ user }: { user: MockSessionUser | undefined }) { //
                   className="p-2 h-fit"
                   onClick={() => {
                     setOpenMobile(false);
-                    router.push('/');
-                    router.refresh();
+                    // Navigate to admin.php?page=personalos-chatbot without id parameter
+                    if (typeof window !== 'undefined') {
+                      window.location.href = 'admin.php?page=personalos-chatbot';
+                    }
                   }}
                 >
                   <PlusIcon />

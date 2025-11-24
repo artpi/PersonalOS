@@ -44,12 +44,26 @@ class OpenAI_Module extends POS_Module {
 		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
 		$this->register_cli_command( 'tool', 'cli_openai_tool' );
 
+		$this->register_cli_command( 'responses', 'cli_openai_responses' );
+		$this->register_cli_command( 'system-prompt', 'cli_openai_system_prompt' );
 		$this->register_block( 'tool', array( 'render_callback' => array( $this, 'render_tool_block' ) ) );
 		$this->register_block( 'message', array() );
 
 		require_once __DIR__ . '/chat-page.php';
 
 		$this->email_responder = new OpenAI_Email_Responder( $this );
+
+		// Register user meta for REST API access.
+		register_meta(
+			'user',
+			'pos_last_chat_model',
+			array(
+				'type'         => 'string',
+				'description'  => 'Stores the last chat model used by the user.',
+				'single'       => true,
+				'show_in_rest' => true,
+			)
+		);
 	}
 
 	public function render_tool_block( $attributes ) {
@@ -98,6 +112,212 @@ class OpenAI_Module extends POS_Module {
 			WP_CLI::error( 'Tool not found' );
 		}
 		WP_CLI::log( print_r( $tool->invoke( ! empty( $args[1] ) ? json_decode( $args[1], true ) : array() ), true ) );
+	}
+
+	/**
+	 * Test OpenAI responses API using WP-CLI.
+	 *
+	 * Allows sending a messages payload to the new responses endpoint and outputs
+	 * streamed events and the final message list for inspection.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [<messages>]
+	 * : JSON encoded array of messages to send. If omitted, a sample prompt is used.
+	 *
+	 * [--file=<path>]
+	 * : Path to a JSON file containing the messages payload.
+	 *
+	 * [--messages=<json>]
+	 * : Alternative way to provide JSON messages payload.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp pos openai responses
+	 *     wp pos openai responses '[{"role":"user","content":[{"type":"input_text","text":"Hello!"}]}]'
+	 *     wp pos openai responses --file=messages.json
+	 *
+	 * @param array $args       Positional CLI arguments.
+	 * @param array $assoc_args Associative CLI arguments.
+	 *
+	 * @return void
+	 */
+	public function cli_openai_responses( array $args, array $assoc_args = array() ): void {
+		$messages_payload = '';
+
+		if ( ! empty( $assoc_args['file'] ) ) {
+			$file_path = $assoc_args['file'];
+			if ( ! file_exists( $file_path ) ) {
+				WP_CLI::error(
+					sprintf(
+						'File not found: %s',
+						$file_path
+					)
+				);
+			}
+			$messages_payload = file_get_contents( $file_path );
+			if ( false === $messages_payload ) {
+				WP_CLI::error(
+					sprintf(
+						'Unable to read file: %s',
+						$file_path
+					)
+				);
+			}
+		} elseif ( ! empty( $assoc_args['messages'] ) ) {
+			$messages_payload = (string) $assoc_args['messages'];
+		} elseif ( ! empty( $args[0] ) ) {
+			$messages_payload = (string) $args[0];
+		}
+
+		if ( '' !== $messages_payload ) {
+			$messages = json_decode( $messages_payload, true );
+			if ( null === $messages && JSON_ERROR_NONE !== json_last_error() ) {
+				WP_CLI::error(
+					sprintf(
+						'Invalid JSON provided. Error: %s',
+						json_last_error_msg()
+					)
+				);
+			}
+			if ( ! is_array( $messages ) ) {
+				WP_CLI::error( 'Messages payload must decode to an array.' );
+			}
+		} else {
+			$messages = array(
+				array(
+					'role'    => 'user',
+					'content' => array(
+						array(
+							'type' => 'input_text',
+							'text' => 'Introduce yourself and summarise the PersonalOS plugin.',
+						),
+					),
+				),
+			);
+			WP_CLI::log( 'No messages provided, using default sample prompt.' );
+		}
+
+		$result = $this->complete_responses(
+			$messages,
+			function ( string $event_type, $event ) {
+				switch ( $event_type ) {
+					case 'tool_call':
+						$tool_name = 'unknown';
+						if ( isset( $event->name ) ) {
+							$tool_name = $event->name;
+						} elseif ( isset( $event->function->name ) ) {
+							$tool_name = $event->function->name;
+						}
+						WP_CLI::log(
+							sprintf(
+								'Tool call requested: %s',
+								$tool_name
+							)
+						);
+						break;
+					case 'tool_result':
+						WP_CLI::log(
+							sprintf(
+								'Tool result (%s): %s',
+								isset( $event['name'] ) ? $event['name'] : 'unknown',
+								isset( $event['content'] ) && is_string( $event['content'] ) ? $event['content'] : wp_json_encode( $event, JSON_PRETTY_PRINT )
+							)
+						);
+						break;
+					case 'message':
+						$content = array();
+						if ( isset( $event->content ) && is_array( $event->content ) ) {
+							foreach ( $event->content as $chunk ) {
+								if ( isset( $chunk->text ) ) {
+									$content[] = $chunk->text;
+								}
+							}
+						}
+						if ( ! empty( $content ) ) {
+							WP_CLI::log(
+								sprintf(
+									'[assistant] %s',
+									implode( "\n", $content )
+								)
+							);
+						}
+						break;
+					default:
+						WP_CLI::log(
+							sprintf(
+								'Unhandled event (%s): %s',
+								$event_type,
+								wp_json_encode( $event, JSON_PRETTY_PRINT )
+							)
+						);
+						break;
+				}
+			}
+		);
+
+		if ( is_wp_error( $result ) ) {
+			$error_data = $result->get_error_data();
+			if ( ! empty( $error_data ) && is_array( $error_data ) && isset( $error_data[0] ) ) {
+				WP_CLI::log( 'Raw API response:' );
+				WP_CLI::log( wp_json_encode( $error_data[0], JSON_PRETTY_PRINT ) );
+			}
+			WP_CLI::error( $result->get_error_message() );
+		}
+
+		WP_CLI::log(
+			wp_json_encode(
+				$result,
+				JSON_PRETTY_PRINT
+			)
+		);
+
+		WP_CLI::success( 'Responses API call completed.' );
+	}
+
+	/**
+	 * Output the system prompt used for OpenAI API calls.
+	 *
+	 * Allows viewing the system prompt that will be used for OpenAI API calls.
+	 * Optionally accepts a post ID to use a specific prompt post's content.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [<post_id>]
+	 * : Post ID of a prompt post to use. If provided, the post content will be
+	 *   converted to markdown and used as the system prompt.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp pos openai system-prompt
+	 *     wp pos openai system-prompt 123
+	 *
+	 * @param array $args       Positional CLI arguments.
+	 * @param array $assoc_args Associative CLI arguments.
+	 *
+	 * @return void
+	 */
+	public function cli_openai_system_prompt( array $args = array(), array $assoc_args = array() ): void {
+		$params = array();
+
+		if ( ! empty( $args[0] ) ) {
+			$post_id = intval( $args[0] );
+			$post = get_post( $post_id );
+			if ( ! $post ) {
+				WP_CLI::error(
+					sprintf(
+						'Post not found: %d',
+						$post_id
+					)
+				);
+			}
+			$params = $post;
+		}
+
+		$system_prompt = $this->create_system_prompt( $params );
+
+		WP_CLI::log( $system_prompt );
+		WP_CLI::success( 'System prompt output completed.' );
 	}
 
 	public function admin_menu() {
@@ -305,6 +525,7 @@ class OpenAI_Module extends POS_Module {
 			}
 			.message.tool:hover pre {
 				display: block;
+				border-bottom: 1px dashed #ccc;
 			}
 
 			#input-container {
@@ -554,6 +775,15 @@ class OpenAI_Module extends POS_Module {
 				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
+		register_rest_route(
+			$this->rest_namespace,
+			'/openai/responses',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'responses_api' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
 	}
 	public function check_permission() {
 		return current_user_can( 'manage_options' );
@@ -591,6 +821,7 @@ class OpenAI_Module extends POS_Module {
 	}
 
 	public function system_prompt_defaults() {
+		// TODO: get these defaults from the `prompt-default` note.
 		$note_module = POS::get_module_by_id( 'notes' );
 		return array(
 			'me'        => array(
@@ -608,6 +839,7 @@ class OpenAI_Module extends POS_Module {
 				NEVER read the URLs (http://, https://, evernote://, etc) out loud in voice mode.
 				When answering a question about my todos or notes, stick only to the information from the tools. DO NOT make up information.
 			EOF,
+			// TODO: Unify this with the block rendering this in the notes module so it can be embedded in the system prompt note. Probably have to unify with the abilities_Api first.
 			'notebooks' => array(
 				'description' => 'My work is organized in "notebooks". They represent areas of my life, active projects and statuses of tasks.',
 				'notebooks'   => array_map(
@@ -649,6 +881,7 @@ class OpenAI_Module extends POS_Module {
 					)
 				),
 			),
+			// TODO: Create a tool / ability for this and embed in the editable prompt note.
 			'memories'  => array(
 				'description' => 'You have previously stored some information in the AI Memory using the "ai_memory" tool.',
 				'memories'    => array_map(
@@ -807,6 +1040,260 @@ class OpenAI_Module extends POS_Module {
 		return $this->complete_backscroll( $backscroll );
 	}
 
+	public function responses_api( WP_REST_Request $request ) {
+		$params = $request->get_json_params();
+		$messages = $params['messages'] ?? array();
+		return $this->complete_responses( $messages );
+	}
+
+	public function complete_responses( array $messages, callable $callback = null, ?string $previous_response_id = null, ?\WP_Post $prompt = null, ?array $persistence = null ) {
+		$should_persist = is_array( $persistence );
+		$persist_append = $should_persist ? (bool) ( $persistence['append'] ?? true ) : true;
+		$persist_search_args = $should_persist ? (array) ( $persistence['search_args'] ?? array() ) : array();
+		$persist_post_id = $should_persist && isset( $persist_search_args['ID'] ) ? (int) $persist_search_args['ID'] : null;
+
+		// Persist initial user messages if persistence is enabled
+		if ( $should_persist ) {
+			$result = $this->save_backscroll( $messages, $persist_search_args, $persist_append );
+			if ( ! is_wp_error( $result ) ) {
+				$persist_post_id = $result;
+				$persist_search_args['ID'] = $persist_post_id;
+				$persist_append = true; // After initial write, always append subsequent messages
+			} else {
+				$this->log( '[complete_responses] Failed to save backscroll: ' . $result->get_error_message(), 'ERROR' );
+			}
+		}
+
+		// Filter out perplexity_search when using Responses API since we have built-in web_search
+		$tools = array_filter(
+			OpenAI_Tool::get_tools(),
+			function ( $tool ) {
+				return $tool->name !== 'perplexity_search';
+			}
+		);
+		$tool_definitions = array_map(
+			function ( $tool ) {
+				return $tool->get_function_signature_for_realtime_api();
+			},
+			array_values( $tools ),
+		);
+		// Add built-in web search tool
+		$tool_definitions[] = array(
+			'type' => 'web_search',
+		);
+
+		// Get model from prompt meta if available, otherwise use default
+		$model = 'gpt-4o';
+		if ( $prompt ) {
+			$pos_model = get_post_meta( $prompt->ID, 'pos_model', true );
+			if ( $pos_model ) {
+				$model = $pos_model;
+			}
+			$this->log( '[complete_responses] Using prompt: ' . $prompt->post_title . ' (ID: ' . $prompt->ID . ') with model: ' . $model );
+		} else {
+			$this->log( '[complete_responses] No prompt provided, using default model: ' . $model );
+		}
+
+		$max_loops = 10;
+		$full_messages = $messages; // Keep full history for return value
+		$should_store_remote = $should_persist || ! empty( $previous_response_id );
+		do {
+			--$max_loops;
+			$has_function_calls = false;
+
+			// Build the API request payload
+			$request_data = array(
+				'model'        => $model,
+				'instructions' => $this->create_system_prompt( $prompt ),
+				'tools'        => $tool_definitions,
+				'store'        => $should_store_remote,
+			);
+
+			// Use previous_response_id if available, otherwise use input
+			if ( $previous_response_id ) {
+				$request_data['previous_response_id'] = $previous_response_id;
+				// Add tool results as new input items (only tool results, not full history)
+				if ( ! empty( $messages ) ) {
+					$request_data['input'] = $messages;
+				}
+			} else {
+				$request_data['input'] = $messages;
+			}
+
+			$response = $this->api_call(
+				'https://api.openai.com/v1/responses',
+				$request_data
+			);
+
+			if ( is_wp_error( $response ) ) {
+				return $response;
+			}
+
+			if ( isset( $response->error ) ) {
+				return new WP_Error( $response->error->code ?? 'openai-error', $response->error->message ?? 'OpenAI API error' );
+			}
+
+			if ( isset( $response->message, $response->code ) ) {
+				return new WP_Error( $response->code, $response->message );
+			}
+
+			if ( ! isset( $response->status ) ) {
+				return new WP_Error( 'no-status', 'No status in response', array( $response, $messages ) );
+			}
+
+			// Capture the response ID for use in subsequent calls
+			if ( isset( $response->id ) ) {
+				$previous_response_id = $response->id;
+				if ( $should_persist && $persist_post_id ) {
+					update_post_meta( $persist_post_id, 'pos_last_response_id', $response->id );
+				}
+				if ( $callback ) {
+					$callback( 'response_id', $response->id );
+				}
+			}
+
+			// Handle function calls from output array (Responses API format)
+			$tool_results = array();
+			$has_builtin_tool_calls = false;
+
+			// If status is in_progress, continue polling (especially for built-in tools like web_search)
+			if ( isset( $response->status ) && $response->status === 'in_progress' ) {
+				// Continue the loop to poll for results
+				$has_builtin_tool_calls = true;
+				continue;
+			}
+			if ( ! empty( $response->output ) ) {
+				foreach ( $response->output as $output_item ) {
+					// Handle function calls
+					if ( isset( $output_item->type ) && $output_item->type === 'function_call' ) {
+						$has_function_calls = true;
+						if ( $callback ) {
+							$callback( 'tool_call', $output_item );
+						}
+
+						// Built-in tools like web_search are handled by OpenAI automatically
+						// Check if this is a built-in tool that doesn't need local execution
+						$is_builtin_tool = isset( $output_item->name ) && in_array( $output_item->name, array( 'web_search' ), true );
+
+						if ( $is_builtin_tool ) {
+							// Built-in tools are executed by OpenAI automatically
+							// We need to continue the loop to get the results, but don't submit tool results
+							$has_builtin_tool_calls = true;
+							continue;
+						}
+
+						$arguments = json_decode( $output_item->arguments ?? '{}', true );
+						$tool      = array_filter(
+							$tools,
+							function ( $tool ) use ( $output_item ) {
+								return $tool->name === $output_item->name;
+							}
+						);
+						$tool      = reset( $tool );
+						if ( ! $tool ) {
+							return new WP_Error( 'tool-not-found', 'Tool not found ' . $output_item->name );
+						}
+
+						try {
+							$result = $tool->invoke( $arguments );
+						} catch ( \Exception $e ) {
+							$this->log( 'Tool invocation error for ' . $output_item->name . ': ' . $e->getMessage() );
+							$result = new WP_Error(
+								'tool-invocation-error',
+								sprintf(
+									'Error invoking tool %s: %s',
+									$output_item->name,
+									$e->getMessage()
+								)
+							);
+						}
+
+						if ( is_wp_error( $result ) ) {
+							// Convert WP_Error to a string result so the conversation can continue
+							$result = sprintf(
+								'Error: %s',
+								$result->get_error_message()
+							);
+						}
+						if ( ! is_string( $result ) ) {
+							$result = wp_json_encode( $result, JSON_PRETTY_PRINT );
+						}
+						// Format tool result for Responses API
+						// When using previous_response_id, tool results must be formatted as function_call_output
+						// with the call_id matching the function call from the previous response
+						$res = array(
+							'type'    => 'function_call_output',
+							'call_id' => $output_item->call_id ?? null,
+							'output'  => $result,
+						);
+						if ( $callback ) {
+							$callback( 'tool_result', $res );
+						}
+						$tool_results[] = $res;
+						// Add to full history - wrap function_call_output for return value
+						$full_messages[] = array(
+							'role'    => 'assistant',
+							'content' => array( $res ),
+						);
+					} elseif ( isset( $output_item->type ) && $output_item->type === 'message' ) {
+						// Add messages to the conversation for final return
+						$full_messages[] = $output_item;
+						if ( $callback ) {
+							$callback( 'message', $output_item );
+						}
+						if ( $should_persist ) {
+							$assistant_text = '';
+							if ( isset( $output_item->content ) && is_array( $output_item->content ) ) {
+								foreach ( $output_item->content as $chunk ) {
+									if ( is_object( $chunk ) ) {
+										$chunk = (array) $chunk;
+									}
+									if ( isset( $chunk['text'] ) ) {
+										$assistant_text .= $chunk['text'];
+									}
+								}
+							} elseif ( isset( $output_item->content ) && is_string( $output_item->content ) ) {
+								$assistant_text = $output_item->content;
+							}
+
+							if ( '' !== $assistant_text ) {
+								$result = $this->save_backscroll(
+									array(
+										array(
+											'role'    => 'assistant',
+											'content' => $assistant_text,
+										),
+									),
+									$persist_search_args,
+									$persist_append
+								);
+								if ( ! is_wp_error( $result ) ) {
+									$persist_post_id = $result;
+									$persist_search_args['ID'] = $persist_post_id;
+									$persist_append = true; // After initial write, always append subsequent messages
+								} else {
+									$this->log( '[complete_responses] Failed to save backscroll: ' . $result->get_error_message(), 'ERROR' );
+								}
+							}
+						}
+					}
+				}
+			}
+
+			// For subsequent calls, only pass tool results (not full history)
+			if ( $previous_response_id && ! empty( $tool_results ) ) {
+				$messages = $tool_results;
+			} elseif ( $previous_response_id && $has_builtin_tool_calls ) {
+				// For built-in tools, don't pass any input - OpenAI handles execution automatically
+				$messages = array();
+			} elseif ( $previous_response_id ) {
+				// If no tool results but we have a previous response, use empty array
+				$messages = array();
+			}
+		} while ( ( $has_function_calls || $has_builtin_tool_calls ) && $max_loops > 0 );
+		return $full_messages;
+	}
+
 	public function complete_backscroll( array $backscroll, callable $callback = null ) {
 		$tool_definitions = array_map(
 			function ( $tool ) {
@@ -896,6 +1383,31 @@ class OpenAI_Module extends POS_Module {
 	public function api_call( $url, $data ) {
 		$api_key = $this->get_setting( 'api_key' );
 
+		// Log request details (sanitize sensitive data)
+		$log_data = $data;
+		if ( isset( $log_data['input'] ) && is_array( $log_data['input'] ) ) {
+			// Log input messages but truncate long content
+			$log_data['input'] = array_map(
+				function( $item ) {
+					if ( isset( $item['content'] ) && is_array( $item['content'] ) ) {
+						$item['content'] = array_map(
+							function( $content_item ) {
+								if ( isset( $content_item['text'] ) && strlen( $content_item['text'] ) > 200 ) {
+									$content_item['text'] = substr( $content_item['text'], 0, 200 ) . '... (truncated)';
+								}
+								return $content_item;
+							},
+							$item['content']
+						);
+					}
+					return $item;
+				},
+				$log_data['input']
+			);
+		}
+		$this->log( '[api_call] Request to: ' . $url );
+		$this->log( '[api_call] Request data: ' . wp_json_encode( $log_data ) );
+
 		$response = wp_remote_post(
 			$url,
 			array(
@@ -907,11 +1419,29 @@ class OpenAI_Module extends POS_Module {
 				'body'    => wp_json_encode( $data ),
 			)
 		);
-		$body     = wp_remote_retrieve_body( $response );
+
+		$response_code = wp_remote_retrieve_response_code( $response );
+		$this->log( '[api_call] Response code: ' . $response_code );
+
+		$body = wp_remote_retrieve_body( $response );
 		if ( is_wp_error( $response ) ) {
+			$this->log( '[api_call] WP_Error: ' . $response->get_error_message(), 'ERROR' );
 			return $response;
 		}
-		return json_decode( $body );
+
+		$decoded_body = json_decode( $body );
+		if ( $response_code >= 400 ) {
+			$this->log( '[api_call] Error response body: ' . substr( $body, 0, 500 ), 'ERROR' );
+		} else {
+			// Log a summary of successful responses (truncate if too long)
+			$response_summary = wp_json_encode( $decoded_body );
+			if ( strlen( $response_summary ) > 500 ) {
+				$response_summary = substr( $response_summary, 0, 500 ) . '... (truncated)';
+			}
+			$this->log( '[api_call] Response summary: ' . $response_summary );
+		}
+
+		return $decoded_body;
 	}
 
 	/**
@@ -919,27 +1449,71 @@ class OpenAI_Module extends POS_Module {
 	 *
 	 * @param array $backscroll Array of conversation messages
 	 * @param array $search_args Search arguments for get_posts to find existing notes, also used for new post configuration
+	 *                           - 'ID': Exact Post ID to update/use
 	 *                           - 'name': The post slug/name to search for and use when creating new posts
 	 *                           - 'post_title': Title for new posts (optional, defaults to auto-generated)
 	 *                           - 'notebook': Notebook slug to assign to new posts (optional, defaults to 'ai-chats')
 	 *                           - Any other valid get_posts() arguments for finding existing posts
+	 * @param bool $append       Whether to append the backscroll to existing content instead of overwriting
 	 * @return int|WP_Error Post ID on success, WP_Error on failure
 	 */
-	public function save_backscroll( array $backscroll, array $search_args ) {
+	public function save_backscroll( array $backscroll, array $search_args, bool $append = false ) {
 		$notes_module = POS::get_module_by_id( 'notes' );
 		if ( ! $notes_module ) {
 			return new WP_Error( 'notes_module_not_found', 'Notes module not available' );
 		}
 
+		// If explicit ID is provided, check validity and ownership
+		if ( ! empty( $search_args['ID'] ) ) {
+			$post = get_post( $search_args['ID'] );
+			if ( ! $post || 'notes' !== $post->post_type ) {
+				return new WP_Error( 'invalid_post_id', 'Invalid Post ID provided.' );
+			}
+			// Assuming permission check happens upstream or we trust internal calls
+			// But let's be safe if it's user context
+			// if ( get_current_user_id() !== (int) $post->post_author && ! current_user_can( 'manage_options' ) ) {
+			// 	return new WP_Error( 'permission_denied', 'You do not have permission to edit this conversation.' );
+			// }
+			$existing_posts = array( $post );
+		} elseif ( ! empty( $search_args['name'] ) ) {
+			// Only search for existing posts if a name/slug is provided
+			// This allows finding posts by slug when we want to update an existing conversation
+			$existing_posts = $notes_module->list( $search_args, 'ai-chats' );
+		} elseif ( ! empty( $search_args['meta_query'] ) ) {
+			$query_args = $search_args;
+			unset( $query_args['post_title'], $query_args['notebook'] );
+			$query_args = wp_parse_args(
+				$query_args,
+				array(
+					'post_type'      => $notes_module->id,
+					'post_status'    => 'any', // Match any status (private, publish, draft, etc.) in case user changed it
+					'posts_per_page' => 1,
+				)
+			);
+			$existing_posts = get_posts( $query_args );
+		} else {
+			// No ID and no name provided - always create a new post
+			// This is the case when bootstrapping a new conversation
+			$existing_posts = array();
+		}
+
 		// Generate title if not provided and OpenAI is configured
 		$post_title = $search_args['post_title'] ?? null;
-		if ( ! $post_title && $this->is_configured() ) {
+		if ( ! $post_title && empty( $existing_posts ) && ! empty( $backscroll ) && $this->is_configured() ) {
 			$post_title = $this->generate_conversation_title( $backscroll );
 		}
 
 		// Fall back to default title if generation failed or not configured
-		if ( ! $post_title ) {
+		if ( ! $post_title && empty( $existing_posts ) ) {
 			$post_title = 'Chat ' . gmdate( 'Y-m-d H:i:s' );
+		}
+
+		// Determine post ID for checking pos_last_response_id
+		$post_id_for_meta = null;
+		if ( ! empty( $search_args['ID'] ) ) {
+			$post_id_for_meta = $search_args['ID'];
+		} elseif ( ! empty( $existing_posts ) ) {
+			$post_id_for_meta = $existing_posts[0]->ID;
 		}
 
 		// Create content from backscroll messages
@@ -949,48 +1523,124 @@ class OpenAI_Module extends POS_Module {
 				$message = (array) $message;
 			}
 
-			if ( ! isset( $message['role'] ) ) {
+			// Normalize for Response API output format (e.g. function_call_output)
+			// or just standard messages
+			$role = $message['role'] ?? null;
+			$content = $message['content'] ?? '';
+
+			// Handle tool results (function_call_output) which might not have a standard 'role' field in raw API response
+			// but here we expect standardized message objects if possible.
+			// If it's a tool result from complete_responses callback, it might have a different structure
+			// mapped to 'function_call_output' type in response output.
+			// However, the callback constructs $res with 'type' => 'function_call_output'
+			// We need to map this to a 'tool' or 'assistant' role block.
+
+			if ( isset( $message['type'] ) && 'function_call_output' === $message['type'] ) {
+				$role = 'assistant';
+				$content = is_string( $message['output'] ) ? $message['output'] : wp_json_encode( $message['output'] );
+			}
+
+			// If content is array (e.g. multimodal), stringify or extract text
+			if ( is_array( $content ) ) {
+				// Try to extract text part
+				$text_parts = array();
+				foreach ( $content as $part ) {
+					if ( isset( $part['type'] ) && 'input_text' === $part['type'] ) {
+						$text_parts[] = $part['text'];
+					} elseif ( isset( $part['text'] ) ) {
+						$text_parts[] = $part['text'];
+					}
+				}
+				if ( ! empty( $text_parts ) ) {
+					$content = implode( "\n", $text_parts );
+				} else {
+					$content = wp_json_encode( $content );
+				}
+			}
+
+			if ( ! $role ) {
 				continue;
 			}
 
-			$role = $message['role'];
-			$content = $message['content'] ?? '';
-
+			// Only save user and assistant messages, not tool/function calls
 			if ( in_array( $role, array( 'user', 'assistant' ), true ) ) {
+				// Generate message ID: use provided ID, or pos_last_response_id for assistant messages, or fallback to uniqid
+				$message_id = $message['id'] ?? null;
+				if ( ! $message_id ) {
+					// For assistant messages, try to use pos_last_response_id if available
+					if ( 'assistant' === $role && $post_id_for_meta ) {
+						$response_id = get_post_meta( $post_id_for_meta, 'pos_last_response_id', true );
+						if ( $response_id ) {
+							$message_id = $response_id;
+						}
+					}
+					// Fallback to uniqid with generated_ prefix
+					if ( ! $message_id ) {
+						$message_id = 'generated_' . uniqid();
+					}
+				}
+
 				// Create message block
 				$content_blocks[] = get_comment_delimited_block_content(
 					'pos/ai-message',
 					array(
 						'role'    => $role,
 						'content' => $content,
-						'id'      => $message['id'] ?? '',
+						'id'      => $message_id,
 					),
 					''
 				);
 			}
 		}
 
-		// Use notes module's list method to find existing posts
-		$existing_posts = $notes_module->list( $search_args, 'ai-chats' );
-
 		// Prepare post data
 		$post_data = array(
-			'post_title'   => $post_title,
 			'post_type'    => $notes_module->id,
-			'post_name'    => $search_args['name'] ?? 'chat-' . gmdate( 'Y-m-d-H-i-s' ),
 			'post_status'  => 'private',
 		);
 
+		if ( ! empty( $post_title ) ) {
+			$post_data['post_title'] = $post_title;
+		}
+		if ( ! empty( $search_args['name'] ) ) {
+			$post_data['post_name'] = $search_args['name'];
+		}
+
 		// Create or update post
 		if ( ! empty( $existing_posts ) ) {
-			$post_id = wp_update_post(
-				array(
-					'ID'           => $existing_posts[0]->ID,
-					'post_content' => implode( "\n\n", $content_blocks ),
-				)
-			);
+			$post_data['ID'] = $existing_posts[0]->ID;
+			unset( $post_data['post_title'], $post_data['post_name'] );
+
+			if ( $append ) {
+				// Append new blocks to existing content
+				$current_content = $existing_posts[0]->post_content;
+				$new_content = implode( "\n\n", $content_blocks );
+				if ( ! empty( $new_content ) ) {
+					$post_data['post_content'] = $current_content . "\n\n" . $new_content;
+				}
+			} else {
+				// Overwrite content
+				$post_data['post_content'] = implode( "\n\n", $content_blocks );
+			}
+
+			// Only update if there is content to update or we are not just appending empty content
+			// But here we might want to update just to ensure touch?
+			if ( isset( $post_data['post_content'] ) || ! $append ) {
+				$post_id = wp_update_post( $post_data );
+			} else {
+				$post_id = $post_data['ID'];
+			}
 		} else {
+			// Create new
 			$post_data['post_content'] = implode( "\n\n", $content_blocks );
+			// Ensure defaults for new post
+			if ( empty( $post_data['post_title'] ) ) {
+				$post_data['post_title'] = 'Chat ' . gmdate( 'Y-m-d H:i:s' );
+			}
+			if ( empty( $post_data['post_name'] ) ) {
+				$post_data['post_name'] = 'chat-' . gmdate( 'Y-m-d-H-i-s' );
+			}
+
 			$post_id = wp_insert_post( $post_data );
 
 			// Add to specified notebook or default to OpenAI chats
@@ -1078,8 +1728,67 @@ class OpenAI_Module extends POS_Module {
 		return $generated_title;
 	}
 
+	/**
+	 * Persist a batch of conversation messages to the configured note.
+	 *
+	 * @param array $messages_to_save Messages to append/save.
+	 * @param array $persist_search_args Reference to search args passed to save_backscroll.
+	 * @param int|null $persist_post_id Reference to last persisted post ID.
+	 * @param bool $persist_append Whether subsequent writes should append.
+	 */
+	/**
+	 * Get chat prompts as an associative array keyed by slug.
+	 *
+	 * @param array $args Optional. Arguments to pass to ->list() method. Use 'p' for post ID or 'name' for slug. Empty array returns all prompts.
+	 * @return array Associative array where keys are prompt slugs and values are arrays containing:
+	 *               - 'id': string (post slug)
+	 *               - 'post_id': int (WordPress post ID)
+	 *               - 'name': string (post title)
+	 *               - 'description': string (trimmed post content)
+	 *               - 'model': string (pos_model meta value)
+	 *               If $args filters to a single prompt, returns array with one element. Empty array if no matches.
+	 */
+	public function get_chat_prompts( array $args = array() ): array {
+		$notes_module = POS::get_module_by_id( 'notes' );
+
+		// Get prompts using ->list() with args
+		$prompts = $notes_module->list( $args, 'prompts-chat' );
+
+		// Map results to config array
+		$prompts_by_slug = array();
+		foreach ( $prompts as $prompt_post ) {
+			$pos_model = get_post_meta( $prompt_post->ID, 'pos_model', true );
+			$prompts_by_slug[ $prompt_post->post_name ] = array(
+				'id'          => $prompt_post->post_name,
+				'post_id'     => $prompt_post->ID,
+				'name'        => $prompt_post->post_title,
+				'description' => wp_trim_words( wp_strip_all_tags( $prompt_post->post_content ), 20 ),
+				'model'       => $pos_model ? $pos_model : '',
+			);
+		}
+
+		return $prompts_by_slug;
+	}
+
 	public function vercel_chat( WP_REST_Request $request ) {
 		$params = $request->get_json_params();
+
+		$this->log( '[vercel_chat] Request received. Params: ' . wp_json_encode( $params ) );
+
+		// Validate Post ID (conversation_id)
+		$post_id = isset( $params['id'] ) ? intval( $params['id'] ) : 0;
+		if ( ! $post_id ) {
+			return new WP_Error( 'invalid_id', 'Invalid Conversation ID.', array( 'status' => 400 ) );
+		}
+
+		$post = get_post( $post_id );
+		if ( ! $post || 'notes' !== $post->post_type ) {
+			return new WP_Error( 'not_found', 'Conversation not found.', array( 'status' => 404 ) );
+		}
+
+		if ( ! current_user_can( 'read_post', $post_id ) ) {
+			return new WP_Error( 'permission_denied', 'You do not have permission to access this conversation.', array( 'status' => 403 ) );
+		}
 
 		$user_message_content = null;
 		if ( isset( $params['message']['content'] ) ) {
@@ -1092,69 +1801,162 @@ class OpenAI_Module extends POS_Module {
 		}
 
 		if ( ! $user_message_content ) {
+			$this->log( '[vercel_chat] ERROR: Missing message content' );
 			return new WP_Error( 'missing_message_content', 'User message content is required and could not be determined from the request.', array( 'status' => 400 ) );
 		}
 
-		$model = $params['selectedChatModel'] ?? ( $params['model'] ?? 'gpt-4o' ); // Use selectedChatModel or model from request, else default
-		$model = 'gpt-4o';
-		// Construct the payload for OpenAI API
-		// If the Vercel SDK sends a full 'messages' array, we might want to pass it through
-		// For now, we'll stick to the simpler structure based on 'message.content' or the last user message
+		$this->log( '[vercel_chat] User message: ' . $user_message_content );
 
-		$openai_messages = get_transient( 'vercel_chat_' . $params['id'] );
-		if ( ! $openai_messages ) {
-			$openai_messages = array();
+		// Get prompt by slug if selectedChatModel is provided
+		$prompt_config = null;
+		if ( ! empty( $params['selectedChatModel'] ) ) {
+			$this->log( '[vercel_chat] Looking for prompt with slug: ' . $params['selectedChatModel'] );
+			$prompts_by_slug = $this->get_chat_prompts( array( 'name' => $params['selectedChatModel'] ) );
+			$prompt_config = ! empty( $prompts_by_slug ) ? reset( $prompts_by_slug ) : null;
+			if ( $prompt_config ) {
+				$this->log( '[vercel_chat] Found prompt: ' . $prompt_config['name'] . ' (ID: ' . $prompt_config['post_id'] . ', slug: ' . $prompt_config['id'] . ', pos_model: ' . ( $prompt_config['model'] ? $prompt_config['model'] : 'none' ) . ')' );
+				// Save prompt ID to meta if not already set or changed?
+				// Maybe we just use the one from params for this turn.
+				// But plan says "Read pos_chat_prompt_id meta".
+				// Let's check if one is stored, if not store it.
+				$stored_prompt_id = get_post_meta( $post_id, 'pos_chat_prompt_id', true );
+				if ( ! $stored_prompt_id ) {
+					update_post_meta( $post_id, 'pos_chat_prompt_id', $prompt_config['post_id'] );
+				}
+			} else {
+				$this->log( '[vercel_chat] WARNING: Prompt not found for slug: ' . $params['selectedChatModel'] );
+			}
+		} else {
+			$this->log( '[vercel_chat] No selectedChatModel provided in params' );
+			// Try to load from meta
+			$stored_prompt_id = get_post_meta( $post_id, 'pos_chat_prompt_id', true );
+			if ( $stored_prompt_id ) {
+				$prompts_by_slug = $this->get_chat_prompts( array( 'p' => (int) $stored_prompt_id ) );
+				$prompt_config = ! empty( $prompts_by_slug ) ? reset( $prompts_by_slug ) : null;
+			}
 		}
-		$openai_messages[] = array(
+
+		// Get WP_Post object if we have a prompt config (needed for complete_responses)
+		$prompt = null;
+		if ( $prompt_config ) {
+			$prompt = get_post( $prompt_config['post_id'] );
+		}
+
+		// Get previous response ID from meta
+		$previous_response_id = get_post_meta( $post_id, 'pos_last_response_id', true );
+
+		$this->log( '[vercel_chat] Previous response ID from meta: ' . ( $previous_response_id ?? 'none' ) );
+
+		// Convert user message to Responses API format
+		$user_message = array(
 			'role'    => 'user',
-			'content' => $user_message_content,
+			'content' => array(
+				array(
+					'type' => 'input_text',
+					'text' => $user_message_content,
+				),
+			),
 		);
 
-		// If the incoming request already has a messages array that's compatible,
-		// we could consider using it, but the user's example structure was simpler.
-		// For now, we will construct a new messages array with just the latest user message.
-		// If a more complex history is sent via `params['messages']`, that could be a future enhancement.
+		// For Responses API, if we have a previous_response_id, we only send new input
+		// Otherwise, we send the full message
+		$messages = $previous_response_id ? array( $user_message ) : array( $user_message );
 
-		$openai_payload = array(
-			'model'    => $model,
-			'messages' => $openai_messages,
-			// Add other parameters like temperature, max_tokens if needed
-			// e.g., 'temperature' => $params['temperature'] ?? 0.7,
-		);
+		$this->log( '[vercel_chat] Messages to send: ' . wp_json_encode( $messages ) );
 
-		// If other parameters like 'stream' are passed, include them
-		// if ( isset( $params['stream'] ) ) {
-		// 	$openai_payload['stream'] = $params['stream'];
-		// }
 		require_once __DIR__ . '/class.vercel-ai-sdk.php';
 		$vercel_sdk = new Vercel_AI_SDK();
 		Vercel_AI_SDK::sendHttpStreamHeaders();
-		$vercel_sdk->startStep( $params['id'] );
+		$vercel_sdk->startStep( $post_id );
 
-		$response = $this->complete_backscroll(
-			$openai_messages,
-			function( $type, $data ) use ( $vercel_sdk ) {
+		$this->log( '[vercel_chat] Started Vercel SDK step' );
+
+		$conversation_id = $post_id; // Use the Post ID
+		$module_instance = $this;
+
+		$response = $this->complete_responses(
+			$messages,
+			function( $type, $data ) use ( $vercel_sdk, $conversation_id, $module_instance ) {
+				$module_instance->log( '[vercel_chat] Callback event: ' . $type . ' - ' . wp_json_encode( $data ) );
 				if ( $type === 'message' ) {
-					$vercel_sdk->sendText( $data->content );
+					// Responses API message format
+					if ( isset( $data->content ) && is_array( $data->content ) ) {
+						$full_text = '';
+						foreach ( $data->content as $chunk ) {
+							if ( isset( $chunk->text ) ) {
+								$module_instance->log( '[vercel_chat] Sending text chunk: ' . substr( $chunk->text, 0, 100 ) );
+								$vercel_sdk->sendText( $chunk->text );
+								$full_text .= $chunk->text;
+							}
+						}
+					}
 				} elseif ( $type === 'tool_result' ) {
-					//error_log( 'tool_result: ' . print_r( $data, true ) );
-					$data = (object) $data;
-					$vercel_sdk->sendToolResult( $data->tool_call_id, $data->content );
+					// Responses API tool result format
+					if ( is_array( $data ) && isset( $data['output'] ) ) {
+						$call_id = $data['call_id'] ?? null;
+						$module_instance->log( '[vercel_chat] Sending tool result for call_id: ' . $call_id );
+						$vercel_sdk->sendToolResult( $call_id, $data['output'] );
+
+						// Don't save tool results to conversation history
+
+					} else {
+						// Legacy format?
+						$data = (object) $data;
+						$module_instance->log( '[vercel_chat] Sending tool result for tool_call_id: ' . ( $data->tool_call_id ?? 'null' ) );
+						$vercel_sdk->sendToolResult( $data->tool_call_id ?? null, $data->content ?? '' );
+					}
 				} elseif ( $type === 'tool_call' ) {
+					// Responses API tool call format
 					$data = (object) $data;
-					$vercel_sdk->sendToolCall( $data->id, $data->function->name, json_decode( $data->function->arguments, true ) );
+					$tool_name = $data->name ?? ( isset( $data->function->name ) ? $data->function->name : 'unknown' );
+					$arguments = isset( $data->arguments ) ? json_decode( $data->arguments, true ) : array();
+					if ( isset( $data->function->arguments ) ) {
+						$arguments = json_decode( $data->function->arguments, true );
+					}
+					$call_id = $data->call_id ?? $data->id ?? null;
+					$module_instance->log( '[vercel_chat] Sending tool call: ' . $tool_name . ' (call_id: ' . $call_id . ')' );
+					$vercel_sdk->sendToolCall( $call_id, $tool_name, $arguments );
+				} elseif ( $type === 'response_id' ) {
+					$module_instance->log( '[vercel_chat] Received response ID: ' . $data );
 				}
-			}
-		);
-		set_transient( 'vercel_chat_' . $params['id'], $response, 60 * 60 );
-		$this->save_backscroll(
-			$response,
+			},
+			$previous_response_id,
+			$prompt,
 			array(
-				'name' => $params['id'],
+				'search_args' => array(
+					'ID' => $post_id,
+				),
+				'append'      => true,
 			)
 		);
 
-		// $vercel_sdk->sendText( $response->choices[0]->message->content );
+		$this->log( '[vercel_chat] complete_responses returned. Is WP_Error: ' . ( is_wp_error( $response ) ? 'yes' : 'no' ) );
+		if ( is_wp_error( $response ) ) {
+			$error_message = $response->get_error_message();
+			$error_data = $response->get_error_data();
+			$this->log( '[vercel_chat] ERROR: ' . $error_message );
+			if ( ! empty( $error_data ) ) {
+				$this->log( '[vercel_chat] ERROR data: ' . wp_json_encode( $error_data ) );
+			}
+
+			// If error is related to missing tool output, clear the response ID to start fresh
+			if ( strpos( $error_message, 'No tool output found' ) !== false || strpos( $error_message, 'function call' ) !== false ) {
+				$this->log( '[vercel_chat] Clearing response ID due to tool call error' );
+				delete_post_meta( $conversation_id, 'pos_last_response_id' );
+			}
+
+			$vercel_sdk->finishStep(
+				'error',
+				array(
+					'promptTokens'     => 0,
+					'completionTokens' => 0,
+				),
+				false
+			);
+			die();
+		}
+
+		$this->log( '[vercel_chat] Finishing step successfully' );
 		$vercel_sdk->finishStep(
 			'stop',
 			array(
@@ -1181,6 +1983,12 @@ class OpenAI_Module extends POS_Module {
 		return $response->choices[0]->message->content;
 	}
 
+	/**
+	 * Get the last 50 conversations for the current user
+	 *
+	 * @param WP_REST_Request $request The REST request object.
+	 * @return WP_REST_Response|WP_Error The conversations list or error.
+	 */
 	public function tts( $messages, $voice = 'ballad', $data = array() ) {
 		$file_name = 'speech-' . uniqid() . '.mp3';
 

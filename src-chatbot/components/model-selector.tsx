@@ -1,8 +1,8 @@
 'use client';
 
-import { startTransition, useMemo, useOptimistic, useState } from 'react';
+import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
 
-import { saveChatModelAsCookie } from '@/app/(chat)/actions';
+import { saveChatModelAsCookie, saveChatModelToUserMeta } from '@/app/(chat)/actions';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { chatModels } from '@/lib/ai/models';
 import { cn } from '@/lib/utils';
+import { getConfig } from '@/lib/constants';
 
 import { CheckCircleFillIcon, ChevronDownIcon } from './icons';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
@@ -33,21 +34,77 @@ interface MockSession {
 export function ModelSelector({
   session, // Type will be MockSession now
   selectedModelId,
+  onModelChange,
   className,
 }: {
   session: MockSession; // Changed from Session to MockSession
   selectedModelId: string;
+  onModelChange?: (modelId: string) => void;
 } & React.ComponentProps<typeof Button>) {
   const [open, setOpen] = useState(false);
-  const [optimisticModelId, setOptimisticModelId] =
-    useOptimistic(selectedModelId);
+  
+  // Get config only when needed, memoized to prevent re-renders
+  const config = useMemo(() => getConfig(), []);
+  
+  const chatPromptsFromConfig = useMemo(() => config.chat_prompts || [], [config.chat_prompts]);
+  
+  // Use prompts from config if available, otherwise fall back to hardcoded models
+  const availableChatModels = useMemo(() => {
+    if (chatPromptsFromConfig.length > 0) {
+      // Convert ChatPrompt to ChatModel format
+      return chatPromptsFromConfig.map((prompt) => ({
+        id: prompt.id,
+        name: prompt.name,
+        description: prompt.description,
+      }));
+    }
+    // Fallback to hardcoded models
+    const userType = session.user.type;
+    const { availableChatModelIds } = entitlementsByUserType[userType];
+    return chatModels.filter((chatModel) =>
+      availableChatModelIds.includes(chatModel.id),
+    );
+  }, [chatPromptsFromConfig, session.user.type]);
 
-  const userType = session.user.type;
-  const { availableChatModelIds } = entitlementsByUserType[userType];
-
-  const availableChatModels = chatModels.filter((chatModel) =>
-    availableChatModelIds.includes(chatModel.id),
-  );
+  // Compute the valid model ID directly (no state updates during render)
+  const computeValidModelId = useMemo(() => {
+    const configModelId = typeof window !== 'undefined' && window.config?.pos_last_chat_model
+      ? window.config.pos_last_chat_model.trim()
+      : '';
+    
+    // Determine which model ID to use
+    let targetModelId: string;
+    if (configModelId) {
+      targetModelId = configModelId;
+    } else {
+      targetModelId = selectedModelId;
+    }
+    
+    // Validate that the model exists in available models
+    const availableModelIds = availableChatModels.map(m => m.id);
+    const isValid = availableModelIds.includes(targetModelId);
+    
+    if (isValid) {
+      return targetModelId;
+    } else {
+      // Fallback to first available model or prop
+      return availableModelIds.length > 0 ? availableModelIds[0] : selectedModelId;
+    }
+  }, [selectedModelId, availableChatModels]);
+  
+  // Use state only for user selections, initialize from computed value
+  const [optimisticModelId, setOptimisticModelId] = useState(computeValidModelId);
+  
+  // Sync state only when computed value changes (but not on every render)
+  const prevComputedRef = useRef(computeValidModelId);
+  useEffect(() => {
+    if (computeValidModelId !== prevComputedRef.current) {
+      prevComputedRef.current = computeValidModelId;
+      if (computeValidModelId !== optimisticModelId) {
+        setOptimisticModelId(computeValidModelId);
+      }
+    }
+  }, [computeValidModelId, optimisticModelId]);
 
   const selectedChatModel = useMemo(
     () =>
@@ -78,37 +135,42 @@ export function ModelSelector({
       <DropdownMenuContent align="start" className="min-w-[300px]">
         {availableChatModels.map((chatModel) => {
           const { id } = chatModel;
+          const isActive = id === optimisticModelId;
 
           return (
             <DropdownMenuItem
               data-testid={`model-selector-item-${id}`}
               key={id}
-              onSelect={() => {
+              onSelect={(e) => {
+                e.preventDefault();
                 setOpen(false);
 
                 startTransition(() => {
                   setOptimisticModelId(id);
                   saveChatModelAsCookie(id);
+                  // Save to WordPress user meta via REST API
+                  saveChatModelToUserMeta(id).catch((error) => {
+                    console.error('Failed to save chat model to user meta:', error);
+                  });
+                  // Notify parent component of model change
+                  if (onModelChange) {
+                    onModelChange(id);
+                  }
                 });
               }}
-              data-active={id === optimisticModelId}
-              asChild
+              data-active={isActive ? 'true' : 'false'}
+              className="gap-4 group/item flex flex-row justify-between items-center"
             >
-              <button
-                type="button"
-                className="gap-4 group/item flex flex-row justify-between items-center w-full"
-              >
-                <div className="flex flex-col gap-1 items-start">
-                  <div>{chatModel.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {chatModel.description}
-                  </div>
+              <div className="flex flex-col gap-1 items-start">
+                <div>{chatModel.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {chatModel.description}
                 </div>
+              </div>
 
-                <div className="text-foreground dark:text-foreground opacity-0 group-data-[active=true]/item:opacity-100">
-                  <CheckCircleFillIcon />
-                </div>
-              </button>
+              <div className="text-foreground dark:text-foreground opacity-0 group-data-[active=true]/item:opacity-100">
+                <CheckCircleFillIcon />
+              </div>
             </DropdownMenuItem>
           );
         })}

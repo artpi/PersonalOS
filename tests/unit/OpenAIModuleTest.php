@@ -303,4 +303,193 @@ class OpenAIModuleTest extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'System message', $post->post_content );
 		$this->assertStringNotContainsString( 'Tool message', $post->post_content );
 	}
+
+	/**
+	 * Test get_chat_prompts returns all prompts when no args provided
+	 */
+	public function test_get_chat_prompts_returns_all_prompts() {
+		// Create prompts-chat notebook if it doesn't exist
+		if ( ! term_exists( 'prompts-chat', 'notebook' ) ) {
+			wp_insert_term( 'Prompts: Chat', 'notebook', array( 'slug' => 'prompts-chat' ) );
+		}
+
+		// Create test prompts similar to starter-content.php
+		$prompt1_id = $this->notes_module->create(
+			'Helpful Assistant - GPT-4.1',
+			'<!-- wp:paragraph --><p>You are a helpful assistant. Keep your responses concise, clear, and actionable.</p><!-- /wp:paragraph -->',
+			array( 'prompts-chat' )
+		);
+		update_post_meta( $prompt1_id, 'pos_model', 'gpt-4.1' );
+
+		$prompt2_id = $this->notes_module->create(
+			'Helpful Assistant - GPT-5',
+			'<!-- wp:paragraph --><p>You are a helpful assistant. Keep your responses concise, clear, and actionable.</p><!-- /wp:paragraph -->',
+			array( 'prompts-chat' )
+		);
+		update_post_meta( $prompt2_id, 'pos_model', 'gpt-5' );
+
+		// Get all prompts
+		$prompts = $this->module->get_chat_prompts();
+
+		// Should return an array
+		$this->assertIsArray( $prompts );
+		$this->assertGreaterThanOrEqual( 2, count( $prompts ) );
+
+		// Verify structure of returned prompts
+		foreach ( $prompts as $slug => $config ) {
+			$this->assertIsString( $slug );
+			$this->assertIsArray( $config );
+			$this->assertArrayHasKey( 'id', $config );
+			$this->assertArrayHasKey( 'post_id', $config );
+			$this->assertArrayHasKey( 'name', $config );
+			$this->assertArrayHasKey( 'description', $config );
+			$this->assertArrayHasKey( 'model', $config );
+			$this->assertIsString( $config['id'] );
+			$this->assertIsInt( $config['post_id'] );
+			$this->assertIsString( $config['name'] );
+			$this->assertIsString( $config['description'] );
+			$this->assertIsString( $config['model'] );
+		}
+
+		// Verify our created prompts are in the results
+		$prompt1_post = get_post( $prompt1_id );
+		$prompt2_post = get_post( $prompt2_id );
+		$this->assertArrayHasKey( $prompt1_post->post_name, $prompts );
+		$this->assertArrayHasKey( $prompt2_post->post_name, $prompts );
+		$this->assertEquals( 'gpt-4.1', $prompts[ $prompt1_post->post_name ]['model'] );
+		$this->assertEquals( 'gpt-5', $prompts[ $prompt2_post->post_name ]['model'] );
+	}
+
+	/**
+	 * Test get_chat_prompts filters by slug when name arg provided
+	 */
+	public function test_get_chat_prompts_filters_by_slug() {
+		// Create prompts-chat notebook if it doesn't exist
+		if ( ! term_exists( 'prompts-chat', 'notebook' ) ) {
+			wp_insert_term( 'Prompts: Chat', 'notebook', array( 'slug' => 'prompts-chat' ) );
+		}
+
+		// Create a test prompt with a specific slug
+		$prompt_id = $this->notes_module->create(
+			'Test Prompt',
+			'<!-- wp:paragraph --><p>This is a test prompt.</p><!-- /wp:paragraph -->',
+			array( 'prompts-chat' )
+		);
+		update_post_meta( $prompt_id, 'pos_model', 'gpt-4o' );
+
+		$prompt_post = get_post( $prompt_id );
+		$prompt_slug = $prompt_post->post_name;
+
+		// Get prompt by slug
+		$prompts = $this->module->get_chat_prompts( array( 'name' => $prompt_slug ) );
+
+		// Should return array with one element
+		$this->assertIsArray( $prompts );
+		$this->assertCount( 1, $prompts );
+		$this->assertArrayHasKey( $prompt_slug, $prompts );
+
+		// Verify the prompt data
+		$prompt_config = $prompts[ $prompt_slug ];
+		$this->assertEquals( $prompt_slug, $prompt_config['id'] );
+		$this->assertEquals( $prompt_id, $prompt_config['post_id'] );
+		$this->assertEquals( 'Test Prompt', $prompt_config['name'] );
+		$this->assertEquals( 'gpt-4o', $prompt_config['model'] );
+		$this->assertStringContainsString( 'test prompt', strtolower( $prompt_config['description'] ) );
+	}
+
+	/**
+	 * Test get_chat_prompts filters by ID when p arg provided
+	 */
+	public function test_get_chat_prompts_filters_by_id() {
+		// Create prompts-chat notebook if it doesn't exist
+		if ( ! term_exists( 'prompts-chat', 'notebook' ) ) {
+			wp_insert_term( 'Prompts: Chat', 'notebook', array( 'slug' => 'prompts-chat' ) );
+		}
+
+		// Create a test prompt
+		$prompt_id = $this->notes_module->create(
+			'Test Prompt by ID',
+			'<!-- wp:paragraph --><p>This is a test prompt for ID filtering.</p><!-- /wp:paragraph -->',
+			array( 'prompts-chat' )
+		);
+		update_post_meta( $prompt_id, 'pos_model', 'gpt-4o' );
+
+		$prompt_post = get_post( $prompt_id );
+
+		// Get prompt by ID
+		$prompts = $this->module->get_chat_prompts( array( 'p' => $prompt_id ) );
+
+		// Should return array with one element
+		$this->assertIsArray( $prompts );
+		$this->assertCount( 1, $prompts );
+		$this->assertArrayHasKey( $prompt_post->post_name, $prompts );
+
+		// Verify the prompt data
+		$prompt_config = $prompts[ $prompt_post->post_name ];
+		$this->assertEquals( $prompt_post->post_name, $prompt_config['id'] );
+		$this->assertEquals( $prompt_id, $prompt_config['post_id'] );
+		$this->assertEquals( 'Test Prompt by ID', $prompt_config['name'] );
+		$this->assertEquals( 'gpt-4o', $prompt_config['model'] );
+	}
+
+	/**
+	 * Test get_chat_prompts returns empty array when no prompts match
+	 */
+	public function test_get_chat_prompts_returns_empty_when_no_match() {
+		// Create prompts-chat notebook if it doesn't exist
+		if ( ! term_exists( 'prompts-chat', 'notebook' ) ) {
+			wp_insert_term( 'Prompts: Chat', 'notebook', array( 'slug' => 'prompts-chat' ) );
+		}
+
+		// Try to get a non-existent prompt by slug
+		$prompts = $this->module->get_chat_prompts( array( 'name' => 'non-existent-slug-12345' ) );
+
+		// Should return empty array
+		$this->assertIsArray( $prompts );
+		$this->assertEmpty( $prompts );
+
+		// Try to get a non-existent prompt by ID
+		$prompts = $this->module->get_chat_prompts( array( 'p' => 999999 ) );
+
+		// Should return empty array
+		$this->assertIsArray( $prompts );
+		$this->assertEmpty( $prompts );
+	}
+
+	/**
+	 * Test get_chat_prompts only returns prompts from prompts-chat notebook
+	 */
+	public function test_get_chat_prompts_only_returns_prompts_chat() {
+		// Create prompts-chat notebook if it doesn't exist
+		if ( ! term_exists( 'prompts-chat', 'notebook' ) ) {
+			wp_insert_term( 'Prompts: Chat', 'notebook', array( 'slug' => 'prompts-chat' ) );
+		}
+
+		// Create a prompt in prompts-chat
+		$chat_prompt_id = $this->notes_module->create(
+			'Chat Prompt',
+			'<!-- wp:paragraph --><p>This is a chat prompt.</p><!-- /wp:paragraph -->',
+			array( 'prompts-chat' )
+		);
+
+		// Create a prompt in a different notebook (if inbox doesn't exist, create it)
+		if ( ! term_exists( 'inbox', 'notebook' ) ) {
+			wp_insert_term( 'Inbox', 'notebook', array( 'slug' => 'inbox' ) );
+		}
+		$other_prompt_id = $this->notes_module->create(
+			'Other Prompt',
+			'<!-- wp:paragraph --><p>This is not a chat prompt.</p><!-- /wp:paragraph -->',
+			array( 'inbox' )
+		);
+
+		// Get all chat prompts
+		$prompts = $this->module->get_chat_prompts();
+
+		// Should only contain the chat prompt, not the other one
+		$chat_prompt_post = get_post( $chat_prompt_id );
+		$other_prompt_post = get_post( $other_prompt_id );
+
+		$this->assertArrayHasKey( $chat_prompt_post->post_name, $prompts );
+		$this->assertArrayNotHasKey( $other_prompt_post->post_name, $prompts );
+	}
 } 

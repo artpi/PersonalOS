@@ -1,10 +1,22 @@
+export interface ChatPrompt {
+	id: string;
+	name: string;
+	description: string;
+	model: string;
+}
+
 export type Config = {
 	site_title: string;
 	wp_admin_url: string;
 	rest_api_url: string;
 	nonce: string;
+	conversation_id?: string | number; // Generated in PHP on each page load, can be int from WP
+	conversation_messages?: Array<any>; // Parsed messages from the conversation post
+	ai_chats_notebook_id?: number; // Term ID for the 'ai-chats' notebook
 	projects: PARAItem[];
 	starred: PARAItem[];
+	chat_prompts?: ChatPrompt[];
+	pos_last_chat_model?: string; // Last chat model used by the user
 	user: {
 		id: number;
 		login: string;

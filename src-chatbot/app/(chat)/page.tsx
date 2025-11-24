@@ -4,6 +4,8 @@ import { Chat } from '@/components/chat';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { generateUUID } from '@/lib/utils';
 import { DataStreamHandler } from '@/components/data-stream-handler';
+import { getConfig } from '@/lib/constants';
+import type { UIMessage } from 'ai';
 // import { auth } from '../(auth)/auth'; // auth() call disabled for static export
 // import { redirect } from 'next/navigation'; // Redirect disabled for static export
 // import type { Session } from 'next-auth'; // Removed as next-auth is uninstalled
@@ -47,20 +49,48 @@ export default async function Page() {
   //   redirect('/api/auth/guest');
   // }
 
-  const id = generateUUID();
+  // Use conversation_id from PHP config if available (generated fresh on each page load),
+  // otherwise generate one (fallback for static export or if config is missing)
+  const config = getConfig();
+  // Ensure id is string
+  const id = config.conversation_id ? String(config.conversation_id) : generateUUID();
+  
+  // Convert messages from PHP format (with 'content') to UIMessage format (with 'parts')
+  const convertMessagesToUIMessages = (messages: Array<any>): Array<UIMessage> => {
+    return messages.map((message) => {
+      const content = message.content || '';
+      const parts = message.content
+        ? [{ type: 'text' as const, text: message.content }]
+        : message.parts || [];
+      return {
+        id: message.id,
+        role: message.role as UIMessage['role'],
+        parts,
+        content, // Still required by UIMessage type even though deprecated
+        createdAt: message.createdAt ? new Date(message.createdAt) : new Date(),
+        experimental_attachments: message.experimental_attachments || [],
+      };
+    });
+  };
+  
+  const initialMessages = config.conversation_messages
+    ? convertMessagesToUIMessages(config.conversation_messages)
+    : [];
 
-  // For static export, cookie reading is disabled. Always use default model.
-  // const cookieStore = await cookies(); // Call to cookies() disabled
-  // const modelIdFromCookie = cookieStore.get('chat-model');
-  console.warn('Cookie reading in app/(chat)/page.tsx disabled for static export. Using default chat model.');
+  // Use pos_last_chat_model from config if available, otherwise fall back to first prompt or default
+  const defaultModel = config.pos_last_chat_model && config.pos_last_chat_model.trim() !== ''
+    ? config.pos_last_chat_model
+    : config.chat_prompts && config.chat_prompts.length > 0
+    ? config.chat_prompts[0].id
+    : DEFAULT_CHAT_MODEL;
 
   return (
     <>
       <Chat
         key={id}
         id={id}
-        initialMessages={[]}
-        selectedChatModel={DEFAULT_CHAT_MODEL}
+        initialMessages={initialMessages}
+        selectedChatModel={defaultModel}
         selectedVisibilityType="private"
         isReadonly={false} // For static export, assume not readonly as it's a new chat for a mock guest
         session={session} // Pass the mock session
