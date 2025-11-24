@@ -128,6 +128,8 @@ $this->create(
 );
 
 // Chat prompts.
+// TODO: Only recreate them if they don't exist?
+
 $base_prompt_content = <<<EOF
 <!-- wp:paragraph -->
 <p>Your name is PersonalOS. You are a plugin installed on my WordPress site.<br>
