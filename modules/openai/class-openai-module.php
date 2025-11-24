@@ -2167,6 +2167,11 @@ class OpenAI_Module extends POS_Module {
 	}
 
 	public function chat_completion( $messages = array(), $model = 'gpt-4o' ) {
+		// Skip API calls during tests to avoid external dependencies
+		if ( defined( 'DOING_TEST' ) ) {
+			return new WP_Error( 'test-mode', 'API calls disabled during tests' );
+		}
+
 		$data = array(
 			'model'    => $model,
 			'messages' => $messages,
