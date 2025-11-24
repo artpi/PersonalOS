@@ -1115,90 +1115,6 @@ class OpenAI_Module extends POS_Module {
 		return $result;
 	}
 
-	public function system_prompt_defaults() {
-		// TODO: get these defaults from the `prompt-default` note.
-		$note_module = POS::get_module_by_id( 'notes' );
-		return array(
-			'me'        => array(
-				'name'        => wp_get_current_user()->display_name,
-				'description' => wp_get_current_user()->description,
-			),
-			'system'    => array(
-				'current_time' => gmdate( 'Y-m-d H:i:s' ),
-			),
-			'you'       => <<<EOF
-				Your name is PersonalOS. You are a plugin installed on my WordPress site.
-				Apart from WordPress functionality, you have certain modules enabled, and functionality exposed as tools.
-				You can use these tools to perform actions on my behalf.
-				Use simple markdown to format your responses.
-				NEVER read the URLs (http://, https://, evernote://, etc) out loud in voice mode.
-				When answering a question about my todos or notes, stick only to the information from the tools. DO NOT make up information.
-			EOF,
-			// TODO: Unify this with the block rendering this in the notes module so it can be embedded in the system prompt note. Probably have to unify with the abilities_Api first.
-			'notebooks' => array(
-				'description' => 'My work is organized in "notebooks". They represent areas of my life, active projects and statuses of tasks.',
-				'notebooks'   => array_map(
-					function( $flag ) use ( $note_module ) {
-						$notebooks = array_map(
-							function( $notebook ) {
-								return <<<EOF
-									<notebook
-										name="{$notebook->name}"
-										id="{$notebook->term_id}"
-										slug="{$notebook->slug}"
-									>
-										{$notebook->description}
-									</notebook>
-								EOF;
-							},
-							$note_module->get_notebooks_by_flag( $flag['id'] )
-						);
-						$notebooks = implode( "\n", $notebooks );
-						return <<<EOF
-						<notebook_type
-							id="{$flag['id']}"
-							name="{$flag['name']}"
-							label="{$flag['label']}"
-						>
-							{$notebooks}
-						</notebook_type>
-						EOF;
-					},
-					apply_filters(
-						'pos_notebook_flags',
-						array(
-						// array(
-						// 	'id' => null,
-						// 	'name' => 'Rest of the notebooks',
-						// 	'label' => 'Notebooks without any special flag.',
-						// ),
-						)
-					)
-				),
-			),
-			// TODO: Create a tool / ability for this and embed in the editable prompt note.
-			'memories'  => array(
-				'description' => 'You have previously stored some information in the AI Memory using the "ai_memory" tool.',
-				'memories'    => array_map(
-					function( $memory ) {
-						return "<memory id='{$memory->ID}'>
-							<title>{$memory->post_title}</title>
-							<content>{$memory->post_content}</content>
-						</memory>";
-					},
-					get_posts(
-						array(
-							'post_type'   => 'notes',
-							'taxonomy'    => 'notebook',
-							'term'        => 'ai-memory',
-							'numberposts' => -1,
-						)
-					)
-				),
-			),
-		);
-	}
-
 	/**
 	 * Create a system prompt for the OpenAI API.
 	 * @TODO: This could be achieved by using Gutenberg and notes to put this together.
@@ -1206,29 +1122,31 @@ class OpenAI_Module extends POS_Module {
 	 * @return string The system prompt.
 	 */
 	public function create_system_prompt( $params = array() ) {
-		if ( $params instanceof \WP_Post ) {
-			$content = apply_filters( 'the_content', $params->post_content );
-			$content = preg_replace_callback(
-				'/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/i',
-				function( $matches ) {
-					$level = $matches[1];
-					$text = $matches[2];
-					return str_repeat( '#', intval( $level ) ) . ' ' . $text;
-				},
-				$content
-			);
-			$content = preg_replace_callback(
-				'/<li[^>]*>(.*?)<\/li>/i',
-				function( $matches ) {
-					return '- ' . $matches[1];
-				},
-				$content
-			);
-			$content = wp_strip_all_tags( $content );
-			return $content;
+		if ( ! $params instanceof \WP_Post ) {
+			$notes_module = POS::get_module_by_id( 'notes' );
+			$prompts = $notes_module->list( array( 'name' => 'prompt_default' ), 'prompts-chat' );
+			$params = ! empty( $prompts ) ? $prompts[0] : null; // Default prompt - shoudl make it not deletable.
 		}
-		$prompt = wp_parse_args( $params, $this->system_prompt_defaults() );
-		return $this->array_to_xml( $prompt );
+	
+		$content = apply_filters( 'the_content', $params->post_content );
+		$content = preg_replace_callback(
+			'/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/i',
+			function( $matches ) {
+				$level = $matches[1];
+				$text = $matches[2];
+				return str_repeat( '#', intval( $level ) ) . ' ' . $text;
+			},
+			$content
+		);
+		$content = preg_replace_callback(
+			'/<li[^>]*>(.*?)<\/li>/i',
+			function( $matches ) {
+				return '- ' . $matches[1];
+			},
+			$content
+		);
+		$content = wp_strip_all_tags( $content );
+		return $content;
 	}
 
 	/**

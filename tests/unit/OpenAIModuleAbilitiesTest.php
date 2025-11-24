@@ -261,4 +261,43 @@ class OpenAIModuleAIToolsTest extends WP_UnitTestCase {
 		$this->assertNotEmpty( $memories, 'Memory should be created' );
 		$this->assertEquals( 'Ability Created Memory', $memories[0]->post_title );
 	}
+
+	public function test_ability_system_state() {
+		if ( ! function_exists( 'wp_get_ability' ) ) {
+			$this->markTestSkipped( 'Abilities API not available' );
+		}
+
+		// Get the system_state ability
+		$ability = wp_get_ability( 'pos/system-state' );
+		$this->assertNotNull( $ability, 'pos/system-state ability should be registered' );
+		$this->assertInstanceOf( 'WP_Ability', $ability, 'pos/system-state should be a WP_Ability' );
+
+		// Get current user to verify against
+		$current_user = wp_get_current_user();
+		$user_id = $current_user->ID;
+		
+		// Update user description for testing
+		$test_description = 'Test user description for system state';
+		update_user_meta( $user_id, 'description', $test_description );
+		
+		// Clear user cache to ensure fresh data
+		clean_user_cache( $user_id );
+		wp_cache_delete( $user_id, 'users' );
+
+		// Execute the ability
+		$result = $ability->execute( array() );
+
+		$this->assertIsArray( $result, 'Ability should return an array' );
+		$this->assertArrayHasKey( 'user_display_name', $result, 'Result should have user_display_name key' );
+		$this->assertArrayHasKey( 'user_description', $result, 'Result should have user_description key' );
+		$this->assertArrayHasKey( 'system_time', $result, 'Result should have system_time key' );
+
+		// Verify the structure and that values are set
+		$this->assertIsString( $result['user_display_name'], 'User display name should be a string' );
+		$this->assertNotEmpty( $result['user_display_name'], 'User display name should not be empty' );
+		$this->assertIsString( $result['user_description'], 'User description should be a string' );
+		$this->assertEquals( $test_description, $result['user_description'], 'User description should match what we set' );
+		$this->assertNotEmpty( $result['system_time'], 'System time should not be empty' );
+		$this->assertMatchesRegularExpression( '/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/', $result['system_time'], 'System time should be in expected format' );
+	}
 }

@@ -250,6 +250,84 @@ class AIToolBlockTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test block rendering with output field filtering.
+	 */
+	public function test_block_renders_with_output_field_filtering() {
+		if ( ! class_exists( 'WP_Ability' ) ) {
+			$this->markTestSkipped( 'Abilities API not available' );
+		}
+
+		$attributes = array(
+			'tool' => 'pos/system-state',
+			'parameters' => array(),
+			'outputFields' => array( 'user_display_name', 'system_time' ),
+		);
+
+		$output = $this->openai_module->render_tool_block( $attributes );
+
+		$this->assertNotEmpty( $output, 'Block should render output' );
+		$json_string = str_replace( array( '<pre>', '</pre>' ), '', $output );
+		$decoded = json_decode( $json_string, true );
+
+		$this->assertNotNull( $decoded, 'Output should contain valid JSON' );
+		$this->assertIsArray( $decoded, 'Decoded JSON should be an array' );
+		$this->assertArrayHasKey( 'user_display_name', $decoded, 'Should have user_display_name field' );
+		$this->assertArrayHasKey( 'system_time', $decoded, 'Should have system_time field' );
+		$this->assertArrayNotHasKey( 'user_description', $decoded, 'Should not have user_description field when filtered out' );
+	}
+
+	/**
+	 * Test block rendering with XML format output.
+	 */
+	public function test_block_renders_with_xml_format() {
+		if ( ! class_exists( 'WP_Ability' ) ) {
+			$this->markTestSkipped( 'Abilities API not available' );
+		}
+
+		$attributes = array(
+			'tool' => 'pos/system-state',
+			'parameters' => array(),
+			'outputFormat' => 'xml',
+		);
+
+		$output = $this->openai_module->render_tool_block( $attributes );
+
+		$this->assertNotEmpty( $output, 'Block should render output' );
+		$this->assertStringStartsWith( '<pre>', $output, 'Output should start with <pre> tag' );
+		$this->assertStringEndsWith( '</pre>', $output, 'Output should end with </pre> tag' );
+		
+		// Extract XML content
+		$xml_string = str_replace( array( '<pre>', '</pre>' ), '', $output );
+		$this->assertStringContainsString( '<root>', $xml_string, 'XML should contain root element' );
+		$this->assertStringContainsString( '<user_display_name>', $xml_string, 'XML should contain user_display_name element' );
+		$this->assertStringContainsString( '<system_time>', $xml_string, 'XML should contain system_time element' );
+	}
+
+	/**
+	 * Test block rendering with XML format and field filtering.
+	 */
+	public function test_block_renders_xml_with_field_filtering() {
+		if ( ! class_exists( 'WP_Ability' ) ) {
+			$this->markTestSkipped( 'Abilities API not available' );
+		}
+
+		$attributes = array(
+			'tool' => 'pos/system-state',
+			'parameters' => array(),
+			'outputFields' => array( 'user_display_name' ),
+			'outputFormat' => 'xml',
+		);
+
+		$output = $this->openai_module->render_tool_block( $attributes );
+
+		$this->assertNotEmpty( $output, 'Block should render output' );
+		$xml_string = str_replace( array( '<pre>', '</pre>' ), '', $output );
+		$this->assertStringContainsString( '<user_display_name>', $xml_string, 'XML should contain user_display_name element' );
+		$this->assertStringNotContainsString( '<user_description>', $xml_string, 'XML should not contain user_description when filtered out' );
+		$this->assertStringNotContainsString( '<system_time>', $xml_string, 'XML should not contain system_time when filtered out' );
+	}
+
+	/**
 	 * Test block rendering with pos/todo-get-items ability.
 	 */
 	public function test_block_renders_todo_get_items_ability() {
@@ -288,7 +366,7 @@ class AIToolBlockTest extends WP_UnitTestCase {
 		$this->assertStringStartsWith( '<pre>', $output, 'Output should start with <pre> tag' );
 		$this->assertStringEndsWith( '</pre>', $output, 'Output should end with </pre> tag' );
 
-		// Extract JSON from output
+		// Extract JSON from output (no HTML escaping now)
 		$json_string = str_replace( array( '<pre>', '</pre>' ), '', $output );
 		$decoded = json_decode( $json_string, true );
 
