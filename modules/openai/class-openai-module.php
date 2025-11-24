@@ -997,7 +997,24 @@ class OpenAI_Module extends POS_Module {
 		return $this->complete_responses( $messages );
 	}
 
-	public function complete_responses( array $messages, callable $callback = null, ?string $previous_response_id = null, ?\WP_Post $prompt = null ) {
+	public function complete_responses( array $messages, callable $callback = null, ?string $previous_response_id = null, ?\WP_Post $prompt = null, ?array $persistence = null ) {
+		$should_persist = is_array( $persistence );
+		$persist_append = $should_persist ? (bool) ( $persistence['append'] ?? true ) : true;
+		$persist_search_args = $should_persist ? (array) ( $persistence['search_args'] ?? array() ) : array();
+		$persist_post_id = $should_persist && isset( $persist_search_args['ID'] ) ? (int) $persist_search_args['ID'] : null;
+
+		// Persist initial user messages if persistence is enabled
+		if ( $should_persist ) {
+			$result = $this->save_backscroll( $messages, $persist_search_args, $persist_append );
+			if ( ! is_wp_error( $result ) ) {
+				$persist_post_id = $result;
+				$persist_search_args['ID'] = $persist_post_id;
+				$persist_append = true; // After initial write, always append subsequent messages
+			} else {
+				$this->log( '[complete_responses] Failed to save backscroll: ' . $result->get_error_message(), 'ERROR' );
+			}
+		}
+
 		// Filter out perplexity_search when using Responses API since we have built-in web_search
 		$tools = array_filter(
 			OpenAI_Tool::get_tools(),
@@ -1030,6 +1047,7 @@ class OpenAI_Module extends POS_Module {
 
 		$max_loops = 10;
 		$full_messages = $messages; // Keep full history for return value
+		$should_store_remote = $should_persist || ! empty( $previous_response_id );
 		do {
 			--$max_loops;
 			$has_function_calls = false;
@@ -1039,7 +1057,7 @@ class OpenAI_Module extends POS_Module {
 				'model'        => $model,
 				'instructions' => $this->create_system_prompt( $prompt ),
 				'tools'        => $tool_definitions,
-				'store'        => true, // Store responses for previous_response_id to work
+				'store'        => $should_store_remote,
 			);
 
 			// Use previous_response_id if available, otherwise use input
@@ -1077,6 +1095,9 @@ class OpenAI_Module extends POS_Module {
 			// Capture the response ID for use in subsequent calls
 			if ( isset( $response->id ) ) {
 				$previous_response_id = $response->id;
+				if ( $should_persist && $persist_post_id ) {
+					update_post_meta( $persist_post_id, 'pos_last_response_id', $response->id );
+				}
 				if ( $callback ) {
 					$callback( 'response_id', $response->id );
 				}
@@ -1170,6 +1191,41 @@ class OpenAI_Module extends POS_Module {
 						$full_messages[] = $output_item;
 						if ( $callback ) {
 							$callback( 'message', $output_item );
+						}
+						if ( $should_persist ) {
+							$assistant_text = '';
+							if ( isset( $output_item->content ) && is_array( $output_item->content ) ) {
+								foreach ( $output_item->content as $chunk ) {
+									if ( is_object( $chunk ) ) {
+										$chunk = (array) $chunk;
+									}
+									if ( isset( $chunk['text'] ) ) {
+										$assistant_text .= $chunk['text'];
+									}
+								}
+							} elseif ( isset( $output_item->content ) && is_string( $output_item->content ) ) {
+								$assistant_text = $output_item->content;
+							}
+
+							if ( '' !== $assistant_text ) {
+								$result = $this->save_backscroll(
+									array(
+										array(
+											'role'    => 'assistant',
+											'content' => $assistant_text,
+										),
+									),
+									$persist_search_args,
+									$persist_append
+								);
+								if ( ! is_wp_error( $result ) ) {
+									$persist_post_id = $result;
+									$persist_search_args['ID'] = $persist_post_id;
+									$persist_append = true; // After initial write, always append subsequent messages
+								} else {
+									$this->log( '[complete_responses] Failed to save backscroll: ' . $result->get_error_message(), 'ERROR' );
+								}
+							}
 						}
 					}
 				}
@@ -1374,6 +1430,18 @@ class OpenAI_Module extends POS_Module {
 			// Only search for existing posts if a name/slug is provided
 			// This allows finding posts by slug when we want to update an existing conversation
 			$existing_posts = $notes_module->list( $search_args, 'ai-chats' );
+		} elseif ( ! empty( $search_args['meta_query'] ) ) {
+			$query_args = $search_args;
+			unset( $query_args['post_title'], $query_args['notebook'] );
+			$query_args = wp_parse_args(
+				$query_args,
+				array(
+					'post_type'      => $notes_module->id,
+					'post_status'    => 'any', // Match any status (private, publish, draft, etc.) in case user changed it
+					'posts_per_page' => 1,
+				)
+			);
+			$existing_posts = get_posts( $query_args );
 		} else {
 			// No ID and no name provided - always create a new post
 			// This is the case when bootstrapping a new conversation
@@ -1419,7 +1487,7 @@ class OpenAI_Module extends POS_Module {
 			// We need to map this to a 'tool' or 'assistant' role block.
 
 			if ( isset( $message['type'] ) && 'function_call_output' === $message['type'] ) {
-				$role = 'tool'; // Or 'function'
+				$role = 'assistant';
 				$content = is_string( $message['output'] ) ? $message['output'] : wp_json_encode( $message['output'] );
 			}
 
@@ -1481,7 +1549,7 @@ class OpenAI_Module extends POS_Module {
 			'post_type'    => $notes_module->id,
 			'post_status'  => 'private',
 		);
-		
+
 		if ( ! empty( $post_title ) ) {
 			$post_data['post_title'] = $post_title;
 		}
@@ -1492,7 +1560,8 @@ class OpenAI_Module extends POS_Module {
 		// Create or update post
 		if ( ! empty( $existing_posts ) ) {
 			$post_data['ID'] = $existing_posts[0]->ID;
-			
+			unset( $post_data['post_title'], $post_data['post_name'] );
+
 			if ( $append ) {
 				// Append new blocks to existing content
 				$current_content = $existing_posts[0]->post_content;
@@ -1504,7 +1573,7 @@ class OpenAI_Module extends POS_Module {
 				// Overwrite content
 				$post_data['post_content'] = implode( "\n\n", $content_blocks );
 			}
-			
+
 			// Only update if there is content to update or we are not just appending empty content
 			// But here we might want to update just to ensure touch?
 			if ( isset( $post_data['post_content'] ) || ! $append ) {
@@ -1522,7 +1591,7 @@ class OpenAI_Module extends POS_Module {
 			if ( empty( $post_data['post_name'] ) ) {
 				$post_data['post_name'] = 'chat-' . gmdate( 'Y-m-d-H-i-s' );
 			}
-			
+
 			$post_id = wp_insert_post( $post_data );
 
 			// Add to specified notebook or default to OpenAI chats
@@ -1610,6 +1679,14 @@ class OpenAI_Module extends POS_Module {
 		return $generated_title;
 	}
 
+	/**
+	 * Persist a batch of conversation messages to the configured note.
+	 *
+	 * @param array $messages_to_save Messages to append/save.
+	 * @param array $persist_search_args Reference to search args passed to save_backscroll.
+	 * @param int|null $persist_post_id Reference to last persisted post ID.
+	 * @param bool $persist_append Whether subsequent writes should append.
+	 */
 	/**
 	 * Get chat prompts as an associative array keyed by slug.
 	 *
@@ -1732,9 +1809,6 @@ class OpenAI_Module extends POS_Module {
 			),
 		);
 
-		// Persist User Message Immediately
-		$this->save_backscroll( array( $user_message ), array( 'ID' => $post_id ), true );
-
 		// For Responses API, if we have a previous_response_id, we only send new input
 		// Otherwise, we send the full message
 		$messages = $previous_response_id ? array( $user_message ) : array( $user_message );
@@ -1766,12 +1840,6 @@ class OpenAI_Module extends POS_Module {
 								$full_text .= $chunk->text;
 							}
 						}
-						// Save Assistant Message
-						$assistant_msg = array(
-							'role'    => 'assistant',
-							'content' => $full_text,
-						);
-						$module_instance->save_backscroll( array( $assistant_msg ), array( 'ID' => $conversation_id ), true );
 					}
 				} elseif ( $type === 'tool_result' ) {
 					// Responses API tool result format
@@ -1800,13 +1868,17 @@ class OpenAI_Module extends POS_Module {
 					$module_instance->log( '[vercel_chat] Sending tool call: ' . $tool_name . ' (call_id: ' . $call_id . ')' );
 					$vercel_sdk->sendToolCall( $call_id, $tool_name, $arguments );
 				} elseif ( $type === 'response_id' ) {
-					// Store response ID for next request
-					$module_instance->log( '[vercel_chat] Storing response ID: ' . $data );
-					update_post_meta( $conversation_id, 'pos_last_response_id', $data );
+					$module_instance->log( '[vercel_chat] Received response ID: ' . $data );
 				}
 			},
 			$previous_response_id,
-			$prompt
+			$prompt,
+			array(
+				'search_args' => array(
+					'ID' => $post_id,
+				),
+				'append'      => true,
+			)
 		);
 
 		$this->log( '[vercel_chat] complete_responses returned. Is WP_Error: ' . ( is_wp_error( $response ) ? 'yes' : 'no' ) );

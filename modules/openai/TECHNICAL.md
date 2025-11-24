@@ -25,13 +25,13 @@ Messages are converted into `pos/ai-message` blocks. Each block stores:
 Tool calls and results are currently **not** saved to the conversation history in the database, only the visible conversation flow (User <-> Assistant).
 
 ### 2. Saving Process
-The saving process differs slightly depending on the context (e.g., Vercel AI SDK chat):
+`OpenAI_Module::complete_responses()` now owns the persistence workflow via its optional `$persistence` argument:
 
-1. **User Message**: When a user sends a message (e.g., via `vercel_chat`), it is immediately saved to the database using `save_backscroll` with `append => true`. This ensures the user's intent is captured even if the generation fails.
-2. **Assistant Message**: 
-    - The response is streamed to the client.
-    - Content chunks are accumulated in memory.
-    - Once the response is complete, the full assistant message is saved to the database via `save_backscroll` with `append => true`.
+1. Pass `array( 'search_args' => array( 'ID' => $post_id ), 'append' => true )` to automatically persist a conversation.
+2. User messages included in the `$messages` parameter are saved **before** the Responses API call, so intent is captured even if generation fails.
+3. Assistant messages emitted by the Responses API are saved as soon as the API returns a `message` output item.
+4. `pos_last_response_id` is updated when the API supplies a response ID, ensuring follow-up calls can continue with `previous_response_id`.
+5. When persistence is enabled, the Responses API request sets `store => true`; stateless callers omit the persistence config and skip remote storage.
 
 ### 3. Title Generation
 For new conversations (where the post is being created), `save_backscroll` triggers a side-effect to generate a title.
@@ -78,8 +78,7 @@ The frontend application uses the Vercel AI SDK to manage the chat state.
     "selectedChatModel": "..."
   }
   ```
-- The backend endpoint (`vercel_chat`) reads this ID to locate the existing `notes` post.
-- It then appends the new messages to this post using `save_backscroll($msgs, ['ID' => $id], true)`.
+- The backend endpoint (`vercel_chat`) reads this ID to locate the existing `notes` post and passes it to `complete_responses(..., array( 'search_args' => array( 'ID' => $id ) ))`, which now handles both user and assistant persistence automatically.
 
 ## System Prompts
 
