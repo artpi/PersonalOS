@@ -141,6 +141,7 @@ $base_prompt_content = <<<EOF
 <!-- /wp:paragraph -->
 EOF;
 
+// TODO: Make this note impossible to delete - probably a hook in the openai module.
 $base_prompt = $this->create(
 	'Default Prompt',
 	$base_prompt_content,

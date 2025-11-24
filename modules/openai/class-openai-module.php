@@ -821,6 +821,7 @@ class OpenAI_Module extends POS_Module {
 	}
 
 	public function system_prompt_defaults() {
+		// TODO: get these defaults from the `prompt-default` note.
 		$note_module = POS::get_module_by_id( 'notes' );
 		return array(
 			'me'        => array(
@@ -838,6 +839,7 @@ class OpenAI_Module extends POS_Module {
 				NEVER read the URLs (http://, https://, evernote://, etc) out loud in voice mode.
 				When answering a question about my todos or notes, stick only to the information from the tools. DO NOT make up information.
 			EOF,
+			// TODO: Unify this with the block rendering this in the notes module so it can be embedded in the system prompt note. Probably have to unify with the abilities_Api first.
 			'notebooks' => array(
 				'description' => 'My work is organized in "notebooks". They represent areas of my life, active projects and statuses of tasks.',
 				'notebooks'   => array_map(
@@ -879,6 +881,7 @@ class OpenAI_Module extends POS_Module {
 					)
 				),
 			),
+			// TODO: Create a tool / ability for this and embed in the editable prompt note.
 			'memories'  => array(
 				'description' => 'You have previously stored some information in the AI Memory using the "ai_memory" tool.',
 				'memories'    => array_map(
