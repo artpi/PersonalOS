@@ -336,13 +336,14 @@ class Notes_Module extends POS_Module {
 		}
 	}
 
-	public function create( $title, $content, $notebooks = array() ) {
+	public function create( $title, $content, $notebooks = array(), $args = array() ) {
 		$post    = array(
 			'post_title'   => $title,
 			'post_content' => $content,
 			'post_status'  => 'publish',
 			'post_type'    => $this->id,
 		);
+		$post = wp_parse_args( $post, $args );
 		$post_id = wp_insert_post( $post );
 		if ( ! empty( $notebooks ) ) {
 			wp_set_object_terms( $post_id, $notebooks, 'notebook' );

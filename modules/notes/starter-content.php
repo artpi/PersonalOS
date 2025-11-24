@@ -128,21 +128,61 @@ $this->create(
 );
 
 // Chat prompts.
+$base_prompt_content = <<<EOF
+<!-- wp:paragraph -->
+<p>Your name is PersonalOS. You are a plugin installed on my WordPress site.<br>
+<br>Apart from WordPress functionality, you have certain modules enabled, and functionality exposed as tools.<br>
+<br>You can use these tools to perform actions on my behalf.<br>
+<br>Use simple markdown to format your responses.<br>
+<br>NEVER read the URLs (http://, https://, evernote://, etc) out loud in voice mode.<br>
+<br>When answering a question about my todos or notes, stick only to the information from the tools. DO NOT make up information.</p>
+<!-- /wp:paragraph -->
+EOF;
+
+$base_prompt = $this->create(
+	'Default Prompt',
+	$base_prompt_content,
+	array( 'prompts-chat', 'prompts', 'starter-content' ),
+	array(
+		'meta_input' => array(
+			'pos_model' => 'gpt-4.1',
+		),
+		'post_name' => 'prompt_default',
+	)
+);
 
 $chat_prompt_1 = $this->create(
 	'Helpful Assistant - GPT-4.1',
 	'<!-- wp:paragraph -->
-<p>You are a helpful assistant. Keep your responses concise, clear, and actionable. Focus on being practical and solution-oriented.</p>
-<!-- /wp:paragraph -->',
-	array( 'prompts-chat', 'prompts', 'starter-content' )
+	<p>You are a helpful assistant. Keep your responses concise, clear, and actionable. Focus on being practical and solution-oriented.</p>
+	<!-- /wp:paragraph -->
+
+	<!-- wp:pos/note {"note_id":' . $base_prompt . '} -->
+	<div class="wp-block-pos-note"><div>' . $base_prompt_content . '</div></div>
+	<!-- /wp:pos/note -->',
+	array( 'prompts-chat', 'prompts', 'starter-content' ),
+	array(
+		'meta_input' => array(
+			'pos_model' => 'gpt-4.1',
+		),
+		'post_name' => 'prompt_gpt41',
+	)
 );
-update_post_meta( $chat_prompt_1, 'pos_model', 'gpt-4.1' );
 
 $chat_prompt_2 = $this->create(
 	'Helpful Assistant - GPT-5',
 	'<!-- wp:paragraph -->
-<p>You are a helpful assistant. Keep your responses concise, clear, and actionable. Focus on being practical and solution-oriented.</p>
-<!-- /wp:paragraph -->',
-	array( 'prompts-chat', 'prompts', 'starter-content' )
+	<p>You are a helpful assistant. Keep your responses concise, clear, and actionable. Focus on being practical and solution-oriented.</p>
+	<!-- /wp:paragraph -->
+
+	<!-- wp:pos/note {"note_id":' . $base_prompt . '} -->
+	<div class="wp-block-pos-note"><div>' . $base_prompt_content . '</div></div>
+	<!-- /wp:pos/note -->',
+	array( 'prompts-chat', 'prompts', 'starter-content' ),
+	array(
+		'meta_input' => array(
+			'pos_model' => 'gpt-5',
+		),
+		'post_name' => 'prompt_gpt5',
+	)
 );
-update_post_meta( $chat_prompt_2, 'pos_model', 'gpt-5' );
