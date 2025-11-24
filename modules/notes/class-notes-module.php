@@ -145,6 +145,72 @@ class Notes_Module extends POS_Module {
 		);
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		add_action( 'pos_openai_tools', array( $this, 'ai_tools' ), 10, 1 );
+
+		// Register abilities
+		if ( class_exists( 'WP_Ability' ) ) {
+			add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
+		}
+	}
+
+	/**
+	 * Register Notes module abilities with WordPress Abilities API.
+	 */
+	public function register_abilities() {
+		// Register get_notebooks ability
+		wp_register_ability(
+			'pos/get-notebooks',
+			array(
+				'label'               => __( 'Get Notebooks', 'personalos' ),
+				'description'         => __( 'Get all notebooks organized by flags. Notebooks represent areas of life, active projects and statuses of tasks.', 'personalos' ),
+				'category'            => 'personalos',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'notebook_flag' => array(
+							'type'        => 'string',
+							'description' => 'The flag of the notebook to get.',
+						),
+					),
+					'required'             => array( 'notebook_flag' ),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'        => 'array',
+					'description' => 'Array of notebooks grouped by flags',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'flag_id'    => array( 'type' => 'string' ),
+							'flag_name'  => array( 'type' => 'string' ),
+							'flag_label' => array( 'type' => 'string' ),
+							'notebooks'  => array(
+								'type'  => 'array',
+								'items' => array(
+									'type'       => 'object',
+									'properties' => array(
+										'notebook_name' => array( 'type' => 'string' ),
+										'notebook_id'   => array( 'type' => 'integer' ),
+										'notebook_slug' => array( 'type' => 'string' ),
+										'notebook_description' => array( 'type' => 'string' ),
+									),
+								),
+							),
+						),
+					),
+				),
+				'execute_callback'    => array( $this, 'get_notebooks_for_openai' ),
+				'permission_callback' => function() {
+					return current_user_can( 'manage_options' );
+				},
+				'meta'                => array(
+					'show_in_rest' => true,
+					'annotations'  => array(
+						'readonly'    => true,
+						'destructive' => false,
+					),
+				),
+			)
+		);
 	}
 
 	public function ai_tools( $tools ) {

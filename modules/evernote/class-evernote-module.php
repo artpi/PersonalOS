@@ -60,6 +60,69 @@ class Evernote_Module extends External_Service_Module {
 		add_action( 'notebook_edit_form_fields', array( $this, 'notebook_edit_form_fields' ), 10, 2 );
 		add_action( 'edited_notebook', array( $this, 'save_bound_notebook_taxonomy_setting' ) );
 		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
+
+		// Register abilities
+		if ( class_exists( 'WP_Ability' ) ) {
+			add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
+		}
+	}
+
+	/**
+	 * Register Evernote module abilities with WordPress Abilities API.
+	 */
+	public function register_abilities() {
+		// Register evernote_search_notes ability
+		wp_register_ability(
+			'pos/evernote-search-notes',
+			array(
+				'label'               => __( 'Evernote Search Notes', 'personalos' ),
+				'description'         => __( 'Search notes in Evernote', 'personalos' ),
+				'category'            => 'personalos',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'query'         => array(
+							'type'        => 'string',
+							'description' => 'Query to search for notes.',
+						),
+						'limit'         => array(
+							'type'        => 'integer',
+							'description' => 'Limit the number of notes returned. Do not change unless specified otherwise. Please use 10 as default.',
+						),
+						'return_random' => array(
+							'type'        => 'integer',
+							'description' => 'Return X random notes from result. Do not change unless specified otherwise. Please always use 0 unless specified otherwise.',
+						),
+					),
+					'required'             => array( 'query', 'limit', 'return_random' ),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'        => 'array',
+					'description' => 'Array of Evernote notes',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'title'    => array( 'type' => 'string' ),
+							'url'      => array( 'type' => 'string' ),
+							'date'     => array( 'type' => 'string' ),
+							'notebook' => array( 'type' => 'string' ),
+						),
+					),
+				),
+				'execute_callback'    => array( $this, 'search_notes_for_openai' ),
+				'permission_callback' => function() {
+					return current_user_can( 'manage_options' );
+				},
+				'meta'                => array(
+					'show_in_rest' => true,
+					'annotations'  => array(
+						'readonly'    => true,
+						'destructive' => false,
+					),
+				),
+			)
+		);
 	}
 
 	public function register_openai_tools( $tools ) {

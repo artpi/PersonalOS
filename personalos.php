@@ -143,10 +143,6 @@ class POS {
 		self::fix_versions();
 		require_once plugin_dir_path( __FILE__ ) . 'class-pos-settings.php';
 		$settings = new POS_Settings( self::$modules );
-
-		// Initialize Abilities API integration
-		require_once plugin_dir_path( __FILE__ ) . 'class-pos-abilities.php';
-		POS_Abilities::init();
 	}
 }
 add_action( 'init', 'POS::init' );

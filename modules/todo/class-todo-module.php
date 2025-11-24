@@ -128,6 +128,120 @@ class TODO_Module extends POS_Module {
 			)
 		);
 		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
+
+		// Register abilities
+		if ( class_exists( 'WP_Ability' ) ) {
+			add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
+		}
+	}
+
+	/**
+	 * Register TODO module abilities with WordPress Abilities API.
+	 */
+	public function register_abilities() {
+		// Register todo_get_items ability
+		wp_register_ability(
+			'pos/todo-get-items',
+			array(
+				'label'               => __( 'Get TODO Items', 'personalos' ),
+				'description'         => __( 'List TODOs from a specific notebook. Defaults to "now" notebook if not specified.', 'personalos' ),
+				'category'            => 'personalos',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'notebook' => array(
+							'type'        => array( 'string', 'null' ),
+							'description' => 'slug of the notebook to list TODOs from. If not specified, defaults to "now". Use "all" to list from all notebooks.',
+						),
+					),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'        => 'array',
+					'description' => 'Array of TODO items',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'title'       => array( 'type' => 'string' ),
+							'excerpt'     => array( 'type' => 'string' ),
+							'url'         => array( 'type' => 'string' ),
+							'notebooks'   => array(
+								'type'  => 'array',
+								'items' => array( 'type' => 'string' ),
+							),
+							'ID'          => array( 'type' => 'integer' ),
+							'post_status' => array( 'type' => 'string' ),
+						),
+					),
+				),
+				'execute_callback'    => array( $this, 'get_items_for_openai' ),
+				'permission_callback' => function() {
+					return current_user_can( 'manage_options' );
+				},
+				'meta'                => array(
+					'show_in_rest' => true,
+					'annotations'  => array(
+						'readonly'    => true,
+						'destructive' => false,
+					),
+				),
+			)
+		);
+
+		// Register todo_create_item ability
+		wp_register_ability(
+			'pos/todo-create-item',
+			array(
+				'label'               => __( 'Create TODO Item', 'personalos' ),
+				'description'         => __( 'Create TODO. Always ask for confirmation if not explicitly asked to create a TODO. Always return the URL in response. Never read the URL when reading out loud.', 'personalos' ),
+				'category'            => 'personalos',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'post_title'   => array(
+							'type'        => 'string',
+							'description' => 'The title of the TODO',
+						),
+						'post_excerpt' => array(
+							'type'        => 'string',
+							'description' => 'The description of the TODO',
+						),
+						'notebook'     => array(
+							'type'        => array( 'string', 'null' ),
+							'description' => 'slug of the notebook to add the TODO to. Fill only if TODO is clearly related to this notebook.',
+						),
+					),
+					'required'             => array( 'post_title', 'post_excerpt' ),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'        => 'object',
+					'description' => 'Created TODO item',
+					'properties'  => array(
+						'title'       => array( 'type' => 'string' ),
+						'excerpt'     => array( 'type' => 'string' ),
+						'url'         => array( 'type' => 'string' ),
+						'notebooks'   => array(
+							'type'  => 'array',
+							'items' => array( 'type' => 'string' ),
+						),
+						'ID'          => array( 'type' => 'integer' ),
+						'post_status' => array( 'type' => 'string' ),
+					),
+				),
+				'execute_callback'    => array( $this, 'create_item_for_openai' ),
+				'permission_callback' => function() {
+					return current_user_can( 'manage_options' );
+				},
+				'meta'                => array(
+					'show_in_rest' => true,
+					'annotations'  => array(
+						'readonly'    => false,
+						'destructive' => true,
+					),
+				),
+			)
+		);
 	}
 
 	public function register_openai_tools( $tools ) {

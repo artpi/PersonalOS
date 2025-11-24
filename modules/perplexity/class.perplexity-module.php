@@ -22,6 +22,52 @@ class Perplexity_Module extends POS_Module {
 		}
 		$this->register_cli_command( 'search', 'cli_search' );
 		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
+
+		// Register abilities
+		if ( class_exists( 'WP_Ability' ) ) {
+			add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
+		}
+	}
+
+	/**
+	 * Register Perplexity module abilities with WordPress Abilities API.
+	 */
+	public function register_abilities() {
+		// Register perplexity_search ability
+		wp_register_ability(
+			'pos/perplexity-search',
+			array(
+				'label'               => __( 'Perplexity Search', 'personalos' ),
+				'description'         => __( 'Search the web using Perplexity search. Use this tool only if you are certain you need the information from the internet.', 'personalos' ),
+				'category'            => 'personalos',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'query' => array(
+							'type'        => 'string',
+							'description' => 'The search query to send to Perplexity',
+						),
+					),
+					'required'             => array( 'query' ),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'        => 'string',
+					'description' => 'Search result content from Perplexity',
+				),
+				'execute_callback'    => array( $this, 'search_for_openai' ),
+				'permission_callback' => function() {
+					return current_user_can( 'manage_options' );
+				},
+				'meta'                => array(
+					'show_in_rest' => true,
+					'annotations'  => array(
+						'readonly'    => true,
+						'destructive' => false,
+					),
+				),
+			)
+		);
 	}
 
 	public function register_openai_tools( $tools ) {
