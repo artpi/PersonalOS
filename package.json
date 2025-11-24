@@ -24,8 +24,8 @@
 		"start": "wp-scripts start",
 		"wp-env": "wp-env",
 		"dev": "wp-scripts start",
-		"test:unit:backend": "wp-env run tests-cli --env-cwd=wp-content/plugins/personalos ./vendor/bin/phpunit --testsuite=unit",
-		"test:integration:backend": "wp-env run tests-cli --env-cwd=wp-content/plugins/personalos ./vendor/bin/phpunit --testsuite=integration"
+		"test:unit:backend": "PLUGIN_DIR=$(basename \"$PWD\"); wp-env run tests-cli --env-cwd=wp-content/plugins/$PLUGIN_DIR ./vendor/bin/phpunit --testsuite=unit",
+		"test:integration:backend": "PLUGIN_DIR=$(basename \"$PWD\"); wp-env run tests-cli --env-cwd=wp-content/plugins/$PLUGIN_DIR ./vendor/bin/phpunit --testsuite=integration"
 	},
 	"dependencies": {
 		"@wordpress/compose": "^6.27.0",

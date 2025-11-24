@@ -22,7 +22,7 @@ Assume environment is set up.
 
 - `composer run lint -- "file/path"` to lint
 - `composer run phpcbf -- "file/path"` to format entire file, including whitespace. Dont try to use python or other scripts to add whitespace.
-- `npm run test:unit` to run tests. Feel free to run them often.
+- `npm run test:unit:backend` to run tests. Feel free to run them often.
 
 ## Your behaviour
 
