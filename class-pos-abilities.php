@@ -467,16 +467,26 @@ class POS_Abilities {
 		add_filter(
 			'pos_openai_tools',
 			function( $tools ) use ( $ability_to_tool_map ) {
+				// Map of writeable tool names
+				$writeable_tools = array(
+					'todo_create_item' => true,
+					'ai_memory'        => true,
+				);
+
 				foreach ( $ability_to_tool_map as $ability_name => $tool_name ) {
 					$ability = wp_get_ability( $ability_name );
 					if ( ! $ability ) {
 						continue;
 					}
 
-					// Create OpenAI_Tool from ability
-					$tool_class = strpos( $tool_name, 'create' ) !== false || strpos( $tool_name, 'memory' ) !== false
-						? 'OpenAI_Tool_Writeable'
-						: 'OpenAI_Tool';
+					// Determine tool class based on destructive flag or explicit mapping
+					$tool_class = 'OpenAI_Tool';
+					$annotations = $ability->get_meta( 'annotations' );
+					if ( isset( $annotations['destructive'] ) && $annotations['destructive'] ) {
+						$tool_class = 'OpenAI_Tool_Writeable';
+					} elseif ( isset( $writeable_tools[ $tool_name ] ) ) {
+						$tool_class = 'OpenAI_Tool_Writeable';
+					}
 
 					$parameters = array();
 					if ( isset( $ability->get_input_schema()['properties'] ) ) {
