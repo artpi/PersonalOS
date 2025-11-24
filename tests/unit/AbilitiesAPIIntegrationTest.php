@@ -140,43 +140,7 @@ class AbilitiesAPIIntegrationTest extends WP_UnitTestCase {
 		}
 	}
 
-	public function test_bridge_creates_openai_tools_from_abilities() {
-		if ( ! class_exists( 'WP_Ability' ) ) {
-			$this->markTestSkipped( 'Abilities API not available' );
-		}
-
-		// Get tools via the filter
-		$tools = apply_filters( 'pos_openai_tools', array() );
-		
-		$this->assertIsArray( $tools, 'Should return array of tools' );
-		$this->assertNotEmpty( $tools, 'Should have tools registered' );
-
-		// Check that abilities-based tools exist
-		$tool_names = array_map(
-			function( $tool ) {
-				return $tool->name;
-			},
-			$tools
-		);
-
-		$expected_tools = array(
-			'todo_get_items',
-			'todo_create_item',
-			'list_posts',
-			'ai_memory',
-			'get_notebooks',
-		);
-
-		foreach ( $expected_tools as $tool_name ) {
-			$this->assertContains( 
-				$tool_name, 
-				$tool_names,
-				"Tool '$tool_name' should be created from ability" 
-			);
-		}
-	}
-
-	public function test_ability_execution_via_bridge() {
+	public function test_ability_direct_execution() {
 		if ( ! class_exists( 'WP_Ability' ) ) {
 			$this->markTestSkipped( 'Abilities API not available' );
 		}
@@ -186,12 +150,12 @@ class AbilitiesAPIIntegrationTest extends WP_UnitTestCase {
 			wp_insert_term( 'inbox', 'notebook' );
 		}
 
-		// Get the tool via OpenAI_Tool system (which should use the bridge)
-		$tool = OpenAI_Tool::get_tool( 'todo_get_items' );
-		$this->assertNotNull( $tool, 'Should find todo_get_items tool via bridge' );
+		// Get the ability directly
+		$ability = wp_get_ability( 'pos/todo-get-items' );
+		$this->assertNotNull( $ability, 'Should find pos/todo-get-items ability' );
 
-		// Execute via tool (which should call the ability)
-		$result = $tool->invoke( array( 'notebook' => 'inbox' ) );
+		// Execute the ability directly
+		$result = $ability->execute( array( 'notebook' => 'inbox' ) );
 		$this->assertIsArray( $result, 'Should return array result' );
 	}
 }

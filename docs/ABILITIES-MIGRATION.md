@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the migration of PersonalOS AI tools from the custom `OpenAI_Tool` system to the WordPress Abilities API.
+This document describes the migration of PersonalOS AI tools from the custom `OpenAI_Tool` system to the WordPress Abilities API with a decentralized, self-contained module architecture.
 
 ## Background
 
@@ -11,62 +11,105 @@ PersonalOS originally implemented AI capabilities using a custom `OpenAI_Tool` c
 - Not discoverable by other WordPress plugins
 - Lacking standardized schemas and permissions
 - Difficult to integrate with emerging AI assistant protocols
+- Centralized with modules depending on a coordinator class
 
-The WordPress Abilities API provides a standardized way to register and execute capabilities, making them discoverable and interoperable with other WordPress plugins and AI systems.
+The WordPress Abilities API provides a standardized way to register and execute capabilities, making them discoverable and interoperable with other WordPress plugins and AI systems. The migration also adopts a decentralized architecture where each module is self-contained and registers its own capabilities.
 
 ## Migration Goals
 
 1. Convert all existing OpenAI tools to WordPress Abilities API format
 2. Use standardized `pos/` namespace for all abilities
 3. Categorize all abilities under `personalos` category
-4. Maintain backward compatibility with existing OpenAI integrations
-5. Ensure all code is testable and follows WordPress coding standards
+4. Adopt decentralized, self-contained module architecture
+5. Remove dependency on OpenAI_Tool - use abilities directly
+6. Ensure all code is testable and follows WordPress coding standards
 
 ## What Changed
 
 ### Architecture
 
-**Before:**
+**Before (Centralized with Bridge):**
 ```php
-add_filter( 'pos_openai_tools', function( $tools ) {
-    $tools[] = new OpenAI_Tool(
-        'todo_get_items',
-        'Description',
-        array( 'parameters' ),
-        function( $args ) { /* implementation */ }
-    );
-    return $tools;
-} );
+// Central POS_Abilities class
+class POS_Abilities {
+    public static function register_todo_abilities() {
+        $todo_module = POS::get_module_by_id('todo');
+        wp_register_ability('pos/todo-get-items', [...]);
+    }
+    
+    public static function bridge_tools_to_abilities() {
+        // Create OpenAI_Tool from abilities for backward compat
+    }
+}
+
+// OpenAI module uses tools
+$tools = OpenAI_Tool::get_tools();
 ```
 
-**After:**
+**After (Decentralized, Self-Contained):**
 ```php
-wp_register_ability(
-    'pos/todo-get-items',
-    array(
-        'label' => 'Get TODO Items',
-        'description' => 'Description',
-        'category' => 'personalos',
-        'input_schema' => array( /* JSON Schema */ ),
-        'output_schema' => array( /* JSON Schema */ ),
-        'execute_callback' => array( $module, 'method' ),
-        'permission_callback' => function() { return current_user_can( 'manage_options' ); },
-    )
-);
+// Each module registers its own abilities
+class TODO_Module extends POS_Module {
+    public function register() {
+        // ... other registration
+        if (class_exists('WP_Ability')) {
+            add_action('wp_abilities_api_init', array($this, 'register_abilities'));
+        }
+    }
+    
+    public function register_abilities() {
+        wp_register_ability('pos/todo-get-items', [
+            'execute_callback' => array($this, 'get_items_for_openai'),
+            // ... other config
+        ]);
+    }
+}
+
+// OpenAI module uses abilities directly
+$abilities = wp_get_abilities();
+foreach ($abilities as $ability) {
+    if (strpos($ability->get_name(), 'pos/') === 0) {
+        // Use ability directly via $ability->execute()
+    }
+}
 ```
+
+### Key Changes
+
+1. **Removed `class-pos-abilities.php`**: Deleted the central coordinator class entirely
+2. **Module Self-Registration**: Each module now registers abilities in its own `register_abilities()` method
+3. **No Bridge**: Removed backward compatibility bridge - abilities used directly
+4. **Direct Execution**: `complete_backscroll()` and `complete_responses()` use abilities via `wp_get_abilities()` and `$ability->execute()`
+5. **Documentation**: Created `docs/ARCHITECTURE.md` documenting the self-contained pattern
+
+## Module Architecture
 
 ### File Structure
 
+**Deleted Files:**
+- `class-pos-abilities.php` - Central coordinator class (no longer needed)
+
 **New Files:**
-- `class-pos-abilities.php` - Central abilities registration and bridge adapter
+- `docs/ARCHITECTURE.md` - Architecture documentation
 - `tests/unit/AbilitiesAPIIntegrationTest.php` - Integration tests
 - `tests/unit/OpenAIModuleAIToolsTest.php` - Unit tests for OpenAI module tools
 - `tests/unit/NotesModuleAIToolsTest.php` - Unit tests for Notes module tools
 
 **Modified Files:**
-- All module files with tool registrations (extracted inline callbacks to testable methods)
-- `personalos.php` - Added POS_Abilities initialization
+- All module files (added `register_abilities()` methods)
+- `personalos.php` - Removed POS_Abilities initialization
 - `.wp-env.json` - Added abilities-api plugin dependency
+- `modules/openai/class-openai-module.php` - Updated to use abilities directly instead of OpenAI_Tool
+
+## Benefits of New Architecture
+
+1. **True Modularity**: Each module is completely self-contained
+2. **No Dependencies**: Modules don't depend on a central registry
+3. **Easy to Add**: New modules can be added without touching core code
+4. **Clear Ownership**: Each module owns its capabilities
+5. **Better Testing**: Modules can be tested in isolation
+6. **Standards Compliant**: Uses WordPress-standard APIs throughout
+7. **Simpler Code**: No bridge/adapter layer needed
 
 ## Migrated Tools
 
@@ -151,6 +194,42 @@ if ( $ability ) {
     }
 }
 ```
+
+### For Module Developers
+
+To add a new module with AI capabilities:
+
+```php
+class New_Module extends POS_Module {
+    public function register() {
+        // ... other registration
+        
+        if (class_exists('WP_Ability')) {
+            add_action('wp_abilities_api_init', array($this, 'register_abilities'));
+        }
+    }
+    
+    public function register_abilities() {
+        wp_register_ability(
+            'pos/new-capability',
+            array(
+                'label' => __('New Capability', 'personalos'),
+                'description' => __('Does something useful', 'personalos'),
+                'category' => 'personalos',
+                'execute_callback' => array($this, 'do_something'),
+                'permission_callback' => '__return_true',
+            )
+        );
+    }
+    
+    public function do_something($input) {
+        // Implementation
+        return array('result' => 'success');
+    }
+}
+```
+
+See `docs/ARCHITECTURE.md` for complete guidelines.
 
 ### For AI Assistant Integrations
 
