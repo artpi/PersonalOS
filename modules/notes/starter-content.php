@@ -108,7 +108,7 @@ $this->create(
 	<h2 class="wp-block-heading">Projects I want to focus on right now:</h2>
 	<!-- /wp:heading -->
 
-	<!-- wp:pos/ai-tool {"tool":"pos/get-notebooks","parameters":{"notebook_flag":"project"}} -->
+	<!-- wp:pos/ai-tool {"tool":"pos/get-notebooks","parameters":{"notebook_flag":"project"},"outputFields":["flag_name","notebooks"],"outputFormat":"json"} -->
 	<div class="wp-block pos-ai-tool"><p>This is a static block.</p></div>
 	<!-- /wp:pos/ai-tool -->
 
@@ -116,7 +116,7 @@ $this->create(
 	<h2 class="wp-block-heading">My TODOS for Today</h2>
 	<!-- /wp:heading -->
 
-	<!-- wp:pos/ai-tool {"tool":"pos/todo-get-items","parameters":{}} -->
+	<!-- wp:pos/ai-tool {"tool":"pos/todo-get-items","parameters":{},"outputFields":["title","excerpt"],"outputFormat":"json"} -->
 	<div class="wp-block pos-ai-tool"><p>This is a static block.</p></div>
 	<!-- /wp:pos/ai-tool -->
 
