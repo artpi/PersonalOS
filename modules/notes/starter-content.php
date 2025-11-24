@@ -140,6 +140,10 @@ $base_prompt_content = <<<EOF
 <br>When answering a question about my todos or notes, stick only to the information from the tools. DO NOT make up information.</p>
 <!-- /wp:paragraph -->
 
+<!-- wp:pos/ai-tool {"tool":"pos/system-state","parameters":{},"outputFields":["user_id","user_description","system_time","user_display_name"]} -->
+<div class="wp-block pos-ai-tool"><p>This is a static block.</p></div>
+<!-- /wp:pos/ai-tool -->
+
 <!-- wp:heading -->
 <h2 class="wp-block-heading">Notebooks</h2>
 <!-- /wp:heading -->
@@ -148,7 +152,7 @@ $base_prompt_content = <<<EOF
 <p>My work is organized in notebooks, roughuy following the PARA method.</p>
 <!-- /wp:paragraph -->
 
-<!-- wp:pos/ai-tool {"tool":"pos/get-notebooks","parameters":{"notebook_flag":"all"}} -->
+<!-- wp:pos/ai-tool {"tool":"pos/get-notebooks","parameters":{"notebook_flag":"all"},"outputFields":["flag_id","flag_name","flag_label","notebooks"]} -->
 <div class="wp-block pos-ai-tool"><p>This is a static block.</p></div>
 <!-- /wp:pos/ai-tool -->
 
@@ -160,9 +164,13 @@ $base_prompt_content = <<<EOF
 <p>Here are the things I want you to remember</p>
 <!-- /wp:paragraph -->
 
-<!-- wp:pos/ai-tool {"tool":"pos/get-ai-memories","parameters":{}} -->
+<!-- wp:pos/ai-tool {"tool":"pos/get-ai-memories","parameters":{},"outputFields":["title","content","date"]} -->
 <div class="wp-block pos-ai-tool"><p>This is a static block.</p></div>
 <!-- /wp:pos/ai-tool -->
+
+<!-- wp:paragraph -->
+<p></p>
+<!-- /wp:paragraph -->
 EOF;
 
 // TODO: Make this note impossible to delete - probably a hook in the openai module.
