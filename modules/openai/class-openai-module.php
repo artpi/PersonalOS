@@ -65,9 +65,7 @@ class OpenAI_Module extends POS_Module {
 		);
 
 		// Register abilities
-		if ( class_exists( 'WP_Ability' ) ) {
-			add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
-		}
+		add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
 	}
 
 	/**
@@ -115,10 +113,8 @@ class OpenAI_Module extends POS_Module {
 						),
 					),
 				),
-				'execute_callback'    => array( $this, 'list_posts_for_openai' ),
-				'permission_callback' => function() {
-					return current_user_can( 'manage_options' );
-				},
+				'execute_callback'    => array( $this, 'list_posts_ability' ),
+				'permission_callback' => 'is_user_logged_in',
 				'meta'                => array(
 					'show_in_rest' => true,
 					'annotations'  => array(
@@ -162,10 +158,8 @@ class OpenAI_Module extends POS_Module {
 						'url' => array( 'type' => 'string' ),
 					),
 				),
-				'execute_callback'    => array( $this, 'create_ai_memory' ),
-				'permission_callback' => function() {
-					return current_user_can( 'manage_options' );
-				},
+				'execute_callback'    => array( $this, 'create_ai_memory_ability' ),
+				'permission_callback' => 'is_user_logged_in',
 				'meta'                => array(
 					'show_in_rest' => true,
 					'annotations'  => array(
@@ -466,12 +460,12 @@ class OpenAI_Module extends POS_Module {
 	}
 
 	/**
-	 * List posts for OpenAI tool.
+	 * List posts ability.
 	 *
 	 * @param array $args Arguments for get_posts (posts_per_page, post_type, post_status).
 	 * @return array Array of formatted post objects.
 	 */
-	public function list_posts_for_openai( $args ) {
+	public function list_posts_ability( $args ) {
 		return array_map(
 			function( $post ) {
 				return array(
@@ -487,12 +481,12 @@ class OpenAI_Module extends POS_Module {
 	}
 
 	/**
-	 * Create or update an AI memory.
+	 * Create or update an AI memory ability.
 	 *
 	 * @param array $args Arguments with ID, post_title, and post_content.
 	 * @return array Array with URL of created/updated memory.
 	 */
-	public function create_ai_memory( $args ) {
+	public function create_ai_memory_ability( $args ) {
 		$memory_id = wp_insert_post(
 			array_merge(
 				$args,
@@ -1148,6 +1142,7 @@ class OpenAI_Module extends POS_Module {
 
 		// Get abilities excluding perplexity_search since we have built-in web_search
 		$tools = array();
+		$tool_definitions = array();
 		if ( function_exists( 'wp_get_abilities' ) ) {
 			$abilities = wp_get_abilities();
 			foreach ( $abilities as $ability ) {
@@ -1160,21 +1155,9 @@ class OpenAI_Module extends POS_Module {
 					continue;
 				}
 				$tools[] = $ability;
+				$tool_definitions[] = $this->ability_to_function_signature( $ability, 'responses' );
 			}
 		}
-
-		$tool_definitions = array_map(
-			function ( $ability ) {
-				$input_schema = $ability->get_input_schema();
-				return array(
-					'type'        => 'function',
-					'name'        => str_replace( 'pos/', '', $ability->get_name() ),
-					'description' => $ability->get_description(),
-					'parameters'  => $input_schema,
-				);
-			},
-			$tools
-		);
 		// Add built-in web search tool
 		$tool_definitions[] = array(
 			'type' => 'web_search',
@@ -1282,11 +1265,11 @@ class OpenAI_Module extends POS_Module {
 
 						$arguments = json_decode( $output_item->arguments ?? '{}', true );
 
-						// Find the ability by name
+						// Find the ability by tool name (need to convert BEM-style to ability name)
 						$ability = null;
 						foreach ( $tools as $tool_ability ) {
-							$ability_short_name = str_replace( 'pos/', '', $tool_ability->get_name() );
-							if ( $ability_short_name === $output_item->name ) {
+							$tool_name = $this->get_tool_id_from_ability_name( $tool_ability->get_name() );
+							if ( $tool_name === $output_item->name ) {
 								$ability = $tool_ability;
 								break;
 							}
@@ -1397,11 +1380,72 @@ class OpenAI_Module extends POS_Module {
 	}
 
 	/**
+	 * Convert an ability name to tool ID format.
+	 * This will turn the namespacing / into BEM-like __ and - into _.
+	 *
+	 * @param string $ability_name The ability name to convert.
+	 * @return string The tool ID.
+	 */
+	private function get_tool_id_from_ability_name( $ability_name ) {
+		return str_replace( array( '/', '-' ), array( '__', '_' ), $ability_name );
+	}
+
+	/**
+	 * Convert a WP_Ability to OpenAI function signature format.
+	 *
+	 * @param WP_Ability $ability The ability to convert.
+	 * @param string     $api API format: 'chat', 'responses', or 'realtime'. Default 'chat'.
+	 * @return array The function signature.
+	 */
+	private function ability_to_function_signature( $ability, $api = 'chat' ) {
+		$input_schema = $ability->get_input_schema();
+		$properties   = $input_schema['properties'] ?? array();
+		$required     = $input_schema['required'] ?? array();
+
+		// Convert ability name to tool name format
+		$tool_name = $this->get_tool_id_from_ability_name( $ability->get_name() );
+
+		// For strict mode to work with OpenAI, ALL properties must be in the required array
+		// If the ability has optional parameters, we can't use strict mode
+		$use_strict = ! empty( $required ) && count( $required ) === count( $properties );
+
+		$parameters = array(
+			'type'                 => 'object',
+			'properties'           => (object) $properties,
+			'required'             => $required,
+			'additionalProperties' => false,
+		);
+
+		$responses_signature = array(
+			'type'        => 'function',
+			'name'        => $tool_name,
+			'strict'      => $use_strict,
+			'description' => $ability->get_description(),
+			'parameters'  => $parameters,
+		);
+
+		if ( 'responses' === $api || 'realtime' === $api ) {
+			return $responses_signature;
+		}
+
+		return array(
+			'type'     => 'function',
+			'function' => array(
+				'name'        => $responses_signature['name'],
+				'strict'      => $responses_signature['strict'],
+				'description' => $responses_signature['description'],
+				'parameters'  => $responses_signature['parameters'],
+			),
+		);
+	}
+
+	/**
 	 * Get abilities formatted for OpenAI function calling.
 	 *
+	 * @param string $api API format: 'chat', 'responses', or 'realtime'. Default 'chat'.
 	 * @return array Array of ability definitions for OpenAI.
 	 */
-	private function get_abilities_as_tools() {
+	private function get_abilities_as_tools( $api = 'chat' ) {
 		if ( ! function_exists( 'wp_get_abilities' ) ) {
 			return array();
 		}
@@ -1415,35 +1459,30 @@ class OpenAI_Module extends POS_Module {
 				continue;
 			}
 
-			$input_schema = $ability->get_input_schema();
-			$tool_definitions[] = array(
-				'type'     => 'function',
-				'function' => array(
-					'name'        => str_replace( 'pos/', '', $ability->get_name() ),
-					'description' => $ability->get_description(),
-					'parameters'  => $input_schema,
-				),
-			);
+			$tool_definitions[] = $this->ability_to_function_signature( $ability, $api );
 		}
 
 		return $tool_definitions;
 	}
 
 	/**
-	 * Execute an ability by name.
+	 * Execute an ability by tool name.
 	 *
-	 * @param string $name Ability name (without pos/ prefix).
+	 * @param string $tool_name Tool name (with BEM-style naming).
 	 * @param array  $arguments Arguments for the ability.
 	 * @return mixed Result of ability execution or WP_Error.
 	 */
-	private function execute_ability( $name, $arguments ) {
+	private function execute_ability( $tool_name, $arguments ) {
 		if ( ! function_exists( 'wp_get_ability' ) ) {
 			return new WP_Error( 'abilities-not-available', 'Abilities API is not available' );
 		}
 
-		$ability = wp_get_ability( 'pos/' . $name );
+		// Convert tool name back to ability name
+		$ability_name = str_replace( array( '__', '_' ), array( '/', '-' ), $tool_name );
+
+		$ability = wp_get_ability( $ability_name );
 		if ( ! $ability ) {
-			return new WP_Error( 'ability-not-found', 'Ability not found: ' . $name );
+			return new WP_Error( 'ability-not-found', 'Ability not found: ' . $ability_name );
 		}
 
 		return $ability->execute( $arguments );

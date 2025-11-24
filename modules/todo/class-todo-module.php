@@ -128,9 +128,7 @@ class TODO_Module extends POS_Module {
 			)
 		);
 		// Register abilities
-		if ( class_exists( 'WP_Ability' ) ) {
-			add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
-		}
+		add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
 	}
 
 	/**
@@ -172,10 +170,8 @@ class TODO_Module extends POS_Module {
 						),
 					),
 				),
-				'execute_callback'    => array( $this, 'get_items_for_openai' ),
-				'permission_callback' => function() {
-					return current_user_can( 'manage_options' );
-				},
+				'execute_callback'    => array( $this, 'get_items_ability' ),
+				'permission_callback' => 'is_user_logged_in',
 				'meta'                => array(
 					'show_in_rest' => true,
 					'annotations'  => array(
@@ -227,10 +223,8 @@ class TODO_Module extends POS_Module {
 						'post_status' => array( 'type' => 'string' ),
 					),
 				),
-				'execute_callback'    => array( $this, 'create_item_for_openai' ),
-				'permission_callback' => function() {
-					return current_user_can( 'manage_options' );
-				},
+				'execute_callback'    => array( $this, 'create_item_ability' ),
+				'permission_callback' => 'is_user_logged_in',
 				'meta'                => array(
 					'show_in_rest' => true,
 					'annotations'  => array(
@@ -243,12 +237,12 @@ class TODO_Module extends POS_Module {
 	}
 
 	/**
-	 * Create a TODO item for OpenAI tool.
+	 * Create a TODO item ability.
 	 *
 	 * @param array $args Arguments with post_title, post_excerpt, and optional notebook.
 	 * @return array Formatted TODO item array.
 	 */
-	public function create_item_for_openai( $args ) {
+	public function create_item_ability( $args ) {
 		$create_args = array(
 			'post_title'   => $args['post_title'],
 			'post_excerpt' => $args['post_excerpt'],
@@ -305,7 +299,13 @@ class TODO_Module extends POS_Module {
 		);
 	}
 
-	public function get_items_for_openai( $args ) {
+	/**
+	 * Get TODO items ability.
+	 *
+	 * @param array $args Arguments with optional notebook slug.
+	 * @return array Array of formatted TODO items.
+	 */
+	public function get_items_ability( $args ) {
 		// Default to 'now' notebook if not specified, or use 'all' to list from all notebooks
 		$notebook = isset( $args['notebook'] ) ? $args['notebook'] : 'now';
 

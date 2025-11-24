@@ -23,9 +23,7 @@ class Perplexity_Module extends POS_Module {
 		$this->register_cli_command( 'search', 'cli_search' );
 
 		// Register abilities
-		if ( class_exists( 'WP_Ability' ) ) {
-			add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
-		}
+		add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
 	}
 
 	/**
@@ -54,10 +52,8 @@ class Perplexity_Module extends POS_Module {
 					'type'        => 'string',
 					'description' => 'Search result content from Perplexity',
 				),
-				'execute_callback'    => array( $this, 'search_for_openai' ),
-				'permission_callback' => function() {
-					return current_user_can( 'manage_options' );
-				},
+				'execute_callback'    => array( $this, 'search_ability' ),
+				'permission_callback' => 'is_user_logged_in',
 				'meta'                => array(
 					'show_in_rest' => true,
 					'annotations'  => array(
@@ -70,12 +66,12 @@ class Perplexity_Module extends POS_Module {
 	}
 
 	/**
-	 * Search the web using Perplexity for OpenAI tool.
+	 * Search the web using Perplexity ability.
 	 *
 	 * @param array $arguments Arguments with query string.
 	 * @return string|WP_Error Search result content or error.
 	 */
-	public function search_for_openai( $arguments ) {
+	public function search_ability( $arguments ) {
 		$result = $this->search( $arguments['query'] );
 		if ( is_wp_error( $result ) ) {
 			return $result;

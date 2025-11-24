@@ -146,9 +146,7 @@ class Notes_Module extends POS_Module {
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 
 		// Register abilities
-		if ( class_exists( 'WP_Ability' ) ) {
-			add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
-		}
+		add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
 	}
 
 	/**
@@ -197,10 +195,8 @@ class Notes_Module extends POS_Module {
 						),
 					),
 				),
-				'execute_callback'    => array( $this, 'get_notebooks_for_openai' ),
-				'permission_callback' => function() {
-					return current_user_can( 'manage_options' );
-				},
+				'execute_callback'    => array( $this, 'get_notebooks_ability' ),
+				'permission_callback' => 'is_user_logged_in',
 				'meta'                => array(
 					'show_in_rest' => true,
 					'annotations'  => array(
@@ -213,12 +209,12 @@ class Notes_Module extends POS_Module {
 	}
 
 	/**
-	 * Get notebooks for OpenAI tool.
+	 * Get notebooks ability.
 	 *
 	 * @param array $parameters Parameters with notebook_flag.
 	 * @return array Array of notebook data grouped by flags.
 	 */
-	public function get_notebooks_for_openai( $parameters ) {
+	public function get_notebooks_ability( $parameters ) {
 		$flags = array_filter(
 			apply_filters( 'pos_notebook_flags', array() ),
 			function( $flag ) use ( $parameters ) {

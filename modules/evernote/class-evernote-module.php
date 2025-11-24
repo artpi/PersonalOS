@@ -61,9 +61,7 @@ class Evernote_Module extends External_Service_Module {
 		add_action( 'edited_notebook', array( $this, 'save_bound_notebook_taxonomy_setting' ) );
 
 		// Register abilities
-		if ( class_exists( 'WP_Ability' ) ) {
-			add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
-		}
+		add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
 	}
 
 	/**
@@ -109,10 +107,8 @@ class Evernote_Module extends External_Service_Module {
 						),
 					),
 				),
-				'execute_callback'    => array( $this, 'search_notes_for_openai' ),
-				'permission_callback' => function() {
-					return current_user_can( 'manage_options' );
-				},
+				'execute_callback'    => array( $this, 'search_notes_ability' ),
+				'permission_callback' => 'is_user_logged_in',
 				'meta'                => array(
 					'show_in_rest' => true,
 					'annotations'  => array(
@@ -125,12 +121,12 @@ class Evernote_Module extends External_Service_Module {
 	}
 
 	/**
-	 * Search Evernote notes for OpenAI tool.
+	 * Search Evernote notes ability.
 	 *
 	 * @param array $args Arguments with query, limit, and return_random.
 	 * @return array Array of formatted note objects.
 	 */
-	public function search_notes_for_openai( $args ) {
+	public function search_notes_ability( $args ) {
 		return array_map(
 			function( $note ) {
 				$cached_data = $this->get_cached_data();
