@@ -9,7 +9,7 @@ class NotesModuleAIToolsTest extends WP_UnitTestCase {
 		wp_set_current_user( 1 );
 	}
 
-	public function test_get_notebooks_for_openai_returns_all_notebooks() {
+	public function test_get_notebooks_ability_returns_all_notebooks() {
 		// Create some test notebooks
 		$notebook1_id = wp_insert_term(
 			'Test Notebook 1',
@@ -29,7 +29,7 @@ class NotesModuleAIToolsTest extends WP_UnitTestCase {
 		);
 
 		// Call the method with 'all' flag
-		$result = $this->module->get_notebooks_for_openai(
+		$result = $this->module->get_notebooks_ability(
 			array( 'notebook_flag' => 'all' )
 		);
 
@@ -54,7 +54,7 @@ class NotesModuleAIToolsTest extends WP_UnitTestCase {
 		}
 	}
 
-	public function test_get_notebooks_for_openai_notebook_structure() {
+	public function test_get_notebooks_ability_notebook_structure() {
 		// Create a notebook with metadata
 		$notebook_id = wp_insert_term(
 			'Structured Notebook',
@@ -65,7 +65,7 @@ class NotesModuleAIToolsTest extends WP_UnitTestCase {
 			)
 		);
 
-		$result = $this->module->get_notebooks_for_openai(
+		$result = $this->module->get_notebooks_ability(
 			array( 'notebook_flag' => 'all' )
 		);
 

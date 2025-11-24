@@ -13,10 +13,6 @@ class AbilitiesAPIIntegrationTest extends WP_UnitTestCase {
 		$this->assertTrue( function_exists( 'wp_get_ability' ), 'wp_get_ability function should exist' );
 	}
 
-	public function test_pos_abilities_class_exists() {
-		$this->assertTrue( class_exists( 'POS_Abilities' ), 'POS_Abilities class should exist' );
-	}
-
 	public function test_todo_get_items_ability_registered() {
 		if ( ! class_exists( 'WP_Ability' ) ) {
 			$this->markTestSkipped( 'Abilities API not available' );

@@ -14,7 +14,7 @@ class OpenAIModuleAIToolsTest extends WP_UnitTestCase {
 		}
 	}
 
-	public function test_list_posts_for_openai_returns_posts() {
+	public function test_list_posts_ability_returns_posts() {
 		// Create some test posts
 		$post_id_1 = wp_insert_post(
 			array(
@@ -36,7 +36,7 @@ class OpenAIModuleAIToolsTest extends WP_UnitTestCase {
 		);
 
 		// Call the method
-		$result = $this->module->list_posts_for_openai(
+		$result = $this->module->list_posts_ability(
 			array(
 				'posts_per_page' => 10,
 				'post_type'      => 'post',
@@ -66,7 +66,7 @@ class OpenAIModuleAIToolsTest extends WP_UnitTestCase {
 		$this->assertTrue( $found_post_1, 'Should find test post 1 in results' );
 	}
 
-	public function test_list_posts_for_openai_filters_by_post_type() {
+	public function test_list_posts_ability_filters_by_post_type() {
 		// Create a page
 		$page_id = wp_insert_post(
 			array(
@@ -77,7 +77,7 @@ class OpenAIModuleAIToolsTest extends WP_UnitTestCase {
 		);
 
 		// Request only pages
-		$result = $this->module->list_posts_for_openai(
+		$result = $this->module->list_posts_ability(
 			array(
 				'posts_per_page' => 10,
 				'post_type'      => 'page',
@@ -104,7 +104,7 @@ class OpenAIModuleAIToolsTest extends WP_UnitTestCase {
 			'post_content' => 'This is a test memory content',
 		);
 
-		$result = $this->module->create_ai_memory( $args );
+		$result = $this->module->create_ai_memory_ability( $args );
 
 		$this->assertIsArray( $result, 'Result should be an array' );
 		$this->assertArrayHasKey( 'url', $result, 'Result should have url key' );
@@ -161,7 +161,7 @@ class OpenAIModuleAIToolsTest extends WP_UnitTestCase {
 			'post_content' => 'Updated content',
 		);
 
-		$result = $this->module->create_ai_memory( $args );
+		$result = $this->module->create_ai_memory_ability( $args );
 
 		$this->assertIsArray( $result, 'Result should be an array' );
 		$this->assertArrayHasKey( 'url', $result );
