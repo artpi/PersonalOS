@@ -355,7 +355,6 @@ class OpenAI_Module extends POS_Module {
 	}
 
 	public function register_openai_tools( $tools ) {
-		$notes_module = POS::get_module_by_id( 'notes' );
 		$tools[] = new OpenAI_Tool(
 			'list_posts',
 			'List publicly accessible posts on this blog.',
@@ -375,20 +374,7 @@ class OpenAI_Module extends POS_Module {
 					'enum'        => array( 'publish', 'draft', 'future' ),
 				),
 			),
-			function( $args ) {
-				return array_map(
-					function( $post ) {
-						return array(
-							'id'      => $post->ID,
-							'title'   => $post->post_title,
-							'date'    => $post->post_date,
-							'excerpt' => $post->post_excerpt,
-							'url'     => get_permalink( $post ),
-						);
-					},
-					get_posts( $args )
-				);
-			}
+			array( $this, 'list_posts_for_openai' )
 		);
 		$tools[] = new OpenAI_Tool_Writeable(
 			'ai_memory',
@@ -407,23 +393,52 @@ class OpenAI_Module extends POS_Module {
 					'description' => 'Actual content of the memory that will be stored and used for future conversations.',
 				),
 			),
-			function( $args ) {
-				$memory_id = wp_insert_post(
-					array_merge(
-						$args,
-						array(
-							'post_type'   => 'notes',
-							'post_status' => 'publish',
-						)
-					)
-				);
-				wp_set_object_terms( $memory_id, array( 'ai-memory' ), 'notebook' );
-				return array(
-					'url' => get_permalink( $memory_id ),
-				);
-			}
+			array( $this, 'create_ai_memory' )
 		);
 		return $tools;
+	}
+
+	/**
+	 * List posts for OpenAI tool.
+	 *
+	 * @param array $args Arguments for get_posts (posts_per_page, post_type, post_status).
+	 * @return array Array of formatted post objects.
+	 */
+	public function list_posts_for_openai( $args ) {
+		return array_map(
+			function( $post ) {
+				return array(
+					'id'      => $post->ID,
+					'title'   => $post->post_title,
+					'date'    => $post->post_date,
+					'excerpt' => $post->post_excerpt,
+					'url'     => get_permalink( $post ),
+				);
+			},
+			get_posts( $args )
+		);
+	}
+
+	/**
+	 * Create or update an AI memory.
+	 *
+	 * @param array $args Arguments with ID, post_title, and post_content.
+	 * @return array Array with URL of created/updated memory.
+	 */
+	public function create_ai_memory( $args ) {
+		$memory_id = wp_insert_post(
+			array_merge(
+				$args,
+				array(
+					'post_type'   => 'notes',
+					'post_status' => 'publish',
+				)
+			)
+		);
+		wp_set_object_terms( $memory_id, array( 'ai-memory' ), 'notebook' );
+		return array(
+			'url' => get_permalink( $memory_id ),
+		);
 	}
 
 	public function voice_chat_page() {
@@ -1595,8 +1610,8 @@ class OpenAI_Module extends POS_Module {
 
 		// Prepare post data
 		$post_data = array(
-			'post_type'    => $notes_module->id,
-			'post_status'  => 'private',
+			'post_type'   => $notes_module->id,
+			'post_status' => 'private',
 		);
 
 		if ( ! empty( $post_title ) ) {

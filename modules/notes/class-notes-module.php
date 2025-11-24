@@ -148,7 +148,6 @@ class Notes_Module extends POS_Module {
 	}
 
 	public function ai_tools( $tools ) {
-		$note_module = $this;
 		$tools[] = new OpenAI_Tool(
 			'get_notebooks',
 			'My work is organized in "notebooks". They represent areas of my life, active projects and statuses of tasks. Use this tool to get all my notebooks.',
@@ -164,39 +163,47 @@ class Notes_Module extends POS_Module {
 					),
 				),
 			),
-			function ( $parameters ) use ( $note_module ) {
-				$flags = array_filter(
-					apply_filters( 'pos_notebook_flags', array() ),
-					function( $flag ) use ( $parameters ) {
-						return $flag['id'] === $parameters['notebook_flag'] || $parameters['notebook_flag'] === 'all';
-					}
-				);
-				$notebooks = array_map(
-					function( $flag ) use ( $note_module ) {
-						$notebooks = array_map(
-							function( $notebook ) {
-								return array(
-									'notebook_name'        => $notebook->name,
-									'notebook_id'          => $notebook->term_id,
-									'notebook_slug'        => $notebook->slug,
-									'notebook_description' => $notebook->description,
-								);
-							},
-							$note_module->get_notebooks_by_flag( $flag['id'] )
-						);
-						return array(
-							'flag_id'    => $flag['id'],
-							'flag_name'  => $flag['name'],
-							'flag_label' => $flag['label'],
-							'notebooks'  => $notebooks,
-						);
-					},
-					array_values( $flags )
-				);
-				return $notebooks;
-			}
+			array( $this, 'get_notebooks_for_openai' )
 		);
 		return $tools;
+	}
+
+	/**
+	 * Get notebooks for OpenAI tool.
+	 *
+	 * @param array $parameters Parameters with notebook_flag.
+	 * @return array Array of notebook data grouped by flags.
+	 */
+	public function get_notebooks_for_openai( $parameters ) {
+		$flags = array_filter(
+			apply_filters( 'pos_notebook_flags', array() ),
+			function( $flag ) use ( $parameters ) {
+				return $flag['id'] === $parameters['notebook_flag'] || $parameters['notebook_flag'] === 'all';
+			}
+		);
+		$notebooks = array_map(
+			function( $flag ) {
+				$notebooks = array_map(
+					function( $notebook ) {
+						return array(
+							'notebook_name'        => $notebook->name,
+							'notebook_id'          => $notebook->term_id,
+							'notebook_slug'        => $notebook->slug,
+							'notebook_description' => $notebook->description,
+						);
+					},
+					$this->get_notebooks_by_flag( $flag['id'] )
+				);
+				return array(
+					'flag_id'    => $flag['id'],
+					'flag_name'  => $flag['name'],
+					'flag_label' => $flag['label'],
+					'notebooks'  => $notebooks,
+				);
+			},
+			array_values( $flags )
+		);
+		return $notebooks;
 	}
 
 	public function get_notebooks_by_flag( $flag ) {

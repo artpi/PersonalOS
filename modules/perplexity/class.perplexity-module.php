@@ -25,7 +25,6 @@ class Perplexity_Module extends POS_Module {
 	}
 
 	public function register_openai_tools( $tools ) {
-		$self = $this;
 		$tools[] = new OpenAI_Tool(
 			'perplexity_search',
 			'Search the web using Perplexity search. Use this tool only if you are certain you need the information from the internet.',
@@ -35,15 +34,23 @@ class Perplexity_Module extends POS_Module {
 					'description' => 'The search query to send to Perplexity',
 				),
 			),
-			function ( $arguments ) use ( $self ) {
-				$result = $self->search( $arguments['query'] );
-				if ( is_wp_error( $result ) ) {
-					return $result;
-				}
-				return $result['content'];
-			}
+			array( $this, 'search_for_openai' )
 		);
 		return $tools;
+	}
+
+	/**
+	 * Search the web using Perplexity for OpenAI tool.
+	 *
+	 * @param array $arguments Arguments with query string.
+	 * @return string|WP_Error Search result content or error.
+	 */
+	public function search_for_openai( $arguments ) {
+		$result = $this->search( $arguments['query'] );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return $result['content'];
 	}
 
 	/**

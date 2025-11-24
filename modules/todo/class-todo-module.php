@@ -131,7 +131,6 @@ class TODO_Module extends POS_Module {
 	}
 
 	public function register_openai_tools( $tools ) {
-		$self = $this;
 		$tools[] = new OpenAI_Tool(
 			'todo_get_items',
 			'List TODOs from a specific notebook. Defaults to "now" notebook if not specified.',
@@ -179,21 +178,29 @@ class TODO_Module extends POS_Module {
 					),
 				),
 			),
-			function( $args ) use ( $self ) {
-				$create_args = array(
-					'post_title'   => $args['post_title'],
-					'post_excerpt' => $args['post_excerpt'],
-				);
-				$notebooks = array( 'inbox' );
-				if ( isset( $args['notebook'] ) ) {
-					$notebooks[] = $args['notebook'];
-				}
-				$post = get_post( $self->create( $create_args, $notebooks ) );
-				return $self->format_todo_item( $post );
-			}
+			array( $this, 'create_item_for_openai' )
 		);
 
 		return $tools;
+	}
+
+	/**
+	 * Create a TODO item for OpenAI tool.
+	 *
+	 * @param array $args Arguments with post_title, post_excerpt, and optional notebook.
+	 * @return array Formatted TODO item array.
+	 */
+	public function create_item_for_openai( $args ) {
+		$create_args = array(
+			'post_title'   => $args['post_title'],
+			'post_excerpt' => $args['post_excerpt'],
+		);
+		$notebooks = array( 'inbox' );
+		if ( isset( $args['notebook'] ) ) {
+			$notebooks[] = $args['notebook'];
+		}
+		$post = get_post( $this->create( $create_args, $notebooks ) );
+		return $this->format_todo_item( $post );
 	}
 
 	public function get_scheduled_todos() {
