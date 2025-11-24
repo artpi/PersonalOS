@@ -1382,12 +1382,31 @@ class OpenAI_Module extends POS_Module {
 	/**
 	 * Convert an ability name to tool ID format.
 	 * This will turn the namespacing / into BEM-like __ and - into _.
+	 * Order matters: we replace / first to avoid ambiguity.
 	 *
 	 * @param string $ability_name The ability name to convert.
 	 * @return string The tool ID.
 	 */
 	private function get_tool_id_from_ability_name( $ability_name ) {
-		return str_replace( array( '/', '-' ), array( '__', '_' ), $ability_name );
+		// Replace / with __ first, then - with _
+		$tool_id = str_replace( '/', '__', $ability_name );
+		$tool_id = str_replace( '-', '_', $tool_id );
+		return $tool_id;
+	}
+
+	/**
+	 * Convert a tool ID back to ability name format.
+	 * This reverses the BEM-style naming: __ becomes / and _ becomes -.
+	 * Order matters: we replace __ first to avoid ambiguity.
+	 *
+	 * @param string $tool_name The tool ID to convert.
+	 * @return string The ability name.
+	 */
+	private function get_ability_name_from_tool_id( $tool_name ) {
+		// Replace __ with / first, then _ with -
+		$ability_name = str_replace( '__', '/', $tool_name );
+		$ability_name = str_replace( '_', '-', $ability_name );
+		return $ability_name;
 	}
 
 	/**
@@ -1478,7 +1497,7 @@ class OpenAI_Module extends POS_Module {
 		}
 
 		// Convert tool name back to ability name
-		$ability_name = str_replace( array( '__', '_' ), array( '/', '-' ), $tool_name );
+		$ability_name = $this->get_ability_name_from_tool_id( $tool_name );
 
 		$ability = wp_get_ability( $ability_name );
 		if ( ! $ability ) {
