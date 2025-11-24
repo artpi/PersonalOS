@@ -8,6 +8,20 @@ class OpenAIModuleAIToolsTest extends WP_UnitTestCase {
 		$this->module = \POS::get_module_by_id( 'openai' );
 		wp_set_current_user( 1 );
 
+		// Suppress duplicate registration warnings in tests (abilities may already be registered)
+		$this->setExpectedIncorrectUsage( 'WP_Ability_Categories_Registry::register' );
+		$this->setExpectedIncorrectUsage( 'WP_Abilities_Registry::register' );
+
+		// Ensure ability categories are registered
+		if ( class_exists( 'WP_Ability' ) && function_exists( 'wp_register_ability_category' ) && ! did_action( 'wp_abilities_api_categories_init' ) ) {
+			do_action( 'wp_abilities_api_categories_init' );
+		}
+
+		// Ensure abilities are registered
+		if ( class_exists( 'WP_Ability' ) && ! did_action( 'wp_abilities_api_init' ) ) {
+			do_action( 'wp_abilities_api_init' );
+		}
+
 		// Create default notebook term if it doesn't exist
 		if ( ! term_exists( 'ai-memory', 'notebook' ) ) {
 			wp_insert_term( 'AI Memory', 'notebook', array( 'slug' => 'ai-memory' ) );
@@ -172,24 +186,27 @@ class OpenAIModuleAIToolsTest extends WP_UnitTestCase {
 		$this->assertEquals( 'Updated content', $post->post_content );
 	}
 
-	public function test_ai_tool_list_posts() {
-		// Get the list_posts tool
-		$tool = OpenAI_Tool::get_tool( 'list_posts' );
-		$this->assertNotNull( $tool, 'list_posts tool should be registered' );
-		$this->assertInstanceOf( 'OpenAI_Tool', $tool, 'list_posts should be an OpenAI_Tool' );
-		$this->assertFalse( $tool->writeable, 'list_posts should not be writeable' );
+	public function test_ability_list_posts() {
+		if ( ! function_exists( 'wp_get_ability' ) ) {
+			$this->markTestSkipped( 'Abilities API not available' );
+		}
+
+		// Get the list_posts ability
+		$ability = wp_get_ability( 'pos/list-posts' );
+		$this->assertNotNull( $ability, 'pos/list-posts ability should be registered' );
+		$this->assertInstanceOf( 'WP_Ability', $ability, 'pos/list-posts should be a WP_Ability' );
 
 		// Create a test post
 		wp_insert_post(
 			array(
-				'post_title'  => 'Tool Test Post',
+				'post_title'  => 'Ability Test Post',
 				'post_status' => 'publish',
 				'post_type'   => 'post',
 			)
 		);
 
-		// Invoke the tool
-		$result = $tool->invoke(
+		// Execute the ability
+		$result = $ability->execute(
 			array(
 				'posts_per_page' => 10,
 				'post_type'      => 'post',
@@ -197,27 +214,31 @@ class OpenAIModuleAIToolsTest extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertIsArray( $result, 'Tool should return an array' );
+		$this->assertIsArray( $result, 'Ability should return an array' );
 		$titles = array_column( $result, 'title' );
-		$this->assertContains( 'Tool Test Post', $titles, 'Should find test post in results' );
+		$this->assertContains( 'Ability Test Post', $titles, 'Should find test post in results' );
 	}
 
-	public function test_ai_tool_create_memory() {
-		// Get the ai_memory tool
-		$tool = OpenAI_Tool::get_tool( 'ai_memory' );
-		$this->assertNotNull( $tool, 'ai_memory tool should be registered' );
-		$this->assertInstanceOf( 'OpenAI_Tool_Writeable', $tool, 'ai_memory should be writeable' );
+	public function test_ability_create_memory() {
+		if ( ! function_exists( 'wp_get_ability' ) ) {
+			$this->markTestSkipped( 'Abilities API not available' );
+		}
 
-		// Invoke the tool
-		$result = $tool->invoke(
+		// Get the ai_memory ability
+		$ability = wp_get_ability( 'pos/ai-memory' );
+		$this->assertNotNull( $ability, 'pos/ai-memory ability should be registered' );
+		$this->assertInstanceOf( 'WP_Ability', $ability, 'pos/ai-memory should be a WP_Ability' );
+
+		// Execute the ability
+		$result = $ability->execute(
 			array(
 				'ID'           => 0,
-				'post_title'   => 'Tool Created Memory',
-				'post_content' => 'This memory was created via AI tool',
+				'post_title'   => 'Ability Created Memory',
+				'post_content' => 'This memory was created via ability',
 			)
 		);
 
-		$this->assertIsArray( $result, 'Tool should return an array' );
+		$this->assertIsArray( $result, 'Ability should return an array' );
 		$this->assertArrayHasKey( 'url', $result );
 		$this->assertNotEmpty( $result['url'] );
 
@@ -233,11 +254,11 @@ class OpenAIModuleAIToolsTest extends WP_UnitTestCase {
 						'terms'    => 'ai-memory',
 					),
 				),
-				'title'       => 'Tool Created Memory',
+				'title'       => 'Ability Created Memory',
 			)
 		);
 
 		$this->assertNotEmpty( $memories, 'Memory should be created' );
-		$this->assertEquals( 'Tool Created Memory', $memories[0]->post_title );
+		$this->assertEquals( 'Ability Created Memory', $memories[0]->post_title );
 	}
 }

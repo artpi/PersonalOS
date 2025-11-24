@@ -37,10 +37,29 @@ class POS {
 			),
 			$script_asset['version'],
 		);
+
+		// Register ability category before modules register abilities
+		add_action( 'wp_abilities_api_categories_init', array( 'POS', 'register_ability_category' ) );
+
 		self::load_modules();
 		add_action( 'enqueue_block_editor_assets', array( 'POS', 'enqueue_assets' ) );
 		if ( defined( 'WP_CLI' ) && class_exists( 'WP_CLI' ) ) {
 			WP_CLI::add_command( 'pos populate', array( 'POS', 'populate_starter_content' ) );
+		}
+	}
+
+	/**
+	 * Register the PersonalOS ability category.
+	 */
+	public static function register_ability_category() {
+		if ( function_exists( 'wp_register_ability_category' ) ) {
+			wp_register_ability_category(
+				'personalos',
+				array(
+					'label' => __( 'PersonalOS', 'personalos' ),
+					'description' => __( 'Abilities provided by PersonalOS plugin', 'personalos' ),
+				)
+			);
 		}
 	}
 

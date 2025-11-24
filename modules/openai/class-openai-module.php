@@ -172,51 +172,94 @@ class OpenAI_Module extends POS_Module {
 	}
 
 	public function render_tool_block( $attributes ) {
-		$tool = OpenAI_Tool::get_tool( $attributes['tool'] );
-		if ( ! $tool ) {
+		if ( ! function_exists( 'wp_get_ability' ) ) {
 			return '';
 		}
-		$result = $tool->invoke( (array) $attributes['parameters'] ?? array() );
+
+		// Convert tool name to ability name if needed
+		$tool_name = $attributes['tool'] ?? '';
+		$ability_name = $this->get_ability_name_from_tool_id( $tool_name );
+		
+		// If conversion didn't change it, try direct lookup
+		if ( $ability_name === $tool_name && strpos( $tool_name, 'pos/' ) !== 0 ) {
+			// Try converting from old tool format
+			$ability_name = 'pos/' . str_replace( '_', '-', $tool_name );
+		}
+
+		$ability = wp_get_ability( $ability_name );
+		if ( ! $ability ) {
+			return '';
+		}
+		$result = $ability->execute( (array) ( $attributes['parameters'] ?? array() ) );
 		return '<pre>' . wp_json_encode( $result, JSON_PRETTY_PRINT ) . '</pre>';
 	}
 
 	/**
-	 * Test OpenAI tools
+	 * Test OpenAI abilities
 	 *
-	 * Lists available OpenAI tools and allows testing individual tools with arguments.
-	 * If no tool is specified, displays all available tools. If a tool name is provided,
-	 * executes that specific tool with the optional arguments.
+	 * Lists available abilities and allows testing individual abilities with arguments.
+	 * If no ability is specified, displays all available abilities. If an ability name is provided,
+	 * executes that specific ability with the optional arguments.
 	 *
 	 * ## OPTIONS
 	 *
-	 * [<tool>]
-	 * : Name of the tool to test
+	 * [<ability>]
+	 * : Name of the ability to test (e.g., pos/todo-get-items or todo_get_items)
 	 *
 	 * [<args>]
-	 * : JSON string of arguments to pass to the tool
+	 * : JSON string of arguments to pass to the ability
 	 */
 	public function cli_openai_tool( $args ) {
-		$tools = apply_filters( 'pos_openai_tools', array() );
+		if ( ! function_exists( 'wp_get_abilities' ) ) {
+			WP_CLI::error( 'Abilities API not available' );
+		}
+
+		// Ensure abilities are registered
+		if ( ! did_action( 'wp_abilities_api_init' ) ) {
+			do_action( 'wp_abilities_api_init' );
+		}
+
+		$abilities = wp_get_abilities();
+		$pos_abilities = array_filter(
+			$abilities,
+			function( $ability ) {
+				return strpos( $ability->get_name(), 'pos/' ) === 0;
+			}
+		);
+
 		if ( empty( $args[0] ) ) {
 			$items = array_map(
-				function( $tool ) {
+				function( $ability ) {
+					$input_schema = $ability->get_input_schema();
 					return array(
-						'name'        => $tool->name,
-						'description' => $tool->description,
-						'parameters'  => json_encode( $tool->parameters ),
+						'name'        => $ability->get_name(),
+						'description' => $ability->get_description(),
+						'parameters'  => wp_json_encode( $input_schema['properties'] ?? array() ),
 					);
 				},
-				$tools
+				$pos_abilities
 			);
 
 			WP_CLI\Utils\format_items( 'table', $items, array( 'name', 'description', 'parameters' ) );
 			return;
 		}
-		$tool = OpenAI_Tool::get_tool( $args[0] );
-		if ( ! $tool ) {
-			WP_CLI::error( 'Tool not found' );
+
+		// Convert tool name to ability name if needed
+		$tool_name = $args[0];
+		$ability_name = $this->get_ability_name_from_tool_id( $tool_name );
+		
+		// If conversion didn't change it, try direct lookup
+		if ( $ability_name === $tool_name && strpos( $tool_name, 'pos/' ) !== 0 ) {
+			// Try converting from old tool format
+			$ability_name = 'pos/' . str_replace( '_', '-', $tool_name );
 		}
-		WP_CLI::log( print_r( $tool->invoke( ! empty( $args[1] ) ? json_decode( $args[1], true ) : array() ), true ) );
+
+		$ability = wp_get_ability( $ability_name );
+		if ( ! $ability ) {
+			WP_CLI::error( 'Ability not found: ' . $ability_name );
+		}
+		$result = $ability->execute( ! empty( $args[1] ) ? json_decode( $args[1], true ) : array() );
+		WP_CLI::log( print_r( $result, true ) );
 	}
 
 	/**
@@ -789,12 +832,7 @@ class OpenAI_Module extends POS_Module {
 			array(
 				'methods'             => 'GET',
 				'callback'            => function() {
-					return array_map(
-						function( $tool ) {
-							return $tool->get_function_signature();
-						},
-						OpenAI_Tool::get_tools( false )
-					);
+					return $this->get_abilities_as_tools( 'chat' );
 				},
 				'permission_callback' => array( $this, 'check_permission' ),
 			)

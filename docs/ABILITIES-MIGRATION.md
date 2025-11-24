@@ -28,19 +28,13 @@ The WordPress Abilities API provides a standardized way to register and execute 
 
 ### Architecture
 
-**Before (Centralized with Bridge):**
+**Before (Centralized with OpenAI_Tool):**
 ```php
-// Central POS_Abilities class
-class POS_Abilities {
-    public static function register_todo_abilities() {
-        $todo_module = POS::get_module_by_id('todo');
-        wp_register_ability('pos/todo-get-items', [...]);
-    }
-    
-    public static function bridge_tools_to_abilities() {
-        // Create OpenAI_Tool from abilities for backward compat
-    }
-}
+// Central tool registration
+add_filter('pos_openai_tools', function($tools) {
+    $tools[] = new OpenAI_Tool('todo_get_items', ...);
+    return $tools;
+});
 
 // OpenAI module uses tools
 $tools = OpenAI_Tool::get_tools();
@@ -78,7 +72,7 @@ foreach ($abilities as $ability) {
 
 1. **Removed `class-pos-abilities.php`**: Deleted the central coordinator class entirely
 2. **Module Self-Registration**: Each module now registers abilities in its own `register_abilities()` method
-3. **No Bridge**: Removed backward compatibility bridge - abilities used directly
+3. **Abilities Only**: All functionality uses abilities directly - no OpenAI_Tool bridge
 4. **Direct Execution**: `complete_backscroll()` and `complete_responses()` use abilities via `wp_get_abilities()` and `$ability->execute()`
 5. **Documentation**: Created `docs/ARCHITECTURE.md` documenting the self-contained pattern
 
@@ -109,7 +103,7 @@ foreach ($abilities as $ability) {
 4. **Clear Ownership**: Each module owns its capabilities
 5. **Better Testing**: Modules can be tested in isolation
 6. **Standards Compliant**: Uses WordPress-standard APIs throughout
-7. **Simpler Code**: No bridge/adapter layer needed
+7. **Simpler Code**: Direct use of abilities API without adapter layers
 
 ## Migrated Tools
 
@@ -154,16 +148,9 @@ Added comprehensive test coverage:
 - **NotesModuleAIToolsTest** - 3 tests for get_notebooks
 - **AbilitiesAPIIntegrationTest** - 11 integration tests
 
-## Backward Compatibility
+## Migration Complete
 
-The `POS_Abilities::bridge_tools_to_abilities()` method ensures existing code continues to work:
-
-1. Listens to `pos_openai_tools` filter
-2. Creates `OpenAI_Tool` instances from registered abilities
-3. Maintains tool names and parameters
-4. Executes abilities when tools are invoked
-
-This means existing OpenAI integrations continue to work without modification.
+All tools have been migrated to abilities. The old `OpenAI_Tool` system is no longer used. All functionality now uses the WordPress Abilities API directly.
 
 ## How to Use
 
@@ -309,9 +296,8 @@ vendor/bin/phpunit --testsuite=unit --filter AbilitiesAPIIntegrationTest
 - [x] Add abilities-api to wp-env configuration
 - [x] Extract inline callbacks to testable methods
 - [x] Write unit tests for extracted methods
-- [x] Create POS_Abilities class for registration
-- [x] Register all abilities with proper schemas
-- [x] Implement backward compatibility bridge
+- [x] Register all abilities with proper schemas in modules
+- [x] Update OpenAI module to use abilities directly
 - [x] Add integration tests
 - [x] Verify all tests pass
 - [x] Document the migration

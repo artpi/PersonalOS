@@ -7,6 +7,20 @@ class NotesModuleAIToolsTest extends WP_UnitTestCase {
 		parent::set_up();
 		$this->module = \POS::get_module_by_id( 'notes' );
 		wp_set_current_user( 1 );
+
+		// Suppress duplicate registration warnings in tests (abilities may already be registered)
+		$this->setExpectedIncorrectUsage( 'WP_Ability_Categories_Registry::register' );
+		$this->setExpectedIncorrectUsage( 'WP_Abilities_Registry::register' );
+
+		// Ensure ability categories are registered
+		if ( class_exists( 'WP_Ability' ) && function_exists( 'wp_register_ability_category' ) && ! did_action( 'wp_abilities_api_categories_init' ) ) {
+			do_action( 'wp_abilities_api_categories_init' );
+		}
+
+		// Ensure abilities are registered
+		if ( class_exists( 'WP_Ability' ) && ! did_action( 'wp_abilities_api_init' ) ) {
+			do_action( 'wp_abilities_api_init' );
+		}
 	}
 
 	public function test_get_notebooks_ability_returns_all_notebooks() {
@@ -93,29 +107,29 @@ class NotesModuleAIToolsTest extends WP_UnitTestCase {
 		}
 	}
 
-	public function test_ai_tool_get_notebooks() {
-		// Get the get_notebooks tool
-		$tool = OpenAI_Tool::get_tool( 'get_notebooks' );
-		$this->assertNotNull( $tool, 'get_notebooks tool should be registered' );
-		$this->assertInstanceOf( 'OpenAI_Tool', $tool, 'get_notebooks should be an OpenAI_Tool' );
-		$this->assertFalse( $tool->writeable, 'get_notebooks should not be writeable' );
+	public function test_ability_get_notebooks() {
+
+		// Get the get_notebooks ability
+		$ability = wp_get_ability( 'pos/get-notebooks' );
+		$this->assertNotNull( $ability, 'pos/get-notebooks ability should be registered' );
+		$this->assertInstanceOf( 'WP_Ability', $ability, 'pos/get-notebooks should be a WP_Ability' );
 
 		// Create a test notebook
 		wp_insert_term(
-			'Tool Test Notebook',
+			'Ability Test Notebook',
 			'notebook',
 			array(
-				'slug'        => 'tool-test-notebook',
-				'description' => 'Created for tool testing',
+				'slug'        => 'ability-test-notebook',
+				'description' => 'Created for ability testing',
 			)
 		);
 
-		// Invoke the tool
-		$result = $tool->invoke(
+		// Execute the ability
+		$result = $ability->execute(
 			array( 'notebook_flag' => 'all' )
 		);
 
-		$this->assertIsArray( $result, 'Tool should return an array' );
+		$this->assertIsArray( $result, 'Ability should return an array' );
 
 		// Verify structure
 		if ( ! empty( $result ) ) {
