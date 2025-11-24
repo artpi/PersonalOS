@@ -6,6 +6,8 @@ alwaysApply: true
 The dev environment is managed by the `wp-env` package.
 In order to run code and run tests, you need to use the proper syntax to run commands.
 
+If you think the test environment failed DO NOT TRY TO FIX IT. Tell me.
+
 ## Testing Commands
 
 - To run unit tests, you would `npm run test:unit:backend`
