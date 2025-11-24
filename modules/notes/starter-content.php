@@ -139,6 +139,30 @@ $base_prompt_content = <<<EOF
 <br>NEVER read the URLs (http://, https://, evernote://, etc) out loud in voice mode.<br>
 <br>When answering a question about my todos or notes, stick only to the information from the tools. DO NOT make up information.</p>
 <!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Notebooks</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>My work is organized in notebooks, roughuy following the PARA method.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:pos/ai-tool {"tool":"pos/get-notebooks","parameters":{"notebook_flag":"all"}} -->
+<div class="wp-block pos-ai-tool"><p>This is a static block.</p></div>
+<!-- /wp:pos/ai-tool -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Memory</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Here are the things I want you to remember</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:pos/ai-tool {"tool":"pos/get-ai-memories","parameters":{}} -->
+<div class="wp-block pos-ai-tool"><p>This is a static block.</p></div>
+<!-- /wp:pos/ai-tool -->
 EOF;
 
 // TODO: Make this note impossible to delete - probably a hook in the openai module.

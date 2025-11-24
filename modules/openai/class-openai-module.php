@@ -169,6 +169,85 @@ class OpenAI_Module extends POS_Module {
 				),
 			)
 		);
+
+		// Register get_ai_memories ability
+		wp_register_ability(
+			'pos/get-ai-memories',
+			array(
+				'label'               => __( 'Get AI Memories', 'personalos' ),
+				'description'         => __( 'Get all previously stored AI memories. These are pieces of information stored for future conversations.', 'personalos' ),
+				'category'            => 'personalos',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'        => 'array',
+					'description' => 'Array of AI memory objects',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'title'   => array( 'type' => 'string' ),
+							'content' => array( 'type' => 'string' ),
+							'date'    => array( 'type' => 'string' ),
+						),
+					),
+				),
+				'execute_callback'    => array( $this, 'get_ai_memories_ability' ),
+				'permission_callback' => 'is_user_logged_in',
+				'meta'                => array(
+					'show_in_rest' => true,
+					'annotations'  => array(
+						'readonly'    => true,
+						'destructive' => false,
+					),
+				),
+			)
+		);
+
+		// Register system_state ability
+		wp_register_ability(
+			'pos/system-state',
+			array(
+				'label'               => __( 'System State', 'personalos' ),
+				'description'         => __( 'Get current system state including user information, system time, and PersonalOS description.', 'personalos' ),
+				'category'            => 'personalos',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'       => 'object',
+					'properties' => array(
+						'me'     => array(
+							'type'       => 'object',
+							'properties' => array(
+								'name'        => array( 'type' => 'string' ),
+								'description' => array( 'type' => 'string' ),
+							),
+						),
+						'system' => array(
+							'type'       => 'object',
+							'properties' => array(
+								'current_time' => array( 'type' => 'string' ),
+							),
+						),
+						'you'    => array( 'type' => 'string' ),
+					),
+				),
+				'execute_callback'    => array( $this, 'get_system_state_ability' ),
+				'permission_callback' => 'is_user_logged_in',
+				'meta'                => array(
+					'show_in_rest' => true,
+					'annotations'  => array(
+						'readonly'    => true,
+						'destructive' => false,
+					),
+				),
+			)
+		);
 	}
 
 	public function render_tool_block( $attributes ) {
@@ -547,6 +626,53 @@ class OpenAI_Module extends POS_Module {
 		wp_set_object_terms( $memory_id, array( 'ai-memory' ), 'notebook' );
 		return array(
 			'url' => get_permalink( $memory_id ),
+		);
+	}
+
+	/**
+	 * Get AI memories ability.
+	 *
+	 * @param array $args Arguments (currently unused, but required by ability interface).
+	 * @return array Array of memory objects with title, content, and date.
+	 */
+	public function get_ai_memories_ability( $args ) {
+		return array_map(
+			function( $memory ) {
+				return array(
+					'title'   => $memory->post_title,
+					'content' => $memory->post_content,
+					'date'    => $memory->post_date,
+				);
+			},
+			get_posts(
+				array(
+					'post_type'   => 'notes',
+					'post_status' => 'publish',
+					'tax_query'   => array(
+						array(
+							'taxonomy' => 'notebook',
+							'field'    => 'slug',
+							'terms'    => 'ai-memory',
+						),
+					),
+					'numberposts' => -1,
+				)
+			)
+		);
+	}
+
+	/**
+	 * Get system state ability.
+	 *
+	 * @param array $args Arguments (currently unused, but required by ability interface).
+	 * @return array System state with me, system, and you variables.
+	 */
+	public function get_system_state_ability( $args ) {
+		$current_user = wp_get_current_user();
+		return array(
+			'my_name'        => $current_user->display_name,
+			'my_description' => $current_user->description,
+			'current_time'   => gmdate( 'Y-m-d H:i:s' ),
 		);
 	}
 
