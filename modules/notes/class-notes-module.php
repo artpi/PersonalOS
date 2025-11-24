@@ -166,6 +166,17 @@ class Notes_Module extends POS_Module {
 						'notebook_flag' => array(
 							'type'        => 'string',
 							'description' => 'The flag of the notebook to get.',
+							'enum'        => array_map(
+								function( $flag ) {
+									return $flag['id'];
+								},
+								apply_filters( 'pos_notebook_flags', array(
+									[
+										'id'    => 'all'
+									]
+								) )
+							),
+							'default'     => 'all',
 						),
 					),
 					'required'             => array( 'notebook_flag' ),
@@ -222,6 +233,13 @@ class Notes_Module extends POS_Module {
 				return $flag['id'] === $notebook_flag || $notebook_flag === 'all';
 			}
 		);
+		if ( $notebook_flag === 'all' ) {
+			$flags[] = array(
+				'id'    => null,
+				'name'  => 'Rest of the notebooks',
+				'label' => 'Notebooks without any special flag.',
+			);
+		}
 		$notebooks = array_map(
 			function( $flag ) {
 				$notebooks = array_map(
@@ -236,7 +254,7 @@ class Notes_Module extends POS_Module {
 					$this->get_notebooks_by_flag( $flag['id'] )
 				);
 				return array(
-					'flag_id'    => $flag['id'],
+					'flag_id'    => $flag['id'] ?? "null",
 					'flag_name'  => $flag['name'],
 					'flag_label' => $flag['label'],
 					'notebooks'  => $notebooks,
