@@ -178,12 +178,21 @@ class OpenAI_Module extends POS_Module {
 
 		// Convert tool name to ability name if needed
 		$tool_name = $attributes['tool'] ?? '';
+		if ( empty( $tool_name ) ) {
+			return '';
+		}
+
 		$ability_name = $this->get_ability_name_from_tool_id( $tool_name );
 		
 		// If conversion didn't change it, try direct lookup
 		if ( $ability_name === $tool_name && strpos( $tool_name, 'pos/' ) !== 0 ) {
 			// Try converting from old tool format
 			$ability_name = 'pos/' . str_replace( '_', '-', $tool_name );
+		}
+
+		// Ensure we have a valid ability name
+		if ( empty( $ability_name ) || $ability_name === 'pos/' ) {
+			return '';
 		}
 
 		$ability = wp_get_ability( $ability_name );
@@ -246,12 +255,21 @@ class OpenAI_Module extends POS_Module {
 
 		// Convert tool name to ability name if needed
 		$tool_name = $args[0];
+		if ( empty( $tool_name ) ) {
+			WP_CLI::error( 'Ability name is required' );
+		}
+
 		$ability_name = $this->get_ability_name_from_tool_id( $tool_name );
-		
+
 		// If conversion didn't change it, try direct lookup
 		if ( $ability_name === $tool_name && strpos( $tool_name, 'pos/' ) !== 0 ) {
 			// Try converting from old tool format
 			$ability_name = 'pos/' . str_replace( '_', '-', $tool_name );
+		}
+
+		// Ensure we have a valid ability name
+		if ( empty( $ability_name ) || $ability_name === 'pos/' ) {
+			WP_CLI::error( 'Invalid ability name: ' . $tool_name );
 		}
 
 		$ability = wp_get_ability( $ability_name );

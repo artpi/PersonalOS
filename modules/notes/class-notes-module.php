@@ -215,10 +215,11 @@ class Notes_Module extends POS_Module {
 	 * @return array Array of notebook data grouped by flags.
 	 */
 	public function get_notebooks_ability( $parameters ) {
+		$notebook_flag = $parameters['notebook_flag'] ?? 'all';
 		$flags = array_filter(
 			apply_filters( 'pos_notebook_flags', array() ),
-			function( $flag ) use ( $parameters ) {
-				return $flag['id'] === $parameters['notebook_flag'] || $parameters['notebook_flag'] === 'all';
+			function( $flag ) use ( $notebook_flag ) {
+				return $flag['id'] === $notebook_flag || $notebook_flag === 'all';
 			}
 		);
 		$notebooks = array_map(

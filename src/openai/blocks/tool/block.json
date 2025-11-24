@@ -2,10 +2,10 @@
 	"$schema": "https://schemas.wp.org/trunk/block.json",
 	"apiVersion": 3,
 	"name": "pos/ai-tool",
-	"title": "OpenAI Tool",
+	"title": "WP Ability",
 	"category": "media",
 	"icon": "smiley",
-	"description": "Render the OpenAI Tool block.",
+	"description": "Render the result of a WordPress Ability.",
 	"attributes": {
 		"tool": {
 			"type": "string",

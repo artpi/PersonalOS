@@ -11,34 +11,43 @@ registerBlockType( 'pos/ai-tool', {
 
 function EditComponent( { attributes, setAttributes } ) {
 	const blockProps = useBlockProps();
-	const [ tools, setTools ] = useState( [] );
+	const [ abilities, setAbilities ] = useState( [] );
 
 	useEffect( () => {
 		apiFetch( {
-			path: '/pos/v1/openai/chat/tools',
-		} ).then( ( tools ) => {
-			setTools( tools );
+			path: '/wp-abilities/v1/abilities?per_page=100',
+		} ).then( ( response ) => {
+			// Abilities API returns an array of ability objects with name, label, description, input_schema
+			// Filter to show only non-destructive abilities
+			const allAbilities = Array.isArray( response ) ? response : [];
+			const nonDestructiveAbilities = allAbilities.filter(
+				( ability ) => ! ability.meta?.annotations?.destructive
+			);
+			setAbilities( nonDestructiveAbilities );
+		} ).catch( ( error ) => {
+			console.error( 'Failed to fetch abilities:', error );
+			setAbilities( [] );
 		} );
 	}, [] );
 
-	const handleToolChange = ( toolName ) => {
-		setAttributes( { tool: toolName } );
+	const handleAbilityChange = ( abilityName ) => {
+		setAttributes( { tool: abilityName } );
 
-		// Reset tool parameters when changing tools
+		// Reset ability parameters when changing abilities
 		if ( attributes.parameters ) {
 			setAttributes( { parameters: {} } );
 		}
 	};
 
 	const renderParameterFields = () => {
-		const selectedTool = tools.find(
-			( t ) => t.function.name === attributes.tool
+		const selectedAbility = abilities.find(
+			( a ) => a.name === attributes.tool
 		);
-		if ( ! selectedTool?.function?.parameters?.properties ) {
+		if ( ! selectedAbility?.input_schema?.properties ) {
 			return null;
 		}
 
-		const parameters = selectedTool.function.parameters.properties;
+		const parameters = selectedAbility.input_schema.properties;
 
 		const parameterFields = Object.entries( parameters ).map(
 			( [ key, param ] ) => {
@@ -108,7 +117,7 @@ function EditComponent( { attributes, setAttributes } ) {
 		);
 
 		return [
-			<div key="description">{ selectedTool.function.description }</div>,
+			<div key="description">{ selectedAbility.description }</div>,
 		].concat( parameterFields );
 	};
 
@@ -117,9 +126,9 @@ function EditComponent( { attributes, setAttributes } ) {
 			<Placeholder
 				icon="smiley"
 				label={
-					attributes.tool ? attributes.tool : __( 'AI Tool', 'pos' )
+					attributes.tool ? attributes.tool : __( 'WP Ability', 'pos' )
 				}
-				instructions={ __( 'Output the result of an AI Tool.', 'pos' ) }
+				instructions={ __( 'Output the result of a WordPress Ability.', 'pos' ) }
 			>
 				<div
 					style={ {
@@ -129,18 +138,18 @@ function EditComponent( { attributes, setAttributes } ) {
 					} }
 				>
 					<SelectControl
-						label={ __( 'AI Tool to render', 'pos' ) }
-						options={ tools
-							.map( ( tool ) => ( {
-								label: `${ tool.function.name }`,
-								value: tool.function.name,
+						label={ __( 'WordPress Ability to render', 'pos' ) }
+						options={ abilities
+							.map( ( ability ) => ( {
+								label: `${ ability.name }: ${ ability.label || ability.name }`,
+								value: ability.name,
 							} ) )
 							.concat( {
 								label: __( 'None', 'pos' ),
 								value: '',
 							} ) }
 						value={ attributes.tool }
-						onChange={ handleToolChange }
+						onChange={ handleAbilityChange }
 					/>
 					{ renderParameterFields() }
 				</div>
