@@ -45,6 +45,7 @@ class OpenAI_Module extends POS_Module {
 		$this->register_cli_command( 'tool', 'cli_openai_tool' );
 
 		$this->register_cli_command( 'responses', 'cli_openai_responses' );
+		$this->register_cli_command( 'system-prompt', 'cli_openai_system_prompt' );
 		$this->register_block( 'tool', array( 'render_callback' => array( $this, 'render_tool_block' ) ) );
 		$this->register_block( 'message', array() );
 
@@ -272,6 +273,51 @@ class OpenAI_Module extends POS_Module {
 		);
 
 		WP_CLI::success( 'Responses API call completed.' );
+	}
+
+	/**
+	 * Output the system prompt used for OpenAI API calls.
+	 *
+	 * Allows viewing the system prompt that will be used for OpenAI API calls.
+	 * Optionally accepts a post ID to use a specific prompt post's content.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [<post_id>]
+	 * : Post ID of a prompt post to use. If provided, the post content will be
+	 *   converted to markdown and used as the system prompt.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp pos openai system-prompt
+	 *     wp pos openai system-prompt 123
+	 *
+	 * @param array $args       Positional CLI arguments.
+	 * @param array $assoc_args Associative CLI arguments.
+	 *
+	 * @return void
+	 */
+	public function cli_openai_system_prompt( array $args = array(), array $assoc_args = array() ): void {
+		$params = array();
+
+		if ( ! empty( $args[0] ) ) {
+			$post_id = intval( $args[0] );
+			$post = get_post( $post_id );
+			if ( ! $post ) {
+				WP_CLI::error(
+					sprintf(
+						'Post not found: %d',
+						$post_id
+					)
+				);
+			}
+			$params = $post;
+		}
+
+		$system_prompt = $this->create_system_prompt( $params );
+
+		WP_CLI::log( $system_prompt );
+		WP_CLI::success( 'System prompt output completed.' );
 	}
 
 	public function admin_menu() {
