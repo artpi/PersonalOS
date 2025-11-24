@@ -221,20 +221,9 @@ class OpenAI_Module extends POS_Module {
 				'output_schema'       => array(
 					'type'       => 'object',
 					'properties' => array(
-						'me'     => array(
-							'type'       => 'object',
-							'properties' => array(
-								'name'        => array( 'type' => 'string' ),
-								'description' => array( 'type' => 'string' ),
-							),
-						),
-						'system' => array(
-							'type'       => 'object',
-							'properties' => array(
-								'current_time' => array( 'type' => 'string' ),
-							),
-						),
-						'you'    => array( 'type' => 'string' ),
+						'user_display_name' => array( 'type' => 'string' ),
+						'user_description'  => array( 'type' => 'string' ),
+						'system_time'       => array( 'type' => 'string' ),
 					),
 				),
 				'execute_callback'    => array( $this, 'get_system_state_ability' ),
@@ -266,7 +255,68 @@ class OpenAI_Module extends POS_Module {
 			return '';
 		}
 		$result = $ability->execute( (array) ( $attributes['parameters'] ?? null ) );
+
+		// Filter output fields if specified
+		$output_fields = $attributes['outputFields'] ?? null;
+		if ( ! empty( $output_fields ) && is_array( $output_fields ) ) {
+			$result = $this->filter_output_fields( $result, $output_fields );
+		}
+
+		// Format output
+		$output_format = $attributes['outputFormat'] ?? 'json';
+		if ( 'xml' === $output_format ) {
+			// Wrap in root element for proper XML structure
+			$xml_content = $this->array_to_xml( $result );
+			$xml_output = '<root>' . "\n" . $xml_content . "\n" . '</root>';
+			return '<pre>' . $xml_output . '</pre>';
+		}
+
 		return '<pre>' . wp_json_encode( $result, JSON_PRETTY_PRINT ) . '</pre>';
+	}
+
+	/**
+	 * Filter output fields from result based on selected fields.
+	 *
+	 * @param mixed  $result Result from ability execution.
+	 * @param array  $output_fields Selected output field names.
+	 * @return mixed Filtered result.
+	 */
+	private function filter_output_fields( $result, $output_fields ) {
+		if ( is_array( $result ) ) {
+			// Handle array of objects
+			if ( isset( $result[0] ) && is_array( $result[0] ) ) {
+				return array_map(
+					function( $item ) use ( $output_fields ) {
+						return $this->filter_object_fields( $item, $output_fields );
+					},
+					$result
+				);
+			}
+			// Handle single object
+			return $this->filter_object_fields( $result, $output_fields );
+		}
+		return $result;
+	}
+
+	/**
+	 * Filter fields from an object/array.
+	 *
+	 * @param array $object Object to filter.
+	 * @param array $output_fields Fields to keep.
+	 * @return array Filtered object.
+	 */
+	private function filter_object_fields( $object, $output_fields ) {
+		if ( ! is_array( $object ) ) {
+			return $object;
+		}
+
+		$filtered = array();
+		foreach ( $output_fields as $field ) {
+			if ( isset( $object[ $field ] ) ) {
+				$filtered[ $field ] = $object[ $field ];
+			}
+		}
+		return $filtered;
 	}
 
 	/**
@@ -670,9 +720,9 @@ class OpenAI_Module extends POS_Module {
 	public function get_system_state_ability( $args ) {
 		$current_user = wp_get_current_user();
 		return array(
-			'my_name'        => $current_user->display_name,
-			'my_description' => $current_user->description,
-			'current_time'   => gmdate( 'Y-m-d H:i:s' ),
+			'user_display_name' => $current_user->display_name,
+			'user_description'  => $current_user->description,
+			'system_time'       => gmdate( 'Y-m-d H:i:s' ),
 		);
 	}
 
@@ -1189,31 +1239,52 @@ class OpenAI_Module extends POS_Module {
 	 * @return string The XML string
 	 */
 	private function array_to_xml( $data, string $indent = '' ): string {
-		if ( is_string( $data ) || is_numeric( $data ) ) {
-			return $data;
+		if ( is_string( $data ) || is_numeric( $data ) || is_bool( $data ) ) {
+			// Escape XML special characters for simple values
+			return htmlspecialchars( (string) $data, ENT_XML1, 'UTF-8' );
+		}
+
+		if ( ! is_array( $data ) ) {
+			return '';
 		}
 
 		$xml = array();
+		$is_indexed = array_keys( $data ) === range( 0, count( $data ) - 1 );
 
 		foreach ( $data as $key => $value ) {
-			// Skip numeric keys for indexed arrays
+			// Handle indexed arrays (numeric keys)
 			if ( is_int( $key ) ) {
-				$xml[] = $this->array_to_xml( $value, $indent );
+				$xml[] = "{$indent}<item>";
+				if ( is_array( $value ) ) {
+					$xml[] = $this->array_to_xml( $value, $indent . "\t" );
+				} else {
+					$escaped_value = htmlspecialchars( (string) $value, ENT_XML1, 'UTF-8' );
+					$xml[] = $indent . "\t" . $escaped_value;
+				}
+				$xml[] = "{$indent}</item>";
 				continue;
 			}
 
+			// Sanitize element name for XML
+			$element_name = preg_replace( '/[^a-z0-9_-]/i', '_', (string) $key );
+			if ( empty( $element_name ) ) {
+				$element_name = 'item';
+			}
+
 			// Start element
-			$xml[] = "{$indent}<{$key}>";
+			$xml[] = "{$indent}<{$element_name}>";
 
 			// Handle value based on type
 			if ( is_array( $value ) ) {
 				$xml[] = $this->array_to_xml( $value, $indent . "\t" );
 			} else {
-				$xml[] = $indent . "\t" . $value;
+				// Escape XML special characters in values
+				$escaped_value = htmlspecialchars( (string) $value, ENT_XML1, 'UTF-8' );
+				$xml[] = $indent . "\t" . $escaped_value;
 			}
 
 			// Close element
-			$xml[] = "{$indent}</{$key}>";
+			$xml[] = "{$indent}</{$element_name}>";
 		}
 
 		return implode( "\n", $xml );

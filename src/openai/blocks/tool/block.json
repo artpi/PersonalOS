@@ -14,6 +14,14 @@
 		"parameters": {
 			"type": "object",
 			"default": {}
+		},
+		"outputFields": {
+			"type": "array",
+			"default": []
+		},
+		"outputFormat": {
+			"type": "string",
+			"default": "json"
 		}
 	},
 	"supports": {

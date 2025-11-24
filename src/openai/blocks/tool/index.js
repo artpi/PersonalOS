@@ -3,7 +3,7 @@ import { useBlockProps, RichText, MediaUpload } from '@wordpress/block-editor';
 import { __ } from '@wordpress/i18n';
 import { useState, useEffect } from '@wordpress/element';
 import apiFetch from '@wordpress/api-fetch';
-import { SelectControl, Placeholder, TextControl } from '@wordpress/components';
+import { SelectControl, Placeholder, TextControl, CheckboxControl } from '@wordpress/components';
 registerBlockType( 'pos/ai-tool', {
 	edit: EditComponent,
 	save: SaveComponent,
@@ -37,6 +37,9 @@ function EditComponent( { attributes, setAttributes } ) {
 		if ( attributes.parameters ) {
 			setAttributes( { parameters: {} } );
 		}
+
+		// Reset output fields and format when changing abilities
+		setAttributes( { outputFields: [], outputFormat: 'json' } );
 	};
 
 	const renderParameterFields = () => {
@@ -121,6 +124,103 @@ function EditComponent( { attributes, setAttributes } ) {
 		].concat( parameterFields );
 	};
 
+	// Extract output schema properties
+	const getOutputSchemaProperties = () => {
+		const selectedAbility = abilities.find(
+			( a ) => a.name === attributes.tool
+		);
+		if ( ! selectedAbility?.output_schema ) {
+			return null;
+		}
+
+		const outputSchema = selectedAbility.output_schema;
+
+		// Handle object type output schema
+		if ( outputSchema.type === 'object' && outputSchema.properties ) {
+			return Object.keys( outputSchema.properties );
+		}
+
+		// Handle array type output schema (items.properties)
+		if ( outputSchema.type === 'array' && outputSchema.items?.properties ) {
+			return Object.keys( outputSchema.items.properties );
+		}
+
+		return null;
+	};
+
+	const outputSchemaFields = getOutputSchemaProperties();
+	const hasOutputSchema = outputSchemaFields !== null;
+	const hasMultipleFields = hasOutputSchema && outputSchemaFields.length > 1;
+
+	// Initialize outputFields with all fields if not set and output schema exists
+	useEffect( () => {
+		if ( hasOutputSchema && outputSchemaFields && ( ! attributes.outputFields || attributes.outputFields.length === 0 ) ) {
+			setAttributes( { outputFields: outputSchemaFields } );
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ attributes.tool ] );
+
+	const renderOutputFields = () => {
+		if ( ! hasOutputSchema || ! outputSchemaFields ) {
+			return null;
+		}
+
+		const selectedFields = attributes.outputFields || [];
+		const fieldCheckboxes = outputSchemaFields.map( ( fieldName ) => {
+			const isChecked = selectedFields.includes( fieldName );
+			return (
+				<CheckboxControl
+					key={ fieldName }
+					label={ fieldName }
+					checked={ isChecked }
+					onChange={ ( checked ) => {
+						const newFields = checked
+							? [ ...selectedFields, fieldName ]
+							: selectedFields.filter( ( f ) => f !== fieldName );
+						setAttributes( { outputFields: newFields } );
+					} }
+				/>
+			);
+		} );
+
+		return (
+			<div key="output-fields" style={ { marginTop: '10px' } }>
+				<strong>{ __( 'Output Fields', 'pos' ) }</strong>
+				<div
+					style={ {
+						marginTop: '5px',
+						display: 'flex',
+						flexDirection: 'column',
+						gap: '5px',
+					} }
+				>
+					{ fieldCheckboxes }
+				</div>
+			</div>
+		);
+	};
+
+	const renderOutputFormat = () => {
+		if ( ! hasMultipleFields ) {
+			return null;
+		}
+
+		return (
+			<SelectControl
+				key="output-format"
+				label={ __( 'Output Format', 'pos' ) }
+				value={ attributes.outputFormat || 'json' }
+				options={ [
+					{ label: 'JSON', value: 'json' },
+					{ label: 'XML', value: 'xml' },
+				] }
+				onChange={ ( value ) => {
+					setAttributes( { outputFormat: value } );
+				} }
+			/>
+		);
+	};
+
 	return (
 		<div { ...blockProps } className="wp-block pos-ai-tool">
 			<Placeholder
@@ -152,6 +252,8 @@ function EditComponent( { attributes, setAttributes } ) {
 						onChange={ handleAbilityChange }
 					/>
 					{ renderParameterFields() }
+					{ renderOutputFields() }
+					{ renderOutputFormat() }
 				</div>
 			</Placeholder>
 		</div>
