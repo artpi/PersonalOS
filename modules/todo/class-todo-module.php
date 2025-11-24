@@ -127,8 +127,6 @@ class TODO_Module extends POS_Module {
 				),
 			)
 		);
-		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
-
 		// Register abilities
 		if ( class_exists( 'WP_Ability' ) ) {
 			add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
@@ -242,60 +240,6 @@ class TODO_Module extends POS_Module {
 				),
 			)
 		);
-	}
-
-	public function register_openai_tools( $tools ) {
-		$tools[] = new OpenAI_Tool(
-			'todo_get_items',
-			'List TODOs from a specific notebook. Defaults to "now" notebook if not specified.',
-			array(
-				'notebook' => array(
-					'type'        => array( 'string', 'null' ),
-					'description' => 'slug of the notebook to list TODOs from. If not specified, defaults to "now". Use "all" to list from all notebooks.',
-					'enum'        => array_merge(
-						array( 'all' ),
-						array_values(
-							array_map(
-								function( $notebook ) {
-									return $notebook->slug;
-								},
-								get_terms( array( 'taxonomy' => 'notebook' ) )
-							)
-						)
-					),
-				),
-			),
-			array( $this, 'get_items_for_openai' )
-		);
-		$tools[] = new OpenAI_Tool_Writeable(
-			'todo_create_item',
-			'Create TODO. Always ask for confirmation if not explicitly asked to create a TODO. Always return the URL in response. Never read the URL when reading out loud.',
-			array(
-				'post_title'   => array(
-					'type'        => 'string',
-					'description' => 'The title of the TODO',
-				),
-				'post_excerpt' => array(
-					'type'        => 'string',
-					'description' => 'The description of the TODO',
-				),
-				'notebook'     => array(
-					'type'        => array( 'string', 'null' ),
-					'description' => 'slug of the notebook to add the TODO to. Fill only if TODO is clearly related to this notebook.',
-					'enum'        => array_values(
-						array_map(
-							function( $notebook ) {
-								return $notebook->slug;
-							},
-							get_terms( array( 'taxonomy' => 'notebook' ) )
-						)
-					),
-				),
-			),
-			array( $this, 'create_item_for_openai' )
-		);
-
-		return $tools;
 	}
 
 	/**

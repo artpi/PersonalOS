@@ -144,7 +144,6 @@ class Notes_Module extends POS_Module {
 			)
 		);
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
-		add_action( 'pos_openai_tools', array( $this, 'ai_tools' ), 10, 1 );
 
 		// Register abilities
 		if ( class_exists( 'WP_Ability' ) ) {
@@ -211,27 +210,6 @@ class Notes_Module extends POS_Module {
 				),
 			)
 		);
-	}
-
-	public function ai_tools( $tools ) {
-		$tools[] = new OpenAI_Tool(
-			'get_notebooks',
-			'My work is organized in "notebooks". They represent areas of my life, active projects and statuses of tasks. Use this tool to get all my notebooks.',
-			array(
-				'notebook_flag' => array(
-					'type'        => 'string',
-					'description' => 'The flag of the notebook to get.',
-					'enum'        => array_map(
-						function( $flag ) {
-							return $flag['id'];
-						},
-						apply_filters( 'pos_notebook_flags', array( array( 'id' => 'all' ) ) )
-					),
-				),
-			),
-			array( $this, 'get_notebooks_for_openai' )
-		);
-		return $tools;
 	}
 
 	/**

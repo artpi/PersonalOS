@@ -59,7 +59,6 @@ class Evernote_Module extends External_Service_Module {
 		$this->register_cli_command( 'sync_note', 'cli' );
 		add_action( 'notebook_edit_form_fields', array( $this, 'notebook_edit_form_fields' ), 10, 2 );
 		add_action( 'edited_notebook', array( $this, 'save_bound_notebook_taxonomy_setting' ) );
-		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
 
 		// Register abilities
 		if ( class_exists( 'WP_Ability' ) ) {
@@ -123,31 +122,6 @@ class Evernote_Module extends External_Service_Module {
 				),
 			)
 		);
-	}
-
-	public function register_openai_tools( $tools ) {
-		$tools[] = new OpenAI_Tool(
-			'evernote_search_notes',
-			'Search notes in Evernote',
-			array(
-				'query'         => array(
-					'type'        => 'string',
-					'description' => 'Query to search for notes.',
-				),
-				'limit'         => array(
-					'type'        => 'integer',
-					'description' => 'Limit the number of notes returned. Do not change unless specified otherwise. Please use 10 as default.',
-					// 'default'     => 25,
-				),
-				'return_random' => array(
-					'type'        => 'integer',
-					'description' => 'Return X random notes from result. Do not change unless specified otherwise. Please always use 0 unless specified otherwise.',
-					// 'default'     => 0,
-				),
-			),
-			array( $this, 'search_notes_for_openai' )
-		);
-		return $tools;
 	}
 
 	/**

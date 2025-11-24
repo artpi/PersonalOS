@@ -41,7 +41,6 @@ class OpenAI_Module extends POS_Module {
 		new POS_Ollama_Server( $this );
 		add_action( 'rest_api_init', array( $this, 'rest_api_init' ) );
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
-		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
 		$this->register_cli_command( 'tool', 'cli_openai_tool' );
 
 		$this->register_cli_command( 'responses', 'cli_openai_responses' );
@@ -464,50 +463,6 @@ class OpenAI_Module extends POS_Module {
 				<?php
 			}
 		);
-	}
-
-	public function register_openai_tools( $tools ) {
-		$tools[] = new OpenAI_Tool(
-			'list_posts',
-			'List publicly accessible posts on this blog.',
-			array(
-				'posts_per_page' => array(
-					'type'        => 'integer',
-					'description' => 'Number of posts to return. Default to 10',
-				),
-				'post_type'      => array(
-					'type'        => 'string',
-					'description' => 'Post type to return. Posts are blog posts, pages are static pages.',
-					'enum'        => array( 'post', 'page' ),
-				),
-				'post_status'    => array(
-					'type'        => 'string',
-					'description' => 'Status of posts to return. Published posts are publicly accessible, drafts are not. Future are scheduled ones.',
-					'enum'        => array( 'publish', 'draft', 'future' ),
-				),
-			),
-			array( $this, 'list_posts_for_openai' )
-		);
-		$tools[] = new OpenAI_Tool_Writeable(
-			'ai_memory',
-			'Store information in the memory. Use this tool when you need to store additional information relevant for future conversations. For example, "Remembe to always talk like a pirate", or "I Just got a puppy", or "I am building a house" should trigger this tool. Very time-specific, ephemeral data should not.',
-			array(
-				'ID'           => array(
-					'type'        => 'integer',
-					'description' => 'ID of the memory to update. Only provide when updating existing memory. Set to 0 when creating a new memory.',
-				),
-				'post_title'   => array(
-					'type'        => 'string',
-					'description' => 'Short title describing the memory. Describe what is the memory about specifically.',
-				),
-				'post_content' => array(
-					'type'        => 'string',
-					'description' => 'Actual content of the memory that will be stored and used for future conversations.',
-				),
-			),
-			array( $this, 'create_ai_memory' )
-		);
-		return $tools;
 	}
 
 	/**
