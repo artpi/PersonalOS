@@ -127,73 +127,132 @@ class TODO_Module extends POS_Module {
 				),
 			)
 		);
-		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
+		// Register abilities
+		add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
 	}
 
-	public function register_openai_tools( $tools ) {
-		$self = $this;
-		$tools[] = new OpenAI_Tool(
-			'todo_get_items',
-			'List TODOs from a specific notebook. Defaults to "now" notebook if not specified.',
+	/**
+	 * Register TODO module abilities with WordPress Abilities API.
+	 */
+	public function register_abilities() {
+		// Register todo_get_items ability
+		wp_register_ability(
+			'pos/todo-get-items',
 			array(
-				'notebook' => array(
-					'type'        => array( 'string', 'null' ),
-					'description' => 'slug of the notebook to list TODOs from. If not specified, defaults to "now". Use "all" to list from all notebooks.',
-					'enum'        => array_merge(
-						array( 'all' ),
-						array_values(
-							array_map(
-								function( $notebook ) {
-									return $notebook->slug;
-								},
-								get_terms( array( 'taxonomy' => 'notebook' ) )
-							)
-						)
+				'label'               => __( 'Get TODO Items', 'personalos' ),
+				'description'         => __( 'List TODOs from a specific notebook. Defaults to "now" notebook if not specified.', 'personalos' ),
+				'category'            => 'personalos',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'notebook' => array(
+							'type'        => array( 'string', 'null' ),
+							'description' => 'slug of the notebook to list TODOs from. If not specified, defaults to "now". Use "all" to list from all notebooks.',
+						),
+					),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'        => 'array',
+					'description' => 'Array of TODO items',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'title'       => array( 'type' => 'string' ),
+							'excerpt'     => array( 'type' => 'string' ),
+							'url'         => array( 'type' => 'string' ),
+							'notebooks'   => array(
+								'type'  => 'array',
+								'items' => array( 'type' => 'string' ),
+							),
+							'ID'          => array( 'type' => 'integer' ),
+							'post_status' => array( 'type' => 'string' ),
+						),
 					),
 				),
-			),
-			array( $this, 'get_items_for_openai' )
-		);
-		$tools[] = new OpenAI_Tool_Writeable(
-			'todo_create_item',
-			'Create TODO. Always ask for confirmation if not explicitly asked to create a TODO. Always return the URL in response. Never read the URL when reading out loud.',
-			array(
-				'post_title'   => array(
-					'type'        => 'string',
-					'description' => 'The title of the TODO',
-				),
-				'post_excerpt' => array(
-					'type'        => 'string',
-					'description' => 'The description of the TODO',
-				),
-				'notebook'     => array(
-					'type'        => array( 'string', 'null' ),
-					'description' => 'slug of the notebook to add the TODO to. Fill only if TODO is clearly related to this notebook.',
-					'enum'        => array_values(
-						array_map(
-							function( $notebook ) {
-								return $notebook->slug;
-							},
-							get_terms( array( 'taxonomy' => 'notebook' ) )
-						)
+				'execute_callback'    => array( $this, 'get_items_ability' ),
+				'permission_callback' => 'is_user_logged_in',
+				'meta'                => array(
+					'show_in_rest' => true,
+					'annotations'  => array(
+						'readonly'    => true,
+						'destructive' => false,
 					),
 				),
-			),
-			function( $args ) use ( $self ) {
-				$create_args = array(
-					'post_title'   => $args['post_title'],
-					'post_excerpt' => $args['post_excerpt'],
-				);
-				$notebooks = array( 'inbox' );
-				if ( isset( $args['notebook'] ) ) {
-					$notebooks[] = $args['notebook'];
-				}
-				$post = get_post( $self->create( $create_args, $notebooks ) );
-				return $self->format_todo_item( $post );
-			}
+			)
 		);
 
-		return $tools;
+		// Register todo_create_item ability
+		wp_register_ability(
+			'pos/todo-create-item',
+			array(
+				'label'               => __( 'Create TODO Item', 'personalos' ),
+				'description'         => __( 'Create TODO. Always ask for confirmation if not explicitly asked to create a TODO. Always return the URL in response. Never read the URL when reading out loud.', 'personalos' ),
+				'category'            => 'personalos',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'post_title'   => array(
+							'type'        => 'string',
+							'description' => 'The title of the TODO',
+						),
+						'post_excerpt' => array(
+							'type'        => 'string',
+							'description' => 'The description of the TODO',
+						),
+						'notebook'     => array(
+							'type'        => array( 'string', 'null' ),
+							'description' => 'slug of the notebook to add the TODO to. Fill only if TODO is clearly related to this notebook.',
+						),
+					),
+					'required'             => array( 'post_title', 'post_excerpt' ),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'        => 'object',
+					'description' => 'Created TODO item',
+					'properties'  => array(
+						'title'       => array( 'type' => 'string' ),
+						'excerpt'     => array( 'type' => 'string' ),
+						'url'         => array( 'type' => 'string' ),
+						'notebooks'   => array(
+							'type'  => 'array',
+							'items' => array( 'type' => 'string' ),
+						),
+						'ID'          => array( 'type' => 'integer' ),
+						'post_status' => array( 'type' => 'string' ),
+					),
+				),
+				'execute_callback'    => array( $this, 'create_item_ability' ),
+				'permission_callback' => 'is_user_logged_in',
+				'meta'                => array(
+					'show_in_rest' => true,
+					'annotations'  => array(
+						'readonly'    => false,
+						'destructive' => true,
+					),
+				),
+			)
+		);
+	}
+
+	/**
+	 * Create a TODO item ability.
+	 *
+	 * @param array $args Arguments with post_title, post_excerpt, and optional notebook.
+	 * @return array Formatted TODO item array.
+	 */
+	public function create_item_ability( $args ) {
+		$create_args = array(
+			'post_title'   => $args['post_title'],
+			'post_excerpt' => $args['post_excerpt'],
+		);
+		$notebooks = array( 'inbox' );
+		if ( isset( $args['notebook'] ) ) {
+			$notebooks[] = $args['notebook'];
+		}
+		$post = get_post( $this->create( $create_args, $notebooks ) );
+		return $this->format_todo_item( $post );
 	}
 
 	public function get_scheduled_todos() {
@@ -240,7 +299,13 @@ class TODO_Module extends POS_Module {
 		);
 	}
 
-	public function get_items_for_openai( $args ) {
+	/**
+	 * Get TODO items ability.
+	 *
+	 * @param array $args Arguments with optional notebook slug.
+	 * @return array Array of formatted TODO items.
+	 */
+	public function get_items_ability( $args ) {
 		// Default to 'now' notebook if not specified, or use 'all' to list from all notebooks
 		$notebook = isset( $args['notebook'] ) ? $args['notebook'] : 'now';
 

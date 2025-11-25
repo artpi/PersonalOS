@@ -59,48 +59,89 @@ class Evernote_Module extends External_Service_Module {
 		$this->register_cli_command( 'sync_note', 'cli' );
 		add_action( 'notebook_edit_form_fields', array( $this, 'notebook_edit_form_fields' ), 10, 2 );
 		add_action( 'edited_notebook', array( $this, 'save_bound_notebook_taxonomy_setting' ) );
-		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
+
+		// Register abilities
+		add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
 	}
 
-	public function register_openai_tools( $tools ) {
-		$self = $this;
-		$tools[] = new OpenAI_Tool(
-			'evernote_search_notes',
-			'Search notes in Evernote',
+	/**
+	 * Register Evernote module abilities with WordPress Abilities API.
+	 */
+	public function register_abilities() {
+		// Register evernote_search_notes ability
+		wp_register_ability(
+			'pos/evernote-search-notes',
 			array(
-				'query'         => array(
-					'type'        => 'string',
-					'description' => 'Query to search for notes.',
+				'label'               => __( 'Evernote Search Notes', 'personalos' ),
+				'description'         => __( 'Search notes in Evernote', 'personalos' ),
+				'category'            => 'personalos',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'query'         => array(
+							'type'        => 'string',
+							'description' => 'Query to search for notes.',
+						),
+						'limit'         => array(
+							'type'        => 'integer',
+							'description' => 'Limit the number of notes returned. Do not change unless specified otherwise. Please use 10 as default.',
+						),
+						'return_random' => array(
+							'type'        => 'integer',
+							'description' => 'Return X random notes from result. Do not change unless specified otherwise. Please always use 0 unless specified otherwise.',
+						),
+					),
+					'required'             => array( 'query', 'limit', 'return_random' ),
+					'additionalProperties' => false,
 				),
-				'limit'         => array(
-					'type'        => 'integer',
-					'description' => 'Limit the number of notes returned. Do not change unless specified otherwise. Please use 10 as default.',
-					// 'default'     => 25,
+				'output_schema'       => array(
+					'type'        => 'array',
+					'description' => 'Array of Evernote notes',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'title'    => array( 'type' => 'string' ),
+							'url'      => array( 'type' => 'string' ),
+							'date'     => array( 'type' => 'string' ),
+							'notebook' => array( 'type' => 'string' ),
+						),
+					),
 				),
-				'return_random' => array(
-					'type'        => 'integer',
-					'description' => 'Return X random notes from result. Do not change unless specified otherwise. Please always use 0 unless specified otherwise.',
-					// 'default'     => 0,
+				'execute_callback'    => array( $this, 'search_notes_ability' ),
+				'permission_callback' => 'is_user_logged_in',
+				'meta'                => array(
+					'show_in_rest' => true,
+					'annotations'  => array(
+						'readonly'    => true,
+						'destructive' => false,
+					),
 				),
-			),
-			function( $args ) use ( $self ) {
-				return array_map(
-					function( $note ) use ( $self ) {
-						$cached_data = $self->get_cached_data();
-						$notebook_name = $cached_data['notebooks'][ $note->notebookGuid ]['name'] ?? $note->notebookGuid;
-						return array(
-							'title'    => $note->title,
-							'url'      => $self->get_app_link_from_guid( $note->guid ),
-							'date'     => gmdate( 'Y-m-d H:i:s', floor( $note->created / 1000 ) ),
-							'notebook' => $notebook_name,
-						);
-					},
-					$self->search_notes( $args )
-				);
-			}
+			)
 		);
-		return $tools;
 	}
+
+	/**
+	 * Search Evernote notes ability.
+	 *
+	 * @param array $args Arguments with query, limit, and return_random.
+	 * @return array Array of formatted note objects.
+	 */
+	public function search_notes_ability( $args ) {
+		return array_map(
+			function( $note ) {
+				$cached_data = $this->get_cached_data();
+				$notebook_name = $cached_data['notebooks'][ $note->notebookGuid ]['name'] ?? $note->notebookGuid;
+				return array(
+					'title'    => $note->title,
+					'url'      => $this->get_app_link_from_guid( $note->guid ),
+					'date'     => gmdate( 'Y-m-d H:i:s', floor( $note->created / 1000 ) ),
+					'notebook' => $notebook_name,
+				);
+			},
+			$this->search_notes( $args )
+		);
+	}
+
 	/**
 	 * This forces sync of the note from evernote
 	 * <guid>
@@ -118,12 +159,13 @@ class Evernote_Module extends External_Service_Module {
 		WP_CLI::line( 'Found note in Evernote: ' . $note->title );
 		$this->sync_note( $note );
 	}
+
 	public function proxy_media() {
-		//phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	//phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! isset( $_GET['evernote_guid'] ) ) {
 			return;
 		}
-		//phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	//phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$guid = sanitize_text_field( $_GET['evernote_guid'] );
 		$this->connect();
 		// TODO figure out this streaming trick
@@ -134,7 +176,7 @@ class Evernote_Module extends External_Service_Module {
 		$file = $this->advanced_client->getNoteStore()->getResource( $guid, true, false, true, false );
 		header( "Content-Disposition: inline;filename={$file->attributes->fileName}" );
 		header( "Content-Type: {$file->mime}" );
-		//phpcs:ignore WordPress.Security.EscapeOutput
+	//phpcs:ignore WordPress.Security.EscapeOutput
 		echo $file->data->body;
 		die();
 	}
@@ -270,7 +312,6 @@ class Evernote_Module extends External_Service_Module {
 		} catch ( \EDAM\Error\EDAMUserException $e ) {
 			$this->log( "Evernote ENML probably misformatted: '" . $e->getMessage() . '" . While saving: ' . $note->content, E_USER_WARNING );
 		}
-
 	}
 
 	public function search_notes( $args ) {
@@ -450,9 +491,9 @@ class Evernote_Module extends External_Service_Module {
 			delete_term_meta( $term_id, 'evernote_notebook_guid' );
 			delete_term_meta( $term_id, 'evernote_type' );
 		} elseif (
-			in_array( $evernote_notebook[0], array( 'notebook', 'tag' ), true ) &&
-			! empty( $evernote_notebook[1] ) &&
-			$existing !== $evernote_notebook[1]
+		in_array( $evernote_notebook[0], array( 'notebook', 'tag' ), true ) &&
+		! empty( $evernote_notebook[1] ) &&
+		$existing !== $evernote_notebook[1]
 		) {
 			$this->log( "Changing term $term_id from Evernote guid {$existing} to {$evernote_notebook[0]} {$evernote_notebook[1]}" );
 			update_term_meta( $term_id, 'evernote_notebook_guid', $evernote_notebook[1] );
@@ -506,18 +547,18 @@ class Evernote_Module extends External_Service_Module {
 				<td>
 					<select name="evernote-notebook" class="postform">
 						<option value="-1">Detach this notebook from Evernote</option>
-						<?php
-						echo wp_kses(
-							$notebooks,
-							array(
-								'option' => array(
-									'selected' => array(),
-									'disabled' => array(),
-									'value'    => array(),
-								),
-							)
-						);
-						?>
+					<?php
+					echo wp_kses(
+						$notebooks,
+						array(
+							'option' => array(
+								'selected' => array(),
+								'disabled' => array(),
+								'value'    => array(),
+							),
+						)
+					);
+					?>
 					</select>
 					<p class="description" id="parent-description">This is the attached Evernote Notebook/Tag. Tag names are prepended with #. I highly recommend <b>pausing Evernote Sync</b> Before you edit this field. 🔄 emoji means that the notebook is a synced notebook.</p>
 				</td>
@@ -723,7 +764,6 @@ class Evernote_Module extends External_Service_Module {
 				$this->sync_resource( $resource );
 			}
 		}
-
 	}
 
 	public function get_parent_notebook() {
@@ -787,7 +827,7 @@ class Evernote_Module extends External_Service_Module {
 
 		// If we want to auto-upload all resources
 		// TODO: Should this be a setting?
-		// phpcs:ignore Generic.CodeAnalysis.UnconditionalIfStatement.Found
+	// phpcs:ignore Generic.CodeAnalysis.UnconditionalIfStatement.Found
 		if ( true ) {
 			require_once ABSPATH . 'wp-admin/includes/file.php';
 			require_once ABSPATH . 'wp-admin/includes/media.php';
@@ -880,9 +920,9 @@ class Evernote_Module extends External_Service_Module {
 		if ( count( $terms ) > 0 ) {
 			$term = $terms[0];
 			if (
-				$type === 'tag' &&
-				$term->name === '#' . $guid &&
-				! empty( $cached_data['tags'][ $guid ] )
+			$type === 'tag' &&
+			$term->name === '#' . $guid &&
+			! empty( $cached_data['tags'][ $guid ] )
 			) {
 				$this->log( 'Correcting term: ' . $cached_data['tags'][ $guid ]['name'] );
 				wp_update_term( $term->term_id, 'notebook', array( 'name' => '#' . $cached_data['tags'][ $guid ]['name'] ) );

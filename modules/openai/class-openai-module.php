@@ -1,6 +1,5 @@
 <?php
 
-require_once __DIR__ . '/class-openai-tool.php';
 require_once __DIR__ . '/class-pos-ollama-server.php';
 require_once __DIR__ . '/class-openai-email-responder.php';
 
@@ -41,7 +40,6 @@ class OpenAI_Module extends POS_Module {
 		new POS_Ollama_Server( $this );
 		add_action( 'rest_api_init', array( $this, 'rest_api_init' ) );
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
-		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
 		$this->register_cli_command( 'tool', 'cli_openai_tool' );
 
 		$this->register_cli_command( 'responses', 'cli_openai_responses' );
@@ -64,54 +62,317 @@ class OpenAI_Module extends POS_Module {
 				'show_in_rest' => true,
 			)
 		);
+
+		// Register abilities
+		add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
+	}
+
+	/**
+	 * Register OpenAI module abilities with WordPress Abilities API.
+	 */
+	public function register_abilities() {
+		// Register list_posts ability
+		wp_register_ability(
+			'pos/list-posts',
+			array(
+				'label'               => __( 'List Posts', 'personalos' ),
+				'description'         => __( 'List publicly accessible posts on this blog.', 'personalos' ),
+				'category'            => 'personalos',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'posts_per_page' => array(
+							'type'        => 'integer',
+							'description' => 'Number of posts to return. Default to 10',
+						),
+						'post_type'      => array(
+							'type'        => 'string',
+							'description' => 'Post type to return. Posts are blog posts, pages are static pages.',
+							'enum'        => array( 'post', 'page' ),
+						),
+						'post_status'    => array(
+							'type'        => 'string',
+							'description' => 'Status of posts to return. Published posts are publicly accessible, drafts are not. Future are scheduled ones.',
+							'enum'        => array( 'publish', 'draft', 'future' ),
+						),
+					),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'        => 'array',
+					'description' => 'Array of post objects',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'id'      => array( 'type' => 'integer' ),
+							'title'   => array( 'type' => 'string' ),
+							'date'    => array( 'type' => 'string' ),
+							'excerpt' => array( 'type' => 'string' ),
+							'url'     => array( 'type' => 'string' ),
+						),
+					),
+				),
+				'execute_callback'    => array( $this, 'list_posts_ability' ),
+				'permission_callback' => 'is_user_logged_in',
+				'meta'                => array(
+					'show_in_rest' => true,
+					'annotations'  => array(
+						'readonly'    => true,
+						'destructive' => false,
+					),
+				),
+			)
+		);
+
+		// Register ai_memory ability
+		wp_register_ability(
+			'pos/ai-memory',
+			array(
+				'label'               => __( 'AI Memory', 'personalos' ),
+				'description'         => __( 'Store information in the memory. Use this tool when you need to store additional information relevant for future conversations.', 'personalos' ),
+				'category'            => 'personalos',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'ID'           => array(
+							'type'        => 'integer',
+							'description' => 'ID of the memory to update. Only provide when updating existing memory. Set to 0 when creating a new memory.',
+						),
+						'post_title'   => array(
+							'type'        => 'string',
+							'description' => 'Short title describing the memory. Describe what is the memory about specifically.',
+						),
+						'post_content' => array(
+							'type'        => 'string',
+							'description' => 'Actual content of the memory that will be stored and used for future conversations.',
+						),
+					),
+					'required'             => array( 'ID', 'post_title', 'post_content' ),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'        => 'object',
+					'description' => 'Created or updated memory information',
+					'properties'  => array(
+						'url' => array( 'type' => 'string' ),
+					),
+				),
+				'execute_callback'    => array( $this, 'create_ai_memory_ability' ),
+				'permission_callback' => 'is_user_logged_in',
+				'meta'                => array(
+					'show_in_rest' => true,
+					'annotations'  => array(
+						'readonly'    => false,
+						'destructive' => true,
+					),
+				),
+			)
+		);
+
+		// Register get_ai_memories ability
+		wp_register_ability(
+			'pos/get-ai-memories',
+			array(
+				'label'               => __( 'Get AI Memories', 'personalos' ),
+				'description'         => __( 'Get all previously stored AI memories. These are pieces of information stored for future conversations.', 'personalos' ),
+				'category'            => 'personalos',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'        => 'array',
+					'description' => 'Array of AI memory objects',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'title'   => array( 'type' => 'string' ),
+							'content' => array( 'type' => 'string' ),
+							'date'    => array( 'type' => 'string' ),
+						),
+					),
+				),
+				'execute_callback'    => array( $this, 'get_ai_memories_ability' ),
+				'permission_callback' => 'is_user_logged_in',
+				'meta'                => array(
+					'show_in_rest' => true,
+					'annotations'  => array(
+						'readonly'    => true,
+						'destructive' => false,
+					),
+				),
+			)
+		);
+
+		// Register system_state ability
+		wp_register_ability(
+			'pos/system-state',
+			array(
+				'label'               => __( 'System State', 'personalos' ),
+				'description'         => __( 'Get current system state including user information, system time, and PersonalOS description.', 'personalos' ),
+				'category'            => 'personalos',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'       => 'object',
+					'properties' => array(
+						'user_display_name' => array( 'type' => 'string' ),
+						'user_description'  => array( 'type' => 'string' ),
+						'system_time'       => array( 'type' => 'string' ),
+					),
+				),
+				'execute_callback'    => array( $this, 'get_system_state_ability' ),
+				'permission_callback' => 'is_user_logged_in',
+				'meta'                => array(
+					'show_in_rest' => true,
+					'annotations'  => array(
+						'readonly'    => true,
+						'destructive' => false,
+					),
+				),
+			)
+		);
 	}
 
 	public function render_tool_block( $attributes ) {
-		$tool = OpenAI_Tool::get_tool( $attributes['tool'] );
-		if ( ! $tool ) {
+		if ( ! function_exists( 'wp_get_ability' ) ) {
 			return '';
 		}
-		$result = $tool->invoke( (array) $attributes['parameters'] ?? array() );
+
+		// Convert tool name to ability name if needed
+		$ability_name = $attributes['tool'] ?? '';
+		if ( empty( $ability_name ) ) {
+			return '';
+		}
+
+		$ability = wp_get_ability( $ability_name );
+		if ( ! $ability ) {
+			return '';
+		}
+		$result = $ability->execute( (array) ( $attributes['parameters'] ?? null ) );
+
+		// Filter output fields if specified
+		$output_fields = $attributes['outputFields'] ?? null;
+		if ( ! empty( $output_fields ) && is_array( $output_fields ) ) {
+			$result = $this->filter_output_fields( $result, $output_fields );
+		}
+
+		// Format output
+		$output_format = $attributes['outputFormat'] ?? 'json';
+		if ( 'xml' === $output_format ) {
+			// Wrap in root element for proper XML structure
+			$xml_content = $this->array_to_xml( $result );
+			$xml_output = '<root>' . "\n" . $xml_content . "\n" . '</root>';
+			return '<pre>' . $xml_output . '</pre>';
+		}
+
 		return '<pre>' . wp_json_encode( $result, JSON_PRETTY_PRINT ) . '</pre>';
 	}
 
 	/**
-	 * Test OpenAI tools
+	 * Filter output fields from result based on selected fields.
 	 *
-	 * Lists available OpenAI tools and allows testing individual tools with arguments.
-	 * If no tool is specified, displays all available tools. If a tool name is provided,
-	 * executes that specific tool with the optional arguments.
+	 * @param mixed  $result Result from ability execution.
+	 * @param array  $output_fields Selected output field names.
+	 * @return mixed Filtered result.
+	 */
+	private function filter_output_fields( $result, $output_fields ) {
+		if ( is_array( $result ) ) {
+			// Handle array of objects
+			if ( isset( $result[0] ) && is_array( $result[0] ) ) {
+				return array_map(
+					function( $item ) use ( $output_fields ) {
+						return $this->filter_object_fields( $item, $output_fields );
+					},
+					$result
+				);
+			}
+			// Handle single object
+			return $this->filter_object_fields( $result, $output_fields );
+		}
+		return $result;
+	}
+
+	/**
+	 * Filter fields from an object/array.
+	 *
+	 * @param array $object Object to filter.
+	 * @param array $output_fields Fields to keep.
+	 * @return array Filtered object.
+	 */
+	private function filter_object_fields( $object, $output_fields ) {
+		if ( ! is_array( $object ) ) {
+			return $object;
+		}
+
+		$filtered = array();
+		foreach ( $output_fields as $field ) {
+			if ( isset( $object[ $field ] ) ) {
+				$filtered[ $field ] = $object[ $field ];
+			}
+		}
+		return $filtered;
+	}
+
+	/**
+	 * Test OpenAI abilities
+	 *
+	 * Lists available abilities and allows testing individual abilities with arguments.
+	 * If no ability is specified, displays all available abilities. If an ability name is provided,
+	 * executes that specific ability with the optional arguments.
 	 *
 	 * ## OPTIONS
 	 *
-	 * [<tool>]
-	 * : Name of the tool to test
+	 * [<ability>]
+	 * : Name of the ability to test (e.g., pos/todo-get-items)
 	 *
 	 * [<args>]
-	 * : JSON string of arguments to pass to the tool
+	 * : JSON string of arguments to pass to the ability
 	 */
 	public function cli_openai_tool( $args ) {
-		$tools = apply_filters( 'pos_openai_tools', array() );
+		if ( ! function_exists( 'wp_get_abilities' ) ) {
+			WP_CLI::error( 'Abilities API not available' );
+		}
+
+		// Ensure abilities are registered
+		if ( ! did_action( 'wp_abilities_api_init' ) ) {
+			do_action( 'wp_abilities_api_init' );
+		}
+
+		$abilities = wp_get_abilities();
+
 		if ( empty( $args[0] ) ) {
 			$items = array_map(
-				function( $tool ) {
+				function( $ability ) {
+					$input_schema = $ability->get_input_schema();
 					return array(
-						'name'        => $tool->name,
-						'description' => $tool->description,
-						'parameters'  => json_encode( $tool->parameters ),
+						'name'        => $ability->get_name(),
+						'description' => $ability->get_description(),
+						'parameters'  => wp_json_encode( $input_schema['properties'] ?? array() ),
 					);
 				},
-				$tools
+				$abilities
 			);
 
 			WP_CLI\Utils\format_items( 'table', $items, array( 'name', 'description', 'parameters' ) );
 			return;
 		}
-		$tool = OpenAI_Tool::get_tool( $args[0] );
-		if ( ! $tool ) {
-			WP_CLI::error( 'Tool not found' );
+
+		$ability_name = $args[0];
+		if ( empty( $ability_name ) ) {
+			WP_CLI::error( 'Ability name is required' );
 		}
-		WP_CLI::log( print_r( $tool->invoke( ! empty( $args[1] ) ? json_decode( $args[1], true ) : array() ), true ) );
+
+		$ability = wp_get_ability( $ability_name );
+		if ( ! $ability ) {
+			WP_CLI::error( 'Ability not found: ' . $ability_name );
+		}
+		$result = $ability->execute( ! empty( $args[1] ) ? json_decode( $args[1], true ) : array() );
+		WP_CLI::log( print_r( $result, true ) );
 	}
 
 	/**
@@ -298,12 +559,12 @@ class OpenAI_Module extends POS_Module {
 	 * @return void
 	 */
 	public function cli_openai_system_prompt( array $args = array(), array $assoc_args = array() ): void {
-		$params = array();
+		$prompt = null;
 
 		if ( ! empty( $args[0] ) ) {
 			$post_id = intval( $args[0] );
-			$post = get_post( $post_id );
-			if ( ! $post ) {
+			$prompt = get_post( $post_id );
+			if ( ! $prompt ) {
 				WP_CLI::error(
 					sprintf(
 						'Post not found: %d',
@@ -311,12 +572,12 @@ class OpenAI_Module extends POS_Module {
 					)
 				);
 			}
-			$params = $post;
 		}
 
-		$system_prompt = $this->create_system_prompt( $params );
+		$config = $this->get_prompt_config( $prompt );
 
-		WP_CLI::log( $system_prompt );
+		WP_CLI::log( $config['prompt_string'] );
+		WP_CLI::log( 'Model: ' . $config['model'] );
 		WP_CLI::success( 'System prompt output completed.' );
 	}
 
@@ -354,76 +615,94 @@ class OpenAI_Module extends POS_Module {
 		);
 	}
 
-	public function register_openai_tools( $tools ) {
-		$notes_module = POS::get_module_by_id( 'notes' );
-		$tools[] = new OpenAI_Tool(
-			'list_posts',
-			'List publicly accessible posts on this blog.',
-			array(
-				'posts_per_page' => array(
-					'type'        => 'integer',
-					'description' => 'Number of posts to return. Default to 10',
-				),
-				'post_type'      => array(
-					'type'        => 'string',
-					'description' => 'Post type to return. Posts are blog posts, pages are static pages.',
-					'enum'        => array( 'post', 'page' ),
-				),
-				'post_status'    => array(
-					'type'        => 'string',
-					'description' => 'Status of posts to return. Published posts are publicly accessible, drafts are not. Future are scheduled ones.',
-					'enum'        => array( 'publish', 'draft', 'future' ),
-				),
-			),
-			function( $args ) {
-				return array_map(
-					function( $post ) {
-						return array(
-							'id'      => $post->ID,
-							'title'   => $post->post_title,
-							'date'    => $post->post_date,
-							'excerpt' => $post->post_excerpt,
-							'url'     => get_permalink( $post ),
-						);
-					},
-					get_posts( $args )
-				);
-			}
-		);
-		$tools[] = new OpenAI_Tool_Writeable(
-			'ai_memory',
-			'Store information in the memory. Use this tool when you need to store additional information relevant for future conversations. For example, "Remembe to always talk like a pirate", or "I Just got a puppy", or "I am building a house" should trigger this tool. Very time-specific, ephemeral data should not.',
-			array(
-				'ID'           => array(
-					'type'        => 'integer',
-					'description' => 'ID of the memory to update. Only provide when updating existing memory. Set to 0 when creating a new memory.',
-				),
-				'post_title'   => array(
-					'type'        => 'string',
-					'description' => 'Short title describing the memory. Describe what is the memory about specifically.',
-				),
-				'post_content' => array(
-					'type'        => 'string',
-					'description' => 'Actual content of the memory that will be stored and used for future conversations.',
-				),
-			),
-			function( $args ) {
-				$memory_id = wp_insert_post(
-					array_merge(
-						$args,
-						array(
-							'post_type'   => 'notes',
-							'post_status' => 'publish',
-						)
-					)
-				);
-				wp_set_object_terms( $memory_id, array( 'ai-memory' ), 'notebook' );
+	/**
+	 * List posts ability.
+	 *
+	 * @param array $args Arguments for get_posts (posts_per_page, post_type, post_status).
+	 * @return array Array of formatted post objects.
+	 */
+	public function list_posts_ability( $args ) {
+		return array_map(
+			function( $post ) {
 				return array(
-					'url' => get_permalink( $memory_id ),
+					'id'      => $post->ID,
+					'title'   => $post->post_title,
+					'date'    => $post->post_date,
+					'excerpt' => $post->post_excerpt,
+					'url'     => get_permalink( $post ),
 				);
-			}
+			},
+			get_posts( $args )
 		);
-		return $tools;
+	}
+
+	/**
+	 * Create or update an AI memory ability.
+	 *
+	 * @param array $args Arguments with ID, post_title, and post_content.
+	 * @return array Array with URL of created/updated memory.
+	 */
+	public function create_ai_memory_ability( $args ) {
+		$memory_id = wp_insert_post(
+			array_merge(
+				$args,
+				array(
+					'post_type'   => 'notes',
+					'post_status' => 'publish',
+				)
+			)
+		);
+		wp_set_object_terms( $memory_id, array( 'ai-memory' ), 'notebook' );
+		return array(
+			'url' => get_permalink( $memory_id ),
+		);
+	}
+
+	/**
+	 * Get AI memories ability.
+	 *
+	 * @param array $args Arguments (currently unused, but required by ability interface).
+	 * @return array Array of memory objects with title, content, and date.
+	 */
+	public function get_ai_memories_ability( $args ) {
+		return array_map(
+			function( $memory ) {
+				return array(
+					'title'   => $memory->post_title,
+					'content' => $memory->post_content,
+					'date'    => $memory->post_date,
+				);
+			},
+			get_posts(
+				array(
+					'post_type'   => 'notes',
+					'post_status' => 'publish',
+					'tax_query'   => array(
+						array(
+							'taxonomy' => 'notebook',
+							'field'    => 'slug',
+							'terms'    => 'ai-memory',
+						),
+					),
+					'numberposts' => -1,
+				)
+			)
+		);
+	}
+
+	/**
+	 * Get system state ability.
+	 *
+	 * @param array $args Arguments (currently unused, but required by ability interface).
+	 * @return array System state with me, system, and you variables.
+	 */
+	public function get_system_state_ability( $args ) {
+		$current_user = wp_get_current_user();
+		return array(
+			'user_display_name' => $current_user->display_name,
+			'user_description'  => $current_user->description,
+			'system_time'       => gmdate( 'Y-m-d H:i:s' ),
+		);
 	}
 
 	public function voice_chat_page() {
@@ -688,41 +967,7 @@ class OpenAI_Module extends POS_Module {
 				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
-		register_rest_route(
-			$this->rest_namespace,
-			'/openai/realtime/function_call',
-			array(
-				'methods'             => 'POST',
-				'callback'            => array( $this, 'function_call' ),
-				'permission_callback' => array( $this, 'check_permission' ),
-				'args'                => array(
-					'name'      => array(
-						'required' => true,
-						'type'     => 'string',
-					),
-					'arguments' => array(
-						'required' => false,
-						'type'     => 'string',
-					),
-				),
-			)
-		);
-		register_rest_route(
-			$this->rest_namespace,
-			'/openai/chat/tools',
-			array(
-				'methods'             => 'GET',
-				'callback'            => function() {
-					return array_map(
-						function( $tool ) {
-							return $tool->get_function_signature();
-						},
-						OpenAI_Tool::get_tools( false )
-					);
-				},
-				'permission_callback' => array( $this, 'check_permission' ),
-			)
-		);
+
 		register_rest_route(
 			$this->rest_namespace,
 			'/openai/chat/completions',
@@ -752,22 +997,6 @@ class OpenAI_Module extends POS_Module {
 		);
 		register_rest_route(
 			$this->rest_namespace,
-			'/openai/chat/system_prompt',
-			array(
-				'methods'             => 'GET',
-				'callback'            => function( WP_REST_Request $request ) {
-					$params = $request->get_query_params();
-					if ( ! empty( $params['id'] ) ) {
-						$params = get_post( $params['id'] );
-					}
-					return $this->create_system_prompt( $params );
-				},
-				'permission_callback' => array( $this, 'check_permission' ),
-			)
-		);
-
-		register_rest_route(
-			$this->rest_namespace,
 			'/openai/vercel/chat',
 			array(
 				'methods'             => 'POST',
@@ -790,12 +1019,13 @@ class OpenAI_Module extends POS_Module {
 	}
 
 	public function realtime_session( WP_REST_Request $request ) {
+		$prompt_config = $this->get_prompt_config( null, 'gpt-4o-realtime-preview-2024-12-17' );
 
 		$result = $this->api_call(
 			'https://api.openai.com/v1/realtime/sessions',
 			array(
-				'model'                     => 'gpt-4o-realtime-preview-2024-12-17',
-				'instructions'              => $this->create_system_prompt(),
+				'model'                     => $prompt_config['model'],
+				'instructions'              => $prompt_config['prompt_string'],
 				'voice'                     => 'ballad',
 				'temperature'               => 0.6,
 				'input_audio_transcription' => array(
@@ -809,110 +1039,49 @@ class OpenAI_Module extends POS_Module {
 					'threshold'         => 0.8,
 					'prefix_padding_ms' => 100,
 				),
-				'tools'                     => array_map(
-					function( $tool ) {
-						return $tool->get_function_signature_for_realtime_api();
-					},
-					OpenAI_Tool::get_tools()
-				),
+				'tools'                     => $this->get_abilities_as_tools( 'realtime' ),
 			)
 		);
 		return $result;
 	}
 
-	public function system_prompt_defaults() {
-		// TODO: get these defaults from the `prompt-default` note.
-		$note_module = POS::get_module_by_id( 'notes' );
-		return array(
-			'me'        => array(
-				'name'        => wp_get_current_user()->display_name,
-				'description' => wp_get_current_user()->description,
-			),
-			'system'    => array(
-				'current_time' => gmdate( 'Y-m-d H:i:s' ),
-			),
-			'you'       => <<<EOF
-				Your name is PersonalOS. You are a plugin installed on my WordPress site.
-				Apart from WordPress functionality, you have certain modules enabled, and functionality exposed as tools.
-				You can use these tools to perform actions on my behalf.
-				Use simple markdown to format your responses.
-				NEVER read the URLs (http://, https://, evernote://, etc) out loud in voice mode.
-				When answering a question about my todos or notes, stick only to the information from the tools. DO NOT make up information.
-			EOF,
-			// TODO: Unify this with the block rendering this in the notes module so it can be embedded in the system prompt note. Probably have to unify with the abilities_Api first.
-			'notebooks' => array(
-				'description' => 'My work is organized in "notebooks". They represent areas of my life, active projects and statuses of tasks.',
-				'notebooks'   => array_map(
-					function( $flag ) use ( $note_module ) {
-						$notebooks = array_map(
-							function( $notebook ) {
-								return <<<EOF
-									<notebook
-										name="{$notebook->name}"
-										id="{$notebook->term_id}"
-										slug="{$notebook->slug}"
-									>
-										{$notebook->description}
-									</notebook>
-								EOF;
-							},
-							$note_module->get_notebooks_by_flag( $flag['id'] )
-						);
-						$notebooks = implode( "\n", $notebooks );
-						return <<<EOF
-						<notebook_type
-							id="{$flag['id']}"
-							name="{$flag['name']}"
-							label="{$flag['label']}"
-						>
-							{$notebooks}
-						</notebook_type>
-						EOF;
-					},
-					apply_filters(
-						'pos_notebook_flags',
-						array(
-						// array(
-						// 	'id' => null,
-						// 	'name' => 'Rest of the notebooks',
-						// 	'label' => 'Notebooks without any special flag.',
-						// ),
-						)
-					)
-				),
-			),
-			// TODO: Create a tool / ability for this and embed in the editable prompt note.
-			'memories'  => array(
-				'description' => 'You have previously stored some information in the AI Memory using the "ai_memory" tool.',
-				'memories'    => array_map(
-					function( $memory ) {
-						return "<memory id='{$memory->ID}'>
-							<title>{$memory->post_title}</title>
-							<content>{$memory->post_content}</content>
-						</memory>";
-					},
-					get_posts(
-						array(
-							'post_type'   => 'notes',
-							'taxonomy'    => 'notebook',
-							'term'        => 'ai-memory',
-							'numberposts' => -1,
-						)
-					)
-				),
-			),
-		);
-	}
-
 	/**
-	 * Create a system prompt for the OpenAI API.
-	 * @TODO: This could be achieved by using Gutenberg and notes to put this together.
+	 * Get prompt configuration including system prompt string, model, and post object.
 	 *
-	 * @return string The system prompt.
+	 * This consolidates all prompt-related logic: loading the default prompt,
+	 * extracting the model from meta, and converting post content to markdown.
+	 *
+	 * @TODO: This could parse Gutenberg blocks properly instead of just HTML conversion.
+	 *
+	 * @param WP_Post|null $prompt Optional prompt post. If null, loads default prompt.
+	 * @param string       $default_model Default model to use if not specified in prompt meta.
+	 * @return array Configuration array with:
+	 *               - 'prompt_string': The system prompt text (HTML converted to markdown)
+	 *               - 'model': The model to use (from pos_model meta or default)
+	 *               - 'post': The WP_Post object (or null if not found)
 	 */
-	public function create_system_prompt( $params = array() ) {
-		if ( $params instanceof \WP_Post ) {
-			$content = apply_filters( 'the_content', $params->post_content );
+	public function get_prompt_config( $prompt = null, $default_model = 'gpt-4o' ) {
+		// Load default prompt if not provided
+		if ( ! $prompt instanceof \WP_Post ) {
+			$notes_module = POS::get_module_by_id( 'notes' );
+			$prompts = $notes_module->list( array( 'name' => 'prompt_default' ), 'prompts-chat' );
+			$prompt = ! empty( $prompts ) ? $prompts[0] : null;
+		}
+
+		$model = $default_model;
+		$prompt_string = '';
+
+		if ( $prompt ) {
+			// Get model from prompt meta
+			$pos_model = get_post_meta( $prompt->ID, 'pos_model', true );
+			if ( $pos_model ) {
+				$model = $pos_model;
+			}
+
+			// Convert post content to markdown-like format
+			$content = apply_filters( 'the_content', $prompt->post_content );
+
+			// Convert headings to markdown
 			$content = preg_replace_callback(
 				'/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/i',
 				function( $matches ) {
@@ -922,6 +1091,8 @@ class OpenAI_Module extends POS_Module {
 				},
 				$content
 			);
+
+			// Convert list items to markdown
 			$content = preg_replace_callback(
 				'/<li[^>]*>(.*?)<\/li>/i',
 				function( $matches ) {
@@ -929,11 +1100,15 @@ class OpenAI_Module extends POS_Module {
 				},
 				$content
 			);
-			$content = wp_strip_all_tags( $content );
-			return $content;
+
+			$prompt_string = wp_strip_all_tags( $content );
 		}
-		$prompt = wp_parse_args( $params, $this->system_prompt_defaults() );
-		return $this->array_to_xml( $prompt );
+
+		return array(
+			'prompt_string' => $prompt_string,
+			'model'         => $model,
+			'post'          => $prompt,
+		);
 	}
 
 	/**
@@ -944,43 +1119,55 @@ class OpenAI_Module extends POS_Module {
 	 * @return string The XML string
 	 */
 	private function array_to_xml( $data, string $indent = '' ): string {
-		if ( is_string( $data ) || is_numeric( $data ) ) {
-			return $data;
+		if ( is_string( $data ) || is_numeric( $data ) || is_bool( $data ) ) {
+			// Escape XML special characters for simple values
+			return htmlspecialchars( (string) $data, ENT_XML1, 'UTF-8' );
+		}
+
+		if ( ! is_array( $data ) ) {
+			return '';
 		}
 
 		$xml = array();
+		$is_indexed = array_keys( $data ) === range( 0, count( $data ) - 1 );
 
 		foreach ( $data as $key => $value ) {
-			// Skip numeric keys for indexed arrays
+			// Handle indexed arrays (numeric keys)
 			if ( is_int( $key ) ) {
-				$xml[] = $this->array_to_xml( $value, $indent );
+				$xml[] = "{$indent}<item>";
+				if ( is_array( $value ) ) {
+					$xml[] = $this->array_to_xml( $value, $indent . "\t" );
+				} else {
+					$escaped_value = htmlspecialchars( (string) $value, ENT_XML1, 'UTF-8' );
+					$xml[] = $indent . "\t" . $escaped_value;
+				}
+				$xml[] = "{$indent}</item>";
 				continue;
 			}
 
+			// Sanitize element name for XML
+			$element_name = preg_replace( '/[^a-z0-9_-]/i', '_', (string) $key );
+			if ( empty( $element_name ) ) {
+				$element_name = 'item';
+			}
+
 			// Start element
-			$xml[] = "{$indent}<{$key}>";
+			$xml[] = "{$indent}<{$element_name}>";
 
 			// Handle value based on type
 			if ( is_array( $value ) ) {
 				$xml[] = $this->array_to_xml( $value, $indent . "\t" );
 			} else {
-				$xml[] = $indent . "\t" . $value;
+				// Escape XML special characters in values
+				$escaped_value = htmlspecialchars( (string) $value, ENT_XML1, 'UTF-8' );
+				$xml[] = $indent . "\t" . $escaped_value;
 			}
 
 			// Close element
-			$xml[] = "{$indent}</{$key}>";
+			$xml[] = "{$indent}</{$element_name}>";
 		}
 
 		return implode( "\n", $xml );
-	}
-
-	public function function_call( WP_REST_Request $request ) {
-		$params = $request->get_json_params();
-		$tool = OpenAI_Tool::get_tool( $params['name'] );
-		if ( ! $tool ) {
-			return new WP_Error( 'tool-not-found', 'Tool not found: ' . $params['name'] );
-		}
-		return array( 'result' => $tool->invoke_for_function_call( ! empty( $params['arguments'] ) ? json_decode( $params['arguments'], true ) : array() ) );
 	}
 
 	public function media_describe( WP_REST_Request $request ) {
@@ -1064,32 +1251,24 @@ class OpenAI_Module extends POS_Module {
 			}
 		}
 
-		// Filter out perplexity_search when using Responses API since we have built-in web_search
-		$tools = array_filter(
-			OpenAI_Tool::get_tools(),
-			function ( $tool ) {
-				return $tool->name !== 'perplexity_search';
-			}
+		// Get abilities for Responses API (excluding perplexity-search since we have built-in web_search)
+		$tools_result = $this->get_abilities_as_tools(
+			'responses',
+			array(
+				'exclude'           => array( 'pos/perplexity-search' ),
+				'builtin_tools'     => array( array( 'type' => 'web_search' ) ),
+				'include_abilities' => true,
+			)
 		);
-		$tool_definitions = array_map(
-			function ( $tool ) {
-				return $tool->get_function_signature_for_realtime_api();
-			},
-			array_values( $tools ),
-		);
-		// Add built-in web search tool
-		$tool_definitions[] = array(
-			'type' => 'web_search',
-		);
+		$tools = $tools_result['abilities'];
+		$tool_definitions = $tools_result['definitions'];
 
-		// Get model from prompt meta if available, otherwise use default
-		$model = 'gpt-4o';
-		if ( $prompt ) {
-			$pos_model = get_post_meta( $prompt->ID, 'pos_model', true );
-			if ( $pos_model ) {
-				$model = $pos_model;
-			}
-			$this->log( '[complete_responses] Using prompt: ' . $prompt->post_title . ' (ID: ' . $prompt->ID . ') with model: ' . $model );
+		// Get prompt configuration (model, prompt string, and post object)
+		$prompt_config = $this->get_prompt_config( $prompt );
+		$model = $prompt_config['model'];
+
+		if ( $prompt_config['post'] ) {
+			$this->log( '[complete_responses] Using prompt: ' . $prompt_config['post']->post_title . ' (ID: ' . $prompt_config['post']->ID . ') with model: ' . $model );
 		} else {
 			$this->log( '[complete_responses] No prompt provided, using default model: ' . $model );
 		}
@@ -1104,7 +1283,7 @@ class OpenAI_Module extends POS_Module {
 			// Build the API request payload
 			$request_data = array(
 				'model'        => $model,
-				'instructions' => $this->create_system_prompt( $prompt ),
+				'instructions' => $prompt_config['prompt_string'],
 				'tools'        => $tool_definitions,
 				'store'        => $should_store_remote,
 			);
@@ -1183,25 +1362,29 @@ class OpenAI_Module extends POS_Module {
 						}
 
 						$arguments = json_decode( $output_item->arguments ?? '{}', true );
-						$tool      = array_filter(
-							$tools,
-							function ( $tool ) use ( $output_item ) {
-								return $tool->name === $output_item->name;
+
+						// Find the ability by tool name (need to convert BEM-style to ability name)
+						$ability = null;
+						foreach ( $tools as $tool_ability ) {
+							$tool_name = $this->get_tool_id_from_ability_name( $tool_ability->get_name() );
+							if ( $tool_name === $output_item->name ) {
+								$ability = $tool_ability;
+								break;
 							}
-						);
-						$tool      = reset( $tool );
-						if ( ! $tool ) {
-							return new WP_Error( 'tool-not-found', 'Tool not found ' . $output_item->name );
+						}
+
+						if ( ! $ability ) {
+							return new WP_Error( 'ability-not-found', 'Ability not found: ' . $output_item->name );
 						}
 
 						try {
-							$result = $tool->invoke( $arguments );
+							$result = $ability->execute( $arguments );
 						} catch ( \Exception $e ) {
-							$this->log( 'Tool invocation error for ' . $output_item->name . ': ' . $e->getMessage() );
+							$this->log( 'Ability execution error for ' . $output_item->name . ': ' . $e->getMessage() );
 							$result = new WP_Error(
-								'tool-invocation-error',
+								'ability-execution-error',
 								sprintf(
-									'Error invoking tool %s: %s',
+									'Error executing ability %s: %s',
 									$output_item->name,
 									$e->getMessage()
 								)
@@ -1294,25 +1477,193 @@ class OpenAI_Module extends POS_Module {
 		return $full_messages;
 	}
 
-	public function complete_backscroll( array $backscroll, callable $callback = null ) {
-		$tool_definitions = array_map(
-			function ( $tool ) {
-				return $tool->get_function_signature();
-			},
-			array_values( OpenAI_Tool::get_tools() ),
+	/**
+	 * Convert an ability name to tool ID format.
+	 * This will turn the namespacing / into BEM-like __ and - into _.
+	 * Order matters: we replace / first to avoid ambiguity.
+	 *
+	 * @param string $ability_name The ability name to convert.
+	 * @return string The tool ID.
+	 */
+	private function get_tool_id_from_ability_name( $ability_name ) {
+		// Replace / with __ first, then - with _
+		$tool_id = str_replace( '/', '__', $ability_name );
+		$tool_id = str_replace( '-', '_', $tool_id );
+		return $tool_id;
+	}
+
+	/**
+	 * Convert a tool ID back to ability name format.
+	 * This reverses the BEM-style naming: __ becomes / and _ becomes -.
+	 * Order matters: we replace __ first to avoid ambiguity.
+	 *
+	 * @param string $tool_name The tool ID to convert.
+	 * @return string The ability name.
+	 */
+	private function get_ability_name_from_tool_id( $tool_name ) {
+		// Replace __ with / first, then _ with -
+		$ability_name = str_replace( '__', '/', $tool_name );
+		$ability_name = str_replace( '_', '-', $ability_name );
+		return $ability_name;
+	}
+
+	/**
+	 * Convert a WP_Ability to OpenAI function signature format.
+	 *
+	 * @param WP_Ability $ability The ability to convert.
+	 * @param string     $api API format: 'chat', 'responses', or 'realtime'. Default 'chat'.
+	 * @return array The function signature.
+	 */
+	private function ability_to_function_signature( $ability, $api = 'chat' ) {
+		$input_schema = $ability->get_input_schema();
+		$properties   = $input_schema['properties'] ?? array();
+		$required     = $input_schema['required'] ?? array();
+
+		// Convert ability name to tool name format
+		$tool_name = $this->get_tool_id_from_ability_name( $ability->get_name() );
+
+		// For strict mode to work with OpenAI, ALL properties must be in the required array
+		// If the ability has optional parameters, we can't use strict mode
+		$use_strict = ! empty( $required ) && count( $required ) === count( $properties );
+
+		$parameters = array(
+			'type'                 => 'object',
+			'properties'           => (object) $properties,
+			'required'             => $required,
+			'additionalProperties' => false,
 		);
+
+		$responses_signature = array(
+			'type'        => 'function',
+			'name'        => $tool_name,
+			'strict'      => $use_strict,
+			'description' => $ability->get_description(),
+			'parameters'  => $parameters,
+		);
+
+		if ( 'realtime' === $api ) {
+			// Realtime API doesn't support 'strict' parameter
+			return array(
+				'type'        => 'function',
+				'name'        => $tool_name,
+				'description' => $ability->get_description(),
+				'parameters'  => $parameters,
+			);
+		}
+
+		if ( 'responses' === $api ) {
+			return $responses_signature;
+		}
+
+		return array(
+			'type'     => 'function',
+			'function' => array(
+				'name'        => $responses_signature['name'],
+				'strict'      => $responses_signature['strict'],
+				'description' => $responses_signature['description'],
+				'parameters'  => $responses_signature['parameters'],
+			),
+		);
+	}
+
+	/**
+	 * Get abilities formatted for OpenAI function calling.
+	 *
+	 * @param string $api API format: 'chat', 'responses', or 'realtime'. Default 'chat'.
+	 * @param array  $options Optional configuration array:
+	 *               - 'exclude': Array of ability names to exclude (e.g., array( 'pos/perplexity-search' ))
+	 *               - 'builtin_tools': Array of built-in tools to add (e.g., array( array( 'type' => 'web_search' ) ))
+	 *               - 'include_abilities': Whether to return ability objects alongside definitions. Default false.
+	 * @return array If 'include_abilities' is false, returns array of tool definitions.
+	 *               If 'include_abilities' is true, returns array with 'definitions' and 'abilities' keys.
+	 */
+	private function get_abilities_as_tools( $api = 'chat', $options = array() ) {
+		$exclude = isset( $options['exclude'] ) ? (array) $options['exclude'] : array();
+		$builtin_tools = isset( $options['builtin_tools'] ) ? (array) $options['builtin_tools'] : array();
+		$include_abilities = isset( $options['include_abilities'] ) ? (bool) $options['include_abilities'] : false;
+
+		if ( ! function_exists( 'wp_get_abilities' ) ) {
+			if ( $include_abilities ) {
+				return array(
+					'definitions' => $builtin_tools,
+					'abilities'   => array(),
+				);
+			}
+			return $builtin_tools;
+		}
+
+		$abilities = wp_get_abilities();
+		$tool_definitions = array();
+		$filtered_abilities = array();
+
+		foreach ( $abilities as $ability ) {
+			// Only include PersonalOS abilities
+			if ( strpos( $ability->get_name(), 'pos/' ) !== 0 ) {
+				continue;
+			}
+
+			// Skip excluded abilities
+			if ( in_array( $ability->get_name(), $exclude, true ) ) {
+				continue;
+			}
+
+			$tool_definitions[] = $this->ability_to_function_signature( $ability, $api );
+			$filtered_abilities[] = $ability;
+		}
+
+		// Add built-in tools at the end
+		foreach ( $builtin_tools as $builtin_tool ) {
+			$tool_definitions[] = $builtin_tool;
+		}
+
+		if ( $include_abilities ) {
+			return array(
+				'definitions' => $tool_definitions,
+				'abilities'   => $filtered_abilities,
+			);
+		}
+
+		return $tool_definitions;
+	}
+
+	/**
+	 * Execute an ability by tool name.
+	 *
+	 * @param string $tool_name Tool name (with BEM-style naming).
+	 * @param array  $arguments Arguments for the ability.
+	 * @return mixed Result of ability execution or WP_Error.
+	 */
+	private function execute_ability( $tool_name, $arguments ) {
+		if ( ! function_exists( 'wp_get_ability' ) ) {
+			return new WP_Error( 'abilities-not-available', 'Abilities API is not available' );
+		}
+
+		// Convert tool name back to ability name
+		$ability_name = $this->get_ability_name_from_tool_id( $tool_name );
+
+		$ability = wp_get_ability( $ability_name );
+		if ( ! $ability ) {
+			return new WP_Error( 'ability-not-found', 'Ability not found: ' . $ability_name );
+		}
+
+		return $ability->execute( $arguments );
+	}
+
+	public function complete_backscroll( array $backscroll, callable $callback = null ) {
+		$prompt_config = $this->get_prompt_config();
+		$tool_definitions = $this->get_abilities_as_tools();
 		$max_loops = 10;
 		do {
 			--$max_loops;
 			$completion = $this->api_call(
 				'https://api.openai.com/v1/chat/completions',
 				array(
-					'model'    => 'gpt-5',
+					'model'    => $prompt_config['model'],
 					'messages' => array_merge(
 						array(
 							array(
-								'role'    => 'assistant',
-								'content' => $this->create_system_prompt(),
+								'role'    => 'system',
+								'content' => $prompt_config['prompt_string'],
 							),
 						),
 						$backscroll
@@ -1341,18 +1692,8 @@ class OpenAI_Module extends POS_Module {
 						$callback( 'tool_call', $tool_call );
 					}
 					$arguments = json_decode( $tool_call->function->arguments, true );
-					$tool      = array_filter(
-						OpenAI_Tool::get_tools(),
-						function ( $tool ) use ( $tool_call ) {
-							return $tool->name === $tool_call->function->name;
-						}
-					);
-					$tool      = reset( $tool );
-					if ( ! $tool ) {
-						return new WP_Error( 'tool-not-found', 'Tool not found ' . $tool_call->function->name );
-					}
 
-					$result = $tool->invoke( $arguments );
+					$result = $this->execute_ability( $tool_call->function->name, $arguments );
 
 					if ( is_wp_error( $result ) ) {
 						return $result;
@@ -1595,8 +1936,8 @@ class OpenAI_Module extends POS_Module {
 
 		// Prepare post data
 		$post_data = array(
-			'post_type'    => $notes_module->id,
-			'post_status'  => 'private',
+			'post_type'   => $notes_module->id,
+			'post_status' => 'private',
 		);
 
 		if ( ! empty( $post_title ) ) {
@@ -1969,6 +2310,11 @@ class OpenAI_Module extends POS_Module {
 	}
 
 	public function chat_completion( $messages = array(), $model = 'gpt-4o' ) {
+		// Skip API calls during tests to avoid external dependencies
+		if ( defined( 'DOING_TEST' ) ) {
+			return new WP_Error( 'test-mode', 'API calls disabled during tests' );
+		}
+
 		$data = array(
 			'model'    => $model,
 			'messages' => $messages,

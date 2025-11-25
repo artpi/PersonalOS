@@ -29,18 +29,86 @@ The plugin exposes a schema and system prompt that you can paste directly into y
 
 You can create reusable system prompts to switch between different personas or workflows in the chatbot UI.
 
-To create a new prompt:
+### Creating a Basic Prompt
 
 - Create a new **Note**.
 - Assign it to the `prompts-chat` notebook.
 - Write the prompt text in the note content (this becomes the system instructions).
 - (Optional) Set a `pos_model` custom field (for example `gpt-4o` or `o1-preview`) to force a specific model when this prompt is active.
+- (Optional) Set the post slug (e.g., `prompt_default`) to control the URL identifier.
+
+### Dynamic Prompts with the WP Ability Block
+
+Prompts can include **dynamic content** by using the `pos/ai-tool` block. This block executes a WordPress Ability and outputs the result directly into the prompt at render time.
+
+To add dynamic data to your prompt:
+
+1. Edit your prompt Note in the WordPress block editor.
+2. Add a **WP Ability** block (`pos/ai-tool`).
+3. Select which ability to execute (e.g., `pos/get-notebooks`, `pos/todo-get-items`).
+4. Configure parameters if needed.
+5. Select which output fields to include.
+6. Choose output format (JSON or XML).
+
+**Example**: A prompt that includes your current TODOs:
+
+```
+You are my personal assistant. Here are my current tasks:
+
+[WP Ability block: pos/todo-get-items]
+
+Help me prioritize and complete these tasks.
+```
+
+When this prompt is used, the AI will see the actual TODO items rendered as JSON or XML.
+
+### Available Abilities for Prompts
+
+| Ability | Description |
+|---------|-------------|
+| `pos/system-state` | Current user info, system time |
+| `pos/get-notebooks` | List of notebooks (filterable by flag) |
+| `pos/todo-get-items` | TODO items from a specific notebook |
+| `pos/get-ai-memories` | Previously stored AI memories |
+| `pos/list-posts` | Blog posts and pages |
+
+### Reusable Prompt Components
+
+You can create modular prompts by embedding one Note inside another using the `pos/note` block. This is useful for:
+
+- **Base prompts**: Create a "Default Prompt" with common instructions, then embed it in specialized prompts.
+- **Shared context**: Define your user profile or preferences once, then include them in multiple prompts.
+
+**Example structure**:
+
+1. Create a "Default Prompt" Note with:
+   - Your name and preferences
+   - System state (`pos/system-state` ability block)
+   - Notebook list (`pos/get-notebooks` ability block)
+   - AI memories (`pos/get-ai-memories` ability block)
+
+2. Create specialized prompts that embed the default:
+   - "Helpful Assistant" prompt: Brief persona + `[pos/note: Default Prompt]`
+   - "Creative Writer" prompt: Creative persona + `[pos/note: Default Prompt]`
+
+This pattern keeps your prompts DRY (Don't Repeat Yourself) while allowing customization.
+
+### Output Field Filtering
+
+When using the WP Ability block, you can select which fields to include in the output. This helps reduce prompt token usage by excluding unnecessary data.
+
+For example, with `pos/todo-get-items`:
+- Include only `title` and `excerpt` for a summary view
+- Include `ID` and `url` when you need the AI to reference specific items
+
+### How Prompts Work Internally
 
 In the `src-chatbot` UI:
 
-- These prompts are exposed via `window.config.chat_prompts`.
+- Prompts are exposed via `window.config.chat_prompts`.
 - The selected prompt slug is sent to the backend as `selectedChatModel`.
-- The OpenAI module resolves the prompt note and uses its content as the system prompt for the Responses API call.
+- The OpenAI module resolves the prompt note and uses its content as the system prompt.
+- All blocks (including `pos/ai-tool` and `pos/note`) are rendered through WordPress's `the_content` filter before being sent to the AI.
 
 ## Conversation History
 

@@ -21,29 +21,62 @@ class Perplexity_Module extends POS_Module {
 			return;
 		}
 		$this->register_cli_command( 'search', 'cli_search' );
-		add_filter( 'pos_openai_tools', array( $this, 'register_openai_tools' ) );
+
+		// Register abilities
+		add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
 	}
 
-	public function register_openai_tools( $tools ) {
-		$self = $this;
-		$tools[] = new OpenAI_Tool(
-			'perplexity_search',
-			'Search the web using Perplexity search. Use this tool only if you are certain you need the information from the internet.',
+	/**
+	 * Register Perplexity module abilities with WordPress Abilities API.
+	 */
+	public function register_abilities() {
+		// Register perplexity_search ability
+		wp_register_ability(
+			'pos/perplexity-search',
 			array(
-				'query' => array(
-					'type'        => 'string',
-					'description' => 'The search query to send to Perplexity',
+				'label'               => __( 'Perplexity Search', 'personalos' ),
+				'description'         => __( 'Search the web using Perplexity search. Use this tool only if you are certain you need the information from the internet.', 'personalos' ),
+				'category'            => 'personalos',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'query' => array(
+							'type'        => 'string',
+							'description' => 'The search query to send to Perplexity',
+						),
+					),
+					'required'             => array( 'query' ),
+					'additionalProperties' => false,
 				),
-			),
-			function ( $arguments ) use ( $self ) {
-				$result = $self->search( $arguments['query'] );
-				if ( is_wp_error( $result ) ) {
-					return $result;
-				}
-				return $result['content'];
-			}
+				'output_schema'       => array(
+					'type'        => 'string',
+					'description' => 'Search result content from Perplexity',
+				),
+				'execute_callback'    => array( $this, 'search_ability' ),
+				'permission_callback' => 'is_user_logged_in',
+				'meta'                => array(
+					'show_in_rest' => true,
+					'annotations'  => array(
+						'readonly'    => true,
+						'destructive' => false,
+					),
+				),
+			)
 		);
-		return $tools;
+	}
+
+	/**
+	 * Search the web using Perplexity ability.
+	 *
+	 * @param array $arguments Arguments with query string.
+	 * @return string|WP_Error Search result content or error.
+	 */
+	public function search_ability( $arguments ) {
+		$result = $this->search( $arguments['query'] );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return $result['content'];
 	}
 
 	/**

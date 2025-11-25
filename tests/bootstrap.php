@@ -24,6 +24,12 @@ require_once "{$_tests_dir}/includes/functions.php";
  * Manually load the plugin being tested.
  */
 function _manually_load_plugin() {
+	if ( file_exists( WP_PLUGIN_DIR . '/abilities-api/abilities-api.php' ) ) {
+		require WP_PLUGIN_DIR . '/abilities-api/abilities-api.php';
+	} else {
+		// We still want the test run to highlight missing dependencies.
+		fwrite( STDERR, "Abilities API plugin not found at " . WP_PLUGIN_DIR . '/abilities-api/abilities-api.php' . "\n" );
+	}
 	require dirname( dirname( __FILE__ ) ) . '/personalos.php';
 }
 

@@ -108,7 +108,7 @@ $this->create(
 	<h2 class="wp-block-heading">Projects I want to focus on right now:</h2>
 	<!-- /wp:heading -->
 
-	<!-- wp:pos/ai-tool {"tool":"get_notebooks","parameters":{"notebook_flag":"project"}} -->
+	<!-- wp:pos/ai-tool {"tool":"pos/get-notebooks","parameters":{"notebook_flag":"project"},"outputFields":["flag_name","notebooks"],"outputFormat":"json"} -->
 	<div class="wp-block pos-ai-tool"><p>This is a static block.</p></div>
 	<!-- /wp:pos/ai-tool -->
 
@@ -116,7 +116,7 @@ $this->create(
 	<h2 class="wp-block-heading">My TODOS for Today</h2>
 	<!-- /wp:heading -->
 
-	<!-- wp:pos/ai-tool {"tool":"todo_get_items","parameters":{}} -->
+	<!-- wp:pos/ai-tool {"tool":"pos/todo-get-items","parameters":{},"outputFields":["title","excerpt"],"outputFormat":"json"} -->
 	<div class="wp-block pos-ai-tool"><p>This is a static block.</p></div>
 	<!-- /wp:pos/ai-tool -->
 
@@ -138,6 +138,38 @@ $base_prompt_content = <<<EOF
 <br>Use simple markdown to format your responses.<br>
 <br>NEVER read the URLs (http://, https://, evernote://, etc) out loud in voice mode.<br>
 <br>When answering a question about my todos or notes, stick only to the information from the tools. DO NOT make up information.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:pos/ai-tool {"tool":"pos/system-state","parameters":{},"outputFields":["user_id","user_description","system_time","user_display_name"]} -->
+<div class="wp-block pos-ai-tool"><p>This is a static block.</p></div>
+<!-- /wp:pos/ai-tool -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Notebooks</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>My work is organized in notebooks, roughuy following the PARA method.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:pos/ai-tool {"tool":"pos/get-notebooks","parameters":{"notebook_flag":"all"},"outputFields":["flag_id","flag_name","flag_label","notebooks"]} -->
+<div class="wp-block pos-ai-tool"><p>This is a static block.</p></div>
+<!-- /wp:pos/ai-tool -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Memory</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Here are the things I want you to remember</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:pos/ai-tool {"tool":"pos/get-ai-memories","parameters":{},"outputFields":["title","content","date"]} -->
+<div class="wp-block pos-ai-tool"><p>This is a static block.</p></div>
+<!-- /wp:pos/ai-tool -->
+
+<!-- wp:paragraph -->
+<p></p>
 <!-- /wp:paragraph -->
 EOF;
 

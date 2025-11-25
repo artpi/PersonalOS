@@ -283,21 +283,42 @@ window.POSVoiceChat = {
 			if (data.type === 'response.function_call_arguments.done') {
 				console.log('FUNCTION CALL ARGUMENTS DONE', data.name, data.arguments);
 				this.addMessage('Calling function ' + data.name, 'assistant');
+				// Convert tool name back to ability name: __ → /, _ → -
+				const abilityName = data.name.replace(/__/g, '/').replace(/_/g, '-');
+				const input = data.arguments ? JSON.parse(data.arguments) : {};
+				const basePath = `/wp-abilities/v1/abilities/${abilityName}/run`;
+
+				// Try POST first, fall back to GET for read-only abilities
+				console.log('Ability call:', { abilityName, input, basePath });
 				wp.apiFetch({
-					path: '/pos/v1/openai/realtime/function_call',
+					path: basePath,
 					method: 'POST',
-					data: {
-						name: data.name,
-						arguments: data.arguments
+					data: { input }
+				}).catch(error => {
+					console.log('POST failed, error:', error);
+					if (error.code === 'rest_ability_invalid_method') {
+						// Read-only ability, use GET with input params in query string
+						const params = new URLSearchParams();
+						for (const [key, value] of Object.entries(input)) {
+							params.append(`input[${key}]`, typeof value === 'object' ? JSON.stringify(value) : value);
+						}
+						const queryString = params.toString() ? '?' + params.toString() : '';
+						console.log('Retrying with GET:', { path: basePath + queryString, params: params.toString() });
+						return wp.apiFetch({
+							path: basePath + queryString,
+							method: 'GET'
+						});
 					}
+					throw error;
 				}).then(response => {
-					this.addMessage( JSON.stringify( JSON.parse(response.result), null, 2), 'tool');
+					const result = JSON.stringify(response);
+					this.addMessage( JSON.stringify( response, null, 2), 'tool');
 					this.dc.send(JSON.stringify({
 						type: 'conversation.item.create',
 						item: {
 							type: 'function_call_output',
 							call_id: data.call_id,
-							output: response.result
+							output: result
 						}
 					}));
 					this.dc.send(JSON.stringify({

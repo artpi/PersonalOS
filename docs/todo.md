@@ -2,7 +2,7 @@ These are roughly the features I want to implement. They are meant to be
 
 ## Properly scoped
 
-- In modules/openai/class-openai-module.php, the create_system_prompt() is getting the post content and converting it to markdown. It should parse Gutenberg blocks properly and retrieve certain details. For example, the `core/audio` block should be filtered and the audio shoudl be returned as an attribute.
+- In modules/openai/class-openai-module.php, the get_prompt_config() is getting the post content and converting it to markdown. It should parse Gutenberg blocks properly and retrieve certain details. For example, the `core/audio` block should be filtered and the audio should be returned as an attribute.
 - In modules/openai/class-pos-ai-podcast-module.php, use the soundtrack_url from the original prompt (stored as prompt_id) to return as the background music.
 - In modules/evernote/class-evernote-module.php, there is a tool to get a random evernote not. We need to introduce a similar tool to get readwise highligts as well as a random readwise highlight from a random article/book. Once this is a proper AI tool, then we can use it as a part of a prompt.
 - Implement a module, exposing a tool to use Google Custom Search tool to search the web. Here are some docs: https://developers.google.com/custom-search/v1/overview . Then you can `GET https://www.googleapis.com/customsearch/v1`. The same module probably should also expose a tool to retrieve an arbitrary URL content.
