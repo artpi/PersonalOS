@@ -1,6 +1,5 @@
 <?php
 
-require_once __DIR__ . '/class-openai-tool.php';
 require_once __DIR__ . '/class-pos-ollama-server.php';
 require_once __DIR__ . '/class-openai-email-responder.php';
 
