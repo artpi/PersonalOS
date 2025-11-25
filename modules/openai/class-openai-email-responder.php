@@ -152,8 +152,16 @@ class OpenAI_Email_Responder {
 			}
 		}
 
-		// Build reply subject with post ID for conversation threading
+		// Build reply subject - use generated title if new conversation, otherwise preserve original
 		$reply_subject = 'Re: ' . trim( $email_subject );
+
+		// For new conversations, use the AI-generated title from the post
+		if ( $new_post_id && ! $post_id ) {
+			$conversation_post = get_post( $new_post_id );
+			if ( $conversation_post && ! empty( $conversation_post->post_title ) ) {
+				$reply_subject = 'Re: ' . $conversation_post->post_title;
+			}
+		}
 
 		// Add [post_id] if we have one and it's not already in the subject
 		if ( $new_post_id && ! preg_match( '/\[\d+\]/', $reply_subject ) ) {
@@ -471,25 +479,47 @@ PROMPT,
 	}
 
 	/**
-	 * Extract the latest assistant reply from the completed backscroll.
+	 * Extract the latest assistant reply from the completed conversation.
 	 *
-	 * @param array $conversation Conversation history returned from complete_backscroll.
+	 * @param array $conversation Conversation history returned from complete_responses.
 	 * @return string Assistant reply content.
 	 */
 	private function extract_assistant_reply( array $conversation ): string {
 		foreach ( array_reverse( $conversation ) as $message ) {
-			if ( is_array( $message ) && isset( $message['role'], $message['content'] ) ) {
-				if ( 'assistant' !== $message['role'] ) {
-					continue;
-				}
-				return trim( is_string( $message['content'] ) ? $message['content'] : wp_json_encode( $message['content'] ) );
+			$role    = null;
+			$content = null;
+
+			if ( is_array( $message ) ) {
+				$role    = $message['role'] ?? null;
+				$content = $message['content'] ?? null;
+			} elseif ( is_object( $message ) ) {
+				$role    = $message->role ?? null;
+				$content = $message->content ?? null;
 			}
 
-			if ( is_object( $message ) && isset( $message->role, $message->content ) ) {
-				if ( 'assistant' !== $message->role ) {
-					continue;
+			if ( 'assistant' !== $role || null === $content ) {
+				continue;
+			}
+
+			// Handle string content directly
+			if ( is_string( $content ) ) {
+				return trim( $content );
+			}
+
+			// Handle Responses API format: array of output items
+			if ( is_array( $content ) ) {
+				$text_parts = array();
+				foreach ( $content as $item ) {
+					$item = is_object( $item ) ? (array) $item : $item;
+					if ( isset( $item['type'] ) && 'output_text' === $item['type'] && isset( $item['text'] ) ) {
+						$text_parts[] = $item['text'];
+					} elseif ( isset( $item['text'] ) ) {
+						$text_parts[] = $item['text'];
+					}
 				}
-				return trim( is_string( $message->content ) ? $message->content : wp_json_encode( $message->content ) );
+				if ( ! empty( $text_parts ) ) {
+					return trim( implode( "\n", $text_parts ) );
+				}
 			}
 		}
 
