@@ -13,3 +13,8 @@ If you think the test environment failed DO NOT TRY TO FIX IT. Tell me.
 - To run unit tests, you would `npm run test:unit:backend`
 - To read the debug.log you would `npm run wp-env run cli -- tail -n 100 wp-content/debug.log`
 - To run a wp-cli "wp pos" command you would do `npm run wp-env run cli wp pos`
+
+## Versioning
+
+- Version numbers must use three-part semantic versioning format (e.g., `0.3.0`, not `0.3`)
+- Update version in both `personalos.php` (plugin header and `$version` property) and `package.json`
