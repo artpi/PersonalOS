@@ -328,7 +328,7 @@ class OpenAI_Module extends POS_Module {
 	 * ## OPTIONS
 	 *
 	 * [<ability>]
-	 * : Name of the ability to test (e.g., pos/todo-get-items or todo_get_items)
+	 * : Name of the ability to test (e.g., pos/todo-get-items)
 	 *
 	 * [<args>]
 	 * : JSON string of arguments to pass to the ability
@@ -344,12 +344,6 @@ class OpenAI_Module extends POS_Module {
 		}
 
 		$abilities = wp_get_abilities();
-		$pos_abilities = array_filter(
-			$abilities,
-			function( $ability ) {
-				return strpos( $ability->get_name(), 'pos/' ) === 0;
-			}
-		);
 
 		if ( empty( $args[0] ) ) {
 			$items = array_map(
@@ -361,30 +355,16 @@ class OpenAI_Module extends POS_Module {
 						'parameters'  => wp_json_encode( $input_schema['properties'] ?? array() ),
 					);
 				},
-				$pos_abilities
+				$abilities
 			);
 
 			WP_CLI\Utils\format_items( 'table', $items, array( 'name', 'description', 'parameters' ) );
 			return;
 		}
 
-		// Convert tool name to ability name if needed
-		$tool_name = $args[0];
-		if ( empty( $tool_name ) ) {
+		$ability_name = $args[0];
+		if ( empty( $ability_name ) ) {
 			WP_CLI::error( 'Ability name is required' );
-		}
-
-		$ability_name = $this->get_ability_name_from_tool_id( $tool_name );
-
-		// If conversion didn't change it, try direct lookup
-		if ( $ability_name === $tool_name && strpos( $tool_name, 'pos/' ) !== 0 ) {
-			// Try converting from old tool format
-			$ability_name = 'pos/' . str_replace( '_', '-', $tool_name );
-		}
-
-		// Ensure we have a valid ability name
-		if ( empty( $ability_name ) || $ability_name === 'pos/' ) {
-			WP_CLI::error( 'Invalid ability name: ' . $tool_name );
 		}
 
 		$ability = wp_get_ability( $ability_name );
