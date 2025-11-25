@@ -988,25 +988,8 @@ class OpenAI_Module extends POS_Module {
 				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
-		register_rest_route(
-			$this->rest_namespace,
-			'/openai/realtime/function_call',
-			array(
-				'methods'             => 'POST',
-				'callback'            => array( $this, 'function_call' ),
-				'permission_callback' => array( $this, 'check_permission' ),
-				'args'                => array(
-					'name'      => array(
-						'required' => true,
-						'type'     => 'string',
-					),
-					'arguments' => array(
-						'required' => false,
-						'type'     => 'string',
-					),
-				),
-			)
-		);
+
+		// TODO: Can this be removed?
 		register_rest_route(
 			$this->rest_namespace,
 			'/openai/chat/tools',
@@ -1104,12 +1087,7 @@ class OpenAI_Module extends POS_Module {
 					'threshold'         => 0.8,
 					'prefix_padding_ms' => 100,
 				),
-				'tools'                     => array_map(
-					function( $tool ) {
-						return $tool->get_function_signature_for_realtime_api();
-					},
-					OpenAI_Tool::get_tools()
-				),
+				'tools'                     => $this->get_abilities_as_tools( 'realtime' ),
 			)
 		);
 		return $result;
@@ -1206,15 +1184,6 @@ class OpenAI_Module extends POS_Module {
 		}
 
 		return implode( "\n", $xml );
-	}
-
-	public function function_call( WP_REST_Request $request ) {
-		$params = $request->get_json_params();
-		$tool = OpenAI_Tool::get_tool( $params['name'] );
-		if ( ! $tool ) {
-			return new WP_Error( 'tool-not-found', 'Tool not found: ' . $params['name'] );
-		}
-		return array( 'result' => $tool->invoke_for_function_call( ! empty( $params['arguments'] ) ? json_decode( $params['arguments'], true ) : array() ) );
 	}
 
 	public function media_describe( WP_REST_Request $request ) {
@@ -1601,7 +1570,17 @@ class OpenAI_Module extends POS_Module {
 			'parameters'  => $parameters,
 		);
 
-		if ( 'responses' === $api || 'realtime' === $api ) {
+		if ( 'realtime' === $api ) {
+			// Realtime API doesn't support 'strict' parameter
+			return array(
+				'type'        => 'function',
+				'name'        => $tool_name,
+				'description' => $ability->get_description(),
+				'parameters'  => $parameters,
+			);
+		}
+
+		if ( 'responses' === $api ) {
 			return $responses_signature;
 		}
 
