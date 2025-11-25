@@ -137,7 +137,7 @@ The OpenAI Email Responder (`OpenAI_Email_Responder` class) automatically respon
 
 ### Features
 
-1. **AI Classification**: Uses GPT-4o-mini to classify emails and skip:
+1. **AI Classification**: Uses GPT-4.1-mini to classify emails and skip:
    - Auto-responders (out of office, vacation replies)
    - Spam and marketing emails
    - Delivery failure notifications
@@ -145,12 +145,45 @@ The OpenAI Email Responder (`OpenAI_Email_Responder` class) automatically respon
 
 2. **User Matching**: Only responds to emails from registered WordPress users
 
-3. **Conversation Context**: Sends email content to OpenAI for generating contextual responses
+3. **Conversation Persistence**: Email conversations are saved as notes in the `ai-chats` notebook:
+   - Uses the OpenAI Responses API with `store => true`
+   - Maintains `pos_last_response_id` for conversation context
+   - Conversations can be viewed and continued in the web chat interface
 
 4. **Proper Threading**: Maintains email thread with:
    - "Re:" prefix in subject
+   - `[post_id]` in subject for conversation tracking
    - In-Reply-To and References headers
    - Quoted original message in body
+
+5. **Prompt Selection**: Use `#prompt-slug` in the email subject to select a specific AI prompt from the `prompts-chat` notebook.
+
+### Email Subject Parsing
+
+The responder parses two special patterns from email subjects:
+
+#### Prompt Selection: `#prompt-slug`
+
+Include `#prompt-slug` anywhere in the subject line to use a specific prompt:
+
+```
+Subject: Help me with code #coding-assistant
+```
+
+This will look up the prompt with slug `coding-assistant` from the `prompts-chat` notebook. If not found, the default prompt is used.
+
+#### Conversation Threading: `[post_id]`
+
+The responder includes `[post_id]` in reply subjects to enable conversation continuation:
+
+```
+Subject: Re: Help me with code #coding-assistant [123]
+```
+
+When a follow-up email arrives with `[123]` in the subject:
+1. The existing conversation note (post ID 123) is loaded
+2. `previous_response_id` from post meta provides context to OpenAI
+3. New messages are appended to the same conversation
 
 ### Customization
 

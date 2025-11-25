@@ -341,7 +341,7 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 		/** @var OpenAI_Module&MockObject $openai_module */
 		$openai_module = $this->getMockBuilder( OpenAI_Module::class )
 			->disableOriginalConstructor()
-			->onlyMethods( array( 'complete_backscroll', 'log', 'api_call' ) )
+			->onlyMethods( array( 'complete_responses', 'log', 'api_call' ) )
 			->getMock();
 
 		$openai_module->method( 'log' )->willReturn( null );
@@ -439,18 +439,28 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 			function( MockObject $openai_module ) use ( $expected_body ) {
 				$openai_module
 					->expects( $this->once() )
-					->method( 'complete_backscroll' )
-					->with( $this->callback(
-						function( $backscroll ) use ( $expected_body ) {
-							self::assertIsArray( $backscroll );
-							self::assertCount( 1, $backscroll );
-							self::assertSame( 'user', $backscroll[0]['role'] );
-							self::assertStringContainsString( 'From: Artur Piszek <artur.piszek@gmail.com>', $backscroll[0]['content'] );
-							self::assertStringContainsString( 'Body:', $backscroll[0]['content'] );
-							self::assertStringContainsString( $expected_body, $backscroll[0]['content'] );
-							return true;
-						}
-					) )
+					->method( 'complete_responses' )
+					->with(
+						$this->callback(
+							function( $messages ) use ( $expected_body ) {
+								self::assertIsArray( $messages );
+								self::assertCount( 1, $messages );
+								self::assertSame( 'user', $messages[0]['role'] );
+								// Responses API format uses content array with input_text
+								$content = $messages[0]['content'];
+								self::assertIsArray( $content );
+								$text = $content[0]['text'] ?? '';
+								self::assertStringContainsString( 'From: Artur Piszek <artur.piszek@gmail.com>', $text );
+								self::assertStringContainsString( 'Body:', $text );
+								self::assertStringContainsString( $expected_body, $text );
+								return true;
+							}
+						),
+						$this->anything(), // callback
+						$this->anything(), // previous_response_id
+						$this->anything(), // prompt
+						$this->anything()  // persistence
+					)
 					->willReturn(
 						array(
 							array(
@@ -469,7 +479,8 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 		$sent = $this->imap_spy->sent[0];
 
 		$this->assertSame( 'artur.piszek@gmail.com', $sent['to'] );
-		$this->assertSame( 'Re: ', $sent['subject'] );
+		// Subject now may include a post ID like [123] if conversation was persisted
+		$this->assertStringStartsWith( 'Re: ', $sent['subject'] );
 		$this->assertStringStartsWith( 'Greetings Artur! Here is what you need to know.', $sent['body'] );
 		$this->assertQuotedOriginal( $sent['body'], $email_data );
 		$this->assertContains( 'In-Reply-To: <CABPa1J96sEuS68V9czgyQybQH0f50t-=ESper-d6yHB55pfDjg@mail.gmail.com>', $sent['headers'] );
@@ -488,7 +499,7 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 			function( MockObject $openai_module ) use ( $assistant ) {
 				$openai_module
 					->expects( $this->once() )
-					->method( 'complete_backscroll' )
+					->method( 'complete_responses' )
 					->willReturn(
 						array(
 							array(
@@ -520,7 +531,7 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 			function( MockObject $openai_module ) {
 				$openai_module
 					->expects( $this->once() )
-					->method( 'complete_backscroll' )
+					->method( 'complete_responses' )
 					->willReturn( new WP_Error( 'openai', 'API failure' ) );
 				// classify_email will use default api_call mock
 			}
@@ -541,7 +552,7 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 			function( MockObject $openai_module ) {
 				$openai_module
 					->expects( $this->once() )
-					->method( 'complete_backscroll' )
+					->method( 'complete_responses' )
 					->willReturn(
 						array(
 							array(
@@ -575,7 +586,7 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 			function( MockObject $openai_module ) {
 				$openai_module
 					->expects( $this->never() )
-					->method( 'complete_backscroll' );
+					->method( 'complete_responses' );
 			}
 		);
 
@@ -612,7 +623,7 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 			function( MockObject $openai_module ) {
 				$openai_module
 					->expects( $this->once() )
-					->method( 'complete_backscroll' )
+					->method( 'complete_responses' )
 					->willReturn(
 						array(
 							array(
@@ -665,7 +676,7 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 			function( MockObject $openai_module ) {
 				$openai_module
 					->expects( $this->never() )
-					->method( 'complete_backscroll' );
+					->method( 'complete_responses' );
 			}
 		);
 
@@ -701,7 +712,7 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 			function( MockObject $openai_module ) {
 				$openai_module
 					->expects( $this->once() )
-					->method( 'complete_backscroll' )
+					->method( 'complete_responses' )
 					->willReturn(
 						array(
 							array(
@@ -753,7 +764,7 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 				function( MockObject $openai_module ) {
 					$openai_module
 						->expects( $this->once() )
-						->method( 'complete_backscroll' )
+						->method( 'complete_responses' )
 						->willReturn(
 							array(
 								array(
@@ -791,7 +802,7 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 			function( MockObject $openai_module ) {
 				$openai_module
 					->expects( $this->never() )
-					->method( 'complete_backscroll' );
+					->method( 'complete_responses' );
 			}
 		);
 
@@ -820,7 +831,7 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 			function( MockObject $openai_module ) {
 				$openai_module
 					->expects( $this->never() )
-					->method( 'complete_backscroll' );
+					->method( 'complete_responses' );
 			}
 		);
 
@@ -849,7 +860,7 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 			function( MockObject $openai_module ) {
 				$openai_module
 					->expects( $this->never() )
-					->method( 'complete_backscroll' );
+					->method( 'complete_responses' );
 			}
 		);
 
@@ -877,7 +888,7 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 			function( MockObject $openai_module ) {
 				$openai_module
 					->expects( $this->never() )
-					->method( 'complete_backscroll' );
+					->method( 'complete_responses' );
 			}
 		);
 

@@ -26,7 +26,7 @@ class OpenAI_Email_Responder {
 	/**
 	 * Handle new incoming emails and respond using the AI conversation completion.
 	 *
-	 * @param array $email_data   Email data from the IMAP module.
+	 * @param array  $email_data  Email data from the IMAP module.
 	 * @param object $imap_module IMAP module instance.
 	 */
 	public function handle_new_email( array $email_data, $imap_module = null ): void {
@@ -64,10 +64,47 @@ class OpenAI_Email_Responder {
 			return;
 		}
 
-		$backscroll = $this->build_backscroll_for_email( $email_data );
+		// Parse subject for prompt slug (#prompt-slug) and conversation post ID ([123])
+		$email_subject = isset( $email_data['subject'] ) ? $email_data['subject'] : '';
+		$prompt_slug   = preg_match( '/#([a-zA-Z0-9_-]+)/', $email_subject, $m ) ? $m[1] : null;
+		$post_id       = preg_match( '/\[(\d+)\]/', $email_subject, $m ) ? (int) $m[1] : null;
+
+		// Look up prompt by slug if provided
+		$prompt = null;
+		if ( $prompt_slug ) {
+			$notes_module = POS::get_module_by_id( 'notes' );
+			if ( $notes_module ) {
+				$prompts = $notes_module->list( array( 'name' => $prompt_slug ), 'prompts-chat' );
+				$prompt  = ! empty( $prompts ) ? $prompts[0] : null;
+			}
+			if ( $prompt ) {
+				$this->module->log( 'Using prompt: ' . $prompt->post_title . ' (slug: ' . $prompt_slug . ')' );
+			} else {
+				$this->module->log( 'Prompt not found for slug: ' . $prompt_slug . ', using default.' );
+			}
+		}
+
+		// Load previous_response_id if continuing a conversation
+		$previous_response_id = null;
+		if ( $post_id ) {
+			$post = get_post( $post_id );
+			if ( $post && 'notes' === $post->post_type ) {
+				$previous_response_id = get_post_meta( $post_id, 'pos_last_response_id', true );
+				if ( $previous_response_id ) {
+					$this->module->log( 'Continuing conversation post ID: ' . $post_id );
+				}
+			} else {
+				// Invalid post ID, ignore it
+				$post_id = null;
+				$this->module->log( 'Invalid post ID in subject: ' . $post_id . ', starting new conversation.' );
+			}
+		}
+
+		$messages = $this->build_messages_for_email( $email_data );
 
 		$assistant_reply = '';
 		$conversation    = null;
+		$new_post_id     = $post_id;
 
 		$previous_user       = wp_get_current_user();
 		$previous_user_id    = ( $previous_user instanceof WP_User ) ? (int) $previous_user->ID : 0;
@@ -76,7 +113,26 @@ class OpenAI_Email_Responder {
 		wp_set_current_user( $matched_user->ID, $matched_user->user_login );
 
 		try {
-			$conversation = $this->module->complete_backscroll( $backscroll );
+			// Build persistence config
+			$persistence = array(
+				'append' => true,
+			);
+			if ( $post_id ) {
+				$persistence['search_args'] = array( 'ID' => $post_id );
+			}
+
+			$conversation = $this->module->complete_responses(
+				$messages,
+				function ( $event_type, $data ) use ( &$new_post_id ) {
+					// Capture post ID from persistence if created
+					if ( 'post_id' === $event_type ) {
+						$new_post_id = $data;
+					}
+				},
+				$previous_response_id ? $previous_response_id : null,
+				$prompt,
+				$persistence
+			);
 		} finally {
 			if ( $previous_user_id > 0 ) {
 				wp_set_current_user( $previous_user_id, $previous_user_login );
@@ -84,6 +140,7 @@ class OpenAI_Email_Responder {
 				wp_set_current_user( 0 );
 			}
 		}
+
 		if ( is_wp_error( $conversation ) ) {
 			$this->module->log( 'Auto-reply AI failure: ' . $conversation->get_error_message(), E_USER_ERROR );
 			return;
@@ -95,15 +152,21 @@ class OpenAI_Email_Responder {
 			}
 		}
 
-		// Do not modify empty subjects - changing them breaks email threading
-		$subject = 'Re: ' . trim( isset( $email_data['subject'] ) ? $email_data['subject'] : '' );
+		// Build reply subject with post ID for conversation threading
+		$reply_subject = 'Re: ' . trim( $email_subject );
+
+		// Add [post_id] if we have one and it's not already in the subject
+		if ( $new_post_id && ! preg_match( '/\[\d+\]/', $reply_subject ) ) {
+			$reply_subject .= ' [' . $new_post_id . ']';
+		}
+
 		$body    = $this->compose_reply_body( $assistant_reply, $email_data );
 		$headers = $this->prepare_headers( $email_data );
 
-		$sent = $imap_module->send_email( $recipient, $subject, $body, $headers );
+		$sent = $imap_module->send_email( $recipient, $reply_subject, $body, $headers );
 
 		if ( $sent ) {
-			$this->module->log( 'AI auto-reply sent to ' . $recipient );
+			$this->module->log( 'AI auto-reply sent to ' . $recipient . ' (post ID: ' . ( $new_post_id ?: 'none' ) . ')' );
 		} else {
 			$this->module->log( 'Auto-reply failed for ' . $recipient, E_USER_ERROR );
 		}
@@ -194,12 +257,12 @@ PROMPT,
 	}
 
 	/**
-	 * Build minimal backscroll containing the full email content for the AI.
+	 * Build messages array for the Responses API containing the email content.
 	 *
 	 * @param array $email_data Email data from the IMAP module.
-	 * @return array Backscroll messages.
+	 * @return array Messages array for complete_responses.
 	 */
-	private function build_backscroll_for_email( array $email_data ): array {
+	private function build_messages_for_email( array $email_data ): array {
 		$from_email = isset( $email_data['from'] ) ? $email_data['from'] : '';
 		$from_name  = isset( $email_data['from_name'] ) ? $email_data['from_name'] : '';
 		$display    = $from_email;
@@ -225,7 +288,12 @@ PROMPT,
 		return array(
 			array(
 				'role'    => 'user',
-				'content' => $this->normalize_backscroll_content( implode( "\n", $lines ) ),
+				'content' => array(
+					array(
+						'type' => 'input_text',
+						'text' => $this->normalize_backscroll_content( implode( "\n", $lines ) ),
+					),
+				),
 			),
 		);
 	}
@@ -450,4 +518,5 @@ PROMPT,
 
 		return $content;
 	}
+
 }
