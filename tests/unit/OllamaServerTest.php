@@ -26,6 +26,20 @@ class OllamaServerTest extends WP_UnitTestCase {
 			->with( 'ollama_auth_token' )
 			->willReturn( 'test-token-123' );
 
+		// Mock get_chat_prompts to return test prompts with personalos:4o model
+		$this->mock_openai_module->method( 'get_chat_prompts' )
+			->willReturn(
+				array(
+					'prompt_default' => array(
+						'id'          => 'prompt_default',
+						'post_id'     => 1,
+						'name'        => 'Default Prompt',
+						'description' => 'Default prompt description',
+						'model'       => 'personalos:4o',
+					),
+				)
+			);
+
 		// Create Ollama server instance
 		$this->ollama_server = new POS_Ollama_Server( $this->mock_openai_module );
 	}
@@ -63,6 +77,38 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$this->assertEquals( 'personalos', $details['family'] );
 		$this->assertEquals( '4.0B', $details['parameter_size'] );
 		$this->assertEquals( 'Q4_K_M', $details['quantization_level'] );
+	}
+
+	/**
+	 * Test GET /api/tags endpoint with no prompts (empty models).
+	 *
+	 * @covers POS_Ollama_Server::get_tags
+	 * @covers POS_Ollama_Server::init_models
+	 */
+	public function test_get_tags_no_prompts() {
+		// Create a new mock with empty prompts
+		$mock_module_no_prompts = $this->createMock( OpenAI_Module::class );
+		$mock_module_no_prompts->settings = array();
+		$mock_module_no_prompts->method( 'get_setting' )
+			->with( 'ollama_auth_token' )
+			->willReturn( 'test-token-123' );
+		$mock_module_no_prompts->method( 'get_chat_prompts' )
+			->willReturn( array() );
+
+		$ollama_server_no_prompts = new POS_Ollama_Server( $mock_module_no_prompts );
+
+		$request = new WP_REST_Request( 'GET', '/ollama/v1/api/tags' );
+		$request->set_param( 'token', 'test-token-123' );
+
+		$response = $ollama_server_no_prompts->get_tags( $request );
+
+		$this->assertInstanceOf( WP_REST_Response::class, $response );
+		$this->assertEquals( 200, $response->get_status() );
+
+		$data = $response->get_data();
+		$this->assertArrayHasKey( 'models', $data );
+		$this->assertIsArray( $data['models'] );
+		$this->assertCount( 0, $data['models'] );
 	}
 
 	/**
@@ -196,9 +242,10 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$this->mock_openai_module->method( 'complete_backscroll' )
 			->willReturn( $mock_response );
 
+		// Backscroll saving is disabled for ollama module
 		// Mock save_backscroll to return a post ID
-		$this->mock_openai_module->method( 'save_backscroll' )
-			->willReturn( 123 );
+		// $this->mock_openai_module->method( 'save_backscroll' )
+		// 	->willReturn( 123 );
 
 		$request = new WP_REST_Request( 'POST', '/ollama/v1/api/chat' );
 		$request->set_param( 'token', 'test-token-123' );
@@ -246,6 +293,8 @@ class OllamaServerTest extends WP_UnitTestCase {
 	 * @covers POS_Ollama_Server::calculate_rolling_hash
 	 */
 	public function test_post_chat_backscroll_functionality() {
+		$this->markTestSkipped( 'Backscroll saving is disabled for ollama module' );
+
 		$messages = array(
 			array(
 				'role'    => 'user',
@@ -275,32 +324,33 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$this->mock_openai_module->method( 'complete_backscroll' )
 			->willReturn( $mock_response );
 
+		// Backscroll saving is disabled for ollama module
 		// Mock save_backscroll to return a post ID and verify the hash is passed
-		$this->mock_openai_module->expects( $this->once() )
-			->method( 'save_backscroll' )
-			->with(
-				$this->equalTo( $mock_response ),
-				$this->callback(
-					function( $args ) {
-						// Verify that both meta_query and meta_input contain ollama-hash
-						$has_meta_query = isset( $args['meta_query'] ) && 
-							is_array( $args['meta_query'] ) &&
-							isset( $args['meta_query'][0]['key'] ) &&
-							$args['meta_query'][0]['key'] === 'ollama-hash' &&
-							isset( $args['meta_query'][0]['value'] ) &&
-							is_string( $args['meta_query'][0]['value'] ) &&
-							strlen( $args['meta_query'][0]['value'] ) === 64; // SHA256 hash
-
-						$has_meta_input = isset( $args['meta_input']['ollama-hash'] ) &&
-							is_string( $args['meta_input']['ollama-hash'] ) &&
-							strlen( $args['meta_input']['ollama-hash'] ) === 64; // SHA256 hash
-
-						// Both should be present and have the same hash value
-						return $has_meta_query;
-					}
-				)
-			)
-			->willReturn( 456 );
+		// $this->mock_openai_module->expects( $this->once() )
+		// 	->method( 'save_backscroll' )
+		// 	->with(
+		// 		$this->equalTo( $mock_response ),
+		// 		$this->callback(
+		// 			function( $args ) {
+		// 				// Verify that both meta_query and meta_input contain ollama-hash
+		// 				$has_meta_query = isset( $args['meta_query'] ) && 
+		// 					is_array( $args['meta_query'] ) &&
+		// 					isset( $args['meta_query'][0]['key'] ) &&
+		// 					$args['meta_query'][0]['key'] === 'ollama-hash' &&
+		// 					isset( $args['meta_query'][0]['value'] ) &&
+		// 					is_string( $args['meta_query'][0]['value'] ) &&
+		// 					strlen( $args['meta_query'][0]['value'] ) === 64; // SHA256 hash
+		//
+		// 				$has_meta_input = isset( $args['meta_input']['ollama-hash'] ) &&
+		// 					is_string( $args['meta_input']['ollama-hash'] ) &&
+		// 					strlen( $args['meta_input']['ollama-hash'] ) === 64; // SHA256 hash
+		//
+		// 				// Both should be present and have the same hash value
+		// 				return $has_meta_query;
+		// 			}
+		// 		)
+		// 	)
+		// 	->willReturn( 456 );
 
 		$request = new WP_REST_Request( 'POST', '/ollama/v1/api/chat' );
 		$request->set_param( 'token', 'test-token-123' );
@@ -363,8 +413,9 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$this->mock_openai_module->method( 'complete_backscroll' )
 			->willReturn( $mock_response );
 
-		$this->mock_openai_module->method( 'save_backscroll' )
-			->willReturn( 789 );
+		// Backscroll saving is disabled for ollama module
+		// $this->mock_openai_module->method( 'save_backscroll' )
+		// 	->willReturn( 789 );
 
 		$request = new WP_REST_Request( 'POST', '/ollama/v1/api/chat' );
 		$request->set_param( 'token', 'test-token-123' );
@@ -535,8 +586,9 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$this->mock_openai_module->method( 'complete_backscroll' )
 			->willReturn( $expected_new_conversation );
 
-		$this->mock_openai_module->method( 'save_backscroll' )
-			->willReturn( 555 );
+		// Backscroll saving is disabled for ollama module
+		// $this->mock_openai_module->method( 'save_backscroll' )
+		// 	->willReturn( 555 );
 
 		$request = new WP_REST_Request( 'POST', '/ollama/v1/api/chat' );
 		$request->set_param( 'token', 'test-token-123' );
@@ -569,6 +621,8 @@ class OllamaServerTest extends WP_UnitTestCase {
 	 * @covers POS_Ollama_Server::post_chat
 	 */
 	public function test_post_chat_save_backscroll_error() {
+		$this->markTestSkipped( 'Backscroll saving is disabled for ollama module' );
+
 		$messages = array(
 			array(
 				'role'    => 'user',
@@ -590,9 +644,10 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$this->mock_openai_module->method( 'complete_backscroll' )
 			->willReturn( $mock_response );
 
+		// Backscroll saving is disabled for ollama module
 		// Mock save_backscroll to return a WP_Error
-		$this->mock_openai_module->method( 'save_backscroll' )
-			->willReturn( new WP_Error( 'save_error', 'Failed to save conversation' ) );
+		// $this->mock_openai_module->method( 'save_backscroll' )
+		// 	->willReturn( new WP_Error( 'save_error', 'Failed to save conversation' ) );
 
 		$request = new WP_REST_Request( 'POST', '/ollama/v1/api/chat' );
 		$request->set_param( 'token', 'test-token-123' );
@@ -738,8 +793,9 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$this->mock_openai_module->method( 'complete_backscroll' )
 			->willReturn( $mock_response );
 
-		$this->mock_openai_module->method( 'save_backscroll' )
-			->willReturn( 321 );
+		// Backscroll saving is disabled for ollama module
+		// $this->mock_openai_module->method( 'save_backscroll' )
+		// 	->willReturn( 321 );
 
 		$request = new WP_REST_Request( 'POST', '/ollama/v1/api/chat' );
 		$request->set_param( 'token', 'test-token-123' );
@@ -822,6 +878,8 @@ class OllamaServerTest extends WP_UnitTestCase {
 	 * @covers POS_Ollama_Server::post_chat
 	 */
 	public function test_post_chat_updates_hash_after_save() {
+		$this->markTestSkipped( 'Backscroll saving is disabled for ollama module' );
+
 		$messages = array(
 			array(
 				'role'    => 'user',
@@ -842,8 +900,9 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$this->mock_openai_module->method( 'complete_backscroll' )
 			->willReturn( $mock_response );
 
-		$this->mock_openai_module->method( 'save_backscroll' )
-			->willReturn( 999 );
+		// Backscroll saving is disabled for ollama module
+		// $this->mock_openai_module->method( 'save_backscroll' )
+		// 	->willReturn( 999 );
 
 		// We can't easily mock wp_update_post, but we can test that the method completes successfully
 		$request = new WP_REST_Request( 'POST', '/ollama/v1/api/chat' );
@@ -905,8 +964,9 @@ class OllamaServerTest extends WP_UnitTestCase {
 				}
 			);
 
-		$this->mock_openai_module->method( 'save_backscroll' )
-			->willReturn( 999 );
+		// Backscroll saving is disabled for ollama module
+		// $this->mock_openai_module->method( 'save_backscroll' )
+		// 	->willReturn( 999 );
 
 		$request = new WP_REST_Request( 'POST', '/ollama/v1/api/chat' );
 		$request->set_param( 'token', 'test-token-123' );
@@ -953,6 +1013,7 @@ class OllamaServerTest extends WP_UnitTestCase {
 	 * @covers POS_Ollama_Server::calculate_rolling_hash
 	 */
 	public function test_same_hash_updates_same_post() {
+		$this->markTestSkipped( 'Backscroll saving is disabled for ollama module' );
 		// Expect the block registration notice since we're creating multiple OpenAI module instances
 		$this->setExpectedIncorrectUsage( 'WP_Block_Type_Registry::register' );
 
@@ -965,7 +1026,7 @@ class OllamaServerTest extends WP_UnitTestCase {
 
 		// Create a partial mock that only mocks complete_backscroll but keeps save_backscroll real
 		$partial_mock = $this->getMockBuilder( get_class( $real_openai_module ) )
-			->setMethods( array( 'complete_backscroll', 'get_setting' ) )
+			->setMethods( array( 'complete_backscroll', 'get_setting', 'get_chat_prompts' ) )
 			->getMock();
 
 		// Mock get_setting to return appropriate values for different settings
@@ -981,6 +1042,20 @@ class OllamaServerTest extends WP_UnitTestCase {
 							return null;
 					}
 				}
+			);
+
+		// Mock get_chat_prompts to return test prompts with personalos:4o model
+		$partial_mock->method( 'get_chat_prompts' )
+			->willReturn(
+				array(
+					'prompt_default' => array(
+						'id'          => 'prompt_default',
+						'post_id'     => 1,
+						'name'        => 'Default Prompt',
+						'description' => 'Default prompt description',
+						'model'       => 'personalos:4o',
+					),
+				)
 			);
 
 		// Create Ollama server with partial mock

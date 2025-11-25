@@ -54,7 +54,8 @@ class POS_Ollama_Server {
 			'default' => '0',
 		);
 		if ( strlen( $token ) >= 3 ) {
-			$this->init_models();
+			// Initialize models lazily when needed, not during construction.
+			$this->models = null;
 			add_action( 'rest_api_init', array( $this, 'register_routes' ) );
 		}
 	}
@@ -63,10 +64,32 @@ class POS_Ollama_Server {
 	 * Initialize the models array.
 	 */
 	private function init_models(): void {
-		$this->models = array(
-			'personalos:4o' => array(
-				'name'        => 'personalos:4o',
-				'model'       => 'personalos:4o',
+		// Return early if already initialized.
+		if ( is_array( $this->models ) ) {
+			return;
+		}
+
+		$this->models = array();
+
+		// Get chat prompts to dynamically populate models.
+		$prompts = $this->module->get_chat_prompts();
+
+		// Extract unique models from prompts.
+		$models_seen = array();
+		foreach ( $prompts as $prompt_slug => $prompt_config ) {
+			// Use model name from pos_model if set, otherwise use prompt slug as model identifier.
+			$model_name = $prompt_config['name'] ? $prompt_config['name'] : $prompt_slug;
+			$model_key  = $prompt_config['id'];
+
+			// Skip if we've already added this model.
+			if ( isset( $models_seen[ $model_key ] ) ) {
+				continue;
+			}
+			$models_seen[ $model_key ] = true;
+
+			$this->models[ $model_key ] = array(
+				'name'        => $model_key,
+				'model'       => $model_name,
 				'modified_at' => gmdate( 'c' ),
 				'size'        => 4299915632,
 				'digest'      => 'sha256:a2af6cc3eb7fa8be8504abaf9b04e88f17a119ec3f04a3addf55f92841195f5a',
@@ -78,8 +101,8 @@ class POS_Ollama_Server {
 					'parameter_size'     => '4.0B',
 					'quantization_level' => 'Q4_K_M',
 				),
-			),
-		);
+			);
+		}
 	}
 
 	/**
@@ -89,6 +112,7 @@ class POS_Ollama_Server {
 	 * @return array|null Model data or null if not found.
 	 */
 	private function get_model( string $name ): ?array {
+		$this->init_models();
 		return $this->models[ $name ] ?? null;
 	}
 
@@ -98,6 +122,7 @@ class POS_Ollama_Server {
 	 * @return array Array of models.
 	 */
 	private function get_all_models(): array {
+		$this->init_models();
 		return array_values( $this->models );
 	}
 
@@ -108,12 +133,19 @@ class POS_Ollama_Server {
 	 * @return bool True if model exists.
 	 */
 	private function model_exists( string $name ): bool {
+		$this->init_models();
 		return isset( $this->models[ $name ] );
 	}
 
 	public function check_permission( WP_REST_Request $request ) {
 		$token = $request->get_param( 'token' );
 		if ( $token === $this->module->get_setting( 'ollama_auth_token' ) ) {
+			// Switch to the async jobs user if configured.
+			// @TODO actually make this endpoint authorize by user and store tokens in user meta.
+			$notes_module = POS::get_module_by_id( 'notes' );
+			if ( $notes_module ) {
+				$notes_module->switch_to_user();
+			}
 			return true;
 		}
 		return false;
@@ -378,35 +410,37 @@ Used for testing and development purposes only.
 			);
 		}
 
+		// Backscroll saving is disabled for ollama module
+		// @TODO: Reenable this, but for now we have a problem when this is not finding the previous post well.
 		// Use the OpenAI module's save_backscroll method with hash as identifier
-		$post_id = $this->module->save_backscroll(
-			$result,
-			array(
-				'meta_query' => array(
-					array(
-						'key'   => 'ollama-hash',
-						'value' => $hash,
-					),
-				),
-			)
-		);
+		// $post_id = $this->module->save_backscroll(
+		// 	$result,
+		// 	array(
+		// 		'meta_query' => array(
+		// 			array(
+		// 				'key'   => 'ollama-hash',
+		// 				'value' => $hash,
+		// 			),
+		// 		),
+		// 	)
+		// );
 
-		if ( is_wp_error( $post_id ) ) {
-			return new WP_REST_Response(
-				array( 'error' => 'Failed to save conversation: ' . $post_id->get_error_message() ),
-				500
-			);
-		}
+		// if ( is_wp_error( $post_id ) ) {
+		// 	return new WP_REST_Response(
+		// 		array( 'error' => 'Failed to save conversation: ' . $post_id->get_error_message() ),
+		// 		500
+		// 	);
+		// }
 
 		// In case we have edited an existing post, we are updating the hash with the result information so the subsequent search will find the correct post.
-		wp_update_post(
-			array(
-				'ID'         => $post_id,
-				'meta_input' => array(
-					'ollama-hash' => $this->calculate_rolling_hash( $result ),
-				),
-			)
-		);
+		// wp_update_post(
+		// 	array(
+		// 		'ID'         => $post_id,
+		// 		'meta_input' => array(
+		// 			'ollama-hash' => $this->calculate_rolling_hash( $result ),
+		// 		),
+		// 	)
+		// );
 
 		$last_message = (array) end( $result );
 		$answer      = $last_message['content'] ?? 'Hello from PersonalOS Mock Ollama!';

@@ -2091,6 +2091,9 @@ class OpenAI_Module extends POS_Module {
 	 */
 	public function get_chat_prompts( array $args = array() ): array {
 		$notes_module = POS::get_module_by_id( 'notes' );
+		if ( ! $notes_module ) {
+			return array();
+		}
 
 		// Get prompts using ->list() with args
 		$prompts = $notes_module->list( $args, 'prompts-chat' );
