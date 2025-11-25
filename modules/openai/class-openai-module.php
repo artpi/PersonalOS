@@ -1127,7 +1127,7 @@ class OpenAI_Module extends POS_Module {
 			$prompts = $notes_module->list( array( 'name' => 'prompt_default' ), 'prompts-chat' );
 			$params = ! empty( $prompts ) ? $prompts[0] : null; // Default prompt - shoudl make it not deletable.
 		}
-	
+
 		$content = apply_filters( 'the_content', $params->post_content );
 		$content = preg_replace_callback(
 			'/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/i',
