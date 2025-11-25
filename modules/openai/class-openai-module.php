@@ -579,12 +579,12 @@ class OpenAI_Module extends POS_Module {
 	 * @return void
 	 */
 	public function cli_openai_system_prompt( array $args = array(), array $assoc_args = array() ): void {
-		$params = array();
+		$prompt = null;
 
 		if ( ! empty( $args[0] ) ) {
 			$post_id = intval( $args[0] );
-			$post = get_post( $post_id );
-			if ( ! $post ) {
+			$prompt = get_post( $post_id );
+			if ( ! $prompt ) {
 				WP_CLI::error(
 					sprintf(
 						'Post not found: %d',
@@ -592,12 +592,12 @@ class OpenAI_Module extends POS_Module {
 					)
 				);
 			}
-			$params = $post;
 		}
 
-		$system_prompt = $this->create_system_prompt( $params );
+		$config = $this->get_prompt_config( $prompt );
 
-		WP_CLI::log( $system_prompt );
+		WP_CLI::log( $config['prompt_string'] );
+		WP_CLI::log( 'Model: ' . $config['model'] );
 		WP_CLI::success( 'System prompt output completed.' );
 	}
 
@@ -988,18 +988,6 @@ class OpenAI_Module extends POS_Module {
 			)
 		);
 
-		// TODO: Can this be removed?
-		register_rest_route(
-			$this->rest_namespace,
-			'/openai/chat/tools',
-			array(
-				'methods'             => 'GET',
-				'callback'            => function() {
-					return $this->get_abilities_as_tools( 'chat' );
-				},
-				'permission_callback' => array( $this, 'check_permission' ),
-			)
-		);
 		register_rest_route(
 			$this->rest_namespace,
 			'/openai/chat/completions',
@@ -1029,22 +1017,6 @@ class OpenAI_Module extends POS_Module {
 		);
 		register_rest_route(
 			$this->rest_namespace,
-			'/openai/chat/system_prompt',
-			array(
-				'methods'             => 'GET',
-				'callback'            => function( WP_REST_Request $request ) {
-					$params = $request->get_query_params();
-					if ( ! empty( $params['id'] ) ) {
-						$params = get_post( $params['id'] );
-					}
-					return $this->create_system_prompt( $params );
-				},
-				'permission_callback' => array( $this, 'check_permission' ),
-			)
-		);
-
-		register_rest_route(
-			$this->rest_namespace,
 			'/openai/vercel/chat',
 			array(
 				'methods'             => 'POST',
@@ -1067,12 +1039,13 @@ class OpenAI_Module extends POS_Module {
 	}
 
 	public function realtime_session( WP_REST_Request $request ) {
+		$prompt_config = $this->get_prompt_config( null, 'gpt-4o-realtime-preview-2024-12-17' );
 
 		$result = $this->api_call(
 			'https://api.openai.com/v1/realtime/sessions',
 			array(
-				'model'                     => 'gpt-4o-realtime-preview-2024-12-17',
-				'instructions'              => $this->create_system_prompt(),
+				'model'                     => $prompt_config['model'],
+				'instructions'              => $prompt_config['prompt_string'],
 				'voice'                     => 'ballad',
 				'temperature'               => 0.6,
 				'input_audio_transcription' => array(
@@ -1093,37 +1066,69 @@ class OpenAI_Module extends POS_Module {
 	}
 
 	/**
-	 * Create a system prompt for the OpenAI API.
-	 * @TODO: This could be achieved by using Gutenberg and notes to put this together.
+	 * Get prompt configuration including system prompt string, model, and post object.
 	 *
-	 * @return string The system prompt.
+	 * This consolidates all prompt-related logic: loading the default prompt,
+	 * extracting the model from meta, and converting post content to markdown.
+	 *
+	 * @TODO: This could parse Gutenberg blocks properly instead of just HTML conversion.
+	 *
+	 * @param WP_Post|null $prompt Optional prompt post. If null, loads default prompt.
+	 * @param string       $default_model Default model to use if not specified in prompt meta.
+	 * @return array Configuration array with:
+	 *               - 'prompt_string': The system prompt text (HTML converted to markdown)
+	 *               - 'model': The model to use (from pos_model meta or default)
+	 *               - 'post': The WP_Post object (or null if not found)
 	 */
-	public function create_system_prompt( $params = array() ) {
-		if ( ! $params instanceof \WP_Post ) {
+	public function get_prompt_config( $prompt = null, $default_model = 'gpt-4o' ) {
+		// Load default prompt if not provided
+		if ( ! $prompt instanceof \WP_Post ) {
 			$notes_module = POS::get_module_by_id( 'notes' );
 			$prompts = $notes_module->list( array( 'name' => 'prompt_default' ), 'prompts-chat' );
-			$params = ! empty( $prompts ) ? $prompts[0] : null; // Default prompt - shoudl make it not deletable.
+			$prompt = ! empty( $prompts ) ? $prompts[0] : null;
 		}
 
-		$content = apply_filters( 'the_content', $params->post_content );
-		$content = preg_replace_callback(
-			'/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/i',
-			function( $matches ) {
-				$level = $matches[1];
-				$text = $matches[2];
-				return str_repeat( '#', intval( $level ) ) . ' ' . $text;
-			},
-			$content
+		$model = $default_model;
+		$prompt_string = '';
+
+		if ( $prompt ) {
+			// Get model from prompt meta
+			$pos_model = get_post_meta( $prompt->ID, 'pos_model', true );
+			if ( $pos_model ) {
+				$model = $pos_model;
+			}
+
+			// Convert post content to markdown-like format
+			$content = apply_filters( 'the_content', $prompt->post_content );
+
+			// Convert headings to markdown
+			$content = preg_replace_callback(
+				'/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/i',
+				function( $matches ) {
+					$level = $matches[1];
+					$text = $matches[2];
+					return str_repeat( '#', intval( $level ) ) . ' ' . $text;
+				},
+				$content
+			);
+
+			// Convert list items to markdown
+			$content = preg_replace_callback(
+				'/<li[^>]*>(.*?)<\/li>/i',
+				function( $matches ) {
+					return '- ' . $matches[1];
+				},
+				$content
+			);
+
+			$prompt_string = wp_strip_all_tags( $content );
+		}
+
+		return array(
+			'prompt_string' => $prompt_string,
+			'model'         => $model,
+			'post'          => $prompt,
 		);
-		$content = preg_replace_callback(
-			'/<li[^>]*>(.*?)<\/li>/i',
-			function( $matches ) {
-				return '- ' . $matches[1];
-			},
-			$content
-		);
-		$content = wp_strip_all_tags( $content );
-		return $content;
 	}
 
 	/**
@@ -1266,37 +1271,24 @@ class OpenAI_Module extends POS_Module {
 			}
 		}
 
-		// Get abilities excluding perplexity_search since we have built-in web_search
-		$tools = array();
-		$tool_definitions = array();
-		if ( function_exists( 'wp_get_abilities' ) ) {
-			$abilities = wp_get_abilities();
-			foreach ( $abilities as $ability ) {
-				// Only include PersonalOS abilities
-				if ( strpos( $ability->get_name(), 'pos/' ) !== 0 ) {
-					continue;
-				}
-				// Skip perplexity-search when using Responses API since we have built-in web_search
-				if ( $ability->get_name() === 'pos/perplexity-search' ) {
-					continue;
-				}
-				$tools[] = $ability;
-				$tool_definitions[] = $this->ability_to_function_signature( $ability, 'responses' );
-			}
-		}
-		// Add built-in web search tool
-		$tool_definitions[] = array(
-			'type' => 'web_search',
+		// Get abilities for Responses API (excluding perplexity-search since we have built-in web_search)
+		$tools_result = $this->get_abilities_as_tools(
+			'responses',
+			array(
+				'exclude'           => array( 'pos/perplexity-search' ),
+				'builtin_tools'     => array( array( 'type' => 'web_search' ) ),
+				'include_abilities' => true,
+			)
 		);
+		$tools = $tools_result['abilities'];
+		$tool_definitions = $tools_result['definitions'];
 
-		// Get model from prompt meta if available, otherwise use default
-		$model = 'gpt-4o';
-		if ( $prompt ) {
-			$pos_model = get_post_meta( $prompt->ID, 'pos_model', true );
-			if ( $pos_model ) {
-				$model = $pos_model;
-			}
-			$this->log( '[complete_responses] Using prompt: ' . $prompt->post_title . ' (ID: ' . $prompt->ID . ') with model: ' . $model );
+		// Get prompt configuration (model, prompt string, and post object)
+		$prompt_config = $this->get_prompt_config( $prompt );
+		$model = $prompt_config['model'];
+
+		if ( $prompt_config['post'] ) {
+			$this->log( '[complete_responses] Using prompt: ' . $prompt_config['post']->post_title . ' (ID: ' . $prompt_config['post']->ID . ') with model: ' . $model );
 		} else {
 			$this->log( '[complete_responses] No prompt provided, using default model: ' . $model );
 		}
@@ -1311,7 +1303,7 @@ class OpenAI_Module extends POS_Module {
 			// Build the API request payload
 			$request_data = array(
 				'model'        => $model,
-				'instructions' => $this->create_system_prompt( $prompt ),
+				'instructions' => $prompt_config['prompt_string'],
 				'tools'        => $tool_definitions,
 				'store'        => $should_store_remote,
 			);
@@ -1598,15 +1590,31 @@ class OpenAI_Module extends POS_Module {
 	 * Get abilities formatted for OpenAI function calling.
 	 *
 	 * @param string $api API format: 'chat', 'responses', or 'realtime'. Default 'chat'.
-	 * @return array Array of ability definitions for OpenAI.
+	 * @param array  $options Optional configuration array:
+	 *               - 'exclude': Array of ability names to exclude (e.g., array( 'pos/perplexity-search' ))
+	 *               - 'builtin_tools': Array of built-in tools to add (e.g., array( array( 'type' => 'web_search' ) ))
+	 *               - 'include_abilities': Whether to return ability objects alongside definitions. Default false.
+	 * @return array If 'include_abilities' is false, returns array of tool definitions.
+	 *               If 'include_abilities' is true, returns array with 'definitions' and 'abilities' keys.
 	 */
-	private function get_abilities_as_tools( $api = 'chat' ) {
+	private function get_abilities_as_tools( $api = 'chat', $options = array() ) {
+		$exclude = isset( $options['exclude'] ) ? (array) $options['exclude'] : array();
+		$builtin_tools = isset( $options['builtin_tools'] ) ? (array) $options['builtin_tools'] : array();
+		$include_abilities = isset( $options['include_abilities'] ) ? (bool) $options['include_abilities'] : false;
+
 		if ( ! function_exists( 'wp_get_abilities' ) ) {
-			return array();
+			if ( $include_abilities ) {
+				return array(
+					'definitions' => $builtin_tools,
+					'abilities'   => array(),
+				);
+			}
+			return $builtin_tools;
 		}
 
 		$abilities = wp_get_abilities();
 		$tool_definitions = array();
+		$filtered_abilities = array();
 
 		foreach ( $abilities as $ability ) {
 			// Only include PersonalOS abilities
@@ -1614,7 +1622,25 @@ class OpenAI_Module extends POS_Module {
 				continue;
 			}
 
+			// Skip excluded abilities
+			if ( in_array( $ability->get_name(), $exclude, true ) ) {
+				continue;
+			}
+
 			$tool_definitions[] = $this->ability_to_function_signature( $ability, $api );
+			$filtered_abilities[] = $ability;
+		}
+
+		// Add built-in tools at the end
+		foreach ( $builtin_tools as $builtin_tool ) {
+			$tool_definitions[] = $builtin_tool;
+		}
+
+		if ( $include_abilities ) {
+			return array(
+				'definitions' => $tool_definitions,
+				'abilities'   => $filtered_abilities,
+			);
 		}
 
 		return $tool_definitions;
@@ -1644,6 +1670,7 @@ class OpenAI_Module extends POS_Module {
 	}
 
 	public function complete_backscroll( array $backscroll, callable $callback = null ) {
+		$prompt_config = $this->get_prompt_config();
 		$tool_definitions = $this->get_abilities_as_tools();
 		$max_loops = 10;
 		do {
@@ -1651,12 +1678,12 @@ class OpenAI_Module extends POS_Module {
 			$completion = $this->api_call(
 				'https://api.openai.com/v1/chat/completions',
 				array(
-					'model'    => 'gpt-5',
+					'model'    => $prompt_config['model'],
 					'messages' => array_merge(
 						array(
 							array(
-								'role'    => 'assistant',
-								'content' => $this->create_system_prompt(),
+								'role'    => 'system',
+								'content' => $prompt_config['prompt_string'],
 							),
 						),
 						$backscroll
