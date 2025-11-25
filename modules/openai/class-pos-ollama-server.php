@@ -48,8 +48,8 @@ class POS_Ollama_Server {
 		$this->module = $module;
 		$token = $this->module->get_setting( 'ollama_auth_token' );
 		$this->module->settings['ollama_auth_token'] = array(
-			'type'  => 'text',
-			'name'  => 'Token for authorizing OLLAMA mock API.',
+			'type'    => 'text',
+			'name'    => 'Token for authorizing OLLAMA mock API.',
 			'label'   => strlen( $token ) < 3 ? 'Set a token to enable Ollama-compatible API for external clients' : 'OLLAMA Api accessible at <a href="' . add_query_arg( 'token', $token, get_rest_url( null, $this->rest_namespace ) ) . '" target="_blank">here</a>',
 			'default' => '0',
 		);
@@ -387,7 +387,7 @@ Used for testing and development purposes only.
 						'key'   => 'ollama-hash',
 						'value' => $hash,
 					),
-				)
+				),
 			)
 		);
 
@@ -401,8 +401,8 @@ Used for testing and development purposes only.
 		// In case we have edited an existing post, we are updating the hash with the result information so the subsequent search will find the correct post.
 		wp_update_post(
 			array(
-				'ID'           => $post_id,
-				'meta_input'   => array(
+				'ID'         => $post_id,
+				'meta_input' => array(
 					'ollama-hash' => $this->calculate_rolling_hash( $result ),
 				),
 			)
@@ -416,38 +416,38 @@ Used for testing and development purposes only.
 			// For streaming, we'll return a simple response since WordPress doesn't handle streaming well
 			return new WP_REST_Response(
 				array(
-					'model'      => $model,
-					'created_at' => gmdate( 'c' ),
-					'message'    => array(
+					'model'                => $model,
+					'created_at'           => gmdate( 'c' ),
+					'message'              => array(
 						'role'    => 'assistant',
 						'content' => $answer,
 					),
-					'done'                => true,
-					'total_duration'      => 1000000000,
-					'load_duration'       => 100000000,
-					'prompt_eval_count'   => 10,
+					'done'                 => true,
+					'total_duration'       => 1000000000,
+					'load_duration'        => 100000000,
+					'prompt_eval_count'    => 10,
 					'prompt_eval_duration' => 200000000,
-					'eval_count'          => str_word_count( $answer ),
-					'eval_duration'       => 700000000,
+					'eval_count'           => str_word_count( $answer ),
+					'eval_duration'        => 700000000,
 				),
 				200
 			);
 		} else {
 			return new WP_REST_Response(
 				array(
-					'model'      => $model,
-					'created_at' => gmdate( 'c' ),
-					'message'    => array(
+					'model'                => $model,
+					'created_at'           => gmdate( 'c' ),
+					'message'              => array(
 						'role'    => 'assistant',
 						'content' => $answer,
 					),
-					'done'                => true,
-					'total_duration'      => 1000000000,
-					'load_duration'       => 100000000,
-					'prompt_eval_count'   => 10,
+					'done'                 => true,
+					'total_duration'       => 1000000000,
+					'load_duration'        => 100000000,
+					'prompt_eval_count'    => 10,
 					'prompt_eval_duration' => 200000000,
-					'eval_count'          => str_word_count( $answer ),
-					'eval_duration'       => 700000000,
+					'eval_count'           => str_word_count( $answer ),
+					'eval_duration'        => 700000000,
 				),
 				200
 			);
@@ -484,16 +484,16 @@ Used for testing and development purposes only.
 
 		return new WP_REST_Response(
 			array(
-				'model'               => $model,
-				'created_at'          => gmdate( 'c' ),
-				'response'            => $response,
-				'done'                => true,
-				'total_duration'      => 1000000000,
-				'load_duration'       => 100000000,
-				'prompt_eval_count'   => str_word_count( $prompt ),
+				'model'                => $model,
+				'created_at'           => gmdate( 'c' ),
+				'response'             => $response,
+				'done'                 => true,
+				'total_duration'       => 1000000000,
+				'load_duration'        => 100000000,
+				'prompt_eval_count'    => str_word_count( $prompt ),
 				'prompt_eval_duration' => 200000000,
-				'eval_count'          => str_word_count( $response ),
-				'eval_duration'       => 700000000,
+				'eval_count'           => str_word_count( $response ),
+				'eval_duration'        => 700000000,
 			),
 			200
 		);
@@ -568,16 +568,16 @@ Used for testing and development purposes only.
 		$modelfile .= 'LICENSE """' . $this->get_model_license( $family ) . '"""' . "\n";
 
 		$model_info = array(
-			'personalos.attention.head_count'         => 32,
-			'personalos.attention.head_count_kv'      => 8,
+			'personalos.attention.head_count'             => 32,
+			'personalos.attention.head_count_kv'          => 8,
 			'personalos.attention.layer_norm_rms_epsilon' => 0.00001,
-			'personalos.block_count'                  => 32,
-			'personalos.context_length'               => 8192,
-			'personalos.embedding_length'             => 4096,
-			'personalos.feed_forward_length'          => 14336,
-			'general.architecture'                    => 'personalos',
-			'general.parameter_count'                 => 4000000000,
-			'tokenizer.ggml.model'                    => 'personalos',
+			'personalos.block_count'                      => 32,
+			'personalos.context_length'                   => 8192,
+			'personalos.embedding_length'                 => 4096,
+			'personalos.feed_forward_length'              => 14336,
+			'general.architecture'                        => 'personalos',
+			'general.parameter_count'                     => 4000000000,
+			'tokenizer.ggml.model'                        => 'personalos',
 		);
 
 		$tensors = array(

@@ -51,9 +51,9 @@ function personalos_get_messages_from_post( $post_id ) {
 			$id = $block['attrs']['id'] ?? 'generated_' . uniqid();
 
 			$messages[] = array(
-				'id' => $id,
-				'role' => $role,
-				'content' => $content,
+				'id'        => $id,
+				'role'      => $role,
+				'content'   => $content,
 				'createdAt' => get_the_date( 'c', $post ), // Approximate
 			);
 		}

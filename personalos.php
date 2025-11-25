@@ -56,7 +56,7 @@ class POS {
 			wp_register_ability_category(
 				'personalos',
 				array(
-					'label' => __( 'PersonalOS', 'personalos' ),
+					'label'       => __( 'PersonalOS', 'personalos' ),
 					'description' => __( 'Abilities provided by PersonalOS plugin', 'personalos' ),
 				)
 			);

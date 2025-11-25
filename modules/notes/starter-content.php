@@ -182,7 +182,7 @@ $base_prompt = $this->create(
 		'meta_input' => array(
 			'pos_model' => 'gpt-4.1',
 		),
-		'post_name' => 'prompt_default',
+		'post_name'  => 'prompt_default',
 	)
 );
 
@@ -200,7 +200,7 @@ $chat_prompt_1 = $this->create(
 		'meta_input' => array(
 			'pos_model' => 'gpt-4.1',
 		),
-		'post_name' => 'prompt_gpt41',
+		'post_name'  => 'prompt_gpt41',
 	)
 );
 
@@ -218,6 +218,6 @@ $chat_prompt_2 = $this->create(
 		'meta_input' => array(
 			'pos_model' => 'gpt-5',
 		),
-		'post_name' => 'prompt_gpt5',
+		'post_name'  => 'prompt_gpt5',
 	)
 );

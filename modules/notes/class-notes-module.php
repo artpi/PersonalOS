@@ -170,11 +170,14 @@ class Notes_Module extends POS_Module {
 								function( $flag ) {
 									return $flag['id'];
 								},
-								apply_filters( 'pos_notebook_flags', array(
-									[
-										'id'    => 'all'
-									]
-								) )
+								apply_filters(
+									'pos_notebook_flags',
+									array(
+										array(
+											'id' => 'all',
+										),
+									)
+								)
 							),
 							'default'     => 'all',
 						),
@@ -254,7 +257,7 @@ class Notes_Module extends POS_Module {
 					$this->get_notebooks_by_flag( $flag['id'] )
 				);
 				return array(
-					'flag_id'    => $flag['id'] ?? "null",
+					'flag_id'    => $flag['id'] ?? 'null',
 					'flag_name'  => $flag['name'],
 					'flag_label' => $flag['label'],
 					'notebooks'  => $notebooks,
@@ -312,7 +315,7 @@ class Notes_Module extends POS_Module {
 				)
 			);
 			if ( $count > 0 ) {
-				add_submenu_page( 'personalos', $term->name, $term->name . ' todos ' . '<span class="awaiting-mod" style="background-color: #0073aa;"><span class="pending-count" aria-hidden="true">' . $count . '</span></span>', 'read', 'admin.php?page=pos-todo#' . $term->slug );
+				add_submenu_page( 'personalos', $term->name, $term->name . ' todos <span class="awaiting-mod" style="background-color: #0073aa;"><span class="pending-count" aria-hidden="true">' . $count . '</span></span>', 'read', 'admin.php?page=pos-todo#' . $term->slug );
 			}
 			$count = count(
 				get_posts(
@@ -332,7 +335,7 @@ class Notes_Module extends POS_Module {
 				)
 			);
 			if ( $count > 0 ) {
-				add_submenu_page( 'personalos', $term->name, $term->name . ' notes ' . '<span class="awaiting-mod" style="background-color: #0073aa;"><span class="pending-count" aria-hidden="true">' . $count . '</span></span>', 'read', 'edit.php?post_type=notes&notebook=' . $term->slug );
+				add_submenu_page( 'personalos', $term->name, $term->name . ' notes <span class="awaiting-mod" style="background-color: #0073aa;"><span class="pending-count" aria-hidden="true">' . $count . '</span></span>', 'read', 'edit.php?post_type=notes&notebook=' . $term->slug );
 			}
 		}
 	}
@@ -577,6 +580,37 @@ class Notes_Module extends POS_Module {
 	}
 	public function notebook_admin_widget( $widget_config, $conf ) {
 		$check = '<?xml version="1.0" ?><svg height="20px" version="1.1" viewBox="0 0 20 20" width="20px" xmlns="http://www.w3.org/2000/svg" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns" xmlns:xlink="http://www.w3.org/1999/xlink"><title/><desc/><defs/><g fill="none" fill-rule="evenodd" id="Page-1" stroke="none" stroke-width="1"><g fill="#000000" id="Core" transform="translate(-170.000000, -86.000000)"><g id="check-circle-outline-blank" transform="translate(170.000000, 86.000000)"><path d="M10,0 C4.5,0 0,4.5 0,10 C0,15.5 4.5,20 10,20 C15.5,20 20,15.5 20,10 C20,4.5 15.5,0 10,0 L10,0 Z M10,18 C5.6,18 2,14.4 2,10 C2,5.6 5.6,2 10,2 C14.4,2 18,5.6 18,10 C18,14.4 14.4,18 10,18 L10,18 Z" id="Shape"/></g></g></g></svg>';
+
+		// Custom allowed HTML tags including SVG for the check icon.
+		$allowed_html = array_merge(
+			wp_kses_allowed_html( 'post' ),
+			array(
+				'svg'   => array(
+					'height'       => true,
+					'version'      => true,
+					'viewbox'      => true,
+					'width'        => true,
+					'xmlns'        => true,
+					'xmlns:sketch' => true,
+					'xmlns:xlink'  => true,
+				),
+				'g'     => array(
+					'fill'         => true,
+					'fill-rule'    => true,
+					'id'           => true,
+					'stroke'       => true,
+					'stroke-width' => true,
+					'transform'    => true,
+				),
+				'path'  => array(
+					'd'  => true,
+					'id' => true,
+				),
+				'title' => array(),
+				'desc'  => array(),
+				'defs'  => array(),
+			)
+		);
 		$notes = get_posts(
 			array(
 				'post_type'      => $this->id,
@@ -600,7 +634,7 @@ class Notes_Module extends POS_Module {
 			}
 		);
 		if ( count( $notes ) > 0 ) {
-			echo '<h3><a href="edit.php?notebook=' . $conf['args']->slug . '&post_type=notes">' . esc_html( $conf['args']->name ) . ': Notes</a></h3>';
+			echo '<h3><a href="edit.php?notebook=' . esc_attr( $conf['args']->slug ) . '&post_type=notes">' . esc_html( $conf['args']->name ) . ': Notes</a></h3>';
 			$notes = array_map(
 				function( $note ) {
 					return "<li><a href='" . get_edit_post_link( $note->ID ) . "' aria-label='Edit “{$note->post_title}”'><h5>{$note->post_title}</h5><time datetime='{$note->post_date}'>" . gmdate( 'F j, Y', strtotime( $note->post_date ) ) . '</time><p>' . get_the_excerpt( $note ) . '</p></a></li>';
@@ -633,7 +667,7 @@ class Notes_Module extends POS_Module {
 			}
 		);
 		if ( count( $notes ) > 0 ) {
-			echo '<h3><a href="admin.php?page=pos-todo#' . $conf['args']->slug . '">' . esc_html( $conf['args']->name ) . ': TODOs</a></h3>';
+			echo '<h3><a href="admin.php?page=pos-todo#' . esc_attr( $conf['args']->slug ) . '">' . esc_html( $conf['args']->name ) . ': TODOs</a></h3>';
 			$notes = array_map(
 				function( $note ) use ( $check ) {
 					return "<li><a href='" . esc_url( wp_nonce_url( "post.php?action=trash&amp;post=$note->ID", 'trash-post_' . $note->ID ) ) . "'>{$check}<a style='font-weight:bold;margin: 0 5px 0 0 ' href='" . get_edit_post_link( $note->ID ) . "' aria-label='Edit “{$note->post_title}”'>{$note->post_title}</a></li>";
@@ -641,7 +675,7 @@ class Notes_Module extends POS_Module {
 				$notes
 			);
 
-			echo '<ul class ="pos_admin_widget_todos" >' . ( implode( '', $notes ) ) . '</ul>';
+			echo '<ul class="pos_admin_widget_todos">' . wp_kses( implode( '', $notes ), $allowed_html ) . '</ul>';
 		}
 
 		//$term = get_term_by( 'slug', $conf['args']['notebook'], 'notebook' );

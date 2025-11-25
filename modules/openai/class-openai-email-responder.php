@@ -153,29 +153,38 @@ PROMPT,
 		$response = $this->module->api_call(
 			'https://api.openai.com/v1/chat/completions',
 			array(
-				'model'             => 'gpt-4.1-mini',
-				'messages'          => $messages,
-				'response_format'   => array( 'type' => 'json_object' ),
-				'temperature'       => 0.3,
-				'max_tokens'        => 100,
+				'model'           => 'gpt-4.1-mini',
+				'messages'        => $messages,
+				'response_format' => array( 'type' => 'json_object' ),
+				'temperature'     => 0.3,
+				'max_tokens'      => 100,
 			)
 		);
 
 		if ( is_wp_error( $response ) ) {
 			$this->module->log( 'Email classification failed: ' . $response->get_error_message(), E_USER_WARNING );
 			// Default to not skipping on error
-			return array( 'skip' => false, 'reason' => '' );
+			return array(
+				'skip'   => false,
+				'reason' => '',
+			);
 		}
 
 		if ( ! isset( $response->choices[0]->message->content ) ) {
 			$this->module->log( 'Email classification returned invalid response', E_USER_WARNING );
-			return array( 'skip' => false, 'reason' => '' );
+			return array(
+				'skip'   => false,
+				'reason' => '',
+			);
 		}
 
 		$result = json_decode( $response->choices[0]->message->content, true );
 		if ( ! is_array( $result ) ) {
 			$this->module->log( 'Email classification returned invalid JSON', E_USER_WARNING );
-			return array( 'skip' => false, 'reason' => '' );
+			return array(
+				'skip'   => false,
+				'reason' => '',
+			);
 		}
 
 		return array(
