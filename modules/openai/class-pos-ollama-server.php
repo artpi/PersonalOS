@@ -410,35 +410,37 @@ Used for testing and development purposes only.
 			);
 		}
 
+		// Backscroll saving is disabled for ollama module
+		// @TODO: Reenable this, but for now we have a problem when this is not finding the previous post well.
 		// Use the OpenAI module's save_backscroll method with hash as identifier
-		$post_id = $this->module->save_backscroll(
-			$result,
-			array(
-				'meta_query' => array(
-					array(
-						'key'   => 'ollama-hash',
-						'value' => $hash,
-					),
-				),
-			)
-		);
+		// $post_id = $this->module->save_backscroll(
+		// 	$result,
+		// 	array(
+		// 		'meta_query' => array(
+		// 			array(
+		// 				'key'   => 'ollama-hash',
+		// 				'value' => $hash,
+		// 			),
+		// 		),
+		// 	)
+		// );
 
-		if ( is_wp_error( $post_id ) ) {
-			return new WP_REST_Response(
-				array( 'error' => 'Failed to save conversation: ' . $post_id->get_error_message() ),
-				500
-			);
-		}
+		// if ( is_wp_error( $post_id ) ) {
+		// 	return new WP_REST_Response(
+		// 		array( 'error' => 'Failed to save conversation: ' . $post_id->get_error_message() ),
+		// 		500
+		// 	);
+		// }
 
 		// In case we have edited an existing post, we are updating the hash with the result information so the subsequent search will find the correct post.
-		wp_update_post(
-			array(
-				'ID'         => $post_id,
-				'meta_input' => array(
-					'ollama-hash' => $this->calculate_rolling_hash( $result ),
-				),
-			)
-		);
+		// wp_update_post(
+		// 	array(
+		// 		'ID'         => $post_id,
+		// 		'meta_input' => array(
+		// 			'ollama-hash' => $this->calculate_rolling_hash( $result ),
+		// 		),
+		// 	)
+		// );
 
 		$last_message = (array) end( $result );
 		$answer      = $last_message['content'] ?? 'Hello from PersonalOS Mock Ollama!';
