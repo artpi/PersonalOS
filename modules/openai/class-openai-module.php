@@ -1838,15 +1838,34 @@ class OpenAI_Module extends POS_Module {
 			$existing_posts = array();
 		}
 
+		// Check if existing post has a placeholder title (marked with meta flag)
+		$has_placeholder_title = false;
+		if ( ! empty( $existing_posts ) ) {
+			$has_placeholder_title = (bool) get_post_meta( $existing_posts[0]->ID, '_pos_placeholder_title', true );
+		}
+
 		// Generate title if not provided and OpenAI is configured
+		// Also generate if existing post has a placeholder title and we now have actual messages
 		$post_title = $search_args['post_title'] ?? null;
-		if ( ! $post_title && empty( $existing_posts ) && ! empty( $backscroll ) && $this->is_configured() ) {
+		$should_generate_title = ! $post_title
+			&& ! empty( $backscroll )
+			&& $this->is_configured()
+			&& ( empty( $existing_posts ) || $has_placeholder_title );
+
+		if ( $should_generate_title ) {
 			$post_title = $this->generate_conversation_title( $backscroll );
+			// Clear the placeholder flag if we successfully generated a title
+			if ( $post_title && $has_placeholder_title ) {
+				delete_post_meta( $existing_posts[0]->ID, '_pos_placeholder_title' );
+			}
 		}
 
 		// Fall back to default title if generation failed or not configured
+		// Mark it as placeholder so we can regenerate later
+		$is_placeholder_title = false;
 		if ( ! $post_title && empty( $existing_posts ) ) {
 			$post_title = 'Chat ' . gmdate( 'Y-m-d H:i:s' );
+			$is_placeholder_title = true;
 		}
 
 		// Determine post ID for checking pos_last_response_id
@@ -1950,7 +1969,12 @@ class OpenAI_Module extends POS_Module {
 		// Create or update post
 		if ( ! empty( $existing_posts ) ) {
 			$post_data['ID'] = $existing_posts[0]->ID;
-			unset( $post_data['post_title'], $post_data['post_name'] );
+			// Only keep post_title if we generated a new one (replacing placeholder)
+			// Otherwise, don't update the title
+			if ( empty( $post_title ) || ! $has_placeholder_title ) {
+				unset( $post_data['post_title'] );
+			}
+			unset( $post_data['post_name'] );
 
 			if ( $append ) {
 				// Append new blocks to existing content
@@ -1966,7 +1990,7 @@ class OpenAI_Module extends POS_Module {
 
 			// Only update if there is content to update or we are not just appending empty content
 			// But here we might want to update just to ensure touch?
-			if ( isset( $post_data['post_content'] ) || ! $append ) {
+			if ( isset( $post_data['post_content'] ) || isset( $post_data['post_title'] ) || ! $append ) {
 				$post_id = wp_update_post( $post_data );
 			} else {
 				$post_id = $post_data['ID'];
@@ -1977,12 +2001,18 @@ class OpenAI_Module extends POS_Module {
 			// Ensure defaults for new post
 			if ( empty( $post_data['post_title'] ) ) {
 				$post_data['post_title'] = 'Chat ' . gmdate( 'Y-m-d H:i:s' );
+				$is_placeholder_title = true;
 			}
 			if ( empty( $post_data['post_name'] ) ) {
 				$post_data['post_name'] = 'chat-' . gmdate( 'Y-m-d-H-i-s' );
 			}
 
 			$post_id = wp_insert_post( $post_data );
+
+			// Mark as placeholder title so we can regenerate later when we have messages
+			if ( $is_placeholder_title && ! is_wp_error( $post_id ) ) {
+				update_post_meta( $post_id, '_pos_placeholder_title', true );
+			}
 
 			// Add to specified notebook or default to OpenAI chats
 			$notebook_slug = $search_args['notebook'] ?? 'ai-chats';
@@ -2026,7 +2056,28 @@ class OpenAI_Module extends POS_Module {
 
 			// Only include user and assistant messages
 			if ( in_array( $message['role'], array( 'user', 'assistant' ), true ) ) {
-				$conversation_content .= $message['role'] . ': ' . $message['content'] . "\n";
+				// Extract text content - handle both string and array formats (Responses API)
+				$content = $message['content'];
+				if ( is_array( $content ) ) {
+					$text_parts = array();
+					foreach ( $content as $part ) {
+						if ( is_object( $part ) ) {
+							$part = (array) $part;
+						}
+						if ( isset( $part['type'] ) && 'input_text' === $part['type'] && isset( $part['text'] ) ) {
+							$text_parts[] = $part['text'];
+						} elseif ( isset( $part['text'] ) ) {
+							$text_parts[] = $part['text'];
+						}
+					}
+					$content = implode( "\n", $text_parts );
+				}
+
+				if ( empty( $content ) ) {
+					continue;
+				}
+
+				$conversation_content .= $message['role'] . ': ' . $content . "\n";
 				$message_count++;
 
 				// Limit to first few exchanges to avoid token limits
