@@ -26,6 +26,20 @@ class OllamaServerTest extends WP_UnitTestCase {
 			->with( 'ollama_auth_token' )
 			->willReturn( 'test-token-123' );
 
+		// Mock get_chat_prompts to return test prompts with personalos:4o model
+		$this->mock_openai_module->method( 'get_chat_prompts' )
+			->willReturn(
+				array(
+					'prompt_default' => array(
+						'id'          => 'prompt_default',
+						'post_id'     => 1,
+						'name'        => 'Default Prompt',
+						'description' => 'Default prompt description',
+						'model'       => 'personalos:4o',
+					),
+				)
+			);
+
 		// Create Ollama server instance
 		$this->ollama_server = new POS_Ollama_Server( $this->mock_openai_module );
 	}
@@ -63,6 +77,38 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$this->assertEquals( 'personalos', $details['family'] );
 		$this->assertEquals( '4.0B', $details['parameter_size'] );
 		$this->assertEquals( 'Q4_K_M', $details['quantization_level'] );
+	}
+
+	/**
+	 * Test GET /api/tags endpoint with no prompts (empty models).
+	 *
+	 * @covers POS_Ollama_Server::get_tags
+	 * @covers POS_Ollama_Server::init_models
+	 */
+	public function test_get_tags_no_prompts() {
+		// Create a new mock with empty prompts
+		$mock_module_no_prompts = $this->createMock( OpenAI_Module::class );
+		$mock_module_no_prompts->settings = array();
+		$mock_module_no_prompts->method( 'get_setting' )
+			->with( 'ollama_auth_token' )
+			->willReturn( 'test-token-123' );
+		$mock_module_no_prompts->method( 'get_chat_prompts' )
+			->willReturn( array() );
+
+		$ollama_server_no_prompts = new POS_Ollama_Server( $mock_module_no_prompts );
+
+		$request = new WP_REST_Request( 'GET', '/ollama/v1/api/tags' );
+		$request->set_param( 'token', 'test-token-123' );
+
+		$response = $ollama_server_no_prompts->get_tags( $request );
+
+		$this->assertInstanceOf( WP_REST_Response::class, $response );
+		$this->assertEquals( 200, $response->get_status() );
+
+		$data = $response->get_data();
+		$this->assertArrayHasKey( 'models', $data );
+		$this->assertIsArray( $data['models'] );
+		$this->assertCount( 0, $data['models'] );
 	}
 
 	/**
@@ -965,7 +1011,7 @@ class OllamaServerTest extends WP_UnitTestCase {
 
 		// Create a partial mock that only mocks complete_backscroll but keeps save_backscroll real
 		$partial_mock = $this->getMockBuilder( get_class( $real_openai_module ) )
-			->setMethods( array( 'complete_backscroll', 'get_setting' ) )
+			->setMethods( array( 'complete_backscroll', 'get_setting', 'get_chat_prompts' ) )
 			->getMock();
 
 		// Mock get_setting to return appropriate values for different settings
@@ -981,6 +1027,20 @@ class OllamaServerTest extends WP_UnitTestCase {
 							return null;
 					}
 				}
+			);
+
+		// Mock get_chat_prompts to return test prompts with personalos:4o model
+		$partial_mock->method( 'get_chat_prompts' )
+			->willReturn(
+				array(
+					'prompt_default' => array(
+						'id'          => 'prompt_default',
+						'post_id'     => 1,
+						'name'        => 'Default Prompt',
+						'description' => 'Default prompt description',
+						'model'       => 'personalos:4o',
+					),
+				)
 			);
 
 		// Create Ollama server with partial mock
