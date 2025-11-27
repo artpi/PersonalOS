@@ -1944,15 +1944,16 @@ class OpenAI_Module extends POS_Module {
 					}
 				}
 
-				// Create message block
+				// Create message block with content in innerHTML (not attributes)
+				// This preserves newlines naturally without escaping hacks
+				$inner_html = '<span class="ai-message-text">' . esc_html( $content ) . '</span>';
 				$content_blocks[] = get_comment_delimited_block_content(
 					'pos/ai-message',
 					array(
-						'role'    => $role,
-						'content' => $content,
-						'id'      => $message_id,
+						'role' => $role,
+						'id'   => $message_id,
 					),
-					''
+					$inner_html
 				);
 			}
 		}
@@ -1992,6 +1993,9 @@ class OpenAI_Module extends POS_Module {
 				$post_data['post_content'] = implode( "\n\n", $content_blocks );
 			}
 
+			// Note: wp_slash is handled by preserve_ai_message_newlines filter
+			// to protect escaped newlines from wp_unslash
+
 			// Only update if there is content to update or we are not just appending empty content
 			// But here we might want to update just to ensure touch?
 			if ( isset( $post_data['post_content'] ) || isset( $post_data['post_title'] ) || ! $append ) {
@@ -2001,6 +2005,7 @@ class OpenAI_Module extends POS_Module {
 			}
 		} else {
 			// Create new
+			// Note: wp_slash is handled by preserve_ai_message_newlines filter
 			$post_data['post_content'] = implode( "\n\n", $content_blocks );
 			// Ensure defaults for new post
 			if ( empty( $post_data['post_title'] ) ) {

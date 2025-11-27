@@ -28,6 +28,12 @@ function personalos_map_notebook_to_para_item( $notebook ) {
  * @param int $post_id The post ID to retrieve messages from.
  * @return array Parsed messages.
  */
+/**
+ * Get messages from a post and parse them into UIMessage format
+ *
+ * @param int $post_id The post ID to retrieve messages from.
+ * @return array Parsed messages.
+ */
 function personalos_get_messages_from_post( $post_id ) {
 	$post = get_post( $post_id );
 	if ( ! $post ) {
@@ -38,17 +44,17 @@ function personalos_get_messages_from_post( $post_id ) {
 	$messages = array();
 
 	foreach ( $blocks as $block ) {
-		if ( $block['blockName'] === 'pos/ai-message' ) {
+		if ( 'pos/ai-message' === $block['blockName'] ) {
 			$role = $block['attrs']['role'] ?? 'user';
-			// Handle different content structures if necessary, for now assume string content in attrs or innerContent
-			// Gutenberg blocks usually store content in innerContent for HTML, but pos/ai-message might be different.
-			// Looking at save_backscroll implementation:
-			// $content_blocks[] = get_comment_delimited_block_content( ... 'content' => $content ... )
-			// This usually implies attribute storage or innerHTML if it's a dynamic block saving.
-			// However, save_backscroll uses get_comment_delimited_block_content which suggests attributes serialization.
-
-			$content = $block['attrs']['content'] ?? '';
 			$id = $block['attrs']['id'] ?? 'generated_' . uniqid();
+
+			// Content is stored in innerHTML as <span class="ai-message-text">...</span>
+			$content = '';
+			if ( ! empty( $block['innerHTML'] ) ) {
+				if ( preg_match( '/<span class="ai-message-text">(.*?)<\/span>/s', $block['innerHTML'], $matches ) ) {
+					$content = html_entity_decode( $matches[1], ENT_QUOTES, 'UTF-8' );
+				}
+			}
 
 			$messages[] = array(
 				'id'        => $id,

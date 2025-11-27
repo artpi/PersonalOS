@@ -2,13 +2,16 @@
   "name": "Personal Chat",
   "short_name": "PersonalOS",
   "description": "Personal Chat Assistant",
-  "start_url": "/",
+  "start_url": "/wp-admin/admin.php?page=personalos-chatbot",
+  "id": "/wp-admin/admin.php?page=personalos-chatbot",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#000000",
   "icons": [
     {
-      "src": "/images/apple-icon.png",
+      "src": "/wp-content/plugins/personalos/build/chatbot/images/apple-icon.png",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any maskable"

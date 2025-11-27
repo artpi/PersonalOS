@@ -206,6 +206,264 @@ class OpenAIModuleTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test that newlines in content are preserved after initial save
+	 */
+	public function test_save_backscroll_preserves_newlines_on_initial_save() {
+		$content_with_newlines = "Hello!\n\nThis is a test.\n\n### Header\n- Item 1\n- Item 2";
+		$backscroll = array(
+			array(
+				'role'    => 'user',
+				'content' => 'Test question',
+				'id'      => 'user-1',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => $content_with_newlines,
+				'id'      => 'assistant-1',
+			),
+		);
+		$config = array( 'name' => 'test-newlines-initial' );
+
+		$reflection = new ReflectionClass( $this->module );
+		$method = $reflection->getMethod( 'save_backscroll' );
+		$method->setAccessible( true );
+
+		$post_id = $method->invokeArgs( $this->module, array( $backscroll, $config ) );
+		$post = get_post( $post_id );
+
+		// Parse blocks to get the content back
+		$blocks = parse_blocks( $post->post_content );
+		$assistant_block = null;
+		foreach ( $blocks as $block ) {
+			if ( 'pos/ai-message' === $block['blockName'] && 'assistant' === ( $block['attrs']['role'] ?? '' ) ) {
+				$assistant_block = $block;
+				break;
+			}
+		}
+
+		$this->assertNotNull( $assistant_block, 'Assistant block should exist' );
+		
+		// Content is now stored in innerHTML, extract it
+		$inner_html = $assistant_block['innerHTML'] ?? '';
+		$this->assertStringContainsString( 'ai-message-text', $inner_html, 'Should have ai-message-text span' );
+		
+		// Extract content and verify newlines are preserved
+		preg_match( '/<span class="ai-message-text">(.*?)<\/span>/s', $inner_html, $matches );
+		$saved_content = html_entity_decode( $matches[1] ?? '', ENT_QUOTES, 'UTF-8' );
+		
+		$this->assertStringContainsString( "\n", $saved_content, 'Newlines should be preserved' );
+		$this->assertStringNotContainsString( 'nn', $saved_content, 'Should not have corrupted nn' );
+	}
+
+	/**
+	 * Test that newlines are preserved when appending messages to existing conversation
+	 */
+	public function test_save_backscroll_preserves_newlines_on_append() {
+		$first_content = "First response.\n\nWith newlines.";
+		$second_content = "Second response.\n\n### More content\n- List item";
+
+		$reflection = new ReflectionClass( $this->module );
+		$method = $reflection->getMethod( 'save_backscroll' );
+		$method->setAccessible( true );
+
+		// First save
+		$backscroll1 = array(
+			array(
+				'role'    => 'user',
+				'content' => 'First question',
+				'id'      => 'user-1',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => $first_content,
+				'id'      => 'assistant-1',
+			),
+		);
+		$config = array( 'name' => 'test-newlines-append' );
+		$post_id = $method->invokeArgs( $this->module, array( $backscroll1, $config ) );
+
+		// Append second turn
+		$backscroll2 = array(
+			array(
+				'role'    => 'user',
+				'content' => 'Second question',
+				'id'      => 'user-2',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => $second_content,
+				'id'      => 'assistant-2',
+			),
+		);
+		$post_id2 = $method->invokeArgs( $this->module, array( $backscroll2, $config, true ) ); // append=true
+
+		$this->assertEquals( $post_id, $post_id2, 'Should update same post' );
+
+		$post = get_post( $post_id );
+		$blocks = parse_blocks( $post->post_content );
+
+		$assistant_blocks = array();
+		foreach ( $blocks as $block ) {
+			if ( 'pos/ai-message' === $block['blockName'] && 'assistant' === ( $block['attrs']['role'] ?? '' ) ) {
+				$assistant_blocks[] = $block;
+			}
+		}
+
+		$this->assertCount( 2, $assistant_blocks, 'Should have 2 assistant messages' );
+
+		// Helper to extract content from innerHTML
+		$extract_content = function( $block ) {
+			$inner_html = $block['innerHTML'] ?? '';
+			preg_match( '/<span class="ai-message-text">(.*?)<\/span>/s', $inner_html, $matches );
+			return html_entity_decode( $matches[1] ?? '', ENT_QUOTES, 'UTF-8' );
+		};
+
+		// Check first message still has proper newlines
+		$first_saved = $extract_content( $assistant_blocks[0] );
+		$this->assertStringContainsString( "\n", $first_saved, 'First message should have newlines' );
+		$this->assertStringNotContainsString( 'nn', $first_saved, 'First message should not be corrupted' );
+
+		// Check second message has proper newlines
+		$second_saved = $extract_content( $assistant_blocks[1] );
+		$this->assertStringContainsString( "\n", $second_saved, 'Second message should have newlines' );
+		$this->assertStringNotContainsString( 'nn', $second_saved, 'Second message should not be corrupted' );
+	}
+
+	/**
+	 * Test that multiple rounds of appending don't corrupt newlines
+	 */
+	public function test_save_backscroll_preserves_newlines_multiple_appends() {
+		$reflection = new ReflectionClass( $this->module );
+		$method = $reflection->getMethod( 'save_backscroll' );
+		$method->setAccessible( true );
+
+		$config = array( 'name' => 'test-newlines-multi-append' );
+
+		// Initial save
+		$backscroll = array(
+			array(
+				'role'    => 'user',
+				'content' => 'Question 1',
+				'id'      => 'user-1',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => "Answer 1.\n\nWith newlines.",
+				'id'      => 'assistant-1',
+			),
+		);
+		$post_id = $method->invokeArgs( $this->module, array( $backscroll, $config ) );
+
+		// Append 3 more times
+		for ( $i = 2; $i <= 4; $i++ ) {
+			$append_backscroll = array(
+				array(
+					'role'    => 'user',
+					'content' => "Question $i",
+					'id'      => "user-$i",
+				),
+				array(
+					'role'    => 'assistant',
+					'content' => "Answer $i.\n\n### Section\n- Item",
+					'id'      => "assistant-$i",
+				),
+			);
+			$method->invokeArgs( $this->module, array( $append_backscroll, $config, true ) );
+		}
+
+		$post = get_post( $post_id );
+		$blocks = parse_blocks( $post->post_content );
+
+		$assistant_blocks = array();
+		foreach ( $blocks as $block ) {
+			if ( 'pos/ai-message' === $block['blockName'] && 'assistant' === ( $block['attrs']['role'] ?? '' ) ) {
+				$assistant_blocks[] = $block;
+			}
+		}
+
+		$this->assertCount( 4, $assistant_blocks, 'Should have 4 assistant messages after multiple appends' );
+
+		// Helper to extract content from innerHTML
+		$extract_content = function( $block ) {
+			$inner_html = $block['innerHTML'] ?? '';
+			preg_match( '/<span class="ai-message-text">(.*?)<\/span>/s', $inner_html, $matches );
+			return html_entity_decode( $matches[1] ?? '', ENT_QUOTES, 'UTF-8' );
+		};
+
+		// Check ALL messages still have proper newlines (not corrupted)
+		foreach ( $assistant_blocks as $index => $block ) {
+			$content = $extract_content( $block );
+			$this->assertStringContainsString( "\n", $content, "Message $index should have newlines" );
+			$this->assertStringNotContainsString( 'nn', $content, "Message $index should not have corrupted 'nn'" );
+		}
+	}
+
+	/**
+	 * Test that newlines survive a simulated Gutenberg editor save (wp_update_post directly)
+	 * This simulates what happens when a user edits a chat in the block editor and saves.
+	 */
+	public function test_newlines_survive_gutenberg_editor_save() {
+		$content_with_newlines = "Response with newlines.\n\n### Header\n- Item";
+		
+		$reflection = new ReflectionClass( $this->module );
+		$method = $reflection->getMethod( 'save_backscroll' );
+		$method->setAccessible( true );
+
+		// Initial save via save_backscroll
+		$backscroll = array(
+			array(
+				'role'    => 'user',
+				'content' => 'Question',
+				'id'      => 'user-1',
+			),
+			array(
+				'role'    => 'assistant',
+				'content' => $content_with_newlines,
+				'id'      => 'assistant-1',
+			),
+		);
+		$config = array( 'name' => 'test-gutenberg-save' );
+		$post_id = $method->invokeArgs( $this->module, array( $backscroll, $config ) );
+
+		// Get the current post content
+		$post = get_post( $post_id );
+		$original_content = $post->post_content;
+
+		// Verify it has the innerHTML structure
+		$this->assertStringContainsString( 'ai-message-text', $original_content, 'Should have ai-message-text span' );
+
+		// Simulate Gutenberg editor save - just re-save the same content via wp_update_post
+		// This is what happens when user clicks "Update" in the editor
+		wp_update_post( array(
+			'ID'           => $post_id,
+			'post_content' => $original_content,
+		) );
+
+		// Check if newlines survived
+		$post_after_edit = get_post( $post_id );
+		$blocks = parse_blocks( $post_after_edit->post_content );
+		
+		$assistant_block = null;
+		foreach ( $blocks as $block ) {
+			if ( 'pos/ai-message' === $block['blockName'] && 'assistant' === ( $block['attrs']['role'] ?? '' ) ) {
+				$assistant_block = $block;
+				break;
+			}
+		}
+
+		$this->assertNotNull( $assistant_block, 'Assistant block should exist after editor save' );
+		
+		// Extract content from innerHTML
+		$inner_html = $assistant_block['innerHTML'] ?? '';
+		preg_match( '/<span class="ai-message-text">(.*?)<\/span>/s', $inner_html, $matches );
+		$saved_content = html_entity_decode( $matches[1] ?? '', ENT_QUOTES, 'UTF-8' );
+		
+		// With innerHTML storage, newlines are preserved naturally - no escaping needed
+		$this->assertStringContainsString( "\n", $saved_content, 'Newlines should survive Gutenberg editor save' );
+		$this->assertStringNotContainsString( 'nn', $saved_content, 'Should not have corrupted nn after editor save' );
+	}
+
+	/**
 	 * Test save_backscroll error handling when notes module is not available
 	 */
 	public function test_save_backscroll_notes_module_unavailable() {

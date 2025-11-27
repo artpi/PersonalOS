@@ -477,4 +477,40 @@
 	.wp-block-pos-ai-message .markdown-content td {
 		padding: 6px 8px;
 	}
-} 
+}
+
+/* Editor textarea styling */
+.wp-block-pos-ai-message .message-editor {
+	width: 100%;
+	min-height: 100px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+	font-size: 13px;
+	line-height: 1.6;
+	color: inherit;
+	resize: vertical;
+	outline: none;
+}
+
+.wp-block-pos-ai-message .message-editor::placeholder {
+	color: inherit;
+	opacity: 0.5;
+}
+
+/* Click-to-edit hint */
+.wp-block-pos-ai-message .markdown-content {
+	cursor: text;
+}
+
+.wp-block-pos-ai-message.is-selected .markdown-content:not(:has(textarea))::after {
+	content: 'Click to edit';
+	position: absolute;
+	bottom: 8px;
+	right: 12px;
+	font-size: 10px;
+	opacity: 0.4;
+	font-style: italic;
+	pointer-events: none;
+}

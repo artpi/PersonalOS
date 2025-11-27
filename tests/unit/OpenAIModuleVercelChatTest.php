@@ -82,8 +82,8 @@ class OpenAIModuleVercelChatTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Hello', $post_updated->post_content );
 		$this->assertStringContainsString( 'Hi there', $post_updated->post_content );
 		
-		// Check structure: should have 2 block delimiters
-		$this->assertEquals( 2, substr_count( $post_updated->post_content, 'wp:pos/ai-message' ) );
+		// Check structure: should have 2 blocks (count opening tags only, not closing)
+		$this->assertEquals( 2, substr_count( $post_updated->post_content, '<!-- wp:pos/ai-message' ) );
 	}
 
 	/**
