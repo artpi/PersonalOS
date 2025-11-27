@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import ClientOnly from '@/components/client-only';
+import { PWARegister } from '@/components/pwa-register';
 // import { GeistSans } from 'geist/font/sans'; // Removed due to resolution issues
 
 import './globals.css';
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
   applicationName: 'PersonalOS',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'Personal Chat',
     // startupImage: [
     //   '/images/apple-touch-startup-image-768x1004.png',
@@ -32,7 +33,7 @@ export const metadata: Metadata = {
       { url: '/wp-content/plugins/personalos/build/chatbot/images/apple-icon.png', sizes: '180x180', type: 'image/png' },
     ],
   },
-//   manifest: '/wp-content/plugins/personalos/build/chatbot/manifest.json',
+  manifest: '/wp-content/plugins/personalos/build/chatbot/manifest.json',
 };
 
 export const viewport = {
@@ -90,7 +91,7 @@ export default async function RootLayout({
     >
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Personal Chat" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
@@ -102,6 +103,7 @@ export default async function RootLayout({
         />
       </head>
       <body className="antialiased">
+        <PWARegister />
         <ClientOnly>{children}</ClientOnly>
       </body>
     </html>

@@ -99,8 +99,19 @@
         @apply border-border;
     }
 
+    html {
+        /* PWA safe area handling for iOS notch and home indicator */
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+
     body {
         @apply bg-background text-foreground;
+        /* Ensure content respects safe areas */
+        min-height: 100vh;
+        min-height: 100dvh;
     }
 }
 
