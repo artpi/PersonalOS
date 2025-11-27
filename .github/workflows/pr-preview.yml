@@ -9,7 +9,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  lint:
+  lint-php:
     if: ${{ github.event.pull_request.state == 'open' && github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     steps:
@@ -19,37 +19,70 @@ jobs:
           ref: refs/pull/${{ github.event.number }}/merge
           fetch-depth: 0
 
-      - name: Get changed files
+      - name: Get changed PHP files
         id: changed-files
         uses: tj-actions/changed-files@v45
         with:
-          files_yaml: |
-            php:
-              - '**/*.php'
-              - '!vendor/**'
-              - '!node_modules/**'
-            js:
-              - 'src/**/*.js'
-              - '!node_modules/**'
-              - '!build/**'
+          files: |
+            **/*.php
+            !vendor/**
+            !node_modules/**
 
-      - name: Setup dependencies
-        if: steps.changed-files.outputs.php_any_changed == 'true' || steps.changed-files.outputs.js_any_changed == 'true'
-        uses: ./.github/actions/setup-deps
+      - name: Set up PHP
+        if: steps.changed-files.outputs.any_changed == 'true'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer
+          extensions: mbstring, imap
 
-      - name: Lint JS files
-        if: steps.changed-files.outputs.js_any_changed == 'true'
-        run: |
-          echo "Linting changed JS files:"
-          echo "${{ steps.changed-files.outputs.js_all_changed_files }}"
-          npm run lint:js -- ${{ steps.changed-files.outputs.js_all_changed_files }}
+      - name: Install Composer dependencies
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: composer install --no-interaction --no-progress --optimize-autoloader
 
       - name: Lint PHP files
-        if: steps.changed-files.outputs.php_any_changed == 'true'
+        if: steps.changed-files.outputs.any_changed == 'true'
         run: |
           echo "Linting changed PHP files:"
-          echo "${{ steps.changed-files.outputs.php_all_changed_files }}"
-          composer run lint -- ${{ steps.changed-files.outputs.php_all_changed_files }}
+          echo "${{ steps.changed-files.outputs.all_changed_files }}"
+          composer run lint -- ${{ steps.changed-files.outputs.all_changed_files }}
+
+  lint-js:
+    if: ${{ github.event.pull_request.state == 'open' && github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR merge ref
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.number }}/merge
+          fetch-depth: 0
+
+      - name: Get changed JS files
+        id: changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: |
+            src/**/*.js
+            !node_modules/**
+            !build/**
+
+      - name: Set up Node.js
+        if: steps.changed-files.outputs.any_changed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install Node.js dependencies
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: npm ci
+
+      - name: Lint JS files
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          echo "Linting changed JS files:"
+          echo "${{ steps.changed-files.outputs.all_changed_files }}"
+          npm run lint:js -- ${{ steps.changed-files.outputs.all_changed_files }}
 
   test:
     if: ${{ github.event.pull_request.state == 'open' && github.event.pull_request.draft == false }}
@@ -72,7 +105,7 @@ jobs:
 
   build-and-publish:
     if: ${{ github.event.pull_request.state == 'open' && github.event.pull_request.draft == false }}
-    needs: [lint, test]
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR merge ref
