@@ -1,16 +1,8 @@
 import './index.css';
 import { registerBlockType } from '@wordpress/blocks';
-import { 
-	InspectorControls,
-	useBlockProps 
-} from '@wordpress/block-editor';
-import { 
-	PanelBody, 
-	SelectControl, 
-	TextControl 
-} from '@wordpress/components';
+import { useBlockProps } from '@wordpress/block-editor';
 import { __ } from '@wordpress/i18n';
-import { useMemo } from '@wordpress/element';
+import { useState, useMemo } from '@wordpress/element';
 import Showdown from 'showdown';
 import metadata from './block.json';
 
@@ -21,14 +13,14 @@ const converter = new Showdown.Converter({
 	tasklists: true,
 	ghCodeBlocks: true,
 	ghMentions: false,
-	simpleLineBreaks: false, // Use false for better paragraph handling
+	simpleLineBreaks: false,
 	requireSpaceBeforeHeadingText: true,
 	openLinksInNewWindow: true,
 	backslashEscapesHTMLTags: true,
 	underline: true,
 	emoji: true,
 	splitAdjacentBlockquotes: true,
-	noHeaderId: true, // Disable header IDs for cleaner HTML
+	noHeaderId: true,
 	parseImgDimensions: true,
 	headerLevelStart: 1,
 	smoothLivePreview: true
@@ -38,13 +30,10 @@ const converter = new Showdown.Converter({
 converter.addExtension({
 	type: 'output',
 	filter: function (text) {
-		// Convert double line breaks to paragraphs properly
 		text = text.replace(/\n\n/g, '</p><p>');
-		// Wrap content in paragraph tags if not already wrapped
 		if (!text.startsWith('<p>') && !text.startsWith('<h') && !text.startsWith('<ul>') && !text.startsWith('<ol>') && !text.startsWith('<blockquote>') && !text.startsWith('<pre>')) {
 			text = '<p>' + text + '</p>';
 		}
-		// Clean up empty paragraphs
 		text = text.replace(/<p><\/p>/g, '');
 		return text;
 	}
@@ -52,17 +41,12 @@ converter.addExtension({
 
 // Register the message block
 registerBlockType( metadata, {
-	edit: ( { attributes, setAttributes } ) => {
-		const { content, role, id } = attributes;
+	edit: ( { attributes, setAttributes, isSelected } ) => {
+		const { content, role } = attributes;
+		const [ isEditing, setIsEditing ] = useState( false );
 		const blockProps = useBlockProps( {
 			className: `message-role-${ role }`
 		} );
-
-		const roleOptions = [
-			{ label: __( 'User', 'personalos' ), value: 'user' },
-			{ label: __( 'Assistant', 'personalos' ), value: 'assistant' },
-			{ label: __( 'System', 'personalos' ), value: 'system' }
-		];
 
 		const roleIcons = {
 			user: '👤',
@@ -71,7 +55,6 @@ registerBlockType( metadata, {
 		};
 
 		// Convert markdown to HTML using showdown
-		// Content now comes with actual newlines (stored in innerHTML), no unescaping needed
 		const htmlContent = useMemo( () => {
 			if ( ! content ) {
 				return '';
@@ -80,45 +63,50 @@ registerBlockType( metadata, {
 				return converter.makeHtml( content );
 			} catch ( error ) {
 				console.warn( 'Markdown parsing error:', error );
-				// Fallback to plain text with basic formatting
 				return content.replace( /\n/g, '<br>' );
 			}
 		}, [ content ] );
 
+		// Switch to view mode when block is deselected
+		if ( ! isSelected && isEditing ) {
+			setIsEditing( false );
+		}
+
 		return (
 			<div { ...blockProps }>
-				<InspectorControls>
-					<PanelBody title={ __( 'Message Settings', 'personalos' ) }>
-						<SelectControl
-							label={ __( 'Role', 'personalos' ) }
-							value={ role }
-							options={ roleOptions }
-							onChange={ ( newRole ) => setAttributes( { role: newRole } ) }
-						/>
-						<TextControl
-							label={ __( 'Message ID', 'personalos' ) }
-							value={ id }
-							onChange={ ( newId ) => setAttributes( { id: newId } ) }
-							help={ __( 'Optional unique identifier for this message', 'personalos' ) }
-						/>
-					</PanelBody>
-				</InspectorControls>
-
 				<div className="openai-message-block">
 					<div className="message-header">
 						<span className="message-role-icon">{ roleIcons[ role ] }</span>
 						<span className="message-role-label">{ role }</span>
-						{ id && <span className="message-id">ID: { id }</span> }
 					</div>
 					<div className="message-content">
-						{ content ? (
-							<div 
-								className="markdown-content"
-								dangerouslySetInnerHTML={ { __html: htmlContent } }
+						{ isEditing ? (
+							<textarea
+								className="message-editor"
+								value={ content }
+								onChange={ ( e ) => setAttributes( { content: e.target.value } ) }
+								placeholder={ __( 'Enter message content (markdown supported)...', 'personalos' ) }
+								rows={ 10 }
 							/>
 						) : (
-							<div className="empty-placeholder">
-								{ __( 'No content (populated via API)', 'personalos' ) }
+							<div 
+								className="markdown-content"
+								onClick={ () => setIsEditing( true ) }
+								role="button"
+								tabIndex={ 0 }
+								onKeyDown={ ( e ) => {
+									if ( e.key === 'Enter' || e.key === ' ' ) {
+										setIsEditing( true );
+									}
+								} }
+							>
+								{ content ? (
+									<div dangerouslySetInnerHTML={ { __html: htmlContent } } />
+								) : (
+									<div className="empty-placeholder">
+										{ __( 'Click to edit message...', 'personalos' ) }
+									</div>
+								) }
 							</div>
 						) }
 					</div>
@@ -128,8 +116,6 @@ registerBlockType( metadata, {
 	},
 	save: ( { attributes } ) => {
 		const { content } = attributes;
-		// Save content as innerHTML - WordPress will preserve newlines naturally
-		// The span.ai-message-text is the selector defined in block.json
 		return <span className="ai-message-text">{ content }</span>;
 	}
 } );
