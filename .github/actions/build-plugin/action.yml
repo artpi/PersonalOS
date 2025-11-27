@@ -24,34 +24,15 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
+    - name: Setup dependencies
+      uses: ./.github/actions/setup-deps
       with:
         node-version: ${{ inputs.node-version }}
-        cache: npm
-
-    - name: Install Node.js dependencies
-      run: npm ci
-      shell: bash
-
-    - name: Set up PHP
-      uses: shivammathur/setup-php@v2
-      with:
         php-version: ${{ inputs.php-version }}
-        tools: composer
-        extensions: mbstring, zip, imap
-
-    - name: Install Composer dependencies
-      run: |
-        if [ "${{ inputs.composer-no-dev }}" = "true" ]; then
-          composer install --no-interaction --no-progress --no-scripts --optimize-autoloader --no-dev
-        else
-          composer install --no-interaction --no-progress --no-scripts --optimize-autoloader
-        fi
-      shell: bash
+        composer-no-dev: ${{ inputs.composer-no-dev }}
 
     - name: Build plugin assets
-      run: npx --yes @wordpress/scripts@30.7.0 build
+      run: npm run build
       shell: bash
 
     - name: Create plugin ZIP
@@ -61,4 +42,3 @@ runs:
     - id: zip-path
       run: echo "path=${{ inputs.zip-path }}" >> "$GITHUB_OUTPUT"
       shell: bash
-

@@ -1,0 +1,13 @@
+name: Setup WP-Env
+description: Build plugin assets and start WordPress environment (requires setup-deps first)
+runs:
+  using: composite
+  steps:
+    - name: Build plugin assets
+      run: npm run build
+      shell: bash
+
+    - name: Start WordPress environment
+      run: npm run wp-env -- start --update
+      shell: bash
+

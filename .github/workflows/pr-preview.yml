@@ -9,8 +9,70 @@ permissions:
   pull-requests: write
 
 jobs:
+  lint:
+    if: ${{ github.event.pull_request.state == 'open' && github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR merge ref
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.number }}/merge
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files_yaml: |
+            php:
+              - '**/*.php'
+              - '!vendor/**'
+              - '!node_modules/**'
+            js:
+              - 'src/**/*.js'
+              - '!node_modules/**'
+              - '!build/**'
+
+      - name: Setup dependencies
+        if: steps.changed-files.outputs.php_any_changed == 'true' || steps.changed-files.outputs.js_any_changed == 'true'
+        uses: ./.github/actions/setup-deps
+
+      - name: Lint JS files
+        if: steps.changed-files.outputs.js_any_changed == 'true'
+        run: |
+          echo "Linting changed JS files:"
+          echo "${{ steps.changed-files.outputs.js_all_changed_files }}"
+          npm run lint:js -- ${{ steps.changed-files.outputs.js_all_changed_files }}
+
+      - name: Lint PHP files
+        if: steps.changed-files.outputs.php_any_changed == 'true'
+        run: |
+          echo "Linting changed PHP files:"
+          echo "${{ steps.changed-files.outputs.php_all_changed_files }}"
+          composer run lint -- ${{ steps.changed-files.outputs.php_all_changed_files }}
+
+  test:
+    if: ${{ github.event.pull_request.state == 'open' && github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR merge ref
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.number }}/merge
+          fetch-depth: 0
+
+      - name: Setup dependencies
+        uses: ./.github/actions/setup-deps
+
+      - name: Setup WP-Env
+        uses: ./.github/actions/setup-wp-env
+
+      - name: Run PHP unit tests
+        run: npm run test:unit:backend
+
   build-and-publish:
     if: ${{ github.event.pull_request.state == 'open' && github.event.pull_request.draft == false }}
+    needs: [lint, test]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR merge ref
@@ -74,4 +136,3 @@ jobs:
             Launch in Playground: [Open WordPress Playground](https://playground.wordpress.net/?networking=yes#{%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginData%22:{%22resource%22:%22url%22,%22url%22:%22http://pr.personalos.net/preview/${{ github.event.number }}/wp-personal-os.zip%22}}],%22landingPage%22:%22/wp-admin/admin.php?page=personalos-settings%22,%22login%22:true})
 
             Paste the ZIP URL into a WordPress Playground blueprint to load this PR build.
-

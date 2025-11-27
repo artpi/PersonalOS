@@ -1,0 +1,55 @@
+name: Setup Dependencies
+description: Set up Node.js, PHP, and install all dependencies
+inputs:
+  node-version:
+    description: Node.js version to use
+    required: false
+    default: '20'
+  php-version:
+    description: PHP version to use
+    required: false
+    default: '8.3'
+  composer-no-dev:
+    description: Skip dev dependencies in Composer
+    required: false
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Cache node_modules
+      id: cache-node_modules
+      uses: actions/cache@v4
+      env:
+        cache-name: cache-node-modules
+      with:
+        path: |
+          node_modules
+          patches
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('./package-lock.json', './patches/*') }}
+
+    - name: Install Node.js dependencies
+      if: steps.cache-node_modules.outputs.cache-hit != 'true'
+      run: npm ci
+      shell: bash
+
+    - name: Set up PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ inputs.php-version }}
+        tools: composer
+        extensions: mbstring, imap
+
+    - name: Install Composer dependencies
+      run: |
+        if [ "${{ inputs.composer-no-dev }}" = "true" ]; then
+          composer install --no-interaction --no-progress --optimize-autoloader --no-dev
+        else
+          composer install --no-interaction --no-progress --optimize-autoloader
+        fi
+      shell: bash
+
