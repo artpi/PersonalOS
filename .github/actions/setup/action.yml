@@ -32,6 +32,10 @@ runs:
           run: composer install --no-progress --prefer-dist --optimize-autoloader
           shell: bash
 
+        - name: Build plugin assets
+          run: npm run build
+          shell: bash
+
         - name: Install WordPress and start the server
-          run: npm run wp-env start
+          run: npm run wp-env -- start --update
           shell: bash
