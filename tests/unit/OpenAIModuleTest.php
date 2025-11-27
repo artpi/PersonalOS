@@ -242,10 +242,16 @@ class OpenAIModuleTest extends WP_UnitTestCase {
 		}
 
 		$this->assertNotNull( $assistant_block, 'Assistant block should exist' );
-		$saved_content = $assistant_block['attrs']['content'] ?? '';
-
-		// The content should have escaped newlines (\n as literal characters)
-		$this->assertStringContainsString( '\n', $saved_content, 'Newlines should be escaped as \\n' );
+		
+		// Content is now stored in innerHTML, extract it
+		$inner_html = $assistant_block['innerHTML'] ?? '';
+		$this->assertStringContainsString( 'ai-message-text', $inner_html, 'Should have ai-message-text span' );
+		
+		// Extract content and verify newlines are preserved
+		preg_match( '/<span class="ai-message-text">(.*?)<\/span>/s', $inner_html, $matches );
+		$saved_content = html_entity_decode( $matches[1] ?? '', ENT_QUOTES, 'UTF-8' );
+		
+		$this->assertStringContainsString( "\n", $saved_content, 'Newlines should be preserved' );
 		$this->assertStringNotContainsString( 'nn', $saved_content, 'Should not have corrupted nn' );
 	}
 
@@ -305,14 +311,21 @@ class OpenAIModuleTest extends WP_UnitTestCase {
 
 		$this->assertCount( 2, $assistant_blocks, 'Should have 2 assistant messages' );
 
+		// Helper to extract content from innerHTML
+		$extract_content = function( $block ) {
+			$inner_html = $block['innerHTML'] ?? '';
+			preg_match( '/<span class="ai-message-text">(.*?)<\/span>/s', $inner_html, $matches );
+			return html_entity_decode( $matches[1] ?? '', ENT_QUOTES, 'UTF-8' );
+		};
+
 		// Check first message still has proper newlines
-		$first_saved = $assistant_blocks[0]['attrs']['content'] ?? '';
-		$this->assertStringContainsString( '\n', $first_saved, 'First message should have escaped newlines' );
+		$first_saved = $extract_content( $assistant_blocks[0] );
+		$this->assertStringContainsString( "\n", $first_saved, 'First message should have newlines' );
 		$this->assertStringNotContainsString( 'nn', $first_saved, 'First message should not be corrupted' );
 
 		// Check second message has proper newlines
-		$second_saved = $assistant_blocks[1]['attrs']['content'] ?? '';
-		$this->assertStringContainsString( '\n', $second_saved, 'Second message should have escaped newlines' );
+		$second_saved = $extract_content( $assistant_blocks[1] );
+		$this->assertStringContainsString( "\n", $second_saved, 'Second message should have newlines' );
 		$this->assertStringNotContainsString( 'nn', $second_saved, 'Second message should not be corrupted' );
 	}
 
@@ -370,13 +383,18 @@ class OpenAIModuleTest extends WP_UnitTestCase {
 
 		$this->assertCount( 4, $assistant_blocks, 'Should have 4 assistant messages after multiple appends' );
 
+		// Helper to extract content from innerHTML
+		$extract_content = function( $block ) {
+			$inner_html = $block['innerHTML'] ?? '';
+			preg_match( '/<span class="ai-message-text">(.*?)<\/span>/s', $inner_html, $matches );
+			return html_entity_decode( $matches[1] ?? '', ENT_QUOTES, 'UTF-8' );
+		};
+
 		// Check ALL messages still have proper newlines (not corrupted)
 		foreach ( $assistant_blocks as $index => $block ) {
-			$content = $block['attrs']['content'] ?? '';
-			$this->assertStringContainsString( '\n', $content, "Message $index should have escaped newlines" );
+			$content = $extract_content( $block );
+			$this->assertStringContainsString( "\n", $content, "Message $index should have newlines" );
 			$this->assertStringNotContainsString( 'nn', $content, "Message $index should not have corrupted 'nn'" );
-			// Also check that we don't have double-escaped newlines
-			$this->assertStringNotContainsString( '\\\\n', $content, "Message $index should not have double-escaped newlines" );
 		}
 	}
 
@@ -411,8 +429,8 @@ class OpenAIModuleTest extends WP_UnitTestCase {
 		$post = get_post( $post_id );
 		$original_content = $post->post_content;
 
-		// Verify it has escaped newlines
-		$this->assertStringContainsString( '\n', $original_content, 'Should have escaped newlines after initial save' );
+		// Verify it has the innerHTML structure
+		$this->assertStringContainsString( 'ai-message-text', $original_content, 'Should have ai-message-text span' );
 
 		// Simulate Gutenberg editor save - just re-save the same content via wp_update_post
 		// This is what happens when user clicks "Update" in the editor
@@ -434,10 +452,14 @@ class OpenAIModuleTest extends WP_UnitTestCase {
 		}
 
 		$this->assertNotNull( $assistant_block, 'Assistant block should exist after editor save' );
-		$saved_content = $assistant_block['attrs']['content'] ?? '';
 		
-		// This is the key assertion - does the content survive?
-		$this->assertStringContainsString( '\n', $saved_content, 'Newlines should survive Gutenberg editor save' );
+		// Extract content from innerHTML
+		$inner_html = $assistant_block['innerHTML'] ?? '';
+		preg_match( '/<span class="ai-message-text">(.*?)<\/span>/s', $inner_html, $matches );
+		$saved_content = html_entity_decode( $matches[1] ?? '', ENT_QUOTES, 'UTF-8' );
+		
+		// With innerHTML storage, newlines are preserved naturally - no escaping needed
+		$this->assertStringContainsString( "\n", $saved_content, 'Newlines should survive Gutenberg editor save' );
 		$this->assertStringNotContainsString( 'nn', $saved_content, 'Should not have corrupted nn after editor save' );
 	}
 

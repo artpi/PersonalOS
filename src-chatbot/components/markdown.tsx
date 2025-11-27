@@ -5,14 +5,10 @@ import remarkGfm from 'remark-gfm';
 import { CodeBlock } from './code-block';
 
 /**
- * Decode HTML entities and unescape newlines for markdown rendering.
- * Content is stored with escaped \n to survive WordPress stripslashes.
+ * Decode HTML entities for markdown rendering.
  */
-function decodeAndUnescape(text: string): string {
+function decodeHtmlEntities(text: string): string {
 	let decoded = text;
-	
-	// Unescape newlines that were escaped for storage
-	decoded = decoded.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
 	
 	// Decode common HTML entities
 	decoded = decoded
@@ -126,8 +122,8 @@ const components: Partial<Components> = {
 const remarkPlugins = [remarkGfm];
 
 const NonMemoizedMarkdown = ({ children }: { children: string }) => {
-	// Decode HTML entities and unescape newlines before rendering
-	const decodedText = decodeAndUnescape(children);
+	// Decode HTML entities before rendering
+	const decodedText = decodeHtmlEntities(children);
 
 	return (
 		<ReactMarkdown remarkPlugins={remarkPlugins} components={components}>

@@ -11,6 +11,8 @@
 	"attributes": {
 		"content": {
 			"type": "string",
+			"source": "text",
+			"selector": ".ai-message-text",
 			"default": ""
 		},
 		"role": {

@@ -71,22 +71,20 @@ registerBlockType( metadata, {
 		};
 
 		// Convert markdown to HTML using showdown
+		// Content now comes with actual newlines (stored in innerHTML), no unescaping needed
 		const htmlContent = useMemo( () => {
 			if ( ! content ) {
 				return '';
 			}
 			try {
-				// Convert escaped newlines back to actual newlines for markdown rendering
-				const unescapedContent = content.replace( /\\n/g, '\n' ).replace( /\\r/g, '\r' );
-				return converter.makeHtml( unescapedContent );
+				return converter.makeHtml( content );
 			} catch ( error ) {
 				console.warn( 'Markdown parsing error:', error );
 				// Fallback to plain text with basic formatting
-				return content.replace( /\\n/g, '<br>' ).replace( /\n/g, '<br>' );
+				return content.replace( /\n/g, '<br>' );
 			}
 		}, [ content ] );
 
-		console.log( 'HTML', htmlContent );
 		return (
 			<div { ...blockProps }>
 				<InspectorControls>
@@ -128,8 +126,10 @@ registerBlockType( metadata, {
 			</div>
 		);
 	},
-	save: () => {
-		// No frontend rendering - editor only
-		return null;
+	save: ( { attributes } ) => {
+		const { content } = attributes;
+		// Save content as innerHTML - WordPress will preserve newlines naturally
+		// The span.ai-message-text is the selector defined in block.json
+		return <span className="ai-message-text">{ content }</span>;
 	}
-} ); 
+} );

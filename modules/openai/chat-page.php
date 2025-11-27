@@ -44,10 +44,17 @@ function personalos_get_messages_from_post( $post_id ) {
 	$messages = array();
 
 	foreach ( $blocks as $block ) {
-		if ( $block['blockName'] === 'pos/ai-message' ) {
+		if ( 'pos/ai-message' === $block['blockName'] ) {
 			$role = $block['attrs']['role'] ?? 'user';
-			$content = $block['attrs']['content'] ?? '';
 			$id = $block['attrs']['id'] ?? 'generated_' . uniqid();
+
+			// Content is stored in innerHTML as <span class="ai-message-text">...</span>
+			$content = '';
+			if ( ! empty( $block['innerHTML'] ) ) {
+				if ( preg_match( '/<span class="ai-message-text">(.*?)<\/span>/s', $block['innerHTML'], $matches ) ) {
+					$content = html_entity_decode( $matches[1], ENT_QUOTES, 'UTF-8' );
+				}
+			}
 
 			$messages[] = array(
 				'id'        => $id,
