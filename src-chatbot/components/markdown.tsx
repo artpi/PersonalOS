@@ -5,24 +5,11 @@ import remarkGfm from 'remark-gfm';
 import { CodeBlock } from './code-block';
 
 /**
- * Decode HTML entities and normalize text for markdown rendering
- * Handles cases where newlines are encoded as "n" or "nn" characters
+ * Decode HTML entities and fix newline encoding for markdown rendering.
+ * When text is saved/loaded from database, \n can become literal "n" characters.
  */
 function decodeAndNormalizeText(text: string): string {
 	let decoded = text;
-	
-	// Remove HTML tags but preserve their content
-	decoded = decoded.replace(/<[^>]*>/g, '');
-	
-	// Replace encoded newlines: "nn" = double newline, "n" = single newline
-	// Pattern: "nn" followed by "-" or space, or "n" followed by "-" or space
-	// Replace "nn" first (double newline) before single "n" to avoid double replacement
-	decoded = decoded.replace(/nn(?=\s*-)/g, '\n\n');
-	decoded = decoded.replace(/n(?=\s*-)/g, '\n');
-	
-	// Also handle cases where "nn" or "n" appears at end of line or before other whitespace
-	decoded = decoded.replace(/nn(?=\s)/g, '\n\n');
-	decoded = decoded.replace(/(?<!\n)n(?=\s)/g, '\n');
 	
 	// Decode common HTML entities
 	decoded = decoded
@@ -41,7 +28,16 @@ function decodeAndNormalizeText(text: string): string {
 		decoded = textarea.value;
 	}
 
-	return decoded.trim();
+	// Fix newline encoding: "nn" followed by capital letter = paragraph break
+	// e.g., "Nov 28):nnElectronics" -> "Nov 28):\n\nElectronics"
+	decoded = decoded.replace(/nn(?=[A-Z])/g, '\n\n');
+	
+	// Fix "n- " (with space after) = list item marker
+	// This pattern is safe because "n- " with space is almost always a list marker
+	// Words like "amazon-prime" don't have a space after the hyphen
+	decoded = decoded.replace(/n- /g, '\n- ');
+
+	return decoded;
 }
 
 const components: Partial<Components> = {
@@ -136,7 +132,7 @@ const components: Partial<Components> = {
 const remarkPlugins = [remarkGfm];
 
 const NonMemoizedMarkdown = ({ children }: { children: string }) => {
-	// Decode HTML entities and normalize the text before rendering
+	// Decode HTML entities and fix newline encoding before rendering
 	const normalizedText = decodeAndNormalizeText(children);
 
 	return (

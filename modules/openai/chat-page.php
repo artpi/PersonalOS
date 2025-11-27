@@ -28,6 +28,33 @@ function personalos_map_notebook_to_para_item( $notebook ) {
  * @param int $post_id The post ID to retrieve messages from.
  * @return array Parsed messages.
  */
+/**
+ * Fix corrupted newlines in message content.
+ * WordPress's stripslashes corrupts \n in JSON to just 'n'.
+ * This function restores them by detecting patterns like 'nn' before capitals and 'n-' for list items.
+ *
+ * @param string $content The potentially corrupted content.
+ * @return string Content with newlines restored.
+ */
+function personalos_fix_corrupted_newlines( $content ) {
+	// Fix "nn" followed by capital letter (paragraph break before new section)
+	$content = preg_replace( '/nn(?=[A-Z])/', "\n\n", $content );
+	// Fix "n- " (list item marker)
+	$content = str_replace( 'n- ', "\n- ", $content );
+	// Fix "n#" (markdown headers)
+	$content = preg_replace( '/n(#{1,6}\s)/', "\n$1", $content );
+	// Fix "n" followed by digit and period/parenthesis (numbered lists like "1." or "1)")
+	$content = preg_replace( '/n(\d+[.\)])\s/', "\n$1 ", $content );
+
+	return $content;
+}
+
+/**
+ * Get messages from a post and parse them into UIMessage format
+ *
+ * @param int $post_id The post ID to retrieve messages from.
+ * @return array Parsed messages.
+ */
 function personalos_get_messages_from_post( $post_id ) {
 	$post = get_post( $post_id );
 	if ( ! $post ) {
@@ -40,15 +67,11 @@ function personalos_get_messages_from_post( $post_id ) {
 	foreach ( $blocks as $block ) {
 		if ( $block['blockName'] === 'pos/ai-message' ) {
 			$role = $block['attrs']['role'] ?? 'user';
-			// Handle different content structures if necessary, for now assume string content in attrs or innerContent
-			// Gutenberg blocks usually store content in innerContent for HTML, but pos/ai-message might be different.
-			// Looking at save_backscroll implementation:
-			// $content_blocks[] = get_comment_delimited_block_content( ... 'content' => $content ... )
-			// This usually implies attribute storage or innerHTML if it's a dynamic block saving.
-			// However, save_backscroll uses get_comment_delimited_block_content which suggests attributes serialization.
-
 			$content = $block['attrs']['content'] ?? '';
 			$id = $block['attrs']['id'] ?? 'generated_' . uniqid();
+
+			// Fix corrupted newlines from WordPress stripslashes
+			$content = personalos_fix_corrupted_newlines( $content );
 
 			$messages[] = array(
 				'id'        => $id,
