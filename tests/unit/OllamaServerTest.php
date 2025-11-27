@@ -65,8 +65,9 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$this->assertCount( 1, $data['models'] );
 
 		$model = $data['models'][0];
-		$this->assertEquals( 'personalos:4o', $model['name'] );
-		$this->assertEquals( 'personalos:4o', $model['model'] );
+		// Model name is the prompt id/slug, not the pos_model value
+		$this->assertEquals( 'prompt_default', $model['name'] );
+		$this->assertEquals( 'Default Prompt', $model['model'] );
 		$this->assertArrayHasKey( 'modified_at', $model );
 		$this->assertArrayHasKey( 'size', $model );
 		$this->assertArrayHasKey( 'digest', $model );
@@ -134,7 +135,8 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$request = new WP_REST_Request( 'POST', '/ollama/v1/api/show' );
 		$request->set_param( 'token', 'test-token-123' );
 		$request->set_header( 'Content-Type', 'application/json' );
-		$request->set_body( wp_json_encode( array( 'name' => 'personalos:4o' ) ) );
+		// Use prompt id/slug as model name
+		$request->set_body( wp_json_encode( array( 'name' => 'prompt_default' ) ) );
 
 		$response = $this->ollama_server->post_show( $request );
 
@@ -171,7 +173,8 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$request = new WP_REST_Request( 'POST', '/ollama/v1/api/show' );
 		$request->set_param( 'token', 'test-token-123' );
 		$request->set_header( 'Content-Type', 'application/json' );
-		$request->set_body( wp_json_encode( array( 'model' => 'personalos:4o' ) ) );
+		// Use prompt id/slug as model name
+		$request->set_body( wp_json_encode( array( 'model' => 'prompt_default' ) ) );
 
 		$response = $this->ollama_server->post_show( $request );
 
@@ -253,7 +256,8 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$request->set_body(
 			wp_json_encode(
 				array(
-					'model'    => 'personalos:4o',
+					// Use prompt id/slug as model name
+					'model'    => 'prompt_default',
 					'messages' => array(
 						array(
 							'role'    => 'user',
@@ -423,7 +427,8 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$request->set_body(
 			wp_json_encode(
 				array(
-					'model'    => 'personalos:4o',
+					// Use prompt id/slug as model name
+					'model'    => 'prompt_default',
 					'messages' => $messages,
 				)
 			)
@@ -432,7 +437,7 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$response = $this->ollama_server->post_chat( $request );
 
 		$this->assertEquals( 200, $response->get_status() );
-		
+
 		$data = $response->get_data();
 		$this->assertArrayHasKey( 'message', $data );
 		$this->assertEquals( 'assistant', $data['message']['role'] );
@@ -550,7 +555,7 @@ class OllamaServerTest extends WP_UnitTestCase {
 
 	/**
 	 * Test backscroll functionality with conversation continuation.
-	 * 
+	 *
 	 * This test simulates a realistic scenario where a client sends conversation
 	 * history and the server needs to continue the conversation and update the hash.
 	 *
@@ -596,7 +601,8 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$request->set_body(
 			wp_json_encode(
 				array(
-					'model'    => 'personalos:4o',
+					// Use prompt id/slug as model name
+					'model'    => 'prompt_default',
 					'messages' => $conversation_history,
 				)
 			)
@@ -607,7 +613,7 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$this->assertEquals( 200, $response->get_status() );
 
 		$data = $response->get_data();
-		$this->assertEquals( 'personalos:4o', $data['model'] );
+		$this->assertEquals( 'prompt_default', $data['model'] );
 		$this->assertEquals( 'assistant', $data['message']['role'] );
 		$this->assertEquals( 'Cats exhibit many interesting behaviors like hunting, grooming, and purring.', $data['message']['content'] );
 		$this->assertTrue( $data['done'] );
@@ -803,7 +809,8 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$request->set_body(
 			wp_json_encode(
 				array(
-					'model'    => 'personalos:4o',
+					// Use prompt id/slug as model name
+					'model'    => 'prompt_default',
 					'messages' => array(
 						array(
 							'role'    => 'user',
@@ -974,7 +981,8 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$request->set_body(
 			wp_json_encode(
 				array(
-					'model'    => 'personalos:4o',
+					// Use prompt id/slug as model name
+					'model'    => 'prompt_default',
 					'messages' => $messages,
 				)
 			)

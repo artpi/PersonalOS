@@ -652,7 +652,8 @@ class OpenAIModuleTest extends WP_UnitTestCase {
 		$this->assertEquals( $prompt_id, $prompt_config['post_id'] );
 		$this->assertEquals( 'Test Prompt', $prompt_config['name'] );
 		$this->assertEquals( 'gpt-4o', $prompt_config['model'] );
-		$this->assertStringContainsString( 'test prompt', strtolower( $prompt_config['description'] ) );
+		// Description contains the model name
+		$this->assertEquals( 'gpt-4o', $prompt_config['description'] );
 	}
 
 	/**
