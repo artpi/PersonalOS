@@ -2161,7 +2161,7 @@ class OpenAI_Module extends POS_Module {
 				'id'          => $prompt_post->post_name,
 				'post_id'     => $prompt_post->ID,
 				'name'        => $prompt_post->post_title,
-				'description' => wp_trim_words( wp_strip_all_tags( $prompt_post->post_content ), 20 ),
+				'description' => $pos_model ? $pos_model : '',
 				'model'       => $pos_model ? $pos_model : '',
 			);
 		}
