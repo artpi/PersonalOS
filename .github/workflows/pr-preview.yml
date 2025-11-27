@@ -33,7 +33,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          tools: composer
+          tools: composer, cs2pr
           extensions: mbstring, imap
 
       - name: Install Composer dependencies
@@ -45,7 +45,7 @@ jobs:
         run: |
           echo "Linting changed PHP files:"
           echo "${{ steps.changed-files.outputs.all_changed_files }}"
-          composer run lint -- ${{ steps.changed-files.outputs.all_changed_files }}
+          vendor/bin/phpcs --standard=phpcs.xml --report=checkstyle ${{ steps.changed-files.outputs.all_changed_files }} | cs2pr
 
   lint-js:
     if: ${{ github.event.pull_request.state == 'open' && github.event.pull_request.draft == false }}
