@@ -1246,6 +1246,10 @@ class OpenAI_Module extends POS_Module {
 				$persist_post_id = $result;
 				$persist_search_args['ID'] = $persist_post_id;
 				$persist_append = true; // After initial write, always append subsequent messages
+				// Emit post_id callback so callers can capture the created/updated post ID
+				if ( $callback ) {
+					$callback( 'post_id', $persist_post_id );
+				}
 			} else {
 				$this->log( '[complete_responses] Failed to save backscroll: ' . $result->get_error_message(), 'ERROR' );
 			}

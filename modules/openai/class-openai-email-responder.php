@@ -26,7 +26,7 @@ class OpenAI_Email_Responder {
 	/**
 	 * Handle new incoming emails and respond using the AI conversation completion.
 	 *
-	 * @param array $email_data   Email data from the IMAP module.
+	 * @param array  $email_data  Email data from the IMAP module.
 	 * @param object $imap_module IMAP module instance.
 	 */
 	public function handle_new_email( array $email_data, $imap_module = null ): void {
@@ -64,10 +64,47 @@ class OpenAI_Email_Responder {
 			return;
 		}
 
-		$backscroll = $this->build_backscroll_for_email( $email_data );
+		// Parse subject for prompt slug (#prompt-slug) and conversation post ID ([123])
+		$email_subject = isset( $email_data['subject'] ) ? $email_data['subject'] : '';
+		$prompt_slug   = preg_match( '/#([a-zA-Z0-9_-]+)/', $email_subject, $m ) ? $m[1] : null;
+		$post_id       = preg_match( '/\[(\d+)\]/', $email_subject, $m ) ? (int) $m[1] : null;
+
+		// Look up prompt by slug if provided
+		$prompt = null;
+		if ( $prompt_slug ) {
+			$notes_module = POS::get_module_by_id( 'notes' );
+			if ( $notes_module ) {
+				$prompts = $notes_module->list( array( 'name' => $prompt_slug ), 'prompts-chat' );
+				$prompt  = ! empty( $prompts ) ? $prompts[0] : null;
+			}
+			if ( $prompt ) {
+				$this->module->log( 'Using prompt: ' . $prompt->post_title . ' (slug: ' . $prompt_slug . ')' );
+			} else {
+				$this->module->log( 'Prompt not found for slug: ' . $prompt_slug . ', using default.' );
+			}
+		}
+
+		// Load previous_response_id if continuing a conversation
+		$previous_response_id = null;
+		if ( $post_id ) {
+			$post = get_post( $post_id );
+			if ( $post && 'notes' === $post->post_type ) {
+				$previous_response_id = get_post_meta( $post_id, 'pos_last_response_id', true );
+				if ( $previous_response_id ) {
+					$this->module->log( 'Continuing conversation post ID: ' . $post_id );
+				}
+			} else {
+				// Invalid post ID, ignore it
+				$post_id = null;
+				$this->module->log( 'Invalid post ID in subject: ' . $post_id . ', starting new conversation.' );
+			}
+		}
+
+		$messages = $this->build_messages_for_email( $email_data );
 
 		$assistant_reply = '';
 		$conversation    = null;
+		$new_post_id     = $post_id;
 
 		$previous_user       = wp_get_current_user();
 		$previous_user_id    = ( $previous_user instanceof WP_User ) ? (int) $previous_user->ID : 0;
@@ -76,7 +113,26 @@ class OpenAI_Email_Responder {
 		wp_set_current_user( $matched_user->ID, $matched_user->user_login );
 
 		try {
-			$conversation = $this->module->complete_backscroll( $backscroll );
+			// Build persistence config
+			$persistence = array(
+				'append' => true,
+			);
+			if ( $post_id ) {
+				$persistence['search_args'] = array( 'ID' => $post_id );
+			}
+
+			$conversation = $this->module->complete_responses(
+				$messages,
+				function ( $event_type, $data ) use ( &$new_post_id ) {
+					// Capture post ID from persistence if created
+					if ( 'post_id' === $event_type ) {
+						$new_post_id = $data;
+					}
+				},
+				$previous_response_id ? $previous_response_id : null,
+				$prompt,
+				$persistence
+			);
 		} finally {
 			if ( $previous_user_id > 0 ) {
 				wp_set_current_user( $previous_user_id, $previous_user_login );
@@ -84,6 +140,7 @@ class OpenAI_Email_Responder {
 				wp_set_current_user( 0 );
 			}
 		}
+
 		if ( is_wp_error( $conversation ) ) {
 			$this->module->log( 'Auto-reply AI failure: ' . $conversation->get_error_message(), E_USER_ERROR );
 			return;
@@ -95,15 +152,29 @@ class OpenAI_Email_Responder {
 			}
 		}
 
-		// Do not modify empty subjects - changing them breaks email threading
-		$subject = 'Re: ' . trim( isset( $email_data['subject'] ) ? $email_data['subject'] : '' );
+		// Build reply subject - use generated title if new conversation, otherwise preserve original
+		$reply_subject = 'Re: ' . trim( $email_subject );
+
+		// For new conversations, use the AI-generated title from the post
+		if ( $new_post_id && ! $post_id ) {
+			$conversation_post = get_post( $new_post_id );
+			if ( $conversation_post && ! empty( $conversation_post->post_title ) ) {
+				$reply_subject = 'Re: ' . $conversation_post->post_title;
+			}
+		}
+
+		// Add [post_id] if we have one and it's not already in the subject
+		if ( $new_post_id && ! preg_match( '/\[\d+\]/', $reply_subject ) ) {
+			$reply_subject .= ' [' . $new_post_id . ']';
+		}
+
 		$body    = $this->compose_reply_body( $assistant_reply, $email_data );
 		$headers = $this->prepare_headers( $email_data );
 
-		$sent = $imap_module->send_email( $recipient, $subject, $body, $headers );
+		$sent = $imap_module->send_email( $recipient, $reply_subject, $body, $headers );
 
 		if ( $sent ) {
-			$this->module->log( 'AI auto-reply sent to ' . $recipient );
+			$this->module->log( 'AI auto-reply sent to ' . $recipient . ' (post ID: ' . ( $new_post_id ? $new_post_id : 'none' ) . ')' );
 		} else {
 			$this->module->log( 'Auto-reply failed for ' . $recipient, E_USER_ERROR );
 		}
@@ -194,12 +265,12 @@ PROMPT,
 	}
 
 	/**
-	 * Build minimal backscroll containing the full email content for the AI.
+	 * Build messages array for the Responses API containing the email content.
 	 *
 	 * @param array $email_data Email data from the IMAP module.
-	 * @return array Backscroll messages.
+	 * @return array Messages array for complete_responses.
 	 */
-	private function build_backscroll_for_email( array $email_data ): array {
+	private function build_messages_for_email( array $email_data ): array {
 		$from_email = isset( $email_data['from'] ) ? $email_data['from'] : '';
 		$from_name  = isset( $email_data['from_name'] ) ? $email_data['from_name'] : '';
 		$display    = $from_email;
@@ -225,7 +296,12 @@ PROMPT,
 		return array(
 			array(
 				'role'    => 'user',
-				'content' => $this->normalize_backscroll_content( implode( "\n", $lines ) ),
+				'content' => array(
+					array(
+						'type' => 'input_text',
+						'text' => $this->normalize_backscroll_content( implode( "\n", $lines ) ),
+					),
+				),
 			),
 		);
 	}
@@ -233,20 +309,101 @@ PROMPT,
 	/**
 	 * Compose the response body by combining AI output with the original email content.
 	 *
+	 * Converts markdown to HTML for rich email formatting.
+	 *
 	 * @param string $assistant_reply Reply generated by the assistant.
 	 * @param array  $email_data      Email data from the IMAP module.
-	 * @return string Response body.
+	 * @return string HTML response body.
 	 */
 	private function compose_reply_body( string $assistant_reply, array $email_data ): string {
 		$assistant_reply = trim( $assistant_reply );
-		$body            = $assistant_reply;
-		$quoted_block    = $this->format_quoted_original( $email_data );
 
-		if ( '' !== $quoted_block ) {
-			$body .= "\n\n" . $quoted_block;
+		// Convert markdown to HTML using Parsedown
+		$parsedown    = \Parsedown::instance();
+		$html_content = $parsedown->text( $assistant_reply );
+
+		// Build quoted original as HTML
+		$quoted_html = $this->format_quoted_original_html( $email_data );
+
+		// Wrap in a minimal email HTML template
+		$body = $this->wrap_html_email( $html_content, $quoted_html );
+
+		return $body;
+	}
+
+	/**
+	 * Wrap content in a minimal HTML email template.
+	 *
+	 * @param string $html_content  Main HTML content.
+	 * @param string $quoted_html   Quoted original message HTML.
+	 * @return string Complete HTML email body.
+	 */
+	private function wrap_html_email( string $html_content, string $quoted_html ): string {
+		$quoted_section = '';
+		if ( '' !== $quoted_html ) {
+			$quoted_section = '<div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #ccc;">' . $quoted_html . '</div>';
 		}
 
-		return $body . "\n";
+		return '<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, \'Helvetica Neue\', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+<div style="font-size: 15px;">
+' . $html_content . '
+</div>
+' . $quoted_section . '
+</body>
+</html>';
+	}
+
+	/**
+	 * Build a quoted block in HTML format representing the original message contents.
+	 *
+	 * @param array $email_data Email data from the IMAP module.
+	 * @return string Quoted original message as HTML.
+	 */
+	private function format_quoted_original_html( array $email_data ): string {
+		$original_body = isset( $email_data['body'] ) ? (string) $email_data['body'] : '';
+		$original_body = trim( $original_body );
+
+		if ( '' === $original_body ) {
+			return '';
+		}
+
+		$from_email = isset( $email_data['from'] ) ? trim( (string) $email_data['from'] ) : '';
+		$from_name  = isset( $email_data['from_name'] ) ? trim( (string) $email_data['from_name'] ) : '';
+		$from_line  = 'unknown sender';
+
+		if ( '' !== $from_name && '' !== $from_email ) {
+			$from_line = esc_html( $from_name ) . ' &lt;' . esc_html( $from_email ) . '&gt;';
+		} elseif ( '' !== $from_name ) {
+			$from_line = esc_html( $from_name );
+		} elseif ( '' !== $from_email ) {
+			$from_line = esc_html( $from_email );
+		}
+
+		$date_header = isset( $email_data['date'] ) ? trim( (string) $email_data['date'] ) : '';
+		$intro_parts = array();
+
+		if ( '' !== $date_header ) {
+			$intro_parts[] = esc_html( $date_header );
+		}
+
+		$intro_parts[] = $from_line;
+
+		$intro = 'On ' . implode( ', ', $intro_parts ) . ' wrote:';
+
+		// Escape and format the original body for HTML
+		$escaped_body = esc_html( $original_body );
+		$escaped_body = nl2br( $escaped_body );
+
+		return '<p style="color: #666; font-size: 13px;">' . $intro . '</p>
+<blockquote style="margin: 10px 0; padding: 10px 15px; border-left: 3px solid #ccc; color: #555; font-size: 14px;">
+' . $escaped_body . '
+</blockquote>';
 	}
 
 	/**
@@ -367,6 +524,9 @@ PROMPT,
 	private function prepare_headers( array $email_data ): array {
 		$headers = array();
 
+		// Set content type to HTML for formatted markdown emails
+		$headers[] = 'Content-Type: text/html; charset=UTF-8';
+
 		if ( ! empty( $email_data['message_id'] ) ) {
 			$headers[] = 'In-Reply-To: ' . $email_data['message_id'];
 			$references = ! empty( $email_data['references'] ) ? $email_data['references'] . ' ' . $email_data['message_id'] : $email_data['message_id'];
@@ -403,25 +563,47 @@ PROMPT,
 	}
 
 	/**
-	 * Extract the latest assistant reply from the completed backscroll.
+	 * Extract the latest assistant reply from the completed conversation.
 	 *
-	 * @param array $conversation Conversation history returned from complete_backscroll.
+	 * @param array $conversation Conversation history returned from complete_responses.
 	 * @return string Assistant reply content.
 	 */
 	private function extract_assistant_reply( array $conversation ): string {
 		foreach ( array_reverse( $conversation ) as $message ) {
-			if ( is_array( $message ) && isset( $message['role'], $message['content'] ) ) {
-				if ( 'assistant' !== $message['role'] ) {
-					continue;
-				}
-				return trim( is_string( $message['content'] ) ? $message['content'] : wp_json_encode( $message['content'] ) );
+			$role    = null;
+			$content = null;
+
+			if ( is_array( $message ) ) {
+				$role    = $message['role'] ?? null;
+				$content = $message['content'] ?? null;
+			} elseif ( is_object( $message ) ) {
+				$role    = $message->role ?? null;
+				$content = $message->content ?? null;
 			}
 
-			if ( is_object( $message ) && isset( $message->role, $message->content ) ) {
-				if ( 'assistant' !== $message->role ) {
-					continue;
+			if ( 'assistant' !== $role || null === $content ) {
+				continue;
+			}
+
+			// Handle string content directly
+			if ( is_string( $content ) ) {
+				return trim( $content );
+			}
+
+			// Handle Responses API format: array of output items
+			if ( is_array( $content ) ) {
+				$text_parts = array();
+				foreach ( $content as $item ) {
+					$item = is_object( $item ) ? (array) $item : $item;
+					if ( isset( $item['type'] ) && 'output_text' === $item['type'] && isset( $item['text'] ) ) {
+						$text_parts[] = $item['text'];
+					} elseif ( isset( $item['text'] ) ) {
+						$text_parts[] = $item['text'];
+					}
 				}
-				return trim( is_string( $message->content ) ? $message->content : wp_json_encode( $message->content ) );
+				if ( ! empty( $text_parts ) ) {
+					return trim( implode( "\n", $text_parts ) );
+				}
 			}
 		}
 
@@ -450,4 +632,5 @@ PROMPT,
 
 		return $content;
 	}
+
 }
