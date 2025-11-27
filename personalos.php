@@ -1,5 +1,8 @@
 <?php //phpcs:disable WordPress.Files.FileName.InvalidClassFileName
 
+// THIS SHOULD FAIL LINTING - wrong array syntax and spacing
+$test_array = ['foo','bar'];
+
 /**
  * Plugin Name:     Personal OS
  * Description:     Manage your life.
