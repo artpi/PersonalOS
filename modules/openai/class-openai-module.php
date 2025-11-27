@@ -47,6 +47,9 @@ class OpenAI_Module extends POS_Module {
 		$this->register_block( 'tool', array( 'render_callback' => array( $this, 'render_tool_block' ) ) );
 		$this->register_block( 'message', array() );
 
+		// Protect newlines in ai-message blocks from WordPress stripslashes
+		add_filter( 'wp_insert_post_data', array( $this, 'preserve_ai_message_newlines' ), 10, 2 );
+
 		require_once __DIR__ . '/chat-page.php';
 
 		$this->email_responder = new OpenAI_Email_Responder( $this );
@@ -1945,11 +1948,15 @@ class OpenAI_Module extends POS_Module {
 				}
 
 				// Create message block
+				// Pre-escape newlines: convert newline characters to literal \n sequence
+				// This survives WordPress's stripslashes during save, and JSON decode restores them
+				$escaped_content = str_replace( "\n", '\\n', $content );
+				$escaped_content = str_replace( "\r", '\\r', $escaped_content );
 				$content_blocks[] = get_comment_delimited_block_content(
 					'pos/ai-message',
 					array(
 						'role'    => $role,
-						'content' => $content,
+						'content' => $escaped_content,
 						'id'      => $message_id,
 					),
 					''
@@ -1992,6 +1999,9 @@ class OpenAI_Module extends POS_Module {
 				$post_data['post_content'] = implode( "\n\n", $content_blocks );
 			}
 
+			// Note: wp_slash is handled by preserve_ai_message_newlines filter
+			// to protect escaped newlines from wp_unslash
+
 			// Only update if there is content to update or we are not just appending empty content
 			// But here we might want to update just to ensure touch?
 			if ( isset( $post_data['post_content'] ) || isset( $post_data['post_title'] ) || ! $append ) {
@@ -2001,6 +2011,7 @@ class OpenAI_Module extends POS_Module {
 			}
 		} else {
 			// Create new
+			// Note: wp_slash is handled by preserve_ai_message_newlines filter
 			$post_data['post_content'] = implode( "\n\n", $content_blocks );
 			// Ensure defaults for new post
 			if ( empty( $post_data['post_title'] ) ) {
@@ -2036,6 +2047,28 @@ class OpenAI_Module extends POS_Module {
 		}
 
 		return $post_id;
+	}
+
+	/**
+	 * Preserve newlines in ai-message blocks when posts are saved.
+	 * WordPress runs wp_unslash on post_content which strips backslashes,
+	 * corrupting escaped newlines (\n → n). This filter adds wp_slash to counteract.
+	 *
+	 * @param array $data    Post data to be saved.
+	 * @param array $postarr Original post data array.
+	 * @return array Modified post data with preserved newlines.
+	 */
+	public function preserve_ai_message_newlines( $data, $postarr ) {
+		// Only process posts that contain ai-message blocks
+		if ( empty( $data['post_content'] ) || strpos( $data['post_content'], 'pos/ai-message' ) === false ) {
+			return $data;
+		}
+
+		// wp_slash adds backslashes that wp_unslash will later remove,
+		// preserving our escaped newlines in JSON block attributes
+		$data['post_content'] = wp_slash( $data['post_content'] );
+
+		return $data;
 	}
 
 	/**

@@ -76,11 +76,13 @@ registerBlockType( metadata, {
 				return '';
 			}
 			try {
-				return converter.makeHtml( content );
+				// Convert escaped newlines back to actual newlines for markdown rendering
+				const unescapedContent = content.replace( /\\n/g, '\n' ).replace( /\\r/g, '\r' );
+				return converter.makeHtml( unescapedContent );
 			} catch ( error ) {
 				console.warn( 'Markdown parsing error:', error );
 				// Fallback to plain text with basic formatting
-				return content.replace( /\n/g, '<br>' );
+				return content.replace( /\\n/g, '<br>' ).replace( /\n/g, '<br>' );
 			}
 		}, [ content ] );
 

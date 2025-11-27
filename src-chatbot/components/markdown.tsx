@@ -5,11 +5,14 @@ import remarkGfm from 'remark-gfm';
 import { CodeBlock } from './code-block';
 
 /**
- * Decode HTML entities and fix newline encoding for markdown rendering.
- * When text is saved/loaded from database, \n can become literal "n" characters.
+ * Decode HTML entities and unescape newlines for markdown rendering.
+ * Content is stored with escaped \n to survive WordPress stripslashes.
  */
-function decodeAndNormalizeText(text: string): string {
+function decodeAndUnescape(text: string): string {
 	let decoded = text;
+	
+	// Unescape newlines that were escaped for storage
+	decoded = decoded.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
 	
 	// Decode common HTML entities
 	decoded = decoded
@@ -27,15 +30,6 @@ function decodeAndNormalizeText(text: string): string {
 		textarea.innerHTML = decoded;
 		decoded = textarea.value;
 	}
-
-	// Fix newline encoding: "nn" followed by capital letter = paragraph break
-	// e.g., "Nov 28):nnElectronics" -> "Nov 28):\n\nElectronics"
-	decoded = decoded.replace(/nn(?=[A-Z])/g, '\n\n');
-	
-	// Fix "n- " (with space after) = list item marker
-	// This pattern is safe because "n- " with space is almost always a list marker
-	// Words like "amazon-prime" don't have a space after the hyphen
-	decoded = decoded.replace(/n- /g, '\n- ');
 
 	return decoded;
 }
@@ -132,12 +126,12 @@ const components: Partial<Components> = {
 const remarkPlugins = [remarkGfm];
 
 const NonMemoizedMarkdown = ({ children }: { children: string }) => {
-	// Decode HTML entities and fix newline encoding before rendering
-	const normalizedText = decodeAndNormalizeText(children);
+	// Decode HTML entities and unescape newlines before rendering
+	const decodedText = decodeAndUnescape(children);
 
 	return (
 		<ReactMarkdown remarkPlugins={remarkPlugins} components={components}>
-			{normalizedText}
+			{decodedText}
 		</ReactMarkdown>
 	);
 };
