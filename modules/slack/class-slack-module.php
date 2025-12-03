@@ -109,21 +109,6 @@ class Slack_Module extends POS_Module {
 		);
 	}
 
-	/**
-	 * Abstraction method to process OpenAI chat completions. It calls the OpenAI module's chat_assistant functionality.
-	 *
-	 * @param array $messages The messages array for completion.
-	 * @return array
-	 */
-	public function process_chat_completion( array $messages ): array {
-		$openai = POS::get_module_by_id( 'openai' );
-		if ( ! $openai || ! method_exists( $openai, 'chat_assistant' ) ) {
-			// Log error if OpenAI module not available
-			return array();
-		}
-
-		return $openai->complete_backscroll( $messages );
-	}
 
 	public function slack_gpt_respond_in_thread( $ts, $channel, $response ) {
 		// Convert markdown URLs to Slack format
@@ -168,7 +153,7 @@ class Slack_Module extends POS_Module {
 					'Content-type'  => 'application/json; charset=utf-8',
 					'Authorization' => 'Bearer ' . $this->get_setting( 'api_token' ),
 				),
-				'body'    => json_encode( $data ),
+				'body'    => wp_json_encode( $data ),
 			)
 		);
 
@@ -180,9 +165,30 @@ class Slack_Module extends POS_Module {
 			return;
 		}
 		// TODO: This is a hack and instead user should connect to slack and get the user id via Oauth.
-		POS::get_module_by_id( 'notes' )->switch_to_user();
+		$notes = POS::get_module_by_id( 'notes' );
+		$notes->switch_to_user();
 		$this->log( 'pos_process_slack_callback:' . wp_json_encode( $payload ) );
 		$backscroll = $this->slack_gpt_retrieve_backscroll( $payload['event']['thread_ts'] ?? $payload['event']['ts'], $payload['event']['channel'] );
+
+		// @TODO: Make UX to match this on the frontend?
+		// @TODO: Add starter content?
+		$matching_prompts = $notes->list(
+			array(
+				'meta_query' => array(
+					array(
+						'key'   => 'slack_channel_id',
+						'value' => $payload['event']['channel'],
+					),
+				),
+			),
+			'prompts'
+		);
+		if ( empty( $matching_prompts ) ) {
+			$prompt = null;
+		} else {
+			$prompt = $matching_prompts[ array_rand( $matching_prompts ) ];
+		}
+
 		$backscroll = array_map(
 			function( $message ) {
 				$message['old'] = true;
@@ -190,7 +196,12 @@ class Slack_Module extends POS_Module {
 			},
 			$backscroll
 		);
-		$response = $this->process_chat_completion( $backscroll );
+		$openai = POS::get_module_by_id( 'openai' );
+		if ( ! $openai || ! method_exists( $openai, 'complete_backscroll' ) ) {
+			$this->log( 'OpenAI module not found' );
+			return;
+		}
+		$response = $openai->complete_backscroll( $backscroll, null, $prompt );
 		foreach ( $response as $message ) {
 			if ( ! is_array( $message ) && $message->role === 'assistant' ) {
 				$this->slack_gpt_respond_in_thread( $payload['event']['thread_ts'] ?? $payload['event']['ts'], $payload['event']['channel'], $message->content );

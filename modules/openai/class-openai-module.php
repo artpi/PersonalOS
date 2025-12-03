@@ -48,6 +48,8 @@ class OpenAI_Module extends POS_Module {
 		$this->register_block( 'message', array() );
 
 		require_once __DIR__ . '/chat-page.php';
+		require_once __DIR__ . '/voice-chat-page.php';
+		require_once __DIR__ . '/custom-gpt-page.php';
 
 		$this->email_responder = new OpenAI_Email_Responder( $this );
 
@@ -81,6 +83,7 @@ class OpenAI_Module extends POS_Module {
 				'input_schema'        => array(
 					'type'                 => 'object',
 					'properties'           => array(
+						// phpcs:ignore WordPress.WP.PostsPerPage -- This is a schema definition, not a query parameter.
 						'posts_per_page' => array(
 							'type'        => 'integer',
 							'description' => 'Number of posts to return. Default to 10',
@@ -416,7 +419,11 @@ class OpenAI_Module extends POS_Module {
 					)
 				);
 			}
-			$messages_payload = file_get_contents( $file_path );
+			// Reading local file path provided via CLI.
+			global $wp_filesystem;
+			require_once ABSPATH . '/wp-admin/includes/file.php';
+			WP_Filesystem();
+			$messages_payload = $wp_filesystem->get_contents( $file_path );
 			if ( false === $messages_payload ) {
 				WP_CLI::error(
 					sprintf(
@@ -588,7 +595,7 @@ class OpenAI_Module extends POS_Module {
 			'Custom GPT',
 			'manage_options',
 			'pos-custom-gpt',
-			array( $this, 'custom_gpt_page' )
+			'pos_render_custom_gpt_page'
 		);
 		add_submenu_page(
 			'personalos',
@@ -596,7 +603,7 @@ class OpenAI_Module extends POS_Module {
 			'Voice Chat',
 			'manage_options',
 			'pos-voice-chat',
-			array( $this, 'voice_chat_page' )
+			'pos_render_voice_chat_page'
 		);
 		add_action(
 			'admin_head',
@@ -705,257 +712,7 @@ class OpenAI_Module extends POS_Module {
 		);
 	}
 
-	public function voice_chat_page() {
-		echo <<<EOF
-		<div id="chat-container">
-			<div id="messages">
-				<!-- Chat messages will appear here -->
-				<div class="message assistant">
-					<b>OpenAI advanced voice mode</b>
-				</div>
-			</div>
-			<div class="audio-container">
-				<button id="start-session">Start Session</button>
-			</div>
-			<div id="input-container">
-				<input type="text" id="message-input" placeholder="Type your message...">
-				<button id="send-button">Send</button>
-			</div>
-			<div class="audio-controls">
-				<span class="icon">🎤</span>
-				<select id="audio-input"></select>
-				<span class="icon">🎧</span>
-				<select id="audio-output"></select>
-			</div>
-		</div>
-		<style>
-			#wpbody-content {
-				margin-bottom:0;
-				padding-bottom:0;
-			}
-			.audio-controls {
-				display: flex;
-				align-items: center;
-				gap: 10px;
-				display:flex;
-				justify-content: space-around;
-				padding: 10px;
-			}
-			.audio-controls .icon {
-				font-size: 24px;
-			}
-			.audio-controls select {
-				font-size: 11px;
-			}
-			#chat-container {
-				width: 100%;
-				max-width: 800px;
-				margin: 0 auto;
-				height: calc(100vh - 50px); /* Adjust for WP admin bar and padding */
-				background-color: #ffffff;
-				//box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-				border-radius: 8px;
-				display: flex;
-				flex-direction: column;
-				overflow: hidden;
-			}
-			// #chat-container.session_active #input-container {
-			// 	display: none;
-			// }
-			#messages {
-				flex: 1;
-				min-height: 0; /* Important for flex child scrolling */
-				padding: 16px;
-				overflow-y: auto;
-				display: flex;
-				flex-direction: column;
-				gap: 12px;
-			}
-			.message {
-				max-width: 70%;
-				padding: 10px 14px;
-				border-radius: 18px;
-				font-size: 14px;
-				line-height: 1.5;
-			}
-			.message.user {
-				align-self: flex-end;
-				background-color: #007bff;
-				color: white;
-				border-bottom-right-radius: 4px;
-			}
-			.message.assistant {
-				align-self: flex-start;
-				background-color: #e4e6eb;
-				color: black;
-				border-bottom-left-radius: 4px;
-			}
-			.message.tool {
-				align-self: flex-start;
-				background-color: #edf2f7;
-				color: black;
-				border-bottom-left-radius: 4px;
-				cursor: pointer;
-			}
-			.message.tool pre {
-				display: none;
-				font-size: 0.75em;
-				overflow-x: auto;
-			}
-			.message.tool:hover pre {
-				display: block;
-				border-bottom: 1px dashed #ccc;
-			}
 
-			#input-container {
-				display: flex;
-				padding: 12px;
-				background-color: #f9f9f9;
-				border-top: 1px solid #ddd;
-			}
-			#message-input {
-				flex: 1;
-				padding: 10px;
-				border: 1px solid #ddd;
-				border-radius: 20px;
-				font-size: 14px;
-			}
-			#send-button {
-				margin-left: 10px;
-				padding: 10px 16px;
-				border: none;
-				border-radius: 20px;
-				background-color: #007bff;
-				color: white;
-				font-size: 14px;
-				cursor: pointer;
-			}
-			#send-button:hover {
-				background-color: #0056b3;
-			}
-
-			/* Update pulsating orb button styles */
-			#start-session {
-				width: 80px;
-				height: 80px;
-				border-radius: 50%;
-				background: radial-gradient(circle at 30% 30%, #5a9bff, #007bff);
-				border: none;
-				color: white;
-				cursor: pointer;
-				position: relative;
-				box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Added default shadow */
-				transition: transform 0.2s;
-			}
-
-			#chat-container.session_active #start-session {
-				animation: pulse 2s infinite;
-				background: radial-gradient(circle at 30% 30%, #ff5a5a, #ff0000);
-			}
-
-			#chat-container.speaking #start-session {
-				animation: pulse 2s infinite, scale 0.3s infinite;
-			}
-
-			#start-session:hover {
-				transform: scale(1.05);
-			}
-
-			@keyframes pulse {
-				0% {
-					box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7);
-				}
-				70% {
-					box-shadow: 0 0 0 15px rgba(0, 123, 255, 0);
-				}
-				100% {
-					box-shadow: 0 0 0 0 rgba(0, 123, 255, 0);
-				}
-			}
-
-			@keyframes scale {
-				0%, 100% {
-					transform: scale(1);
-				}
-				50% {
-					transform: scale(1.2);
-				}
-			}
-
-			.audio-container {
-				display: flex;
-				justify-content: center;
-				padding: 20px 0;
-			}
-		</style>
-		EOF;
-
-		wp_enqueue_script( 'voice-chat', plugins_url( 'assets/voice-chat.js', __FILE__ ), array( 'wp-api-fetch' ), time(), true );
-		//wp_enqueue_style( 'voice-chat', plugins_url( 'assets/voice-chat.css', __FILE__ ) );
-
-	}
-
-	public function custom_gpt_page() {
-		echo <<<EOF
-		<h1>Configure your custom GPT</h1>
-		<p><a href='https://chatgpt.com/gpts/mine' target='_blank'>First create a new custom GPT</a></p>
-		<h2>System prompt</h2>
-		<p>This is the system prompt for your custom GPT. Modify it to fit your needs.</p>
-		<textarea style="width: 100%; height: 500px;">
-		You are an assistant with access to my database of notes and todos.
-		You will help me complete tasks and schedule my work.
-
-		My work is organized in "notebooks"
-		- Stuff to do right now is in notebook with the slug "now"
-		- Stuff to do later is in notebook with the slug "later"
-		- Default notebook has slug inbox
-
-		You probably should download the list of notebooks to reference them while I am talking to you.
-		When listing notes in particular notebook, use the notebook id and the notebook field of todo_get_items
-
-		- NEVER say you created a todo without calling the appropriate action.
-		- when I ask you to create a TODO, always return a URL
-		- Alwas create new todos with 'private' status
-		</textarea>
-		EOF;
-		$schema = file_get_contents( plugin_dir_path( __FILE__ ) . 'chatgpt_routes.json' );
-		$schema = json_decode( $schema, true );
-		$schema['servers'][0]['url'] = get_rest_url( null, '' );
-		$schema = wp_json_encode( $schema, JSON_PRETTY_PRINT );
-		$schema = wp_unslash( $schema );
-		$login = esc_attr( wp_get_current_user()->user_login );
-		$schema = esc_textarea( $schema );
-		echo <<<EOF
-		<h2>Schema</h2>
-		<p>This is the schema for your custom GPT. It describes the API endpoints that your GPT can use. Copy it into your ChatGPT configuration.</p>
-		<textarea style="width: 100%; height: 500px;">
-		{$schema}
-		</textarea>
-		EOF;
-
-		echo <<<EOF
-		<h2>Auth</h2>
-		<p>You can use basic request and application passwords to authenticate your requests:</p>
-		<ol>
-			<li><a href='authorize-application.php' target='_blank'>Create an Application Password for your user</a></li>
-			<li>Paste the password and encode below using base64</li>
-			<li>Use the encoded password as the token for basic auth in your ChatGPT configuration</li>
-		</ol>
-		<h3>Encode password</h3>
-		<input type="hidden" id="app_username" value="{$login}">
-		<input type="text" id="app_password" placeholder="Password">
-		<button id="encode" onclick="encode()">Encode</button>
-		<pre id="encoded"></pre>
-		<script>
-			function encode() {
-				const username = document.getElementById('app_username').value;
-				const password = document.getElementById('app_password').value;
-				const encoded = btoa(username + ':' + password);
-				document.getElementById('encoded').textContent = encoded;
-			}
-		</script>
-		EOF;
-	}
 
 	public function rest_api_init() {
 		register_rest_route(
@@ -1653,8 +1410,8 @@ class OpenAI_Module extends POS_Module {
 		return $ability->execute( $arguments );
 	}
 
-	public function complete_backscroll( array $backscroll, callable $callback = null ) {
-		$prompt_config = $this->get_prompt_config();
+	public function complete_backscroll( array $backscroll, callable $callback = null, ?\WP_Post $prompt = null ) {
+		$prompt_config = $this->get_prompt_config( $prompt );
 		$tool_definitions = $this->get_abilities_as_tools();
 		$max_loops = 10;
 		do {
@@ -2430,6 +2187,7 @@ class OpenAI_Module extends POS_Module {
 
 		$this->log( 'data from response: ' . print_r( $response->choices[0]->message->content, true ) );
 		// Decode base64 audio data and write to temp file
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Decoding audio data from OpenAI API response (benign use).
 		$audio_data = base64_decode( $response->choices[0]->message->audio->data );
 		$wp_filesystem->put_contents( $tempfile, $audio_data );
 
