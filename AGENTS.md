@@ -15,6 +15,7 @@ Modules can have TECHNICAL.md files that document their technical implementation
 
 - `modules/imap/TECHNICAL.md` - Technical documentation for the IMAP module
 - `modules/openai/TECHNICAL.md` - Technical documentation for the OpenAI module
+- `modules/slack/TECHNICAL.md` - Technical documentation for the Slack integration module
 
 ## Coding
 
