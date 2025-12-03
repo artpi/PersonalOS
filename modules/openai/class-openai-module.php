@@ -1653,8 +1653,8 @@ class OpenAI_Module extends POS_Module {
 		return $ability->execute( $arguments );
 	}
 
-	public function complete_backscroll( array $backscroll, callable $callback = null ) {
-		$prompt_config = $this->get_prompt_config();
+	public function complete_backscroll( array $backscroll, callable $callback = null, ?\WP_Post $prompt = null ) {
+		$prompt_config = $this->get_prompt_config( $prompt );
 		$tool_definitions = $this->get_abilities_as_tools();
 		$max_loops = 10;
 		do {
