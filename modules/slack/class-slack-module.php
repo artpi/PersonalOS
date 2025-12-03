@@ -171,11 +171,12 @@ class Slack_Module extends POS_Module {
 		$backscroll = $this->slack_gpt_retrieve_backscroll( $payload['event']['thread_ts'] ?? $payload['event']['ts'], $payload['event']['channel'] );
 
 		// @TODO: Make UX to match this on the frontend?
+		// @TODO: Add starter content?
 		$matching_prompts = $notes->list( array( 'meta_query' => array( array( 'key' => 'slack_channel_id', 'value' => $payload['event']['channel'] ) ) ), 'prompts' );
 		if ( empty( $matching_prompts ) ) {
 			$prompt = null;
 		} else {
-			$prompt = array_rand( $matching_prompts );
+			$prompt = $matching_prompts[ array_rand( $matching_prompts ) ];
 		}
 
 		$backscroll = array_map(
