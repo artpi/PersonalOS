@@ -153,7 +153,7 @@ class Slack_Module extends POS_Module {
 					'Content-type'  => 'application/json; charset=utf-8',
 					'Authorization' => 'Bearer ' . $this->get_setting( 'api_token' ),
 				),
-				'body'    => json_encode( $data ),
+				'body'    => wp_json_encode( $data ),
 			)
 		);
 
@@ -172,7 +172,17 @@ class Slack_Module extends POS_Module {
 
 		// @TODO: Make UX to match this on the frontend?
 		// @TODO: Add starter content?
-		$matching_prompts = $notes->list( array( 'meta_query' => array( array( 'key' => 'slack_channel_id', 'value' => $payload['event']['channel'] ) ) ), 'prompts' );
+		$matching_prompts = $notes->list(
+			array(
+				'meta_query' => array(
+					array(
+						'key'   => 'slack_channel_id',
+						'value' => $payload['event']['channel'],
+					),
+				),
+			),
+			'prompts'
+		);
 		if ( empty( $matching_prompts ) ) {
 			$prompt = null;
 		} else {
