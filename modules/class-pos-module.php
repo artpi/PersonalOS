@@ -332,6 +332,7 @@ class POS_CPT_Rest_Controller extends WP_REST_Posts_Controller {
 class External_Service_Module extends POS_Module {
 	public $id   = 'external_service';
 	public $name = 'External Service';
+	protected $current_sync_user_id = 0;
 
 	public function get_sync_hook_name() {
 		return 'pos_sync_' . $this->id;
@@ -347,6 +348,67 @@ class External_Service_Module extends POS_Module {
 
 	public function sync() {
 		$this->log( 'EMPTY SYNC' );
+	}
+
+	protected function run_for_user( int $user_id, callable $callback ) {
+		$previous_user_id      = get_current_user_id();
+		$previous_sync_user_id = $this->current_sync_user_id;
+
+		wp_set_current_user( $user_id );
+		$this->current_sync_user_id = $user_id;
+		$this->reset_user_context();
+
+		try {
+			return $callback( $user_id );
+		} finally {
+			$this->reset_user_context();
+			$this->current_sync_user_id = $previous_sync_user_id;
+			wp_set_current_user( $previous_user_id );
+		}
+	}
+
+	protected function reset_user_context() {
+		// Allow subclasses to reset cached data between user runs.
+	}
+
+	protected function get_user_state_meta_key( string $key ): string {
+		return 'pos_' . $this->id . '_state_' . $key;
+	}
+
+	protected function get_user_state( string $key, $default = null, ?int $user_id = null ) {
+		$user_id = $user_id ?? $this->current_sync_user_id;
+		if ( ! $user_id ) {
+			return $default;
+		}
+
+		$value = get_user_meta( $user_id, $this->get_user_state_meta_key( $key ), true );
+		if ( '' === $value || null === $value ) {
+			return $default;
+		}
+
+		return $value;
+	}
+
+	protected function set_user_state( string $key, $value, ?int $user_id = null ) {
+		$user_id = $user_id ?? $this->current_sync_user_id;
+		if ( ! $user_id ) {
+			return false;
+		}
+
+		if ( null === $value ) {
+			return delete_user_meta( $user_id, $this->get_user_state_meta_key( $key ) );
+		}
+
+		return update_user_meta( $user_id, $this->get_user_state_meta_key( $key ), $value );
+	}
+
+	protected function delete_user_state( string $key, ?int $user_id = null ) {
+		$user_id = $user_id ?? $this->current_sync_user_id;
+		if ( ! $user_id ) {
+			return false;
+		}
+
+		return delete_user_meta( $user_id, $this->get_user_state_meta_key( $key ) );
 	}
 }
 
