@@ -900,4 +900,35 @@ class OpenAI_Email_Responder_Test extends WP_UnitTestCase {
 		// Should skip email because filter returned null (overwrites the lookup result)
 		$this->assertCount( 0, $this->imap_spy->sent );
 	}
+
+	public function test_handle_new_email_uses_matched_user_ids() {
+		$email_data = $this->load_email_fixture(
+			'original_msg.eml',
+			array(
+				'from'             => 'sender@external.test',
+				'matched_user_ids' => array( $this->sender_user_id ),
+				'recipients'       => array( 'recipient@example.com' ),
+			)
+		);
+
+		$this->create_responder(
+			function( MockObject $openai_module ) {
+				$openai_module
+					->expects( $this->once() )
+					->method( 'complete_responses' )
+					->willReturn(
+						array(
+							array(
+								'role'    => 'assistant',
+								'content' => 'Hello matched user!',
+							),
+						)
+					);
+			}
+		);
+
+		$this->responder->handle_new_email( $email_data, $this->imap_spy, $this->sender_user_id );
+
+		$this->assertCount( 1, $this->imap_spy->sent );
+	}
 }

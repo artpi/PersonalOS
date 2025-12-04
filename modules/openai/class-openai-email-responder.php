@@ -20,7 +20,7 @@ class OpenAI_Email_Responder {
 	 */
 	public function __construct( OpenAI_Module $module ) {
 		$this->module = $module;
-		add_action( 'pos_imap_new_email', array( $this, 'handle_new_email' ), 20, 2 );
+		add_action( 'pos_imap_new_email', array( $this, 'handle_new_email' ), 20, 3 );
 	}
 
 	/**
@@ -28,8 +28,9 @@ class OpenAI_Email_Responder {
 	 *
 	 * @param array  $email_data  Email data from the IMAP module.
 	 * @param object $imap_module IMAP module instance.
+	 * @param int    $user_id     Matched WordPress user ID if provided by IMAP.
 	 */
-	public function handle_new_email( array $email_data, $imap_module = null ): void {
+	public function handle_new_email( array $email_data, $imap_module = null, $user_id = 0 ): void {
 		// Classify the email first to check if it's an auto-responder or spam
 		$classification = $this->classify_email( $email_data );
 		if ( ! empty( $classification['skip'] ) ) {
@@ -39,7 +40,23 @@ class OpenAI_Email_Responder {
 			return;
 		}
 
-		$matched_user = $this->resolve_user_from_email( $email_data );
+		$matched_user = null;
+
+		if ( ! empty( $email_data['matched_user_ids'] ) && is_array( $email_data['matched_user_ids'] ) ) {
+			if ( $user_id && in_array( $user_id, $email_data['matched_user_ids'], true ) ) {
+				$matched_user = get_user_by( 'id', $user_id );
+			} else {
+				$first_id = (int) reset( $email_data['matched_user_ids'] );
+				if ( $first_id > 0 ) {
+					$matched_user = get_user_by( 'id', $first_id );
+				}
+			}
+		}
+
+		if ( ! $matched_user instanceof WP_User ) {
+			$matched_user = $this->resolve_user_from_email( $email_data );
+		}
+
 		if ( ! $matched_user instanceof WP_User ) {
 			$from_address = isset( $email_data['from'] ) ? sanitize_email( $email_data['from'] ) : '';
 			if ( '' === $from_address ) {
