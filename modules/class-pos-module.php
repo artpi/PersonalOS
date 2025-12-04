@@ -287,6 +287,44 @@ class POS_Module {
 		return 'pos_' . $this->id . '_' . $setting_id;
 	}
 
+	/**
+	 * Locate a WordPress user by matching a user-scoped token setting.
+	 *
+	 * @param string $setting_id Token setting identifier.
+	 * @param string $token      Token value to match.
+	 * @return WP_User|null User when found and authorized, null otherwise.
+	 */
+	public function find_user_for_setting_token( string $setting_id, string $token ): ?WP_User {
+		if ( strlen( $token ) < 3 ) {
+			return null;
+		}
+
+		global $wpdb;
+		$meta_key = $this->get_user_setting_meta_key( $setting_id );
+		$user_id  = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = %s AND meta_value = %s LIMIT 1",
+				$meta_key,
+				$token
+			)
+		);
+
+		if ( ! $user_id ) {
+			return null;
+		}
+
+		$user = get_user_by( 'ID', (int) $user_id );
+		if ( ! $user instanceof WP_User ) {
+			return null;
+		}
+
+		if ( ! user_can( $user, 'use_personalos' ) ) {
+			return null;
+		}
+
+		return $user;
+	}
+
 	protected function get_user_ids_with_setting( $setting_id ) {
 		global $wpdb;
 		$meta_key = $this->get_user_setting_meta_key( $setting_id );

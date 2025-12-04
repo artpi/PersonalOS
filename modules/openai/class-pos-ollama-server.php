@@ -783,6 +783,13 @@ Used for testing and development purposes only.
 	 * @return WP_User|null
 	 */
 	private function get_user_for_token( string $token, string $setting_id ): ?WP_User {
+		if ( method_exists( $this->module, 'find_user_for_setting_token' ) ) {
+			$user = $this->module->find_user_for_setting_token( $setting_id, $token );
+			if ( $user instanceof WP_User ) {
+				return $user;
+			}
+		}
+
 		if ( strlen( $token ) < 3 ) {
 			return null;
 		}

@@ -67,34 +67,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 	 * @return WP_User|null
 	 */
 	private function get_user_for_token( string $token ): ?WP_User {
-		if ( strlen( $token ) < 3 ) {
-			return null;
-		}
-
-		global $wpdb;
-		$meta_key = 'pos_' . $this->id . '_token';
-		$user_id  = $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = %s AND meta_value = %s LIMIT 1",
-				$meta_key,
-				$token
-			)
-		);
-
-		if ( ! $user_id ) {
-			return null;
-		}
-
-		$user = get_user_by( 'ID', (int) $user_id );
-		if ( ! $user instanceof WP_User ) {
-			return null;
-		}
-
-		if ( ! user_can( $user, 'use_personalos' ) ) {
-			return null;
-		}
-
-		return $user;
+		return $this->find_user_for_setting_token( 'token', $token );
 	}
 
 	/**
