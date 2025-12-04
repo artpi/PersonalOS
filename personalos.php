@@ -42,6 +42,7 @@ class POS {
 		add_action( 'wp_abilities_api_categories_init', array( 'POS', 'register_ability_category' ) );
 
 		self::load_modules();
+		add_filter( 'map_meta_cap', array( 'POS', 'map_meta_cap' ), 10, 4 );
 		add_action( 'enqueue_block_editor_assets', array( 'POS', 'enqueue_assets' ) );
 		if ( defined( 'WP_CLI' ) && class_exists( 'WP_CLI' ) ) {
 			WP_CLI::add_command( 'pos populate', array( 'POS', 'populate_starter_content' ) );
@@ -81,6 +82,7 @@ class POS {
 		if ( ! function_exists( 'get_plugin_data' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
+		self::ensure_capabilities();
 		$data_version = get_option( 'pos_data_version', false );
 		$plugin_data = get_plugin_data( __FILE__ );
 		self::$version = $plugin_data['Version'];
@@ -99,6 +101,28 @@ class POS {
 		update_option( 'pos_data_version', self::$version );
 	}
 
+	/**
+	 * Ensure PersonalOS capabilities are assigned to proper roles.
+	 */
+	public static function ensure_capabilities() {
+		$role_caps = array(
+			'editor'        => array( 'use_personalos' ),
+			'administrator' => array( 'use_personalos', 'admin_personalos' ),
+		);
+
+		foreach ( $role_caps as $role_name => $caps ) {
+			$role = get_role( $role_name );
+			if ( ! $role ) {
+				continue;
+			}
+			foreach ( $caps as $cap ) {
+				if ( ! $role->has_cap( $cap ) ) {
+					$role->add_cap( $cap );
+				}
+			}
+		}
+	}
+
 	public static function get_module_by_id( $id ) {
 		foreach ( self::$modules as $module ) {
 			if ( $module->id === $id ) {
@@ -109,9 +133,9 @@ class POS {
 	}
 
 	public static function admin_menu() {
-		add_menu_page( 'Personal OS', 'Personal OS', 'manage_options', 'personalos', false, 'dashicons-admin-generic', 3 );
-		add_submenu_page( 'personalos', 'Your Dashboard', 'Dashboard', 'manage_options', 'personalos-settings', array( 'POS', 'admin_page' ), 0 );
-		add_submenu_page( 'personalos', 'Notebooks', 'Notebooks', 'manage_options', 'edit-tags.php?taxonomy=notebook&post_type=notes' );
+		add_menu_page( 'Personal OS', 'Personal OS', 'use_personalos', 'personalos', false, 'dashicons-admin-generic', 3 );
+		add_submenu_page( 'personalos', 'Your Dashboard', 'Dashboard', 'use_personalos', 'personalos-settings', array( 'POS', 'admin_page' ), 0 );
+		add_submenu_page( 'personalos', 'Notebooks', 'Notebooks', 'use_personalos', 'edit-tags.php?taxonomy=notebook&post_type=notes' );
 	}
 	public static function enqueue_assets() {
 		wp_enqueue_script( 'pos' );
@@ -120,6 +144,62 @@ class POS {
 
 	public static function admin_page() {
 		require plugin_dir_path( __FILE__ ) . 'dashboard.php';
+	}
+	/**
+	 * Return the list of PersonalOS post types that require special permission handling.
+	 *
+	 * @return array
+	 */
+	public static function get_personal_post_types() {
+		$types = array( 'notes', 'todo' );
+		return apply_filters( 'pos_personal_post_types', $types );
+	}
+
+	/**
+	 * Map meta capabilities for PersonalOS post types.
+	 *
+	 * @param string[] $caps    Primitive capabilities that the user must have.
+	 * @param string   $cap     Capability being checked.
+	 * @param int      $user_id User ID.
+	 * @param mixed[]  $args    Optional additional args. For post caps, includes the post ID.
+	 *
+	 * @return string[]
+	 */
+	public static function map_meta_cap( $caps, $cap, $user_id, $args ) {
+		$handled_caps = array( 'edit_post', 'delete_post', 'read_post' );
+		if ( ! in_array( $cap, $handled_caps, true ) ) {
+			return $caps;
+		}
+
+		$post_id = isset( $args[0] ) ? (int) $args[0] : 0;
+		if ( ! $post_id ) {
+			return $caps;
+		}
+
+		$post = get_post( $post_id );
+		if ( ! $post || ! in_array( $post->post_type, self::get_personal_post_types(), true ) ) {
+			return $caps;
+		}
+
+		$is_owner = (int) $post->post_author === (int) $user_id;
+
+		if ( 'read_post' === $cap ) {
+			if ( $is_owner ) {
+				return array( 'use_personalos' );
+			}
+
+			if ( 'private' !== $post->post_status ) {
+				return array( 'use_personalos' );
+			}
+
+			return array( 'admin_personalos' );
+		}
+
+		if ( $is_owner ) {
+			return array( 'use_personalos' );
+		}
+
+		return array( 'admin_personalos' );
 	}
 	public static function load_modules() {
 		require_once plugin_dir_path( __FILE__ ) . 'modules/class-pos-module.php';

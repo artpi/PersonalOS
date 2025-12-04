@@ -19,6 +19,7 @@ class Evernote_Module extends External_Service_Module {
 	public $token           = null;
 	public $synced_notebooks = array();
 	public $cached_data      = null;
+	protected $current_user_id = 0;
 
 	// phpcs:disable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 	public $settings = array(
@@ -26,17 +27,20 @@ class Evernote_Module extends External_Service_Module {
 			'type'  => 'text',
 			'name'  => 'Evernote Developer API Token',
 			'label' => 'You can get it from <a href="https://www.evernote.com/api/DeveloperToken.action">here</a>',
+			'scope' => 'user',
 		),
 		'synced_notebooks' => array(
 			'type'    => 'callback',
 			'name'    => 'Synced notebooks',
 			'label'   => 'Comma separated list of notebooks to sync',
 			'default' => array(),
+			'scope'   => 'user',
 		),
 		'active'           => array(
 			'type'  => 'bool',
 			'name'  => 'Evernote Sync Active',
 			'label' => 'If this is not checked, sync will be paused. Changes will still be pushed from WordPress to Evernote.',
+			'scope' => 'user',
 		),
 	);
 
@@ -44,10 +48,6 @@ class Evernote_Module extends External_Service_Module {
 
 	public function __construct( \Notes_Module $notes_module ) {
 		$this->notes_module = $notes_module;
-		$this->token        = $this->get_setting( 'token' );
-		if ( ! $this->token ) {
-			return false;
-		}
 		$this->settings['synced_notebooks']['callback'] = array( $this, 'synced_notebooks_setting_callback' );
 		$this->register_sync( 'hourly' );
 		$this->register_meta( 'evernote_guid', $this->notes_module->id );
@@ -256,8 +256,13 @@ class Evernote_Module extends External_Service_Module {
 
 		$url = get_post_meta( $post->ID, 'url', true );
 
+		$note_store = $this->advanced_client ? $this->advanced_client->getNoteStore() : null;
+		if ( ! $note_store || ! method_exists( $note_store, 'getNote' ) ) {
+			return;
+		}
+
 		if ( $guid ) {
-			$note = $this->advanced_client->getNoteStore()->getNote( $guid, false, false, false, false );
+			$note = $note_store->getNote( $guid, false, false, false, false );
 			if ( $note ) {
 				$note->title   = $post->post_title;
 				$note->content = self::html2enml( $post->post_content );
@@ -267,7 +272,7 @@ class Evernote_Module extends External_Service_Module {
 				}
 
 				try {
-					$result = $this->advanced_client->getNoteStore()->updateNote( $note );
+					$result = $note_store->updateNote( $note );
 					$this->update_note_from_evernote( $result, $post );
 				} catch ( \EDAM\Error\EDAMSystemException $e ) {
 					// Silently fail because conflicts and stuff.
@@ -646,6 +651,12 @@ class Evernote_Module extends External_Service_Module {
 	 * Connect to Evernote and create a client
 	 */
 	public function connect() {
+		if ( ! $this->token ) {
+			$this->token = $this->get_setting( 'token' );
+		}
+		if ( ! $this->token ) {
+			return false;
+		}
 		require_once plugin_dir_path( __FILE__ ) . '/../../vendor/autoload.php';
 		$this->simple_client   = new \Evernote\Client( $this->token, false );
 		$this->advanced_client = new \Evernote\AdvancedClient( $this->token, false );

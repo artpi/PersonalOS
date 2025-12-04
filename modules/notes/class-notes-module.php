@@ -401,7 +401,14 @@ class Notes_Module extends POS_Module {
 
 	public function autopublish_drafts( $post_id, $post, $updating ) {
 		if ( $post->post_status === 'draft' ) {
-			wp_publish_post( $post );
+			remove_action( 'save_post_' . $this->id, array( $this, 'autopublish_drafts' ), 10 );
+			wp_update_post(
+				array(
+					'ID'          => $post_id,
+					'post_status' => 'private',
+				)
+			);
+			add_action( 'save_post_' . $this->id, array( $this, 'autopublish_drafts' ), 10, 3 );
 		}
 	}
 
@@ -409,7 +416,7 @@ class Notes_Module extends POS_Module {
 		$post    = array(
 			'post_title'   => $title,
 			'post_content' => $content,
-			'post_status'  => 'publish',
+			'post_status'  => 'private',
 			'post_type'    => $this->id,
 		);
 		$post = wp_parse_args( $post, $args );
@@ -543,7 +550,7 @@ class Notes_Module extends POS_Module {
                 method: 'POST',
                 data: {
                     title: 'Quick Note',
-                    status: 'publish',
+                    status: 'private',
                     content: document.querySelector('#quicknote textarea').value,
                 }
             } ).then( function( response ) {

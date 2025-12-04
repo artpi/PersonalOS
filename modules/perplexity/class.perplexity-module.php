@@ -13,6 +13,7 @@ class Perplexity_Module extends POS_Module {
 			'type'  => 'text',
 			'name'  => 'Perplexity API Token',
 			'label' => 'Enter your Perplexity API token.',
+			'scope' => 'global',
 		),
 	);
 

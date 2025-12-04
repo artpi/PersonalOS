@@ -18,12 +18,14 @@ class Readwise extends External_Service_Module {
 			'type'  => 'text',
 			'name'  => 'Readwise API Token',
 			'label' => 'You can get it from <a href="https://readwise.io/access_token">here</a>',
+			'scope' => 'user',
 		),
 		'autotag' => array(
 			'type'     => 'callback',
 			'callback' => 'autotag_setting_callback',
 			'name'     => 'Notebook for incoming highlights',
 			'label'    => 'Automatically add new highlights to this notebook. They will also be added to the "Readwise" notebook.',
+			'scope'    => 'user',
 		),
 	);
 
