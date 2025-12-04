@@ -24,6 +24,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'name'    => 'Private token for accessing the podcast feed',
 				'label'   => strlen( $token ) < 3 ? 'You need a token longer than 3 characters to enable the podcast feed' : 'Your feed is accessible <a href="' . add_query_arg( 'token', $token, get_rest_url( null, $this->rest_namespace . '/ai-podcast' ) ) . '" target="_blank">here</a>',
 				'default' => '0',
+				'scope'   => 'user',
 			),
 			'tts_service' => array(
 				'type'    => 'select',
@@ -33,6 +34,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'options' => array(
 					'openai-gpt4o-audio' => 'OpenAI GPT-4o Audio',
 				),
+				'scope'   => 'global',
 			),
 		);
 		if ( $this->elevenlabs->is_configured() ) {
@@ -42,6 +44,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'name'    => 'ElevenLabs Voice ID',
 				'label'   => 'The voice to use for your motivational podcast. Add this voice to your account or paste another id <a href="https://elevenlabs.io/app/voice-lab/share/f441776f9bb056eb2295e030ffce576ee35583946b9d95b273731d9887cb51e9/jB108zg64sTcu1kCbN9L" target="_blank">here</a>',
 				'default' => 'jB108zg64sTcu1kCbN9L',
+				'scope'   => 'global',
 			);
 		}
 
@@ -55,6 +58,32 @@ class POS_AI_Podcast_Module extends POS_Module {
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ), 10, 1 );
 
+	}
+
+	/**
+	 * Locate the user that owns a given podcast token.
+	 *
+	 * @param string $token Token from the request.
+	 * @return WP_User|null
+	 */
+	private function get_user_for_token( string $token ): ?WP_User {
+		return $this->find_user_for_setting_token( 'token', $token );
+	}
+
+	/**
+	 * Authorize a REST request by token.
+	 *
+	 * @param string $token Token from the request.
+	 * @return bool
+	 */
+	private function authorize_token( string $token ): bool {
+		$user = $this->get_user_for_token( $token );
+		if ( ! $user ) {
+			return false;
+		}
+
+		wp_set_current_user( $user->ID );
+		return true;
 	}
 
 	public function admin_menu() {
@@ -116,6 +145,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 			array(
 				'post_type'   => 'attachment',
 				'post_status' => 'private, publish, inherit',
+				'author'      => get_current_user_id(),
 				'meta_query'  => array(
 					array(
 						'key'     => 'pos_podcast',
@@ -203,11 +233,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'methods'             => 'GET',
 				'callback'            => array( $this, 'output_feed' ),
 				'permission_callback' => function( $request ) {
-					$token = $this->get_setting( 'token' );
-					if ( strlen( $token ) < 3 ) {
-						return false;
-					}
-					return $token === $request->get_param( 'token' );
+					return $this->authorize_token( (string) $request->get_param( 'token' ) );
 				},
 			)
 		);
@@ -230,7 +256,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 					return $this->generate( $request->has_param( 'prompt_id' ) ? $request->get_param( 'prompt_id' ) : null );
 				},
 				'permission_callback' => function( $request ) {
-					return true;
+					return $this->authorize_token( (string) $request->get_param( 'token' ) );
 				},
 			)
 		);
@@ -268,6 +294,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'post_type'      => 'todo',
 				'post_status'    => array( 'publish', 'private' ),
 				'posts_per_page' => 25,
+				'author'         => get_current_user_id(),
 				'tax_query'      => array(
 					array(
 						'taxonomy' => 'notebook',
@@ -316,6 +343,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 			array(
 				'post_type'   => 'attachment',
 				'post_status' => 'private',
+				'author'      => get_current_user_id(),
 				'meta_query'  => array(
 					array(
 						'key'     => 'pos_podcast',

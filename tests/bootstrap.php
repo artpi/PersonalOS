@@ -37,3 +37,16 @@ tests_add_filter( 'muplugins_loaded', '_manually_load_plugin' );
 
 // Start up the WP testing environment.
 require "{$_tests_dir}/includes/bootstrap.php";
+
+add_filter(
+	'pre_http_request',
+	function( $response, $parsed_args, $url ) {
+		if ( false === strpos( $url, 'api.openai.com' ) ) {
+			return $response;
+		}
+
+		return new WP_Error( 'mock_http_blocked', 'External HTTP disabled during unit tests.' );
+	},
+	10,
+	3
+);

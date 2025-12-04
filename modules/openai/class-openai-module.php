@@ -12,6 +12,7 @@ class OpenAI_Module extends POS_Module {
 			'type'  => 'text',
 			'name'  => 'OpenAI API Key',
 			'label' => 'You can get it from <a href="https://platform.openai.com/account/api-keys">here</a>',
+			'scope' => 'global',
 		),
 		'prompt_describe_image' => array(
 			'type'    => 'textarea',
@@ -22,6 +23,7 @@ class OpenAI_Module extends POS_Module {
 				- If Image presents some kind of assortment of items without people in it, assume that your role is to list everything present in the image. Do not describe the scene, but instead list every item in the image. Default to listing all individual items instead of whole groups.
 				- If the image presents a scene with people in it, describe what it's presenting.
 			EOF,
+			'scope'   => 'global',
 		),
 	);
 
@@ -33,7 +35,7 @@ class OpenAI_Module extends POS_Module {
 	protected $email_responder;
 
 	public function is_configured() {
-		return ! empty( $this->settings['api_key'] );
+		return ! empty( $this->get_setting( 'api_key' ) );
 	}
 
 	public function register() {

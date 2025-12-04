@@ -153,4 +153,101 @@ class IMAP_Module_Test extends WP_UnitTestCase {
 
 		delete_option( 'imap_imap_host' );
 	}
+
+	public function test_match_recipient_user_ids_returns_unique_ids() {
+		$user_id = self::factory()->user->create(
+			array(
+				'user_email' => 'recipient@example.com',
+			)
+		);
+
+		$addresses  = array( 'recipient@example.com', 'other@example.com', 'recipient@example.com' );
+		$reflection = new ReflectionMethod( IMAP_Module::class, 'match_recipient_user_ids' );
+		$reflection->setAccessible( true );
+
+		$result = $reflection->invoke( $this->module, $addresses, array() );
+
+		$this->assertSame( array( $user_id ), $result );
+	}
+
+	public function test_extract_recipient_addresses_from_headers() {
+		$header        = new stdClass();
+		$header->to    = array(
+			(object) array(
+				'mailbox' => 'alice',
+				'host'    => 'example.com',
+			),
+		);
+		$header->cc    = array(
+			(object) array(
+				'mailbox' => 'bob',
+				'host'    => 'example.com',
+			),
+		);
+		$delivered_raw = "Delivered-To: carol@example.com\r\n";
+
+		$reflection = new ReflectionMethod( IMAP_Module::class, 'extract_recipient_addresses' );
+		$reflection->setAccessible( true );
+
+		$result = $reflection->invoke( $this->module, $header, $delivered_raw );
+		$this->assertEquals( array( 'alice@example.com', 'bob@example.com' ), $result );
+
+		$header->to = null;
+		$header->cc = null;
+		$result     = $reflection->invoke( $this->module, $header, $delivered_raw );
+		$this->assertEquals( array( 'carol@example.com' ), $result );
+	}
+
+	public function test_dispatch_email_action_passes_user_ids() {
+		$user_one = self::factory()->user->create();
+		$user_two = self::factory()->user->create();
+
+		$email_data = array(
+			'id'               => 1,
+			'subject'          => 'Subject',
+			'from'             => 'sender@example.com',
+			'body'             => 'Body',
+			'matched_user_ids' => array( $user_one, $user_two ),
+		);
+
+		wp_set_current_user( 0 );
+		$calls = array();
+		$callback = function( $passed_email_data, $module, $user_id ) use ( &$calls ) {
+			$calls[] = array(
+				'user_id'          => $user_id,
+				'matched_user_id'  => isset( $passed_email_data['matched_user_id'] ) ? $passed_email_data['matched_user_id'] : null,
+				'current_user_id'  => get_current_user_id(),
+			);
+		};
+
+		add_action( 'pos_imap_new_email', $callback, 5, 3 );
+
+		$reflection = new ReflectionMethod( IMAP_Module::class, 'dispatch_email_action' );
+		$reflection->setAccessible( true );
+
+		$reflection->invoke( $this->module, 'pos_imap_new_email', $email_data, array( $user_one, $user_two ) );
+
+		remove_action( 'pos_imap_new_email', $callback, 5 );
+
+		$this->assertCount( 2, $calls );
+		$this->assertSame( $user_one, $calls[0]['user_id'] );
+		$this->assertSame( $user_one, $calls[0]['matched_user_id'] );
+		$this->assertSame( $user_one, $calls[0]['current_user_id'] );
+		$this->assertSame( $user_two, $calls[1]['user_id'] );
+		$this->assertSame( $user_two, $calls[1]['matched_user_id'] );
+		$this->assertSame( $user_two, $calls[1]['current_user_id'] );
+		$this->assertSame( 0, get_current_user_id(), 'Current user should be restored after dispatch' );
+
+		$calls = array();
+		wp_set_current_user( 0 );
+		$callback = function( $passed_email_data, $module, $user_id ) use ( &$calls ) {
+			$calls[] = $user_id;
+		};
+		add_action( 'pos_imap_new_email', $callback, 5, 3 );
+		$reflection->invoke( $this->module, 'pos_imap_new_email', $email_data, array() );
+		remove_action( 'pos_imap_new_email', $callback, 5 );
+
+		$this->assertEquals( array( 0 ), $calls );
+		$this->assertSame( 0, get_current_user_id(), 'Current user should remain unchanged when no match' );
+	}
 }

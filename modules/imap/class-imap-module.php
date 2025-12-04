@@ -109,8 +109,8 @@ class IMAP_Module extends External_Service_Module {
 		$this->register_sync( 'minutely' );
 
 		// Register actions to log emails
-		add_action( 'pos_imap_new_email', array( $this, 'log_new_email' ), 10, 1 );
-		add_action( 'pos_imap_new_email_unverified', array( $this, 'log_new_email_unverified' ), 10, 1 );
+		add_action( 'pos_imap_new_email', array( $this, 'log_new_email' ), 10, 3 );
+		add_action( 'pos_imap_new_email_unverified', array( $this, 'log_new_email_unverified' ), 10, 3 );
 	}
 
 	/**
@@ -296,27 +296,16 @@ class IMAP_Module extends External_Service_Module {
 			'is_trusted' => (bool) $auth_evaluation['is_trusted'],
 		);
 
+		$recipient_addresses            = $this->extract_recipient_addresses( $header, $unfolded_headers );
+		$email_data['recipients']       = $recipient_addresses;
+		$matched_user_ids               = $this->match_recipient_user_ids( $recipient_addresses, $email_data );
+		$email_data['matched_user_ids'] = $matched_user_ids;
+
 		// Trigger appropriate action based on authentication status
 		if ( $email_data['is_trusted'] ) {
-			/**
-			 * Fires when a verified/authenticated email is received.
-			 *
-			 * @since 0.2.4
-			 *
-			 * @param array  $email_data Email data with authentication passed.
-			 * @param object $this       IMAP module instance.
-			 */
-			do_action( 'pos_imap_new_email', $email_data, $this );
+			$this->dispatch_email_action( 'pos_imap_new_email', $email_data, $matched_user_ids );
 		} else {
-			/**
-			 * Fires when an unverified/unauthenticated email is received.
-			 *
-			 * @since 0.2.4
-			 *
-			 * @param array  $email_data Email data with authentication failed.
-			 * @param object $this       IMAP module instance.
-			 */
-			do_action( 'pos_imap_new_email_unverified', $email_data, $this );
+			$this->dispatch_email_action( 'pos_imap_new_email_unverified', $email_data, $matched_user_ids );
 		}
 	}
 
@@ -379,6 +368,179 @@ class IMAP_Module extends External_Service_Module {
 		// Store in transient for 24 hours
 		$transient_key = 'pos_imap_processed_' . md5( $message_id );
 		set_transient( $transient_key, true, DAY_IN_SECONDS );
+	}
+
+	/**
+	 * Extract email addresses from IMAP header entries (to/cc).
+	 *
+	 * @param array|null $entries Header entries.
+	 * @return array
+	 */
+	private function extract_addresses_from_header_entries( $entries ): array {
+		$addresses = array();
+		if ( empty( $entries ) || ! is_array( $entries ) ) {
+			return $addresses;
+		}
+
+		foreach ( $entries as $entry ) {
+			if ( empty( $entry->mailbox ) || empty( $entry->host ) ) {
+				continue;
+			}
+			$email = sanitize_email( $entry->mailbox . '@' . $entry->host );
+			if ( ! empty( $email ) ) {
+				$addresses[] = $email;
+			}
+		}
+
+		return $addresses;
+	}
+
+	/**
+	 * Extract addresses from raw headers (e.g., Delivered-To).
+	 *
+	 * @param string $headers     Raw unfolded headers.
+	 * @param string $header_name Header name to extract.
+	 * @return array
+	 */
+	private function extract_addresses_from_raw_headers( string $headers, string $header_name ): array {
+		if ( '' === $headers ) {
+			return array();
+		}
+
+		$pattern = '/^' . preg_quote( $header_name, '/' ) . ':\s*(.+)$/mi';
+		if ( 0 === preg_match_all( $pattern, $headers, $matches ) ) {
+			return array();
+		}
+
+		$addresses = array();
+		foreach ( $matches[1] as $line ) {
+			$line_addresses = $this->parse_address_list( $line );
+			if ( ! empty( $line_addresses ) ) {
+				$addresses = array_merge( $addresses, $line_addresses );
+			}
+		}
+
+		return $addresses;
+	}
+
+	/**
+	 * Parse address list string using IMAP helpers when available.
+	 *
+	 * @param string $value Header value.
+	 * @return array
+	 */
+	private function parse_address_list( string $value ): array {
+		if ( '' === trim( $value ) ) {
+			return array();
+		}
+
+		if ( ! function_exists( 'imap_rfc822_parse_adrlist' ) ) {
+			$pieces = array_map( 'trim', explode( ',', $value ) );
+			return array_filter( array_map( 'sanitize_email', $pieces ) );
+		}
+
+		$parsed = imap_rfc822_parse_adrlist( $value, '' );
+		if ( empty( $parsed ) || ! is_array( $parsed ) ) {
+			return array();
+		}
+
+		$addresses = array();
+		foreach ( $parsed as $entry ) {
+			if ( empty( $entry->mailbox ) || empty( $entry->host ) ) {
+				continue;
+			}
+			$email = sanitize_email( $entry->mailbox . '@' . $entry->host );
+			if ( ! empty( $email ) ) {
+				$addresses[] = $email;
+			}
+		}
+
+		return $addresses;
+	}
+
+	/**
+	 * Extract all recipient addresses for the message.
+	 *
+	 * @param object $header            IMAP header info object.
+	 * @param string $unfolded_headers  Raw unfolded headers.
+	 * @return array
+	 */
+	private function extract_recipient_addresses( $header, string $unfolded_headers ): array {
+		$addresses = array();
+
+		if ( isset( $header->to ) ) {
+			$addresses = array_merge( $addresses, $this->extract_addresses_from_header_entries( $header->to ) );
+		}
+
+		if ( isset( $header->cc ) ) {
+			$addresses = array_merge( $addresses, $this->extract_addresses_from_header_entries( $header->cc ) );
+		}
+
+		if ( empty( $addresses ) ) {
+			$addresses = array_merge( $addresses, $this->extract_addresses_from_raw_headers( $unfolded_headers, 'Delivered-To' ) );
+		}
+
+		$addresses = array_map( 'sanitize_email', $addresses );
+		$addresses = array_filter( $addresses, 'is_email' );
+
+		return array_values( array_unique( $addresses ) );
+	}
+
+	/**
+	 * Map recipient addresses to WordPress user IDs.
+	 *
+	 * @param array $addresses  Recipient email addresses.
+	 * @param array $email_data Email data payload.
+	 * @return array
+	 */
+	private function match_recipient_user_ids( array $addresses, array $email_data ): array {
+		if ( empty( $addresses ) ) {
+			return array();
+		}
+
+		$user_ids = array();
+		foreach ( $addresses as $address ) {
+			$user = get_user_by( 'email', $address );
+			/**
+			 * Filter to map recipient email addresses to WordPress users.
+			 *
+			 * @param WP_User|false|null $user       Matched user object if found.
+			 * @param string             $address    Email address being checked.
+			 * @param array              $email_data Full email data.
+			 */
+			$user = apply_filters( 'pos_imap_map_recipient_user', $user, $address, $email_data );
+			if ( $user instanceof WP_User ) {
+				$user_ids[] = (int) $user->ID;
+			}
+		}
+
+		return array_values( array_unique( $user_ids ) );
+	}
+
+	/**
+	 * Dispatch IMAP email actions for each matched user.
+	 *
+	 * @param string $hook      Hook name.
+	 * @param array  $email_data Email payload.
+	 * @param array  $user_ids   Matched user IDs.
+	 * @return void
+	 */
+	private function dispatch_email_action( string $hook, array $email_data, array $user_ids ): void {
+		if ( empty( $user_ids ) ) {
+			$email_data['matched_user_id'] = 0;
+			do_action( $hook, $email_data, $this, 0 );
+			return;
+		}
+
+		foreach ( $user_ids as $user_id ) {
+			$this->run_for_user(
+				$user_id,
+				function() use ( $hook, $email_data, $user_id ) {
+					$email_data['matched_user_id'] = $user_id;
+					do_action( $hook, $email_data, $this, $user_id );
+				}
+			);
+		}
 	}
 
 	/**
@@ -711,8 +873,10 @@ class IMAP_Module extends External_Service_Module {
 	 * Log verified/trusted email (hooked to pos_imap_new_email action)
 	 *
 	 * @param array $email_data Email data.
+	 * @param IMAP_Module|null $module  Module instance (unused, provided for action parity).
+	 * @param int              $user_id Matched WordPress user ID (0 when none).
 	 */
-	public function log_new_email( $email_data ) {
+	public function log_new_email( $email_data, $module = null, $user_id = 0 ) {
 		// Truncate body for security (body may contain sensitive info)
 		$body = isset( $email_data['body'] ) ? $email_data['body'] : '';
 		$body_preview = ! empty( $body ) ? substr( $body, 0, 200 ) : '(empty)';
@@ -720,9 +884,12 @@ class IMAP_Module extends External_Service_Module {
 			$body_preview .= '...';
 		}
 
+		$user_fragment = $user_id ? 'User #' . $user_id . ' | ' : '';
+
 		$this->log(
 			sprintf(
-				'[VERIFIED] Email - Subject: %s, From: %s, Body: %s',
+				'[VERIFIED] %sEmail - Subject: %s, From: %s, Body: %s',
+				$user_fragment,
 				$email_data['subject'],
 				$email_data['from'],
 				$body_preview
@@ -734,11 +901,16 @@ class IMAP_Module extends External_Service_Module {
 	 * Log unverified/untrusted email (hooked to pos_imap_new_email_unverified action)
 	 *
 	 * @param array $email_data Email data.
+	 * @param IMAP_Module|null $module  Module instance (unused, provided for action parity).
+	 * @param int              $user_id Matched WordPress user ID (0 when none).
 	 */
-	public function log_new_email_unverified( $email_data ) {
+	public function log_new_email_unverified( $email_data, $module = null, $user_id = 0 ) {
+		$user_fragment = $user_id ? 'User #' . $user_id . ' | ' : '';
+
 		$this->log(
 			sprintf(
-				'[UNVERIFIED] Email - Subject: %s, From: %s',
+				'[UNVERIFIED] %sEmail - Subject: %s, From: %s',
+				$user_fragment,
 				$email_data['subject'],
 				$email_data['from']
 			),
