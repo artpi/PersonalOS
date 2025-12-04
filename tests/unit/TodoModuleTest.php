@@ -193,5 +193,16 @@ class TodoModuleTest extends WP_UnitTestCase {
 		$this->assertContains( 'inbox', $notebooks, 'Recurring todo is in inbox' );
 		$this->assertContains( 'test', $notebooks, 'Recurring todo is in test' );
 	}
+
+	public function test_module_create_defaults_to_private() {
+		$post_id = $this->module->create(
+			array(
+				'post_title' => 'Created via module',
+			),
+			array( 'inbox' )
+		);
+
+		$this->assertSame( 'private', get_post_status( $post_id ) );
+	}
 }
 

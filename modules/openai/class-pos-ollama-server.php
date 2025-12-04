@@ -52,6 +52,7 @@ class POS_Ollama_Server {
 			'name'    => 'Token for authorizing OLLAMA mock API.',
 			'label'   => strlen( $token ) < 3 ? 'Set a token to enable Ollama-compatible API for external clients' : 'OLLAMA Api accessible at <a href="' . add_query_arg( 'token', $token, get_rest_url( null, $this->rest_namespace ) ) . '" target="_blank">here</a>',
 			'default' => '0',
+			'scope'   => 'user',
 		);
 		if ( strlen( $token ) >= 3 ) {
 			// Initialize models lazily when needed, not during construction.

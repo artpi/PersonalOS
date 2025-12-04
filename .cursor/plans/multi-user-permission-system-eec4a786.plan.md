@@ -122,15 +122,15 @@ For access tokens (ollama, podcast), need to identify which user owns the token:
 
 ### To-dos
 
-- [ ] Add use_personalos and admin_personalos caps in fix_versions()
-- [ ] Add map_meta_cap filter to check caps based on post ownership
-- [ ] Test new capabilities and if the default test user (admin) has them, run tests
-- [ ] Update create() methods to default to private status
-- [ ] Write test for create methods in each module, run tests
-- [ ] Update POS_Settings to handle scope flag (global vs user)
-- [ ] Write tests for the scoped settings, test if proper users have acces to them, run tests
-- [ ] Add scope flags to all module settings declarations
-- [ ] Update specific modules tests for settings declarations, run tests
+- [x] Add use_personalos and admin_personalos caps in fix_versions()
+- [x] Add map_meta_cap filter to check caps based on post ownership
+- [x] Test new capabilities and if the default test user (admin) has them, run tests
+- [x] Update create() methods to default to private status
+- [x] Write test for create methods in each module, run tests
+- [x] Update POS_Settings to handle scope flag (global vs user)
+- [x] Write tests for the scoped settings, test if proper users have acces to them, run tests
+- [x] Add scope flags to all module settings declarations
+- [x] Update specific modules tests for settings declarations, run tests
 - [ ] Update Evernote/Readwise sync to loop through configured users
 - [ ] Write tests if possible,run them
 - [ ] Update IMAP to match emails to users by WP email address

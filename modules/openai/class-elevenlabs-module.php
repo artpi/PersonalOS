@@ -9,11 +9,12 @@ class ElevenLabs_Module extends POS_Module {
 			'type'  => 'text',
 			'name'  => 'Eleven labs API Key',
 			'label' => '',
+			'scope' => 'global',
 		),
 	);
 
 	public function is_configured() {
-		return ! empty( $this->settings['api_key'] );
+		return ! empty( $this->get_setting( 'api_key' ) );
 	}
 
 	public function get_voices() {

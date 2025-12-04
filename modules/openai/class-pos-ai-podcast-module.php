@@ -24,6 +24,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'name'    => 'Private token for accessing the podcast feed',
 				'label'   => strlen( $token ) < 3 ? 'You need a token longer than 3 characters to enable the podcast feed' : 'Your feed is accessible <a href="' . add_query_arg( 'token', $token, get_rest_url( null, $this->rest_namespace . '/ai-podcast' ) ) . '" target="_blank">here</a>',
 				'default' => '0',
+				'scope'   => 'user',
 			),
 			'tts_service' => array(
 				'type'    => 'select',
@@ -33,6 +34,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'options' => array(
 					'openai-gpt4o-audio' => 'OpenAI GPT-4o Audio',
 				),
+				'scope'   => 'global',
 			),
 		);
 		if ( $this->elevenlabs->is_configured() ) {
@@ -42,6 +44,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'name'    => 'ElevenLabs Voice ID',
 				'label'   => 'The voice to use for your motivational podcast. Add this voice to your account or paste another id <a href="https://elevenlabs.io/app/voice-lab/share/f441776f9bb056eb2295e030ffce576ee35583946b9d95b273731d9887cb51e9/jB108zg64sTcu1kCbN9L" target="_blank">here</a>',
 				'default' => 'jB108zg64sTcu1kCbN9L',
+				'scope'   => 'global',
 			);
 		}
 
