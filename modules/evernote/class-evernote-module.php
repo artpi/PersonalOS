@@ -16,10 +16,11 @@ class Evernote_Module extends External_Service_Module {
 	public $parent_notebook  = null;
 	public $simple_client    = null;
 	public $advanced_client  = null;
-	public $token           = null;
-	public $synced_notebooks = array();
-	public $cached_data      = null;
+	public $token             = null;
+	public $synced_notebooks  = array();
+	public $cached_data       = null;
 	protected $current_user_id = 0;
+	protected $client_user_id  = 0;
 
 	// phpcs:disable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 	public $settings = array(
@@ -62,6 +63,16 @@ class Evernote_Module extends External_Service_Module {
 
 		// Register abilities
 		add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
+	}
+
+	protected function reset_user_context() {
+		parent::reset_user_context();
+		$this->token             = null;
+		$this->synced_notebooks  = array();
+		$this->cached_data       = null;
+		$this->simple_client     = null;
+		$this->advanced_client   = null;
+		$this->client_user_id    = 0;
 	}
 
 	/**
@@ -148,7 +159,7 @@ class Evernote_Module extends External_Service_Module {
 	 * : GUID of the note to sync.
 	 */
 	public function cli( $args ) {
-		$this->connect();
+		$this->connect( get_current_user_id() );
 		$note = $this->advanced_client->getNoteStore()->getNote(
 			$args[0],
 			false,
@@ -250,8 +261,35 @@ class Evernote_Module extends External_Service_Module {
 	 * @param bool $update
 	 */
 	public function sync_note_to_evernote( int $post_id, \WP_Post $post, bool $update ) {
-		//return;//  Off for now
-		$this->connect();
+		$author_id = (int) $post->post_author;
+		if ( ! $author_id ) {
+			return;
+		}
+
+		if ( ! $this->get_setting( 'token', $author_id ) ) {
+			return;
+		}
+
+		$synced_notebooks = (array) $this->get_setting( 'synced_notebooks', $author_id );
+		if ( empty( $synced_notebooks ) ) {
+			return;
+		}
+
+		$post_copy = clone $post;
+		$this->run_for_user(
+			$author_id,
+			function () use ( $post_id, $post_copy, $update, $synced_notebooks ) {
+				if ( ! $this->connect( $this->current_sync_user_id ) ) {
+					return;
+				}
+
+				$this->synced_notebooks = $synced_notebooks;
+				$this->sync_note_to_evernote_current_user( $post_id, $post_copy, $update );
+			}
+		);
+	}
+
+	protected function sync_note_to_evernote_current_user( int $post_id, \WP_Post $post, bool $update ) {
 		$guid = get_post_meta( $post->ID, 'evernote_guid', true );
 
 		$url = get_post_meta( $post->ID, 'url', true );
@@ -288,7 +326,7 @@ class Evernote_Module extends External_Service_Module {
 		$notebook       = new \Evernote\Model\Notebook();
 		$evernote_notebooks = $this->get_note_evernote_notebook_guid( $post->ID, 'notebook' );
 
-		if ( empty( $evernote_notebooks ) || ! in_array( array_values( $evernote_notebooks )[0], $this->get_setting( 'synced_notebooks' ), true ) ) {
+		if ( empty( $evernote_notebooks ) || ! in_array( array_values( $evernote_notebooks )[0], $this->synced_notebooks, true ) ) {
 			return;
 		}
 		$notebook->guid = array_values( $evernote_notebooks )[0];
@@ -341,7 +379,8 @@ class Evernote_Module extends External_Service_Module {
 				}
 				$start += $step;
 				$notes = array_merge( $notes, $n->notes );
-			} while ( count( $notes ) < $limit );
+				$note_count = count( $notes );
+			} while ( $note_count < $limit );
 
 		} catch ( EDAMUserException $edue ) {
 			$this->log( 'EDAMUserException[' . $edue->errorCode . ']: ' . $edue, E_USER_WARNING );
@@ -382,8 +421,9 @@ class Evernote_Module extends External_Service_Module {
 					'post_title'  => $note->title,
 					'post_name'   => $note->guid,
 					'post_type'   => $this->notes_module->id,
-					'post_status' => 'publish',
+					'post_status' => 'private',
 					'post_date'   => gmdate( 'Y-m-d H:i:s', floor( $note->created / 1000 ) ),
+					'post_author' => get_current_user_id(),
 				)
 			);
 			// By default we are marking this as "Evernote".
@@ -648,18 +688,34 @@ class Evernote_Module extends External_Service_Module {
 	}
 
 	/**
-	 * Connect to Evernote and create a client
+	 * Connect to Evernote and create a client.
+	 *
+	 * @param int|null $user_id Optional user ID to use for credentials.
 	 */
-	public function connect() {
-		if ( ! $this->token ) {
-			$this->token = $this->get_setting( 'token' );
+	public function connect( $user_id = null ) {
+		$user_id = $user_id ?? $this->current_sync_user_id;
+		if ( ! $user_id ) {
+			$user_id = get_current_user_id();
 		}
-		if ( ! $this->token ) {
+
+		if ( ! $user_id ) {
 			return false;
 		}
+
+		$token = $this->get_setting( 'token', $user_id );
+		if ( ! $token ) {
+			return false;
+		}
+
+		if ( $this->simple_client && $this->client_user_id === $user_id ) {
+			return $this->simple_client;
+		}
+
+		$this->token            = $token;
+		$this->client_user_id   = $user_id;
 		require_once plugin_dir_path( __FILE__ ) . '/../../vendor/autoload.php';
-		$this->simple_client   = new \Evernote\Client( $this->token, false );
-		$this->advanced_client = new \Evernote\AdvancedClient( $this->token, false );
+		$this->simple_client    = new \Evernote\Client( $this->token, false );
+		$this->advanced_client  = new \Evernote\AdvancedClient( $this->token, false );
 
 		return $this->simple_client;
 	}
@@ -670,19 +726,51 @@ class Evernote_Module extends External_Service_Module {
 	 * @see register_sync
 	 */
 	public function sync() {
-		if ( ! $this->get_setting( 'active' ) ) {
+		$user_ids = $this->get_user_ids_with_setting( 'token' );
+		if ( empty( $user_ids ) ) {
 			return;
 		}
-		$this->notes_module->switch_to_user();
-		$this->log( 'Syncing Evernote triggering ' );
-		$this->connect();
-		$this->synced_notebooks = $this->get_setting( 'synced_notebooks' );
-		if ( empty( $this->synced_notebooks ) || ! $this->advanced_client ) {
-			return array();
+
+		foreach ( $user_ids as $user_id ) {
+			if ( ! $this->get_setting( 'active', $user_id ) ) {
+				continue;
+			}
+
+			$synced_notebooks = $this->get_setting( 'synced_notebooks', $user_id );
+			if ( empty( $synced_notebooks ) ) {
+				continue;
+			}
+
+			$this->run_for_user(
+				$user_id,
+				function () use ( $user_id, $synced_notebooks ) {
+					try {
+						$this->synced_notebooks = $synced_notebooks;
+						$this->sync_user( $user_id );
+					} catch ( \Throwable $e ) {
+						$this->log( sprintf( 'User %d sync error: %s', $user_id, $e->getMessage() ), E_USER_WARNING );
+					}
+				}
+			);
 		}
-		$usn               = get_option( $this->get_setting_option_name( 'usn' ), 0 );
-		$last_sync         = get_option( $this->get_setting_option_name( 'last_sync' ), 0 );
-		$last_update_count = get_option( $this->get_setting_option_name( 'last_update_count' ), 0 );
+	}
+
+	protected function sync_user( int $user_id ) {
+		if ( ! $this->connect( $user_id ) || ! $this->advanced_client ) {
+			return;
+		}
+
+		$this->log( sprintf( 'Syncing Evernote for user %d', $user_id ) );
+		if ( empty( $this->synced_notebooks ) ) {
+			$this->synced_notebooks = (array) $this->get_setting( 'synced_notebooks', $user_id );
+		}
+		if ( empty( $this->synced_notebooks ) ) {
+			return;
+		}
+
+		$usn               = (int) $this->get_user_state( 'usn', 0, $user_id );
+		$last_sync         = (int) $this->get_user_state( 'last_sync', 0, $user_id );
+		$last_update_count = (int) $this->get_user_state( 'last_update_count', 0, $user_id );
 		$sync_state        = $this->advanced_client->getNoteStore()->getSyncState();
 		$sync_filter       = new \EDAM\NoteStore\SyncChunkFilter(
 			array(
@@ -697,8 +785,8 @@ class Evernote_Module extends External_Service_Module {
 			)
 		);
 		$sync_filter->includeExpunged = false;
-		update_option( $this->get_setting_option_name( 'last_sync' ), $sync_state->currentTime );
-		update_option( $this->get_setting_option_name( 'last_update_count' ), $sync_state->updateCount );
+		$this->set_user_state( 'last_sync', $sync_state->currentTime, $user_id );
+		$this->set_user_state( 'last_update_count', $sync_state->updateCount, $user_id );
 
 		if ( $sync_state->updateCount === $last_update_count || $sync_state->updateCount === $usn ) {
 			$this->log( 'Evernote: No updates since last sync' );
@@ -719,7 +807,7 @@ class Evernote_Module extends External_Service_Module {
 			// We want to unschedule any regular sync events until we have initial sync complete.
 			wp_unschedule_hook( $this->get_sync_hook_name() );
 			// We will schedule ONE TIME sync event for the next page.
-			update_option( $this->get_setting_option_name( 'usn' ), $sync_chunk->chunkHighUSN );
+			$this->set_user_state( 'usn', $sync_chunk->chunkHighUSN, $user_id );
 			wp_schedule_single_event( time() + 60, $this->get_sync_hook_name() );
 			$this->log( "Scheduling next page chunk with cursor {$sync_chunk->chunkHighUSN}" );
 		} else {
@@ -738,7 +826,7 @@ class Evernote_Module extends External_Service_Module {
 					$this->cached_data['notebooks'][ $notebook->guid ]['default'] = true;
 				}
 			}
-			update_option( $this->get_setting_option_name( 'cached_data' ), wp_json_encode( $this->cached_data ) );
+			$this->set_user_state( 'cached_data', wp_json_encode( $this->cached_data ), $user_id );
 			$updated_cache = true;
 		}
 
@@ -751,7 +839,7 @@ class Evernote_Module extends External_Service_Module {
 					$this->cached_data['tags'][ $tag->guid ]['parent'] = $tag->parentGuid;
 				}
 			}
-			update_option( $this->get_setting_option_name( 'cached_data' ), wp_json_encode( $this->cached_data ) );
+			$this->set_user_state( 'cached_data', wp_json_encode( $this->cached_data ), $user_id );
 			$updated_cache = true;
 		}
 
@@ -795,7 +883,7 @@ class Evernote_Module extends External_Service_Module {
 		if ( ! empty( $this->cached_data ) ) {
 			return $this->cached_data;
 		}
-		$data = get_option( $this->get_setting_option_name( 'cached_data' ), false );
+		$data = $this->get_user_state( 'cached_data', false );
 		if ( ! $data ) {
 			$this->cached_data = array(
 				'notebooks' => array(),
@@ -1298,19 +1386,28 @@ class Evernote_Module extends External_Service_Module {
 			$post_type = $this->notes_module->id;
 		}
 
-		return get_posts(
-			array(
-				'post_type'   => $post_type,
-				'numberposts' => -1,
-				'post_status' => array( 'publish', 'pending', 'draft', 'auto-draft', 'future', 'private', 'inherit' ),
-				'meta_query'  => array(
-					array(
-						'key'   => 'evernote_guid',
-						'value' => $guid,
-					),
+		$author_id = $this->current_sync_user_id;
+		if ( ! $author_id ) {
+			$author_id = get_current_user_id();
+		}
+
+		$args = array(
+			'post_type'   => $post_type,
+			'numberposts' => -1,
+			'post_status' => array( 'publish', 'pending', 'draft', 'auto-draft', 'future', 'private', 'inherit' ),
+			'meta_query'  => array(
+				array(
+					'key'   => 'evernote_guid',
+					'value' => $guid,
 				),
-			)
+			),
 		);
+
+		if ( $author_id ) {
+			$args['author'] = $author_id;
+		}
+
+		return get_posts( $args );
 	}
 
 	/**
