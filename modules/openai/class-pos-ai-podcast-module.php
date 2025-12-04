@@ -60,6 +60,59 @@ class POS_AI_Podcast_Module extends POS_Module {
 
 	}
 
+	/**
+	 * Locate the user that owns a given podcast token.
+	 *
+	 * @param string $token Token from the request.
+	 * @return WP_User|null
+	 */
+	private function get_user_for_token( string $token ): ?WP_User {
+		if ( strlen( $token ) < 3 ) {
+			return null;
+		}
+
+		global $wpdb;
+		$meta_key = 'pos_' . $this->id . '_token';
+		$user_id  = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = %s AND meta_value = %s LIMIT 1",
+				$meta_key,
+				$token
+			)
+		);
+
+		if ( ! $user_id ) {
+			return null;
+		}
+
+		$user = get_user_by( 'ID', (int) $user_id );
+		if ( ! $user instanceof WP_User ) {
+			return null;
+		}
+
+		if ( ! user_can( $user, 'use_personalos' ) ) {
+			return null;
+		}
+
+		return $user;
+	}
+
+	/**
+	 * Authorize a REST request by token.
+	 *
+	 * @param string $token Token from the request.
+	 * @return bool
+	 */
+	private function authorize_token( string $token ): bool {
+		$user = $this->get_user_for_token( $token );
+		if ( ! $user ) {
+			return false;
+		}
+
+		wp_set_current_user( $user->ID );
+		return true;
+	}
+
 	public function admin_menu() {
 		add_submenu_page( 'personalos', 'Hype Me', 'Hype Me', 'read', 'pos-hype-me', array( $this, 'render_admin_player_page' ) );
 	}
@@ -119,6 +172,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 			array(
 				'post_type'   => 'attachment',
 				'post_status' => 'private, publish, inherit',
+				'author'      => get_current_user_id(),
 				'meta_query'  => array(
 					array(
 						'key'     => 'pos_podcast',
@@ -206,11 +260,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'methods'             => 'GET',
 				'callback'            => array( $this, 'output_feed' ),
 				'permission_callback' => function( $request ) {
-					$token = $this->get_setting( 'token' );
-					if ( strlen( $token ) < 3 ) {
-						return false;
-					}
-					return $token === $request->get_param( 'token' );
+					return $this->authorize_token( (string) $request->get_param( 'token' ) );
 				},
 			)
 		);
@@ -233,7 +283,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 					return $this->generate( $request->has_param( 'prompt_id' ) ? $request->get_param( 'prompt_id' ) : null );
 				},
 				'permission_callback' => function( $request ) {
-					return true;
+					return $this->authorize_token( (string) $request->get_param( 'token' ) );
 				},
 			)
 		);
@@ -271,6 +321,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'post_type'      => 'todo',
 				'post_status'    => array( 'publish', 'private' ),
 				'posts_per_page' => 25,
+				'author'         => get_current_user_id(),
 				'tax_query'      => array(
 					array(
 						'taxonomy' => 'notebook',
@@ -319,6 +370,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 			array(
 				'post_type'   => 'attachment',
 				'post_status' => 'private',
+				'author'      => get_current_user_id(),
 				'meta_query'  => array(
 					array(
 						'key'     => 'pos_podcast',
