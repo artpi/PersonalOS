@@ -714,8 +714,6 @@ class OpenAI_Module extends POS_Module {
 		);
 	}
 
-
-
 	public function rest_api_init() {
 		register_rest_route(
 			$this->rest_namespace,

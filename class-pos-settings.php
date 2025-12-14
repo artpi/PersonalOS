@@ -311,7 +311,11 @@ class POS_Settings {
 		$module    = $this->get_module_by_id( $module_id );
 
 		if ( ! $module ) {
-			wp_safe_redirect( wp_get_referer() ?: admin_url( 'options-general.php?page=pos' ) );
+			$redirect_url = wp_get_referer();
+			if ( ! $redirect_url ) {
+				$redirect_url = admin_url( 'options-general.php?page=pos' );
+			}
+			wp_safe_redirect( $redirect_url );
 			exit;
 		}
 
@@ -327,7 +331,15 @@ class POS_Settings {
 			$module->update_setting( $setting_id, $sanitized, $user_id );
 		}
 
-		wp_safe_redirect( add_query_arg( array( 'page' => 'pos', 'module' => $module_id ), admin_url( 'options-general.php' ) ) );
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'   => 'pos',
+					'module' => $module_id,
+				),
+				admin_url( 'options-general.php' )
+			)
+		);
 		exit;
 	}
 

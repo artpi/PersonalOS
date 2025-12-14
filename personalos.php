@@ -214,7 +214,7 @@ class POS {
 		require_once plugin_dir_path( __FILE__ ) . 'modules/openai/class-elevenlabs-module.php';
 		require_once plugin_dir_path( __FILE__ ) . 'modules/bucketlist/class-bucketlist-module.php';
 		require_once plugin_dir_path( __FILE__ ) . 'modules/slack/class-slack-module.php';
-		require_once plugin_dir_path( __FILE__ ) . 'modules/perplexity/class.perplexity-module.php';
+		require_once plugin_dir_path( __FILE__ ) . 'modules/perplexity/class-perplexity-module.php';
 		require_once plugin_dir_path( __FILE__ ) . 'modules/todo/class-ics-module.php';
 		require_once plugin_dir_path( __FILE__ ) . 'modules/imap/class-imap-module.php';
 

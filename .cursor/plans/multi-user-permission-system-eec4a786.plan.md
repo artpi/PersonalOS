@@ -1,4 +1,57 @@
-<!-- eec4a786-52c4-4a8d-827d-d72be28830de 7db33e64-9560-4b21-9ac5-f9fced49efd4 -->
+---
+name: Multi-User Permission System for PersonalOS
+overview: ""
+todos:
+  - id: ad878f02-5372-4ed3-99d8-e8a985857fb3
+    content: Add use_personalos and admin_personalos caps in fix_versions()
+    status: completed
+  - id: 2dd8d984-d5ab-40bc-b4af-25b9c5d61a31
+    content: Add map_meta_cap filter to check caps based on post ownership
+    status: completed
+  - id: 12c6aeee-d7e8-4cfc-b802-ebff48011291
+    content: Test new capabilities and if the default test user (admin) has them, run tests
+    status: completed
+  - id: 5f94f234-29a0-431c-9a63-3a9e37b1e87c
+    content: Update create() methods to default to private status
+    status: completed
+  - id: 8c16b0d5-2312-492e-8a2f-deeeebd5eb7c
+    content: Write test for create methods in each module, run tests
+    status: completed
+  - id: 6fb6e7ca-a46b-4222-8307-dd11f0b1fb75
+    content: Update POS_Settings to handle scope flag (global vs user)
+    status: completed
+  - id: 26501cfc-218c-4ba1-b832-ce23d9301685
+    content: Write tests for the scoped settings, test if proper users have acces to them, run tests
+    status: completed
+  - id: d38f77a0-d9c0-46c1-8baa-d02598d1c30b
+    content: Add scope flags to all module settings declarations
+    status: completed
+  - id: 8e06cd9d-2ebd-4858-b9ba-01f3381a237e
+    content: Update specific modules tests for settings declarations, run tests
+    status: completed
+  - id: 41fef6f7-835a-434f-8f71-780c6a603f04
+    content: Update Evernote/Readwise sync to loop through configured users
+    status: pending
+  - id: a8109789-2f8f-4afd-b730-09e9ded7192a
+    content: Write tests if possible,run them
+    status: pending
+  - id: 3703e080-4827-49b5-af36-beff42a08260
+    content: Update IMAP to match emails to users by WP email address
+    status: pending
+  - id: 570ada98-80b8-4d80-92de-3d68448e5090
+    content: write tests for imap users if possible and email matching
+    status: pending
+  - id: 0dc0199a-3930-491f-b0b9-5499601325b5
+    content: Implement token-to-user mapping for ollama/podcast access tokens, write tests and test
+    status: pending
+  - id: 64230487-7d37-4883-bcae-67bbeb32ec92
+    content: Filter dashboard widgets to show only current user's content
+    status: pending
+  - id: 71aad706-688a-430c-8294-670b1842987b
+    content: Verify REST API respects new capability checks, write tests and test
+    status: pending
+---
+
 # Multi-User Permission System for PersonalOS
 
 ## Implementation Plan
@@ -119,22 +172,3 @@ For access tokens (ollama, podcast), need to identify which user owns the token:
 - **Transcription module** - needs to be user-aware
 - **Taxonomy privacy** - notebooks are shared for now
 - **WP Admin list tables** - `pre_get_posts` filter for notes CPT
-
-### To-dos
-
-- [x] Add use_personalos and admin_personalos caps in fix_versions()
-- [x] Add map_meta_cap filter to check caps based on post ownership
-- [x] Test new capabilities and if the default test user (admin) has them, run tests
-- [x] Update create() methods to default to private status
-- [x] Write test for create methods in each module, run tests
-- [x] Update POS_Settings to handle scope flag (global vs user)
-- [x] Write tests for the scoped settings, test if proper users have acces to them, run tests
-- [x] Add scope flags to all module settings declarations
-- [x] Update specific modules tests for settings declarations, run tests
-- [ ] Update Evernote/Readwise sync to loop through configured users
-- [ ] Write tests if possible,run them
-- [ ] Update IMAP to match emails to users by WP email address
-- [ ] write tests for imap users if possible and email matching
-- [ ] Implement token-to-user mapping for ollama/podcast access tokens, write tests and test
-- [ ] Filter dashboard widgets to show only current user's content
-- [ ] Verify REST API respects new capability checks, write tests and test

@@ -155,27 +155,28 @@ class POS_AI_Podcast_Module extends POS_Module {
 			)
 		);
 		global $post;
-		header( 'Content-Type: ' . feed_content_type( 'rss-http' ) . '; charset=' . get_option( 'blog_charset' ), true );
-		echo '<?xml version="1.0" encoding="' . get_option( 'blog_charset' ) . '"?' . '>';
+		$blog_charset = esc_attr( get_option( 'blog_charset' ) );
+		header( 'Content-Type: ' . feed_content_type( 'rss-http' ) . '; charset=' . $blog_charset, true );
+		echo '<?xml version="1.0" encoding="' . esc_attr( $blog_charset ) . '"?' . '>';
 		?>
 
 		<?php // Start the iTunes RSS Feed: https://www.apple.com/itunes/podcasts/specs.html ?>
 		<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" version="2.0">
 		<channel>
-			<title>Good morning from <?php echo get_bloginfo( 'name' ); ?></title>
-			<link><?php echo get_bloginfo( 'url' ); ?></link>
-			<language><?php echo get_bloginfo( 'language' ); ?></language>
-			<copyright><?php echo date( 'Y' ); ?> <?php echo get_bloginfo( 'name' ); ?></copyright>
-			<itunes:author><?php echo get_bloginfo( 'name' ); ?></itunes:author>
+			<title>Good morning from <?php echo esc_html( get_bloginfo( 'name' ) ); ?></title>
+			<link><?php echo esc_url( get_bloginfo( 'url' ) ); ?></link>
+			<language><?php echo esc_html( get_bloginfo( 'language' ) ); ?></language>
+			<copyright><?php echo esc_html( gmdate( 'Y' ) ); ?> <?php echo esc_html( get_bloginfo( 'name' ) ); ?></copyright>
+			<itunes:author><?php echo esc_html( get_bloginfo( 'name' ) ); ?></itunes:author>
 			<itunes:summary>Private podcast with all the hype and energy you need to start your day.</itunes:summary>
 			<itunes:owner>
-			<itunes:name><?php echo get_bloginfo( 'name' ); ?></itunes:name>
-			<itunes:email><?php echo get_bloginfo( 'admin_email' ); ?></itunes:email>
+			<itunes:name><?php echo esc_html( get_bloginfo( 'name' ) ); ?></itunes:name>
+			<itunes:email><?php echo esc_html( get_bloginfo( 'admin_email' ) ); ?></itunes:email>
 			</itunes:owner>
 			<?php
 				$logo = get_custom_logo();
 			if ( $logo ) {
-				echo "<itunes:image href=\"{$logo}\" />";
+				echo '<itunes:image href="' . esc_url( $logo ) . '" />';
 			}
 			?>
 
@@ -191,13 +192,13 @@ class POS_AI_Podcast_Module extends POS_Module {
 				?>
 			<item>
 			<title><?php the_title_rss(); ?></title>
-			<itunes:author><?php echo get_bloginfo( 'name' ); ?></itunes:author>
+			<itunes:author><?php echo esc_html( get_bloginfo( 'name' ) ); ?></itunes:author>
 			<itunes:summary></itunes:summary>
 				<?php
 				$attachment_id = $post->ID;
 				$fileurl = wp_get_attachment_url( $attachment_id );
 				$filesize = filesize( get_attached_file( $attachment_id ) );
-				$dateformatstring = _x( 'D, d M Y H:i:s O', 'Date formating for iTunes feed.' );
+				$dateformatstring = _x( 'D, d M Y H:i:s O', 'Date formating for iTunes feed.', 'personalos' );
 				?>
 
 			<enclosure url="<?php echo esc_url( $fileurl ); ?>" length="<?php echo esc_attr( $filesize ); ?>" type="audio/mpeg" />
@@ -315,7 +316,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 							array_map(
 								function( $term ) {
 									$termmeta = get_term_meta( $term->term_id, 'flag' );
-									if ( ! in_array( 'project', $termmeta ) ) {
+									if ( ! in_array( 'project', $termmeta, true ) ) {
 										return '';
 									}
 									return '#' . $term->name;
