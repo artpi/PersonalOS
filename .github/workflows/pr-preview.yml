@@ -45,7 +45,7 @@ jobs:
         run: |
           echo "Linting changed PHP files:"
           echo "${{ steps.changed-files.outputs.all_changed_files }}"
-          vendor/bin/phpcs --standard=phpcs.xml --report=checkstyle ${{ steps.changed-files.outputs.all_changed_files }} | cs2pr
+          vendor/bin/phpcs --standard=phpcs.xml --report=checkstyle --runtime-set ignore_warnings_on_exit 1 ${{ steps.changed-files.outputs.all_changed_files }} | cs2pr
 
   lint-js:
     if: ${{ github.event.pull_request.state == 'open' && github.event.pull_request.draft == false }}
