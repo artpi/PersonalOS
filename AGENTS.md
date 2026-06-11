@@ -30,4 +30,7 @@ Assume environment is set up.
 - IMPORTANT: When you learn something about the codebase or how I want you to operate, add it to lessons below.
 
 ### Lessons
-- 
+- For the plugin split, prefer a lean Guidelines-centered target: Notes UI, Readwise importer, Evernote importer, TODO+ICS, and AI Chat; remove/defer OpenAI, Perplexity, IMAP/email responder, podcast/ElevenLabs, transcription, and voice/realtime instead of extracting every old module.
+- TODO should store each task as its own `wp_guideline` post tagged `artifact` and `todo` so non-PersonalOS Guidelines consumers can discover tasks; do not use `plan` or `personalos` for ordinary TODO rows.
+- Current GitHub Actions build one monolithic `wp-personal-os.zip`; the plugin split needs a package matrix that builds and uploads separate ZIPs for Notes, Readwise, Evernote, TODO, and AI Chat.
+- The current NPM build is monolithic (`src/index.js` -> `build/index.js`); split plugins need package-local JS/CSS builds, block registration, and sidebars so no package depends on the root `pos` editor bundle.
