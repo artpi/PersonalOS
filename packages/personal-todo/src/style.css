@@ -1,0 +1,92 @@
+body.personal-todo-js .personal-todo-admin-fallback {
+	display: none;
+}
+
+.personal-todo-admin {
+	margin-top: 20px;
+}
+
+.personal-todo-admin__layout {
+	display: grid;
+	grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
+	gap: 20px;
+	max-width: 1180px;
+}
+
+.personal-todo-admin__editor,
+.personal-todo-admin__list {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	box-sizing: border-box;
+	padding: 16px;
+}
+
+.personal-todo-admin__actions,
+.personal-todo-admin__filters {
+	align-items: flex-end;
+	display: flex;
+	gap: 12px;
+}
+
+.personal-todo-admin__filters > * {
+	flex: 1 1 180px;
+}
+
+.personal-todo-admin__items {
+	display: grid;
+	gap: 8px;
+}
+
+.personal-todo-admin__item {
+	align-items: center;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	box-sizing: border-box;
+	display: grid;
+	gap: 12px;
+	grid-template-columns: minmax(0, 1fr) auto;
+	min-height: 64px;
+	padding: 10px 12px;
+}
+
+.personal-todo-admin__item-main {
+	background: transparent;
+	border: 0;
+	color: #1d2327;
+	cursor: pointer;
+	display: grid;
+	gap: 4px;
+	padding: 0;
+	text-align: left;
+}
+
+.personal-todo-admin__item-main:hover,
+.personal-todo-admin__item-main:focus {
+	color: #135e96;
+	outline: none;
+}
+
+.personal-todo-admin__item-title {
+	font-weight: 600;
+}
+
+.personal-todo-admin__item-meta {
+	color: #646970;
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+	.personal-todo-admin__layout,
+	.personal-todo-admin__item {
+		grid-template-columns: 1fr;
+	}
+
+	.personal-todo-admin__actions,
+	.personal-todo-admin__filters {
+		align-items: stretch;
+		flex-direction: column;
+	}
+}

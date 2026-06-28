@@ -1,0 +1,9 @@
+{
+	"plugins": [ "./packages/personal-ai-chat" ],
+	"config": {
+		"WP_DEBUG": true,
+		"WP_DEBUG_LOG": true,
+		"SCRIPT_DEBUG": true,
+		"WP_DEBUG_DISPLAY": true
+	}
+}

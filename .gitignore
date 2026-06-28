@@ -5,6 +5,7 @@ node_modules
 vendor
 debug.log
 *.zip
+dist
 
 # Operating system specific files
 .DS_Store

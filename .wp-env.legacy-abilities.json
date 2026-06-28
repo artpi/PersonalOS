@@ -1,11 +1,5 @@
 {
-	"plugins": [
-		"./packages/personal-notes",
-		"./packages/personal-readwise-sync",
-		"./packages/personal-evernote-sync",
-		"./packages/personal-todo",
-		"./packages/personal-ai-chat"
-	],
+	"plugins": [ ".", "WordPress/abilities-api" ],
 	"config": {
 		"WP_DEBUG": true,
 		"WP_DEBUG_LOG": true,
@@ -22,5 +16,8 @@
 		"tests": {
 			"port": 8902
 		}
+	},
+	"lifecycleScripts": {
+		"afterStart": "wp-env run cli wp-content/plugins/$(basename $PWD)/wpenv-afterstart.sh"
 	}
 }

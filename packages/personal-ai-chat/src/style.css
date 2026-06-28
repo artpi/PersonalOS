@@ -1,0 +1,127 @@
+body.personal-ai-chat-js .personal-ai-chat-admin-fallback {
+	display: none;
+}
+
+.personal-ai-chat-admin {
+	margin-top: 20px;
+}
+
+.personal-ai-chat-admin__layout {
+	display: grid;
+	grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+	gap: 20px;
+	max-width: 1180px;
+}
+
+.personal-ai-chat-admin__sidebar,
+.personal-ai-chat-admin__main {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	box-sizing: border-box;
+	padding: 16px;
+}
+
+.personal-ai-chat-admin__new,
+.personal-ai-chat-admin__title {
+	align-items: flex-end;
+	display: flex;
+	gap: 12px;
+}
+
+.personal-ai-chat-admin__new > *,
+.personal-ai-chat-admin__title > * {
+	flex: 1 1 auto;
+}
+
+.personal-ai-chat-admin__conversations,
+.personal-ai-chat-admin__messages {
+	display: grid;
+	gap: 8px;
+	margin-top: 14px;
+}
+
+.personal-ai-chat-admin__conversation {
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	color: #1d2327;
+	cursor: pointer;
+	display: grid;
+	gap: 4px;
+	min-height: 58px;
+	padding: 10px 12px;
+	text-align: left;
+	width: 100%;
+}
+
+.personal-ai-chat-admin__conversation:hover,
+.personal-ai-chat-admin__conversation:focus {
+	background: #fff;
+	border-color: #2271b1;
+	box-shadow: 0 0 0 1px #2271b1;
+	outline: none;
+}
+
+.personal-ai-chat-admin__conversation small,
+.personal-ai-chat-admin__message strong {
+	color: #646970;
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+.personal-ai-chat-admin__message {
+	border-left: 3px solid #2271b1;
+	background: #f6f7f7;
+	border-radius: 4px;
+	padding: 10px 12px;
+}
+
+.personal-ai-chat-admin__message.is-assistant {
+	border-left-color: #008a20;
+}
+
+.personal-ai-chat-admin__message.is-system {
+	border-left-color: #8c8f94;
+}
+
+.personal-ai-chat-admin__message p {
+	margin: 6px 0 0;
+	white-space: pre-wrap;
+}
+
+.personal-ai-chat-admin__composer {
+	border-top: 1px solid #dcdcde;
+	display: grid;
+	gap: 12px;
+	margin-top: 16px;
+	padding-top: 16px;
+}
+
+.personal-ai-chat-admin__abilities {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 14px;
+}
+
+.personal-ai-chat-admin__abilities span {
+	background: #f0f6fc;
+	border: 1px solid #c5d9ed;
+	border-radius: 4px;
+	color: #1d2327;
+	font-size: 12px;
+	padding: 3px 6px;
+}
+
+@media (max-width: 900px) {
+	.personal-ai-chat-admin__layout {
+		grid-template-columns: 1fr;
+	}
+
+	.personal-ai-chat-admin__new,
+	.personal-ai-chat-admin__title {
+		align-items: stretch;
+		flex-direction: column;
+	}
+}

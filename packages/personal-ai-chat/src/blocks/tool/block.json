@@ -1,0 +1,32 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "pos/ai-tool",
+	"title": "WP Ability",
+	"category": "media",
+	"icon": "smiley",
+	"description": "Render the result of a WordPress Ability.",
+	"textdomain": "personal-ai-chat",
+	"attributes": {
+		"tool": {
+			"type": "string",
+			"default": ""
+		},
+		"parameters": {
+			"type": "object",
+			"default": {}
+		},
+		"outputFields": {
+			"type": "array",
+			"default": []
+		},
+		"outputFormat": {
+			"type": "string",
+			"default": "json"
+		}
+	},
+	"supports": {
+		"html": false
+	},
+	"editorScript": "file:./index.js"
+}

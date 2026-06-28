@@ -6,6 +6,14 @@ on:
 jobs:
   build-and-zip:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package:
+          - personal-notes
+          - personal-readwise-sync
+          - personal-evernote-sync
+          - personal-todo
+          - personal-ai-chat
 
     steps:
     - name: Checkout Repository
@@ -18,6 +26,7 @@ jobs:
         node-version: '20'
         php-version: '8.2'
         composer-no-dev: 'true'
+        package-slug: ${{ matrix.package }}
 
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
@@ -26,5 +35,5 @@ jobs:
       with:
         upload_url: ${{ github.event.release.upload_url }}
         asset_path: ${{ github.workspace }}/${{ steps.build.outputs.zip-path }}
-        asset_name: wp-personal-os.zip
+        asset_name: ${{ matrix.package }}.zip
         asset_content_type: application/zip

@@ -1,0 +1,8 @@
+.pos-book-summary__panel {
+	padding: 10px;
+}
+
+.pos-book-summary__error {
+	color: #b32d2e;
+	margin: 8px 0 0;
+}

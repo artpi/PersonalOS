@@ -1,0 +1,84 @@
+body.personal-notes-js .personal-notes-admin-fallback {
+	display: none;
+}
+
+.personal-notes-admin {
+	margin-top: 20px;
+}
+
+.personal-notes-admin__layout {
+	display: grid;
+	grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
+	gap: 20px;
+	max-width: 1180px;
+}
+
+.personal-notes-admin__editor,
+.personal-notes-admin__list {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	box-sizing: border-box;
+	padding: 16px;
+}
+
+.personal-notes-admin__actions,
+.personal-notes-admin__filters {
+	align-items: flex-end;
+	display: flex;
+	gap: 12px;
+}
+
+.personal-notes-admin__filters > * {
+	flex: 1 1 180px;
+}
+
+.personal-notes-admin__items {
+	display: grid;
+	gap: 8px;
+}
+
+.personal-notes-admin__item {
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	box-sizing: border-box;
+	color: #1d2327;
+	cursor: pointer;
+	display: grid;
+	gap: 4px;
+	min-height: 64px;
+	padding: 12px;
+	text-align: left;
+	width: 100%;
+}
+
+.personal-notes-admin__item:hover,
+.personal-notes-admin__item:focus {
+	background: #fff;
+	border-color: #2271b1;
+	box-shadow: 0 0 0 1px #2271b1;
+	outline: none;
+}
+
+.personal-notes-admin__item-title {
+	font-weight: 600;
+}
+
+.personal-notes-admin__item-meta {
+	color: #646970;
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+	.personal-notes-admin__layout {
+		grid-template-columns: 1fr;
+	}
+
+	.personal-notes-admin__actions,
+	.personal-notes-admin__filters {
+		align-items: stretch;
+		flex-direction: column;
+	}
+}

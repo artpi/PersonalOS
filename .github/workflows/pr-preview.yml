@@ -63,6 +63,7 @@ jobs:
         with:
           files: |
             src/**/*.js
+            packages/**/*.js
             !node_modules/**
             !build/**
 
@@ -107,6 +108,14 @@ jobs:
     if: ${{ github.event.pull_request.state == 'open' && github.event.pull_request.draft == false }}
     needs: [test]
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package:
+          - personal-notes
+          - personal-readwise-sync
+          - personal-evernote-sync
+          - personal-todo
+          - personal-ai-chat
     steps:
       - name: Checkout PR merge ref
         uses: actions/checkout@v4
@@ -121,11 +130,12 @@ jobs:
           node-version: '20'
           php-version: '8.2'
           composer-no-dev: 'true'
+          package-slug: ${{ matrix.package }}
 
       - name: Upload plugin ZIP artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wp-personal-os-pr-${{ github.event.number }}
+          name: ${{ matrix.package }}-pr-${{ github.event.number }}
           path: ${{ steps.build.outputs.zip-path }}
           if-no-files-found: error
           compression-level: 9
@@ -133,9 +143,8 @@ jobs:
       - name: Prepare deploy directory
         run: |
           deploy_dir="deploy/preview/${{ github.event.number }}"
-          rm -rf "$deploy_dir"
           mkdir -p "$deploy_dir"
-          cp "${{ steps.build.outputs.zip-path }}" "$deploy_dir/wp-personal-os.zip"
+          cp "${{ steps.build.outputs.zip-path }}" "$deploy_dir/${{ matrix.package }}.zip"
 
       - name: Upload ZIP via FTP
         env:
@@ -143,7 +152,7 @@ jobs:
           FTP_PASS: ${{ secrets.GH_ACTION_FTP_PASS }}
           PR_NUMBER: ${{ github.event.number }}
         run: |
-          ZIP_FILE="deploy/preview/${PR_NUMBER}/wp-personal-os.zip"
+          ZIP_FILE="deploy/preview/${PR_NUMBER}/${{ matrix.package }}.zip"
           if [ ! -f "$ZIP_FILE" ]; then
             echo "Error: ZIP file not found at $ZIP_FILE"
             exit 1
@@ -151,21 +160,21 @@ jobs:
           curl -vvv --ftp-ssl --ftp-pasv --insecure --ssl-no-revoke --ftp-create-dirs \
             --user "$FTP_USER:$FTP_PASS" \
             --upload-file "$ZIP_FILE" \
-            "ftp://s8.cyber-folks.pl/preview/${PR_NUMBER}/wp-personal-os.zip"
+            "ftp://s8.cyber-folks.pl/preview/${PR_NUMBER}/${{ matrix.package }}.zip"
 
       - name: Comment preview links
         uses: marocchino/sticky-pull-request-comment@v2
         env:
           ARTIFACT_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
-          header: personalos-preview
+          header: personalos-preview-${{ matrix.package }}
           message: |
-            🚀 **Plugin build ready for testing**
+            🚀 **${{ matrix.package }} build ready for testing**
 
             Artifact: [Download from workflow run](${{ env.ARTIFACT_RUN_URL }})
 
-            Playground ZIP: `http://pr.personalos.net/preview/${{ github.event.number }}/wp-personal-os.zip`
+            Playground ZIP: `http://pr.personalos.net/preview/${{ github.event.number }}/${{ matrix.package }}.zip`
 
-            Launch in Playground: [Open WordPress Playground](https://playground.wordpress.net/?networking=yes#{%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginData%22:{%22resource%22:%22url%22,%22url%22:%22http://pr.personalos.net/preview/${{ github.event.number }}/wp-personal-os.zip%22}}],%22landingPage%22:%22/wp-admin/admin.php?page=personalos-settings%22,%22login%22:true})
+            Launch in Playground: [Open WordPress Playground](https://playground.wordpress.net/?networking=yes#{%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginData%22:{%22resource%22:%22url%22,%22url%22:%22http://pr.personalos.net/preview/${{ github.event.number }}/${{ matrix.package }}.zip%22}}],%22landingPage%22:%22/wp-admin/plugins.php%22,%22login%22:true})
 
             Paste the ZIP URL into a WordPress Playground blueprint to load this PR build.

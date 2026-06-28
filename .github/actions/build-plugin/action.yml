@@ -1,5 +1,5 @@
 name: Build PersonalOS Plugin
-description: Install dependencies, build assets, and create the plugin ZIP.
+description: Install dependencies, build assets, and create a split plugin ZIP.
 inputs:
   node-version:
     description: Node.js version to use.
@@ -16,7 +16,10 @@ inputs:
   zip-path:
     description: Expected plugin ZIP path produced by build.
     required: false
-    default: wp-personal-os.zip
+    default: ''
+  package-slug:
+    description: Package slug to zip.
+    required: true
 outputs:
   zip-path:
     description: Path to the generated plugin ZIP file.
@@ -36,9 +39,18 @@ runs:
       shell: bash
 
     - name: Create plugin ZIP
-      run: npx --yes @wordpress/scripts@30.7.0 plugin-zip
+      run: npm run package:plugin -- --package="${{ inputs.package-slug }}"
+      shell: bash
+
+    - name: Verify split plugin ZIP
+      run: npm run verify:split-packages -- --package="${{ inputs.package-slug }}"
       shell: bash
 
     - id: zip-path
-      run: echo "path=${{ inputs.zip-path }}" >> "$GITHUB_OUTPUT"
+      run: |
+        if [ -n "${{ inputs.zip-path }}" ]; then
+          echo "path=${{ inputs.zip-path }}" >> "$GITHUB_OUTPUT"
+        else
+          echo "path=${{ inputs.package-slug }}.zip" >> "$GITHUB_OUTPUT"
+        fi
       shell: bash
