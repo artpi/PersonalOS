@@ -39,13 +39,6 @@ class Personal_Readwise_Sync_Plugin extends PersonalOS_Sync_Plugin_Base {
 				'text_domain'  => 'personal-readwise-sync',
 				'version'      => PERSONAL_READWISE_SYNC_VERSION,
 				'plugin_file'  => PERSONAL_READWISE_SYNC_FILE,
-				'app'          => array(
-					'path'         => 'readwise',
-					'name'         => 'Readwise Sync',
-					'action_label' => 'Open App',
-					'capability'   => 'read',
-					'icon'         => 'dashicons-book-alt',
-				),
 				'settings'     => array(
 					'token'       => array(
 						'type'    => 'text',
@@ -80,7 +73,6 @@ class Personal_Readwise_Sync_Plugin extends PersonalOS_Sync_Plugin_Base {
 	public function register() {
 		$this->vocabulary()->register_type_labels();
 		$this->register_missing_knowledge_notice();
-		$this->register_wp_app( array( $this, 'render_settings_page' ) );
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
@@ -274,7 +266,7 @@ class Personal_Readwise_Sync_Plugin extends PersonalOS_Sync_Plugin_Base {
 
 		?>
 		<div class="wrap">
-			<h1><?php echo esc_html( $this->app_display_name() ); ?></h1>
+			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
 			<form method="post">
 				<?php wp_nonce_field( 'personal_readwise_sync_settings' ); ?>
 				<input type="hidden" name="personal_readwise_sync_action" value="save">

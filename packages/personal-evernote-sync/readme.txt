@@ -3,7 +3,7 @@ Contributors: artpi
 Tags: evernote, notes, knowledge, sync
 Requires at least: 7.0
 Tested up to: 7.0
-Requires PHP: 7.4
+Requires PHP: 7.2.24
 Stable tag: 0.1.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -16,13 +16,13 @@ Personal Evernote Sync stores Evernote notes in the shared WordPress Knowledge s
 
 Synced rows are private by default, authored by the user whose Evernote token is configured, and tagged with `artifact`, `note`, `evernote`, and `synced`.
 
-The private Evernote sync app is available at `/evernote/` for per-user connection settings and follows the signed-in user's WordPress admin color scheme.
+Evernote is a background integration. Its WordPress Settings screen contains the per-user connection, notebook scope, sync status, and import controls; imported content is available through Knowledge consumers such as Personal Notes.
 
 == Installation ==
 
 1. Upload the `personal-evernote-sync` folder to `/wp-content/plugins/`.
 2. Activate Personal Evernote Sync.
-3. Open `/evernote/` and add your Evernote developer token and selected notebook GUIDs.
+3. Open Settings > Personal Evernote Sync and add your Evernote developer token and selected notebook GUIDs.
 
 == Privacy ==
 
@@ -40,8 +40,6 @@ Personal Evernote Sync stores synced Knowledge records, Evernote identifiers, sy
 == Source and Build ==
 
 Source files live in this plugin directory. From the repository root, run `npm run build` and `npm run package:plugins` to produce release ZIPs with built assets and bundled shared helpers.
-
-Release ZIPs bundle WpApp 1.3.2 under GPL-2.0-or-later for app routing, access control, and theme isolation.
 
 == Changelog ==
 

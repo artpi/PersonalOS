@@ -13,6 +13,7 @@ const packages = [
 	'personal-todo',
 	'personal-ai-chat',
 ];
+const appPackages = [ 'personal-notes', 'personal-todo', 'personal-ai-chat' ];
 
 for ( const slug of packages ) {
 	const source = path.join( root, 'build', slug );
@@ -28,18 +29,11 @@ for ( const slug of packages ) {
 	await mkdir( path.dirname( target ), { recursive: true } );
 	await cp( source, target, { recursive: true } );
 	await copyBlockMetadata( slug, target );
-	await copyWpAppRuntime( slug );
+	await syncWpAppRuntime( slug );
 	console.log( `${ slug }: synced build assets` );
 }
 
-async function copyWpAppRuntime( slug ) {
-	const source = path.join( root, 'vendor', 'akirk', 'wp-app' );
-
-	if ( ! existsSync( source ) ) {
-		console.warn( `${ slug }: WpApp Composer runtime not found` );
-		return;
-	}
-
+async function syncWpAppRuntime( slug ) {
 	const target = path.join(
 		root,
 		'packages',
@@ -50,6 +44,18 @@ async function copyWpAppRuntime( slug ) {
 	);
 
 	await rm( target, { recursive: true, force: true } );
+
+	if ( ! appPackages.includes( slug ) ) {
+		return;
+	}
+
+	const source = path.join( root, 'vendor', 'akirk', 'wp-app' );
+
+	if ( ! existsSync( source ) ) {
+		console.warn( `${ slug }: WpApp Composer runtime not found` );
+		return;
+	}
+
 	await mkdir( path.dirname( target ), { recursive: true } );
 	await cp( source, target, {
 		filter: ( entry ) => ! entry.includes( `${ path.sep }.git` ),

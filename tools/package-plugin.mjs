@@ -18,6 +18,7 @@ const packages = [
 	'personal-todo',
 	'personal-ai-chat',
 ];
+const appPackages = [ 'personal-notes', 'personal-todo', 'personal-ai-chat' ];
 const wpAppVendorCopies = [
 	{
 		source: 'vendor/akirk/wp-app/src',
@@ -38,9 +39,7 @@ const wpAppVendorCopies = [
 ];
 const packageVendorCopies = {
 	'personal-notes': wpAppVendorCopies,
-	'personal-readwise-sync': wpAppVendorCopies,
 	'personal-evernote-sync': [
-		...wpAppVendorCopies,
 		{
 			source: 'vendor/evernote/evernote-cloud-sdk-php/src',
 			target: 'vendor/evernote/evernote-cloud-sdk-php/src',
@@ -99,7 +98,9 @@ async function packagePlugin( slug ) {
 	await copyDirectory(
 		sharedPhpDir,
 		path.join( buildDir, 'includes', 'shared' ),
-		() => true
+		( entry ) =>
+			appPackages.includes( slug ) ||
+			'class-personalos-wp-app.php' !== entry
 	);
 
 	const packageBuildDir = path.join( root, 'build', slug );

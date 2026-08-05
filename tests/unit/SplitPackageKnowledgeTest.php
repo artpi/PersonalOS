@@ -82,7 +82,7 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Every package registers a private WpApp route with its UI capability.
+	 * Destination packages register WpApp routes; sync integrations do not.
 	 */
 	public function test_packages_register_wp_app_routes() {
 		$plugins = array(
@@ -100,15 +100,15 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 		$apps         = \WpApp\Registry::get_apps();
 		$capabilities = \WpApp\Registry::get_app_capabilities();
 
-		foreach ( array( 'notes', 'todo', 'ai-chat', 'readwise', 'evernote' ) as $path ) {
+		foreach ( array( 'notes', 'todo', 'ai-chat' ) as $path ) {
 			$this->assertArrayHasKey( $path, $apps );
 		}
 
 		$this->assertSame( 'edit_posts', $capabilities['notes'] );
 		$this->assertSame( 'edit_posts', $capabilities['todo'] );
 		$this->assertSame( 'edit_posts', $capabilities['ai-chat'] );
-		$this->assertSame( 'read', $capabilities['readwise'] );
-		$this->assertSame( 'read', $capabilities['evernote'] );
+		$this->assertArrayNotHasKey( 'readwise', $apps );
+		$this->assertArrayNotHasKey( 'evernote', $apps );
 	}
 
 	/**

@@ -13,6 +13,7 @@ const packages = [
 	'personal-todo',
 	'personal-ai-chat',
 ];
+const appPackages = [ 'personal-notes', 'personal-todo', 'personal-ai-chat' ];
 const packageBlocks = {
 	'personal-notes': [ 'note' ],
 	'personal-readwise-sync': [ 'readwise', 'book-summary' ],
@@ -101,7 +102,9 @@ function verifyPackage( slug ) {
 	requireFile( readme );
 	requireFile( license );
 	requireFile( path.join( packageDir, 'src', 'index.js' ) );
-	requireFile( path.join( packageDir, 'templates', 'index.php' ) );
+	if ( appPackages.includes( slug ) ) {
+		requireFile( path.join( packageDir, 'templates', 'index.php' ) );
+	}
 	requireFile( path.join( root, 'build', slug, 'index.js' ) );
 	requireFile( path.join( root, 'build', slug, 'index.asset.php' ) );
 	requireFile( path.join( root, 'build', slug, 'style-index.css' ) );
@@ -150,8 +153,9 @@ function verifyPackage( slug ) {
 			errors.push( `${ slug }: must not declare Requires Plugins` );
 		}
 
-		if ( ! header.includes( 'Requires PHP:      7.4' ) ) {
-			errors.push( `${ slug }: WpApp packages must require PHP 7.4` );
+		const requiredPhp = appPackages.includes( slug ) ? '7.4' : '7.2.24';
+		if ( ! header.includes( `Requires PHP:      ${ requiredPhp }` ) ) {
+			errors.push( `${ slug }: must require PHP ${ requiredPhp }` );
 		}
 
 		if ( header.includes( 'wp_remote_' ) ) {
@@ -196,13 +200,28 @@ function verifyPackage( slug ) {
 			errors.push( `${ slug }: readme missing Data Retention section` );
 		}
 
-		if ( ! readmeText.includes( 'Requires PHP: 7.4' ) ) {
-			errors.push( `${ slug }: readme must require PHP 7.4` );
+		const requiredPhp = appPackages.includes( slug ) ? '7.4' : '7.2.24';
+		if ( ! readmeText.includes( `Requires PHP: ${ requiredPhp }` ) ) {
+			errors.push(
+				`${ slug }: readme must require PHP ${ requiredPhp }`
+			);
 		}
 
-		if ( ! readmeText.includes( 'WpApp 1.3.2' ) ) {
+		if (
+			appPackages.includes( slug ) &&
+			! readmeText.includes( 'WpApp 1.3.2' )
+		) {
 			errors.push(
 				`${ slug }: readme must disclose bundled WpApp 1.3.2`
+			);
+		}
+
+		if (
+			! appPackages.includes( slug ) &&
+			readmeText.includes( 'WpApp' )
+		) {
+			errors.push(
+				`${ slug }: sync integration must not advertise WpApp`
 			);
 		}
 
@@ -260,7 +279,7 @@ function verifyPackage( slug ) {
 			);
 		}
 
-		for ( const entry of [
+		const requiredEntries = [
 			`${ slug }/${ slug }.php`,
 			`${ slug }/readme.txt`,
 			`${ slug }/LICENSE`,
@@ -268,12 +287,34 @@ function verifyPackage( slug ) {
 			`${ slug }/build/index.asset.php`,
 			`${ slug }/build/style-index.css`,
 			`${ slug }/includes/shared/class-personalos-plugin-base.php`,
-			`${ slug }/includes/shared/class-personalos-wp-app.php`,
 			`${ slug }/includes/shared/class-personalos-knowledge-bridge.php`,
-			`${ slug }/templates/index.php`,
-		] ) {
+		];
+
+		if ( appPackages.includes( slug ) ) {
+			requiredEntries.push(
+				`${ slug }/includes/shared/class-personalos-wp-app.php`,
+				`${ slug }/templates/index.php`
+			);
+		}
+
+		for ( const entry of requiredEntries ) {
 			if ( ! entries.includes( entry ) ) {
 				errors.push( `${ slug }: ZIP missing ${ entry }` );
+			}
+		}
+
+		if ( ! appPackages.includes( slug ) ) {
+			for ( const entry of entries ) {
+				if (
+					entry ===
+						`${ slug }/includes/shared/class-personalos-wp-app.php` ||
+					entry.startsWith( `${ slug }/vendor/akirk/wp-app/` ) ||
+					entry.startsWith( `${ slug }/templates/` )
+				) {
+					errors.push(
+						`${ slug }: sync integration ZIP contains WpApp file ${ entry }`
+					);
+				}
 			}
 		}
 
@@ -301,7 +342,7 @@ function verifyPackage( slug ) {
 		}
 
 		for ( const vendorFile of [
-			...wpAppVendorFiles,
+			...( appPackages.includes( slug ) ? wpAppVendorFiles : [] ),
 			...( packageVendorFiles[ slug ] || [] ),
 		] ) {
 			const entry = `${ slug }/${ vendorFile }`;
@@ -312,24 +353,26 @@ function verifyPackage( slug ) {
 			}
 		}
 
-		const packagedWpApp = execFileSync(
-			'unzip',
-			[
-				'-p',
-				zipPath,
-				`${ slug }/vendor/akirk/wp-app/src/class-wpapp.php`,
-			],
-			{ encoding: 'utf8' }
-		);
-		const installedWpApp = readFileSync(
-			path.join( root, 'vendor/akirk/wp-app/src/class-wpapp.php' ),
-			'utf8'
-		);
-
-		if ( packagedWpApp !== installedWpApp ) {
-			errors.push(
-				`${ slug }: bundled WpApp runtime does not match Composer`
+		if ( appPackages.includes( slug ) ) {
+			const packagedWpApp = execFileSync(
+				'unzip',
+				[
+					'-p',
+					zipPath,
+					`${ slug }/vendor/akirk/wp-app/src/class-wpapp.php`,
+				],
+				{ encoding: 'utf8' }
 			);
+			const installedWpApp = readFileSync(
+				path.join( root, 'vendor/akirk/wp-app/src/class-wpapp.php' ),
+				'utf8'
+			);
+
+			if ( packagedWpApp !== installedWpApp ) {
+				errors.push(
+					`${ slug }: bundled WpApp runtime does not match Composer`
+				);
+			}
 		}
 
 		for ( const entry of entries ) {

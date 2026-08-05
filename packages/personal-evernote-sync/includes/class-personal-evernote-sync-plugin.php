@@ -26,13 +26,6 @@ class Personal_Evernote_Sync_Plugin extends PersonalOS_Sync_Plugin_Base {
 				'text_domain'  => 'personal-evernote-sync',
 				'version'      => PERSONAL_EVERNOTE_SYNC_VERSION,
 				'plugin_file'  => PERSONAL_EVERNOTE_SYNC_FILE,
-				'app'          => array(
-					'path'         => 'evernote',
-					'name'         => 'Evernote Sync',
-					'action_label' => 'Open App',
-					'capability'   => 'read',
-					'icon'         => 'dashicons-media-document',
-				),
 				'settings'     => array(
 					'token'             => array(
 						'type'    => 'text',
@@ -82,7 +75,6 @@ class Personal_Evernote_Sync_Plugin extends PersonalOS_Sync_Plugin_Base {
 	public function register() {
 		$this->vocabulary()->register_type_labels();
 		$this->register_missing_knowledge_notice();
-		$this->register_wp_app( array( $this, 'render_settings_page' ) );
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 
@@ -138,7 +130,7 @@ class Personal_Evernote_Sync_Plugin extends PersonalOS_Sync_Plugin_Base {
 		$synced_notebooks = $this->get_setting( 'synced_notebooks', get_current_user_id() );
 		?>
 		<div class="wrap">
-			<h1><?php echo esc_html( $this->app_display_name() ); ?></h1>
+			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
 			<form method="post">
 				<?php wp_nonce_field( 'personal_evernote_sync_settings' ); ?>
 				<input type="hidden" name="personal_evernote_sync_action" value="save">
