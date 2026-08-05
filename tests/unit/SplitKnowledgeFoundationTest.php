@@ -22,6 +22,7 @@ class SplitKnowledgeFoundationTest extends WP_UnitTestCase {
 			'shared/php/class-personalos-admin-notice-helper.php',
 			'shared/php/class-personalos-assets-helper.php',
 			'shared/php/class-personalos-plugin-health.php',
+			'shared/php/class-personalos-wp-app.php',
 			'shared/php/class-personalos-plugin-base.php',
 			'shared/php/class-personalos-sync-plugin-base.php',
 		) as $file ) {

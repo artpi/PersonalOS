@@ -3,7 +3,7 @@ Contributors: artpi
 Tags: notes, knowledge, productivity
 Requires at least: 7.0
 Tested up to: 7.0
-Requires PHP: 7.2.24
+Requires PHP: 7.4
 Stable tag: 0.1.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -16,11 +16,13 @@ Personal Notes stores notes in the shared WordPress Knowledge surface when avail
 
 Notes are private by default and use Knowledge type terms such as `artifact`, `note`, `manual`, `inbox`, `now`, projects, areas, and resources.
 
+The private Notes app is available at `/notes/` and follows the signed-in user's WordPress admin color scheme.
+
 == Installation ==
 
 1. Upload the `personal-notes` folder to `/wp-content/plugins/`.
 2. Activate Personal Notes.
-3. Ensure your site provides the WordPress Knowledge or Guidelines runtime.
+3. Ensure your site provides the WordPress Knowledge or Guidelines runtime, then open `/notes/`.
 
 == Frequently Asked Questions ==
 
@@ -39,6 +41,8 @@ Personal Notes stores user-created Knowledge records in WordPress. Deactivating 
 == Source and Build ==
 
 Source files live in this plugin directory. From the repository root, run `npm run build` and `npm run package:plugins` to produce release ZIPs with built assets and bundled shared helpers.
+
+Release ZIPs bundle WpApp 1.3.2 under GPL-2.0-or-later for app routing, access control, and theme isolation.
 
 == Changelog ==
 

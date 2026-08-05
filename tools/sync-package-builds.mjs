@@ -28,7 +28,33 @@ for ( const slug of packages ) {
 	await mkdir( path.dirname( target ), { recursive: true } );
 	await cp( source, target, { recursive: true } );
 	await copyBlockMetadata( slug, target );
+	await copyWpAppRuntime( slug );
 	console.log( `${ slug }: synced build assets` );
+}
+
+async function copyWpAppRuntime( slug ) {
+	const source = path.join( root, 'vendor', 'akirk', 'wp-app' );
+
+	if ( ! existsSync( source ) ) {
+		console.warn( `${ slug }: WpApp Composer runtime not found` );
+		return;
+	}
+
+	const target = path.join(
+		root,
+		'packages',
+		slug,
+		'vendor',
+		'akirk',
+		'wp-app'
+	);
+
+	await rm( target, { recursive: true, force: true } );
+	await mkdir( path.dirname( target ), { recursive: true } );
+	await cp( source, target, {
+		filter: ( entry ) => ! entry.includes( `${ path.sep }.git` ),
+		recursive: true,
+	} );
 }
 
 async function copyBlockMetadata( slug, target ) {

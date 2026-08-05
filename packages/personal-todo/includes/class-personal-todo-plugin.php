@@ -33,6 +33,13 @@ class Personal_TODO_Plugin extends PersonalOS_Plugin_Base {
 				'text_domain'  => 'personal-todo',
 				'version'      => PERSONAL_TODO_VERSION,
 				'plugin_file'  => PERSONAL_TODO_FILE,
+				'app'          => array(
+					'path'         => 'todo',
+					'name'         => 'TODO',
+					'action_label' => 'Open App',
+					'capability'   => 'edit_posts',
+					'icon'         => 'dashicons-list-view',
+				),
 				'settings'     => array(
 					'ics_token' => array(
 						'type'    => 'text',
@@ -52,6 +59,7 @@ class Personal_TODO_Plugin extends PersonalOS_Plugin_Base {
 	public function register() {
 		$this->vocabulary()->register_type_labels();
 		$this->register_missing_knowledge_notice();
+		$this->register_wp_app( array( $this, 'render_admin_page' ) );
 
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
@@ -141,7 +149,7 @@ class Personal_TODO_Plugin extends PersonalOS_Plugin_Base {
 		$tasks = $this->list_tasks();
 		?>
 		<div class="wrap">
-			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
+			<h1><?php echo esc_html( $this->app_display_name() ); ?></h1>
 			<?php if ( is_wp_error( $created ) ) : ?>
 				<div class="notice notice-error"><p><?php echo esc_html( $created->get_error_message() ); ?></p></div>
 			<?php elseif ( $created ) : ?>

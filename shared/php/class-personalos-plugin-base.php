@@ -53,6 +53,13 @@ if ( ! class_exists( 'PersonalOS_Plugin_Base' ) ) {
 		protected $settings = array();
 
 		/**
+		 * WpApp configuration.
+		 *
+		 * @var array
+		 */
+		protected $app = array();
+
+		/**
 		 * Knowledge bridge.
 		 *
 		 * @var PersonalOS_Knowledge_Bridge|null
@@ -86,7 +93,7 @@ if ( ! class_exists( 'PersonalOS_Plugin_Base' ) ) {
 		 * @param array $args Package args.
 		 */
 		public function __construct( $args = array() ) {
-			foreach ( array( 'slug', 'display_name', 'text_domain', 'version', 'plugin_file', 'settings' ) as $key ) {
+			foreach ( array( 'slug', 'display_name', 'text_domain', 'version', 'plugin_file', 'settings', 'app' ) as $key ) {
 				if ( isset( $args[ $key ] ) ) {
 					$this->{$key} = $args[ $key ];
 				}
@@ -117,6 +124,25 @@ if ( ! class_exists( 'PersonalOS_Plugin_Base' ) ) {
 		 */
 		public function display_name() {
 			return $this->display_name;
+		}
+
+		/**
+		 * Get the short in-product app name.
+		 *
+		 * @return string
+		 */
+		public function app_display_name() {
+			$name = isset( $this->app['name'] ) ? $this->app['name'] : $this->display_name;
+
+			if ( function_exists( 'translate' ) && did_action( 'init' ) ) {
+				// phpcs:ignore WordPress.WP.I18n.LowLevelTranslationFunction, WordPress.WP.I18n.NonSingularStringLiteralText, WordPress.WP.I18n.NonSingularStringLiteralDomain -- Package app names use package-configured text domains and are translated after init.
+				$translated = translate( $name, $this->text_domain );
+				if ( is_string( $translated ) && '' !== trim( $translated ) ) {
+					return $translated;
+				}
+			}
+
+			return $name;
 		}
 
 		/**
@@ -291,6 +317,35 @@ if ( ! class_exists( 'PersonalOS_Plugin_Base' ) ) {
 			}
 
 			$this->enqueue_package_assets();
+		}
+
+		/**
+		 * Register the package's WpApp route and renderer.
+		 *
+		 * @param callable $content_callback Package UI renderer.
+		 * @return bool Whether the app was registered.
+		 */
+		public function register_wp_app( $content_callback ) {
+			if ( empty( $this->app['path'] ) ) {
+				return false;
+			}
+
+			$app = new PersonalOS_Wp_App(
+				array_merge(
+					$this->app,
+					array(
+						'name'             => $this->app_display_name(),
+						'text_domain'      => $this->text_domain,
+						'plugin_file'      => $this->plugin_file,
+						'template_dir'     => $this->package_dir() . 'templates',
+						'content_callback' => $content_callback,
+						'asset_callback'   => array( $this, 'enqueue_package_assets' ),
+						'style_handle'     => $this->style_handle(),
+					)
+				)
+			);
+
+			return $app->register();
 		}
 
 		/**

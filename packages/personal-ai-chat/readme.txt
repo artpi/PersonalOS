@@ -3,7 +3,7 @@ Contributors: artpi
 Tags: ai, chat, knowledge, abilities
 Requires at least: 7.0
 Tested up to: 7.0
-Requires PHP: 7.2.24
+Requires PHP: 7.4
 Stable tag: 0.1.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -16,11 +16,13 @@ Personal AI Chat stores prompts, memories, artifacts, and chat transcripts in th
 
 The plugin activates without Notes, TODO, Readwise, or Evernote. If AI Client or provider credentials are missing, it shows setup status instead of fataling.
 
+The private AI Chat app is available at `/ai-chat/` and follows the signed-in user's WordPress admin color scheme.
+
 == Installation ==
 
 1. Upload the `personal-ai-chat` folder to `/wp-content/plugins/`.
 2. Activate Personal AI Chat.
-3. Configure WordPress AI Client and provider Connectors.
+3. Configure WordPress AI Client and provider Connectors, then open `/ai-chat/`.
 
 == Privacy ==
 
@@ -33,6 +35,8 @@ Personal AI Chat stores conversation Knowledge records in WordPress. Deactivatin
 == Source and Build ==
 
 Source files live in this plugin directory. From the repository root, run `npm run build` and `npm run package:plugins` to produce release ZIPs with built assets and bundled shared helpers.
+
+Release ZIPs bundle WpApp 1.3.2 under GPL-2.0-or-later for app routing, access control, and theme isolation.
 
 == Changelog ==
 

@@ -22,6 +22,7 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 			'shared/php/class-personalos-admin-notice-helper.php',
 			'shared/php/class-personalos-assets-helper.php',
 			'shared/php/class-personalos-plugin-health.php',
+			'shared/php/class-personalos-wp-app.php',
 			'shared/php/class-personalos-plugin-base.php',
 			'shared/php/class-personalos-sync-plugin-base.php',
 			'packages/personal-notes/includes/class-personal-notes-plugin.php',
@@ -78,6 +79,36 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 			unregister_taxonomy( 'wp_knowledge_type' );
 		}
 		$this->register_runtime();
+	}
+
+	/**
+	 * Every package registers a private WpApp route with its UI capability.
+	 */
+	public function test_packages_register_wp_app_routes() {
+		$plugins = array(
+			new Personal_Notes_Plugin(),
+			new Personal_TODO_Plugin(),
+			new Personal_AI_Chat_Plugin(),
+			new Personal_Readwise_Sync_Plugin(),
+			new Personal_Evernote_Sync_Plugin(),
+		);
+
+		foreach ( $plugins as $plugin ) {
+			$plugin->register();
+		}
+
+		$apps         = \WpApp\Registry::get_apps();
+		$capabilities = \WpApp\Registry::get_app_capabilities();
+
+		foreach ( array( 'notes', 'todo', 'ai-chat', 'readwise', 'evernote' ) as $path ) {
+			$this->assertArrayHasKey( $path, $apps );
+		}
+
+		$this->assertSame( 'edit_posts', $capabilities['notes'] );
+		$this->assertSame( 'edit_posts', $capabilities['todo'] );
+		$this->assertSame( 'edit_posts', $capabilities['ai-chat'] );
+		$this->assertSame( 'read', $capabilities['readwise'] );
+		$this->assertSame( 'read', $capabilities['evernote'] );
 	}
 
 	/**

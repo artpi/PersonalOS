@@ -52,6 +52,22 @@ This keeps every plugin independently useful:
 - TODO can manage tasks and expose ICS without AI Chat installed.
 - AI Chat can run with whatever Knowledge and Abilities exist; it does not need TODO, Notes, Readwise, or Evernote.
 
+### WpApp Presentation Layer
+
+Each split package also ships as a private WpApp application while remaining a normal standalone WordPress plugin:
+
+| Package | App route | Capability | App surface |
+| --- | --- | --- | --- |
+| Personal Notes | `/notes/` | `edit_posts` | Notes editor, search, filters, and Knowledge organization |
+| Personal TODO | `/todo/` | `edit_posts` | Task creation, editing, completion, recurrence, and ICS settings |
+| Personal AI Chat | `/ai-chat/` | `edit_posts` | Conversation list, transcript, composer, and discovered abilities |
+| Personal Readwise Sync | `/readwise/` | `read` | Per-user Readwise connection and sync settings |
+| Personal Evernote Sync | `/evernote/` | `read` | Per-user Evernote connection, notebook scope, and sync settings |
+
+WpApp is a presentation and routing layer only. Package REST APIs, Abilities, settings, sync jobs, and Knowledge storage remain the domain contracts. The apps reuse those contracts instead of introducing app-only storage or sibling calls.
+
+Every release ZIP bundles the same pinned WpApp 1.3.2 GPL runtime, keeps My Apps integration enabled, and uses WordPress capabilities on the app route. Because WpApp requires PHP 7.4, every split package declares `Requires PHP: 7.4`. Package verification must reject missing WpApp source/license files or a package with a different runtime version.
+
 ## Dependency Model
 
 ### Runtime Surfaces
@@ -1012,6 +1028,7 @@ Implementation branches:
 - Add package ZIP smoke tests for install, activate, deactivate, and uninstall policy for each split package.
 - Add store-submission checks per package: Plugin Check/readme validation, license/source audit, no remote executable code scan, and service/privacy disclosure review.
 - Add build matrix tests proving each plugin ZIP contains its own JS/CSS/block assets and no sibling package source.
+- Add route registration tests proving all five WpApp paths are present with the expected capabilities, and verify all five plugins can be active together without runtime redeclaration errors.
 
 ## Risks And Mitigations
 
@@ -1021,6 +1038,7 @@ Implementation branches:
 | Knowledge/Guidelines runtime names diverge | Keep all detection and compatibility shims inside bundled shared helpers; prefer `wp_knowledge`, fall back to Guidelines, then rebuild every package |
 | Knowledge type taxonomy becomes overloaded | Use a small shared vocabulary, hierarchical parent terms for PARA, and meta only for behavior/provenance that is not discoverable organization |
 | Shared helper copies drift across packages | Keep shared helpers dependency-free, guarded by `class_exists`, stable across package versions, and copied by CI rather than manually edited in packages |
+| Bundled WpApp versions drift across packages | Pin WpApp 1.3.2 once in Composer, copy the same runtime into every ZIP, and verify its source/license files per package |
 | Bundled base class becomes another monolith | Limit base classes to package-local plumbing, sync mechanics, CLI/settings/helpers, and Knowledge bridge access; reject registries, sibling injection, and feature logic |
 | WordPress.org rejects split packages for review issues | Make Plugin Directory readiness a CI gate: readme, license, naming, privacy, remote-code, and activation checks must pass per ZIP |
 | Old monolith assumptions leak into split packages | Add tests/static checks that reject references to old PersonalOS CPTs, module registries, and provider settings |
@@ -1048,6 +1066,7 @@ Implementation branches:
 - Shared helper/base classes are allowed, but only as build-time bundled code inside each plugin ZIP with `class_exists` guards.
 - The split should introduce `PersonalOS_Plugin_Base` and `PersonalOS_Sync_Plugin_Base` by extracting the reusable settings, CLI, logging, sync, package asset, and Knowledge bridge access patterns from `POS_Module`; do not reuse `POS_Module` unchanged.
 - Every split package should be WordPress.org-submittable immediately, not merely internally installable.
+- Every split package exposes a private WpApp route, bundles WpApp 1.3.2, and requires PHP 7.4.
 
 ## References
 
@@ -1062,5 +1081,7 @@ Implementation branches:
 - [Including a Software License](https://developer.wordpress.org/plugins/plugin-basics/including-a-software-license/)
 - [How Your Readme.txt Works](https://developer.wordpress.org/plugins/wordpress-org/how-your-readme-txt-works/)
 - [Add Your Plugin](https://wordpress.org/plugins/developers/add/)
+- [WpApp](https://github.com/akirk/wp-app)
+- [create-wp-app](https://github.com/akirk/create-wp-app)
 - `/Users/artpi/GIT/wp-agent-skills/skills/wp-guideline/SKILL.md`
 - `/Users/artpi/GIT/wp-agent-skills/skills/wp-plugin-directory-guidelines/SKILL.md`

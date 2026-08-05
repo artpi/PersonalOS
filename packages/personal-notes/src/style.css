@@ -15,8 +15,8 @@ body.personal-notes-js .personal-notes-admin-fallback {
 
 .personal-notes-admin__editor,
 .personal-notes-admin__list {
-	background: #fff;
-	border: 1px solid #dcdcde;
+	background: var(--wp-app-color-surface, #fff);
+	border: 1px solid var(--wp-app-color-border, #dcdcde);
 	border-radius: 4px;
 	box-sizing: border-box;
 	padding: 16px;
@@ -39,11 +39,11 @@ body.personal-notes-js .personal-notes-admin-fallback {
 }
 
 .personal-notes-admin__item {
-	background: #f6f7f7;
-	border: 1px solid #dcdcde;
+	background: var(--wp-app-color-surface-alt, #f6f7f7);
+	border: 1px solid var(--wp-app-color-border, #dcdcde);
 	border-radius: 4px;
 	box-sizing: border-box;
-	color: #1d2327;
+	color: var(--wp-app-color-text, #1d2327);
 	cursor: pointer;
 	display: grid;
 	gap: 4px;
@@ -55,9 +55,9 @@ body.personal-notes-js .personal-notes-admin-fallback {
 
 .personal-notes-admin__item:hover,
 .personal-notes-admin__item:focus {
-	background: #fff;
-	border-color: #2271b1;
-	box-shadow: 0 0 0 1px #2271b1;
+	background: var(--wp-app-color-surface, #fff);
+	border-color: var(--wp-app-color-primary, #2271b1);
+	box-shadow: 0 0 0 1px var(--wp-app-color-primary, #2271b1);
 	outline: none;
 }
 
@@ -66,7 +66,7 @@ body.personal-notes-js .personal-notes-admin-fallback {
 }
 
 .personal-notes-admin__item-meta {
-	color: #646970;
+	color: var(--wp-app-color-muted, #646970);
 	font-size: 12px;
 	line-height: 1.4;
 }

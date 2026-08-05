@@ -26,6 +26,13 @@ class Personal_AI_Chat_Plugin extends PersonalOS_Plugin_Base {
 				'text_domain'  => 'personal-ai-chat',
 				'version'      => PERSONAL_AI_CHAT_VERSION,
 				'plugin_file'  => PERSONAL_AI_CHAT_FILE,
+				'app'          => array(
+					'path'         => 'ai-chat',
+					'name'         => 'AI Chat',
+					'action_label' => 'Open App',
+					'capability'   => 'edit_posts',
+					'icon'         => 'dashicons-format-chat',
+				),
 				'settings'     => array(
 					'default_prompt' => array(
 						'type'    => 'text',
@@ -45,6 +52,7 @@ class Personal_AI_Chat_Plugin extends PersonalOS_Plugin_Base {
 	public function register() {
 		$this->vocabulary()->register_type_labels();
 		$this->register_missing_knowledge_notice();
+		$this->register_wp_app( array( $this, 'render_admin_page' ) );
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
@@ -218,7 +226,7 @@ class Personal_AI_Chat_Plugin extends PersonalOS_Plugin_Base {
 		$health = new PersonalOS_Plugin_Health( $this->knowledge() );
 		?>
 		<div class="wrap">
-			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
+			<h1><?php echo esc_html( $this->app_display_name() ); ?></h1>
 			<?php if ( ! $this->knowledge()->is_available() ) : ?>
 				<p><?php esc_html_e( 'Knowledge is not available yet.', 'personal-ai-chat' ); ?></p>
 			<?php else : ?>

@@ -15,8 +15,8 @@ body.personal-todo-js .personal-todo-admin-fallback {
 
 .personal-todo-admin__editor,
 .personal-todo-admin__list {
-	background: #fff;
-	border: 1px solid #dcdcde;
+	background: var(--wp-app-color-surface, #fff);
+	border: 1px solid var(--wp-app-color-border, #dcdcde);
 	border-radius: 4px;
 	box-sizing: border-box;
 	padding: 16px;
@@ -40,8 +40,8 @@ body.personal-todo-js .personal-todo-admin-fallback {
 
 .personal-todo-admin__item {
 	align-items: center;
-	background: #f6f7f7;
-	border: 1px solid #dcdcde;
+	background: var(--wp-app-color-surface-alt, #f6f7f7);
+	border: 1px solid var(--wp-app-color-border, #dcdcde);
 	border-radius: 4px;
 	box-sizing: border-box;
 	display: grid;
@@ -54,7 +54,7 @@ body.personal-todo-js .personal-todo-admin-fallback {
 .personal-todo-admin__item-main {
 	background: transparent;
 	border: 0;
-	color: #1d2327;
+	color: var(--wp-app-color-text, #1d2327);
 	cursor: pointer;
 	display: grid;
 	gap: 4px;
@@ -64,7 +64,7 @@ body.personal-todo-js .personal-todo-admin-fallback {
 
 .personal-todo-admin__item-main:hover,
 .personal-todo-admin__item-main:focus {
-	color: #135e96;
+	color: var(--wp-app-color-link-hover, #135e96);
 	outline: none;
 }
 
@@ -73,7 +73,7 @@ body.personal-todo-js .personal-todo-admin-fallback {
 }
 
 .personal-todo-admin__item-meta {
-	color: #646970;
+	color: var(--wp-app-color-muted, #646970);
 	font-size: 12px;
 	line-height: 1.4;
 }

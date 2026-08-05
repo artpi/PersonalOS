@@ -18,8 +18,29 @@ const packages = [
 	'personal-todo',
 	'personal-ai-chat',
 ];
+const wpAppVendorCopies = [
+	{
+		source: 'vendor/akirk/wp-app/src',
+		target: 'vendor/akirk/wp-app/src',
+	},
+	{
+		source: 'vendor/akirk/wp-app/LICENSE',
+		target: 'vendor/akirk/wp-app/LICENSE',
+	},
+	{
+		source: 'vendor/akirk/wp-app/README.md',
+		target: 'vendor/akirk/wp-app/README.md',
+	},
+	{
+		source: 'vendor/akirk/wp-app/composer.json',
+		target: 'vendor/akirk/wp-app/composer.json',
+	},
+];
 const packageVendorCopies = {
+	'personal-notes': wpAppVendorCopies,
+	'personal-readwise-sync': wpAppVendorCopies,
 	'personal-evernote-sync': [
+		...wpAppVendorCopies,
 		{
 			source: 'vendor/evernote/evernote-cloud-sdk-php/src',
 			target: 'vendor/evernote/evernote-cloud-sdk-php/src',
@@ -46,6 +67,8 @@ const packageVendorCopies = {
 			target: 'vendor/psr/log/LICENSE',
 		},
 	],
+	'personal-todo': wpAppVendorCopies,
+	'personal-ai-chat': wpAppVendorCopies,
 };
 
 const args = process.argv.slice( 2 );

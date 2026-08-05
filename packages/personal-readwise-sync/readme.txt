@@ -3,7 +3,7 @@ Contributors: artpi
 Tags: readwise, highlights, knowledge, sync
 Requires at least: 7.0
 Tested up to: 7.0
-Requires PHP: 7.2.24
+Requires PHP: 7.4
 Stable tag: 0.1.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -16,11 +16,13 @@ Personal Readwise Sync imports Readwise highlights and articles into the shared 
 
 Synced rows are private by default, authored by the user whose Readwise token is configured, and tagged with `artifact`, `note`, `readwise`, and `synced`.
 
+The private Readwise sync app is available at `/readwise/` for per-user connection settings and follows the signed-in user's WordPress admin color scheme.
+
 == Installation ==
 
 1. Upload the `personal-readwise-sync` folder to `/wp-content/plugins/`.
 2. Activate Personal Readwise Sync.
-3. Add your Readwise API token on the settings page.
+3. Open `/readwise/` and add your Readwise API token.
 
 == Privacy ==
 
@@ -36,6 +38,8 @@ Personal Readwise Sync stores synced Knowledge records, Readwise identifiers, sy
 == Source and Build ==
 
 Source files live in this plugin directory. From the repository root, run `npm run build` and `npm run package:plugins` to produce release ZIPs with built assets and bundled shared helpers.
+
+Release ZIPs bundle WpApp 1.3.2 under GPL-2.0-or-later for app routing, access control, and theme isolation.
 
 == Changelog ==
 

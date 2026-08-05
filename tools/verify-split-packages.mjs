@@ -31,6 +31,14 @@ const networkedPackages = {
 	},
 };
 const nonNetworkedPackages = [ 'personal-notes', 'personal-todo' ];
+const wpAppVendorFiles = [
+	'vendor/akirk/wp-app/src/class-registry.php',
+	'vendor/akirk/wp-app/src/class-wpapp.php',
+	'vendor/akirk/wp-app/src/functions.php',
+	'vendor/akirk/wp-app/LICENSE',
+	'vendor/akirk/wp-app/README.md',
+	'vendor/akirk/wp-app/composer.json',
+];
 const packageVendorFiles = {
 	'personal-evernote-sync': [
 		'vendor/evernote/evernote-cloud-sdk-php/src/Evernote/AdvancedClient.php',
@@ -54,6 +62,8 @@ const args = process.argv.slice( 2 );
 const packageArg = args.find( ( arg ) => arg.startsWith( '--package=' ) );
 const selected = packageArg ? [ packageArg.split( '=' )[ 1 ] ] : packages;
 const errors = [];
+
+verifyWpAppDependency();
 
 for ( const slug of selected ) {
 	verifyPackage( slug );
@@ -91,6 +101,7 @@ function verifyPackage( slug ) {
 	requireFile( readme );
 	requireFile( license );
 	requireFile( path.join( packageDir, 'src', 'index.js' ) );
+	requireFile( path.join( packageDir, 'templates', 'index.php' ) );
 	requireFile( path.join( root, 'build', slug, 'index.js' ) );
 	requireFile( path.join( root, 'build', slug, 'index.asset.php' ) );
 	requireFile( path.join( root, 'build', slug, 'style-index.css' ) );
@@ -139,6 +150,10 @@ function verifyPackage( slug ) {
 			errors.push( `${ slug }: must not declare Requires Plugins` );
 		}
 
+		if ( ! header.includes( 'Requires PHP:      7.4' ) ) {
+			errors.push( `${ slug }: WpApp packages must require PHP 7.4` );
+		}
+
 		if ( header.includes( 'wp_remote_' ) ) {
 			errors.push(
 				`${ slug }: main plugin file must not make outbound HTTP requests at load or activation time`
@@ -179,6 +194,16 @@ function verifyPackage( slug ) {
 
 		if ( ! readmeText.includes( '== Data Retention ==' ) ) {
 			errors.push( `${ slug }: readme missing Data Retention section` );
+		}
+
+		if ( ! readmeText.includes( 'Requires PHP: 7.4' ) ) {
+			errors.push( `${ slug }: readme must require PHP 7.4` );
+		}
+
+		if ( ! readmeText.includes( 'WpApp 1.3.2' ) ) {
+			errors.push(
+				`${ slug }: readme must disclose bundled WpApp 1.3.2`
+			);
 		}
 
 		if ( readmeText.includes( 'Requires Plugins:' ) ) {
@@ -243,7 +268,9 @@ function verifyPackage( slug ) {
 			`${ slug }/build/index.asset.php`,
 			`${ slug }/build/style-index.css`,
 			`${ slug }/includes/shared/class-personalos-plugin-base.php`,
+			`${ slug }/includes/shared/class-personalos-wp-app.php`,
 			`${ slug }/includes/shared/class-personalos-knowledge-bridge.php`,
+			`${ slug }/templates/index.php`,
 		] ) {
 			if ( ! entries.includes( entry ) ) {
 				errors.push( `${ slug }: ZIP missing ${ entry }` );
@@ -273,13 +300,36 @@ function verifyPackage( slug ) {
 			}
 		}
 
-		for ( const vendorFile of packageVendorFiles[ slug ] || [] ) {
+		for ( const vendorFile of [
+			...wpAppVendorFiles,
+			...( packageVendorFiles[ slug ] || [] ),
+		] ) {
 			const entry = `${ slug }/${ vendorFile }`;
 			if ( ! entries.includes( entry ) ) {
 				errors.push(
 					`${ slug }: ZIP missing bundled vendor file ${ entry }`
 				);
 			}
+		}
+
+		const packagedWpApp = execFileSync(
+			'unzip',
+			[
+				'-p',
+				zipPath,
+				`${ slug }/vendor/akirk/wp-app/src/class-wpapp.php`,
+			],
+			{ encoding: 'utf8' }
+		);
+		const installedWpApp = readFileSync(
+			path.join( root, 'vendor/akirk/wp-app/src/class-wpapp.php' ),
+			'utf8'
+		);
+
+		if ( packagedWpApp !== installedWpApp ) {
+			errors.push(
+				`${ slug }: bundled WpApp runtime does not match Composer`
+			);
 		}
 
 		for ( const entry of entries ) {
@@ -304,6 +354,23 @@ function verifyPackage( slug ) {
 				}
 			}
 		}
+	}
+}
+
+function verifyWpAppDependency() {
+	const lockPath = path.join( root, 'composer.lock' );
+	if ( ! existsSync( lockPath ) ) {
+		errors.push( 'Missing composer.lock for pinned WpApp runtime' );
+		return;
+	}
+
+	const lock = JSON.parse( readFileSync( lockPath, 'utf8' ) );
+	const dependency = ( lock.packages || [] ).find(
+		( item ) => 'akirk/wp-app' === item.name
+	);
+
+	if ( ! dependency || 'v1.3.2' !== dependency.version ) {
+		errors.push( 'Composer must lock akirk/wp-app at v1.3.2' );
 	}
 }
 

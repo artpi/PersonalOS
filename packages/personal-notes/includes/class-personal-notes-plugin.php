@@ -26,6 +26,13 @@ class Personal_Notes_Plugin extends PersonalOS_Plugin_Base {
 				'text_domain'  => 'personal-notes',
 				'version'      => PERSONAL_NOTES_VERSION,
 				'plugin_file'  => PERSONAL_NOTES_FILE,
+				'app'          => array(
+					'path'         => 'notes',
+					'name'         => 'Notes',
+					'action_label' => 'Open App',
+					'capability'   => 'edit_posts',
+					'icon'         => 'dashicons-welcome-write-blog',
+				),
 			)
 		);
 	}
@@ -38,6 +45,7 @@ class Personal_Notes_Plugin extends PersonalOS_Plugin_Base {
 	public function register() {
 		$this->vocabulary()->register_type_labels();
 		$this->register_missing_knowledge_notice();
+		$this->register_wp_app( array( $this, 'render_admin_page' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
 
@@ -391,7 +399,7 @@ class Personal_Notes_Plugin extends PersonalOS_Plugin_Base {
 		$notes = $this->query_notes();
 		?>
 		<div class="wrap">
-			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
+			<h1><?php echo esc_html( $this->app_display_name() ); ?></h1>
 			<?php if ( is_wp_error( $created ) ) : ?>
 				<div class="notice notice-error"><p><?php echo esc_html( $created->get_error_message() ); ?></p></div>
 			<?php elseif ( $created ) : ?>

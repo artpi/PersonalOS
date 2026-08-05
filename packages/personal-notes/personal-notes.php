@@ -4,7 +4,7 @@
  * Description:       Create, edit, search, and organize personal notes stored as Knowledge records.
  * Version:           0.1.0
  * Requires at least: 7.0
- * Requires PHP:      7.2.24
+ * Requires PHP:      7.4
  * Author:            Artur Piszek
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -47,6 +47,7 @@ foreach ( array(
 	'class-personalos-admin-notice-helper.php',
 	'class-personalos-assets-helper.php',
 	'class-personalos-plugin-health.php',
+	'class-personalos-wp-app.php',
 	'class-personalos-plugin-base.php',
 ) as $personal_notes_shared_file ) {
 	personal_notes_require_shared( $personal_notes_shared_file );
@@ -73,7 +74,18 @@ add_action( 'plugins_loaded', 'personal_notes_bootstrap' );
  * @return void
  */
 function personal_notes_activate() {
-	// Activation intentionally avoids writes; terms are ensured when the runtime is available.
+	PersonalOS_Wp_App::activate();
 }
 
 register_activation_hook( __FILE__, 'personal_notes_activate' );
+
+/**
+ * Remove the app route after deactivation.
+ *
+ * @return void
+ */
+function personal_notes_deactivate() {
+	PersonalOS_Wp_App::deactivate();
+}
+
+register_deactivation_hook( __FILE__, 'personal_notes_deactivate' );

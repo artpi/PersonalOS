@@ -3,7 +3,7 @@ Contributors: artpi
 Tags: todo, tasks, knowledge, calendar
 Requires at least: 7.0
 Tested up to: 7.0
-Requires PHP: 7.2.24
+Requires PHP: 7.4
 Stable tag: 0.1.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -16,11 +16,13 @@ Personal TODO stores each task as its own Knowledge record tagged with `artifact
 
 The plugin includes a per-user ICS feed and registers TODO abilities when the WordPress Abilities API is available.
 
+The private TODO app is available at `/todo/` and follows the signed-in user's WordPress admin color scheme.
+
 == Installation ==
 
 1. Upload the `personal-todo` folder to `/wp-content/plugins/`.
 2. Activate Personal TODO.
-3. Ensure your site provides the WordPress Knowledge or Guidelines runtime.
+3. Ensure your site provides the WordPress Knowledge or Guidelines runtime, then open `/todo/`.
 
 == Frequently Asked Questions ==
 
@@ -39,6 +41,8 @@ Personal TODO stores task Knowledge records, task history comments, operational 
 == Source and Build ==
 
 Source files live in this plugin directory. From the repository root, run `npm run build` and `npm run package:plugins` to produce release ZIPs with built assets and bundled shared helpers.
+
+Release ZIPs bundle WpApp 1.3.2 under GPL-2.0-or-later for app routing, access control, and theme isolation.
 
 == Changelog ==
 

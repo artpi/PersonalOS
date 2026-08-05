@@ -4,7 +4,7 @@
  * Description:       Sync Readwise highlights into WordPress Knowledge records.
  * Version:           0.1.0
  * Requires at least: 7.0
- * Requires PHP:      7.2.24
+ * Requires PHP:      7.4
  * Author:            Artur Piszek
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -47,6 +47,7 @@ foreach ( array(
 	'class-personalos-admin-notice-helper.php',
 	'class-personalos-assets-helper.php',
 	'class-personalos-plugin-health.php',
+	'class-personalos-wp-app.php',
 	'class-personalos-plugin-base.php',
 	'class-personalos-sync-plugin-base.php',
 ) as $personal_readwise_sync_shared_file ) {
@@ -69,6 +70,17 @@ function personal_readwise_sync_bootstrap() {
 add_action( 'plugins_loaded', 'personal_readwise_sync_bootstrap' );
 
 /**
+ * Schedule app rewrite rules after activation.
+ *
+ * @return void
+ */
+function personal_readwise_sync_activate() {
+	PersonalOS_Wp_App::activate();
+}
+
+register_activation_hook( __FILE__, 'personal_readwise_sync_activate' );
+
+/**
  * Deactivation hook.
  *
  * @return void
@@ -77,6 +89,8 @@ function personal_readwise_sync_deactivate() {
 	if ( isset( $GLOBALS['personal_readwise_sync_plugin'] ) && $GLOBALS['personal_readwise_sync_plugin'] instanceof PersonalOS_Sync_Plugin_Base ) {
 		$GLOBALS['personal_readwise_sync_plugin']->unschedule_sync();
 	}
+
+	PersonalOS_Wp_App::deactivate();
 }
 
 register_deactivation_hook( __FILE__, 'personal_readwise_sync_deactivate' );

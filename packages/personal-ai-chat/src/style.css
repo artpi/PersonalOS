@@ -15,8 +15,8 @@ body.personal-ai-chat-js .personal-ai-chat-admin-fallback {
 
 .personal-ai-chat-admin__sidebar,
 .personal-ai-chat-admin__main {
-	background: #fff;
-	border: 1px solid #dcdcde;
+	background: var(--wp-app-color-surface, #fff);
+	border: 1px solid var(--wp-app-color-border, #dcdcde);
 	border-radius: 4px;
 	box-sizing: border-box;
 	padding: 16px;
@@ -42,10 +42,10 @@ body.personal-ai-chat-js .personal-ai-chat-admin-fallback {
 }
 
 .personal-ai-chat-admin__conversation {
-	background: #f6f7f7;
-	border: 1px solid #dcdcde;
+	background: var(--wp-app-color-surface-alt, #f6f7f7);
+	border: 1px solid var(--wp-app-color-border, #dcdcde);
 	border-radius: 4px;
-	color: #1d2327;
+	color: var(--wp-app-color-text, #1d2327);
 	cursor: pointer;
 	display: grid;
 	gap: 4px;
@@ -57,32 +57,32 @@ body.personal-ai-chat-js .personal-ai-chat-admin-fallback {
 
 .personal-ai-chat-admin__conversation:hover,
 .personal-ai-chat-admin__conversation:focus {
-	background: #fff;
-	border-color: #2271b1;
-	box-shadow: 0 0 0 1px #2271b1;
+	background: var(--wp-app-color-surface, #fff);
+	border-color: var(--wp-app-color-primary, #2271b1);
+	box-shadow: 0 0 0 1px var(--wp-app-color-primary, #2271b1);
 	outline: none;
 }
 
 .personal-ai-chat-admin__conversation small,
 .personal-ai-chat-admin__message strong {
-	color: #646970;
+	color: var(--wp-app-color-muted, #646970);
 	font-size: 12px;
 	line-height: 1.4;
 }
 
 .personal-ai-chat-admin__message {
-	border-left: 3px solid #2271b1;
-	background: #f6f7f7;
+	background: var(--wp-app-color-surface-alt, #f6f7f7);
+	border-left: 3px solid var(--wp-app-color-primary, #2271b1);
 	border-radius: 4px;
 	padding: 10px 12px;
 }
 
 .personal-ai-chat-admin__message.is-assistant {
-	border-left-color: #008a20;
+	border-left-color: var(--wp-app-color-accent, #008a20);
 }
 
 .personal-ai-chat-admin__message.is-system {
-	border-left-color: #8c8f94;
+	border-left-color: var(--wp-app-color-muted, #8c8f94);
 }
 
 .personal-ai-chat-admin__message p {
@@ -91,7 +91,7 @@ body.personal-ai-chat-js .personal-ai-chat-admin-fallback {
 }
 
 .personal-ai-chat-admin__composer {
-	border-top: 1px solid #dcdcde;
+	border-top: 1px solid var(--wp-app-color-border, #dcdcde);
 	display: grid;
 	gap: 12px;
 	margin-top: 16px;
@@ -106,10 +106,10 @@ body.personal-ai-chat-js .personal-ai-chat-admin-fallback {
 }
 
 .personal-ai-chat-admin__abilities span {
-	background: #f0f6fc;
-	border: 1px solid #c5d9ed;
+	background: var(--wp-app-color-surface-alt, #f0f6fc);
+	border: 1px solid var(--wp-app-color-border, #c5d9ed);
 	border-radius: 4px;
-	color: #1d2327;
+	color: var(--wp-app-color-text, #1d2327);
 	font-size: 12px;
 	padding: 3px 6px;
 }
