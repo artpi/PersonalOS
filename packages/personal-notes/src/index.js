@@ -1,30 +1,59 @@
 import apiFetch from '@wordpress/api-fetch';
+import { Button, Notice } from '@wordpress/components';
+import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews/wp';
 import {
-	Button,
-	Notice,
-	SelectControl,
-	Spinner,
-	TextControl,
-	TextareaControl,
-} from '@wordpress/components';
-import {
-	render,
+	createRoot,
 	useCallback,
 	useEffect,
 	useMemo,
 	useState,
 } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
+import { edit, plus, trash } from '@wordpress/icons';
 import { addQueryArgs } from '@wordpress/url';
 
 import './style.css';
 
-const DEFAULT_TERMS = [
-	{ label: __( 'Inbox', 'personal-notes' ), value: 'inbox' },
-	{ label: __( 'Now', 'personal-notes' ), value: 'now' },
-	{ label: __( 'Later', 'personal-notes' ), value: 'later' },
-	{ label: __( 'Follow Up', 'personal-notes' ), value: 'follow-up' },
-];
+const settings = window.personalNotesSettings || {};
+
+const DEFAULT_VIEW = {
+	type: 'table',
+	search: '',
+	page: 1,
+	perPage: 20,
+	titleField: 'title',
+	descriptionField: 'description',
+	fields: [ 'collections', 'source', 'modified' ],
+	filters: [],
+	sort: {
+		field: 'modified',
+		direction: 'desc',
+	},
+	layout: {
+		density: 'balanced',
+		styles: { modified: { width: '150px' } },
+	},
+};
+
+const DEFAULT_LAYOUTS = {
+	table: {
+		layout: DEFAULT_VIEW.layout,
+	},
+	list: {},
+	grid: {
+		layout: {
+			badgeFields: [ 'collections', 'source' ],
+			previewSize: 260,
+		},
+	},
+};
+
+const MOBILE_VIEW = {
+	...DEFAULT_VIEW,
+	type: 'list',
+	perPage: 10,
+	layout: {},
+};
 
 const SYSTEM_TERMS = [
 	'artifact',
@@ -42,263 +71,381 @@ const SYSTEM_TERMS = [
 	'personalos',
 ];
 
-const emptyDraft = {
-	id: 0,
-	title: '',
-	content: '',
-	term: 'inbox',
-};
+const CONTAINER_TERMS = [ 'status', 'project', 'area', 'resource', 'archive' ];
 
-function termOptionsFromResponse( terms ) {
-	const options = terms
-		.filter( ( term ) => ! SYSTEM_TERMS.includes( term.slug ) )
-		.map( ( term ) => ( {
-			label: term.parent_slug
-				? `${ term.name } (${ term.parent_slug })`
-				: term.name,
-			value: term.slug,
-		} ) );
+async function fetchAllPages( path, query = {} ) {
+	const firstResponse = await apiFetch( {
+		path: addQueryArgs( path, { ...query, page: 1, per_page: 100 } ),
+		parse: false,
+	} );
+	const firstPage = await firstResponse.json();
+	const totalPages = Number(
+		firstResponse.headers.get( 'X-WP-TotalPages' ) || 1
+	);
 
-	return options.length ? options : DEFAULT_TERMS;
+	if ( totalPages <= 1 ) {
+		return firstPage;
+	}
+
+	const remainingPages = await Promise.all(
+		Array.from( { length: totalPages - 1 }, ( value, index ) =>
+			apiFetch( {
+				path: addQueryArgs( path, {
+					...query,
+					page: index + 2,
+					per_page: 100,
+				} ),
+			} )
+		)
+	);
+
+	return firstPage.concat( ...remainingPages );
 }
 
-function pickEditableTerm( termSlugs, termOptions ) {
-	const optionSlugs = termOptions.map( ( option ) => option.value );
-	const match = termSlugs.find( ( slug ) => optionSlugs.includes( slug ) );
+function getTermIds( item ) {
+	return item[ settings.taxonomyField ] || [];
+}
 
-	return match || 'inbox';
+function getDateValue( value ) {
+	return value ? `${ value }Z` : '';
 }
 
 function NotesAdmin() {
 	const [ notes, setNotes ] = useState( [] );
-	const [ terms, setTerms ] = useState( DEFAULT_TERMS );
-	const [ draft, setDraft ] = useState( emptyDraft );
-	const [ filter, setFilter ] = useState( 'all' );
-	const [ search, setSearch ] = useState( '' );
+	const [ terms, setTerms ] = useState( [] );
+	const [ view, setView ] = useState( () =>
+		window.matchMedia( '(max-width: 782px)' ).matches
+			? MOBILE_VIEW
+			: DEFAULT_VIEW
+	);
 	const [ loading, setLoading ] = useState( true );
-	const [ saving, setSaving ] = useState( false );
+	const [ creating, setCreating ] = useState( false );
 	const [ notice, setNotice ] = useState( null );
 
-	const filterOptions = useMemo(
-		() => [
-			{ label: __( 'All', 'personal-notes' ), value: 'all' },
-			...terms,
-		],
+	const termsById = useMemo(
+		() => new Map( terms.map( ( term ) => [ term.id, term ] ) ),
 		[ terms ]
 	);
+	const termsBySlug = useMemo(
+		() => new Map( terms.map( ( term ) => [ term.slug, term ] ) ),
+		[ terms ]
+	);
+	const collectionTerms = useMemo(
+		() =>
+			terms.filter(
+				( term ) =>
+					! SYSTEM_TERMS.includes( term.slug ) &&
+					! CONTAINER_TERMS.includes( term.slug )
+			),
+		[ terms ]
+	);
+	const collectionIds = useMemo(
+		() => new Set( collectionTerms.map( ( term ) => term.id ) ),
+		[ collectionTerms ]
+	);
 
-	const fetchTerms = useCallback( async () => {
-		const response = await apiFetch( { path: '/personal-notes/v1/terms' } );
-		setTerms( termOptionsFromResponse( response ) );
-	}, [] );
+	const getSourceLabel = useCallback(
+		( item ) => {
+			const slugs = getTermIds( item ).map(
+				( termId ) => termsById.get( termId )?.slug
+			);
 
-	const fetchNotes = useCallback( async () => {
-		setLoading( true );
-		try {
-			const query = {};
-			if ( filter !== 'all' ) {
-				query.term = filter;
+			if ( slugs.includes( 'readwise' ) ) {
+				return __( 'Readwise', 'personal-notes' );
 			}
-			if ( search.trim() ) {
-				query.search = search.trim();
+			if ( slugs.includes( 'evernote' ) ) {
+				return __( 'Evernote', 'personal-notes' );
 			}
+			if ( slugs.includes( 'synced' ) ) {
+				return __( 'Synced', 'personal-notes' );
+			}
+			return __( 'Manual', 'personal-notes' );
+		},
+		[ termsById ]
+	);
 
-			const response = await apiFetch( {
-				path: addQueryArgs( '/personal-notes/v1/notes', query ),
-			} );
+	const fields = useMemo(
+		() => [
+			{
+				id: 'title',
+				label: __( 'Title', 'personal-notes' ),
+				type: 'text',
+				enableHiding: false,
+				enableSorting: true,
+				enableGlobalSearch: true,
+				getValue: ( { item } ) => item.title.raw,
+			},
+			{
+				id: 'description',
+				label: __( 'Description', 'personal-notes' ),
+				type: 'text',
+				enableSorting: false,
+				enableGlobalSearch: true,
+				getValue: ( { item } ) => item.excerpt.raw,
+			},
+			{
+				id: 'collections',
+				label: __( 'Collection', 'personal-notes' ),
+				type: 'text',
+				enableSorting: false,
+				elements: collectionTerms.map( ( term ) => ( {
+					label: term.name,
+					value: term.id.toString(),
+				} ) ),
+				filterBy: {
+					operators: [ 'isAny' ],
+					isPrimary: true,
+				},
+				getValue: ( { item } ) =>
+					getTermIds( item )
+						.filter( ( termId ) => collectionIds.has( termId ) )
+						.map( ( termId ) => termId.toString() ),
+				render: ( { item } ) => (
+					<span className="personal-notes-admin__collections">
+						{ getTermIds( item )
+							.filter( ( termId ) => collectionIds.has( termId ) )
+							.map( ( termId ) => termsById.get( termId )?.name )
+							.filter( Boolean )
+							.join( ', ' ) || __( 'Unfiled', 'personal-notes' ) }
+					</span>
+				),
+			},
+			{
+				id: 'source',
+				label: __( 'Source', 'personal-notes' ),
+				type: 'text',
+				enableSorting: false,
+				getValue: ( { item } ) => getSourceLabel( item ),
+			},
+			{
+				id: 'modified',
+				label: __( 'Modified', 'personal-notes' ),
+				type: 'datetime',
+				enableSorting: true,
+				getValue: ( { item } ) => getDateValue( item.modified_gmt ),
+				render: ( { item } ) =>
+					new Intl.DateTimeFormat( undefined, {
+						dateStyle: 'medium',
+					} ).format( new Date( getDateValue( item.modified_gmt ) ) ),
+			},
+		],
+		[ collectionIds, collectionTerms, getSourceLabel, termsById ]
+	);
 
-			setNotes( response );
-		} catch ( error ) {
-			setNotice( {
-				status: 'error',
-				message:
-					error.message ||
-					__( 'Could not load notes.', 'personal-notes' ),
-			} );
-		} finally {
-			setLoading( false );
-		}
-	}, [ filter, search ] );
+	const { data: shownNotes, paginationInfo } = useMemo(
+		() => filterSortAndPaginate( notes, view, fields ),
+		[ fields, notes, view ]
+	);
 
 	useEffect( () => {
 		document.body.classList.add( 'personal-notes-js' );
-		fetchTerms().catch( ( error ) => {
+
+		async function loadNotes() {
+			try {
+				const fetchedTerms = await fetchAllPages(
+					settings.taxonomyRestPath,
+					{
+						context: 'view',
+						hide_empty: false,
+					}
+				);
+				const noteTerm = fetchedTerms.find(
+					( term ) => term.slug === 'note'
+				);
+
+				if ( ! noteTerm ) {
+					throw new Error(
+						__(
+							'The Knowledge note type is missing.',
+							'personal-notes'
+						)
+					);
+				}
+
+				const fetchedNotes = await fetchAllPages(
+					settings.knowledgeRestPath,
+					{
+						context: 'edit',
+						status: [ 'private', 'publish', 'future' ],
+						[ settings.taxonomyField ]: [ noteTerm.id ],
+					}
+				);
+
+				setTerms( fetchedTerms );
+				setNotes( fetchedNotes );
+			} catch ( error ) {
+				setNotice( {
+					status: 'error',
+					message:
+						error.message ||
+						__( 'Could not load notes.', 'personal-notes' ),
+				} );
+			} finally {
+				setLoading( false );
+			}
+		}
+
+		loadNotes();
+	}, [] );
+
+	async function createNote() {
+		const requiredTerms = [ 'artifact', 'note', 'manual', 'inbox' ]
+			.map( ( slug ) => termsBySlug.get( slug )?.id )
+			.filter( Boolean );
+
+		if ( requiredTerms.length !== 4 ) {
 			setNotice( {
 				status: 'error',
-				message:
-					error.message ||
-					__( 'Could not load terms.', 'personal-notes' ),
+				message: __(
+					'The Knowledge note terms are missing.',
+					'personal-notes'
+				),
 			} );
-		} );
-	}, [ fetchTerms ] );
+			return;
+		}
 
-	useEffect( () => {
-		fetchNotes();
-	}, [ fetchNotes ] );
-
-	async function saveNote( event ) {
-		event.preventDefault();
-		setSaving( true );
+		setCreating( true );
 		setNotice( null );
-
 		try {
-			const path = draft.id
-				? `/personal-notes/v1/notes/${ draft.id }`
-				: '/personal-notes/v1/notes';
-			const method = draft.id ? 'PUT' : 'POST';
-			const response = await apiFetch( {
-				path,
-				method,
+			const note = await apiFetch( {
+				path: settings.knowledgeRestPath,
+				method: 'POST',
 				data: {
-					title: draft.title,
-					content: draft.content,
-					terms: [ draft.term ],
+					title: __( 'Untitled Note', 'personal-notes' ),
+					content: '',
+					status: 'private',
+					[ settings.taxonomyField ]: requiredTerms,
 				},
 			} );
-
-			setDraft( emptyDraft );
-			setNotice( {
-				status: 'success',
-				message: draft.id
-					? __( 'Note saved.', 'personal-notes' )
-					: __( 'Note created.', 'personal-notes' ),
-			} );
-			setNotes( ( current ) => {
-				const withoutSaved = current.filter(
-					( note ) => note.id !== response.id
-				);
-				return [ response, ...withoutSaved ];
-			} );
+			window.location.assign(
+				addQueryArgs( settings.editPostUrl, {
+					post: note.id,
+					action: 'edit',
+				} )
+			);
 		} catch ( error ) {
 			setNotice( {
 				status: 'error',
 				message:
 					error.message ||
-					__( 'Could not save note.', 'personal-notes' ),
+					__( 'Could not create a note.', 'personal-notes' ),
 			} );
-		} finally {
-			setSaving( false );
+			setCreating( false );
 		}
 	}
 
-	function editNote( note ) {
-		setDraft( {
-			id: note.id,
-			title: note.title,
-			content: note.content,
-			term: pickEditableTerm( note.terms, terms ),
-		} );
-	}
+	const actions = [
+		{
+			id: 'edit',
+			label: __( 'Edit', 'personal-notes' ),
+			icon: edit,
+			isPrimary: true,
+			supportsBulk: false,
+			callback: ( items ) => {
+				window.location.assign(
+					addQueryArgs( settings.editPostUrl, {
+						post: items[ 0 ].id,
+						action: 'edit',
+					} )
+				);
+			},
+		},
+		{
+			id: 'trash',
+			label: __( 'Move to trash', 'personal-notes' ),
+			icon: trash,
+			isDestructive: true,
+			supportsBulk: true,
+			callback: async ( items, { onActionPerformed } ) => {
+				try {
+					await Promise.all(
+						items.map( ( item ) =>
+							apiFetch( {
+								path: `${ settings.knowledgeRestPath }/${ item.id }`,
+								method: 'DELETE',
+							} )
+						)
+					);
+					onActionPerformed?.( items );
+					const removedIds = new Set(
+						items.map( ( item ) => item.id )
+					);
+					setNotes( ( current ) =>
+						current.filter(
+							( item ) => ! removedIds.has( item.id )
+						)
+					);
+					setNotice( {
+						status: 'success',
+						message:
+							items.length === 1
+								? __( 'Note moved to trash.', 'personal-notes' )
+								: __(
+										'Notes moved to trash.',
+										'personal-notes'
+								  ),
+					} );
+				} catch ( error ) {
+					setNotice( {
+						status: 'error',
+						message:
+							error.message ||
+							__( 'Could not trash the note.', 'personal-notes' ),
+					} );
+				}
+			},
+		},
+	];
+
+	const editNote = ( item ) =>
+		window.location.assign(
+			addQueryArgs( settings.editPostUrl, {
+				post: item.id,
+				action: 'edit',
+			} )
+		);
 
 	return (
-		<div className="personal-notes-admin__layout">
-			<div
-				className="personal-notes-admin__editor"
-				role="region"
-				aria-label={ __( 'Note editor', 'personal-notes' ) }
-			>
-				{ notice && (
-					<Notice
-						status={ notice.status }
-						onRemove={ () => setNotice( null ) }
+		<>
+			{ notice && (
+				<Notice
+					status={ notice.status }
+					onRemove={ () => setNotice( null ) }
+				>
+					{ notice.message }
+				</Notice>
+			) }
+			<DataViews
+				isLoading={ loading }
+				getItemId={ ( item ) => item.id.toString() }
+				data={ shownNotes }
+				fields={ fields }
+				view={ view }
+				onChangeView={ setView }
+				actions={ actions }
+				paginationInfo={ paginationInfo }
+				defaultLayouts={ DEFAULT_LAYOUTS }
+				onClickItem={ editNote }
+				isItemClickable={ () => true }
+				searchLabel={ __( 'Search notes', 'personal-notes' ) }
+				header={
+					<Button
+						variant="primary"
+						icon={ plus }
+						onClick={ createNote }
+						isBusy={ creating }
+						disabled={ creating || loading }
 					>
-						{ notice.message }
-					</Notice>
-				) }
-				<form onSubmit={ saveNote }>
-					<TextControl
-						label={ __( 'Title', 'personal-notes' ) }
-						value={ draft.title }
-						onChange={ ( title ) =>
-							setDraft( { ...draft, title } )
-						}
-					/>
-					<TextareaControl
-						label={ __( 'Content', 'personal-notes' ) }
-						rows={ 9 }
-						value={ draft.content }
-						onChange={ ( content ) =>
-							setDraft( { ...draft, content } )
-						}
-					/>
-					<SelectControl
-						label={ __( 'Collection', 'personal-notes' ) }
-						value={ draft.term }
-						options={ terms }
-						onChange={ ( term ) => setDraft( { ...draft, term } ) }
-					/>
-					<div className="personal-notes-admin__actions">
-						<Button
-							variant="primary"
-							type="submit"
-							isBusy={ saving }
-							disabled={ saving }
-						>
-							{ draft.id
-								? __( 'Save', 'personal-notes' )
-								: __( 'Create', 'personal-notes' ) }
-						</Button>
-						{ draft.id > 0 && (
-							<Button
-								variant="tertiary"
-								type="button"
-								onClick={ () => setDraft( emptyDraft ) }
-							>
-								{ __( 'Cancel', 'personal-notes' ) }
-							</Button>
-						) }
-					</div>
-				</form>
-			</div>
-			<div
-				className="personal-notes-admin__list"
-				role="region"
-				aria-label={ __( 'Notes list', 'personal-notes' ) }
-			>
-				<div className="personal-notes-admin__filters">
-					<TextControl
-						label={ __( 'Search', 'personal-notes' ) }
-						value={ search }
-						onChange={ setSearch }
-					/>
-					<SelectControl
-						label={ __( 'Filter', 'personal-notes' ) }
-						value={ filter }
-						options={ filterOptions }
-						onChange={ setFilter }
-					/>
-				</div>
-				{ loading ? (
-					<Spinner />
-				) : (
-					<div className="personal-notes-admin__items">
-						{ notes.map( ( note ) => (
-							<button
-								className="personal-notes-admin__item"
-								key={ note.id }
-								type="button"
-								onClick={ () => editNote( note ) }
-							>
-								<span className="personal-notes-admin__item-title">
-									{ note.title }
-								</span>
-								<span className="personal-notes-admin__item-meta">
-									{ note.terms.join( ', ' ) }
-								</span>
-							</button>
-						) ) }
-						{ notes.length === 0 && (
-							<p>{ __( 'No notes found.', 'personal-notes' ) }</p>
-						) }
-					</div>
-				) }
-			</div>
-		</div>
+						{ __( 'Add note', 'personal-notes' ) }
+					</Button>
+				}
+			/>
+		</>
 	);
 }
 
 const mount = document.getElementById( 'personal-notes-admin-app' );
 
 if ( mount ) {
-	render( <NotesAdmin />, mount );
+	createRoot( mount ).render( <NotesAdmin /> );
 }

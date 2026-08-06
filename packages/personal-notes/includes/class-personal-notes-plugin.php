@@ -55,6 +55,7 @@ class Personal_Notes_Plugin extends PersonalOS_Plugin_Base {
 		}
 
 		$this->register_common_knowledge_meta();
+		$this->enable_knowledge_editor();
 		$this->knowledge()->register_type_meta(
 			'flag',
 			array(
@@ -66,6 +67,46 @@ class Personal_Notes_Plugin extends PersonalOS_Plugin_Base {
 		$this->register_blocks();
 
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
+	}
+
+	/**
+	 * Enable the native editor without exposing the full Knowledge list UI.
+	 *
+	 * @return void
+	 */
+	private function enable_knowledge_editor() {
+		$post_type_object = get_post_type_object( $this->knowledge()->post_type() );
+
+		if ( $post_type_object ) {
+			$post_type_object->show_ui = true;
+		}
+	}
+
+	/**
+	 * Enqueue the app and expose the resolved core Knowledge routes.
+	 *
+	 * @return void
+	 */
+	public function enqueue_package_assets() {
+		parent::enqueue_package_assets();
+
+		if ( ! $this->knowledge()->is_available() ) {
+			return;
+		}
+
+		$taxonomy        = $this->knowledge()->type_taxonomy();
+		$taxonomy_object = get_taxonomy( $taxonomy );
+
+		wp_localize_script(
+			$this->script_handle(),
+			'personalNotesSettings',
+			array(
+				'knowledgeRestPath' => rest_get_route_for_post_type_items( $this->knowledge()->post_type() ),
+				'taxonomyRestPath'  => rest_get_route_for_taxonomy_items( $taxonomy ),
+				'taxonomyField'     => $taxonomy_object && $taxonomy_object->rest_base ? $taxonomy_object->rest_base : $taxonomy,
+				'editPostUrl'       => admin_url( 'post.php' ),
+			)
+		);
 	}
 
 	/**

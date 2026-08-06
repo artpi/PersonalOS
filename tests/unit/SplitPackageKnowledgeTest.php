@@ -134,6 +134,21 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Notes enables only the native editor surface for a headless Knowledge CPT.
+	 */
+	public function test_notes_enables_native_knowledge_editor() {
+		$post_type_object               = get_post_type_object( 'wp_guideline' );
+		$post_type_object->show_ui       = false;
+		$post_type_object->show_in_menu = false;
+
+		$plugin = new Personal_Notes_Plugin();
+		$plugin->register();
+
+		$this->assertTrue( get_post_type_object( 'wp_guideline' )->show_ui );
+		$this->assertFalse( get_post_type_object( 'wp_guideline' )->show_in_menu );
+	}
+
+	/**
 	 * Notes REST endpoints create, filter, and update Knowledge rows.
 	 */
 	public function test_notes_rest_create_list_and_update() {
