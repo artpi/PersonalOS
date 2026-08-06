@@ -44,6 +44,8 @@ Source files live in this plugin directory. From the repository root, run `npm r
 
 Release ZIPs bundle WpApp 1.3.2 under GPL-2.0-or-later for app routing, access control, and theme isolation.
 
+The exact Knowledge storage representation, lifecycle rules, API object, and required regression coverage are documented in `TECHNICAL.md`.
+
 == Changelog ==
 
 = 0.1.0 =

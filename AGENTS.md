@@ -16,6 +16,7 @@ Modules can have TECHNICAL.md files that document their technical implementation
 - `modules/imap/TECHNICAL.md` - Technical documentation for the IMAP module
 - `modules/openai/TECHNICAL.md` - Technical documentation for the OpenAI module
 - `modules/slack/TECHNICAL.md` - Technical documentation for the Slack integration module
+- `packages/personal-todo/TECHNICAL.md` - Canonical storage, lifecycle, API, and testing contract for Personal TODO
 
 ## Coding
 
@@ -71,3 +72,4 @@ Assume environment is set up.
 - Preserve the established PersonalOS TODO workflow in the split app: compact quick-add, DataViews list/filter/actions, full edit modal, scheduling, recurrence, dependencies, and history. Adapt old notebook controls to shared Knowledge type terms instead of replacing the UI with a simplified custom task list.
 - Destination app wp-admin menu entries are launchers, not alternate app screens: Notes, TODO, and AI Chat should redirect to their private WpApp routes, while Readwise and Evernote remain conventional wp-admin Settings pages.
 - Shared frontend CSS imports used by multiple split packages must remain package-distinct during webpack extraction (for example with package-specific resource queries), so a standalone package never depends on a sibling plugin's generated style chunk.
+- Split packages with durable domain records should include a package-local `TECHNICAL.md` that defines the exact WordPress representation, stored-versus-derived fields, lifecycle invariants, API shape, permissions, and regression-test contract; do not leave the canonical schema scattered between a migration plan and implementation code.
