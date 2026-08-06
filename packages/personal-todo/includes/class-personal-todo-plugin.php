@@ -119,6 +119,27 @@ class Personal_TODO_Plugin extends PersonalOS_Plugin_Base {
 	}
 
 	/**
+	 * Enqueue the app and expose the resolved Knowledge taxonomy route.
+	 *
+	 * @return void
+	 */
+	public function enqueue_package_assets() {
+		parent::enqueue_package_assets();
+
+		if ( ! $this->knowledge()->is_available() ) {
+			return;
+		}
+
+		wp_localize_script(
+			$this->script_handle(),
+			'personalTodoSettings',
+			array(
+				'taxonomyRestPath' => rest_get_route_for_taxonomy_items( $this->knowledge()->type_taxonomy() ),
+			)
+		);
+	}
+
+	/**
 	 * Render a small native admin UI.
 	 *
 	 * @return void
@@ -415,6 +436,12 @@ class Personal_TODO_Plugin extends PersonalOS_Plugin_Base {
 		}
 
 		$data = array_merge( array( 'ID' => $task->ID ), $this->task_data_from_request( $request ) );
+		if ( null !== $request->get_param( 'scheduled_for' ) ) {
+			$scheduled = wp_next_scheduled( $this->scheduled_hook, array( $task->ID ) );
+			if ( $scheduled ) {
+				wp_unschedule_event( $scheduled, $this->scheduled_hook, array( $task->ID ) );
+			}
+		}
 		if ( count( $data ) > 1 ) {
 			$updated = wp_update_post( $data, true );
 			if ( is_wp_error( $updated ) ) {
@@ -546,7 +573,12 @@ class Personal_TODO_Plugin extends PersonalOS_Plugin_Base {
 		$data = wp_parse_args( $data, $defaults );
 		$terms = array_values( array_unique( array_merge( array( 'artifact', 'todo' ), empty( $term_slugs ) ? array( 'inbox' ) : $term_slugs ) ) );
 
-		return $this->create_knowledge_post( $data, $terms, $user_id );
+		$post_id = $this->create_knowledge_post( $data, $terms, $user_id );
+		if ( ! is_wp_error( $post_id ) ) {
+			$this->save_task_meta_side_effects( $post_id, get_post( $post_id ), false );
+		}
+
+		return $post_id;
 	}
 
 	/**
@@ -731,6 +763,7 @@ class Personal_TODO_Plugin extends PersonalOS_Plugin_Base {
 						'pos_blocked_by'           => array( 'type' => 'integer' ),
 						'pos_blocked_pending_term' => array( 'type' => 'string' ),
 						'pos_recurring_days'       => array( 'type' => 'integer' ),
+						'scheduled_for'            => array( 'type' => 'string' ),
 					),
 					'required'             => array( 'id' ),
 					'additionalProperties' => false,
@@ -849,7 +882,7 @@ class Personal_TODO_Plugin extends PersonalOS_Plugin_Base {
 		$request = new WP_REST_Request( 'PUT', '/personal-todo/v1/tasks/' . $post_id );
 		$request->set_param( 'id', $post_id );
 
-		foreach ( array( 'title', 'excerpt', 'content', 'url', 'term', 'terms', 'pos_blocked_by', 'pos_blocked_pending_term', 'pos_recurring_days' ) as $key ) {
+		foreach ( array( 'title', 'excerpt', 'content', 'url', 'term', 'terms', 'pos_blocked_by', 'pos_blocked_pending_term', 'pos_recurring_days', 'scheduled_for' ) as $key ) {
 			if ( array_key_exists( $key, $args ) ) {
 				$request->set_param( $key, $args[ $key ] );
 			}
@@ -1514,6 +1547,10 @@ class Personal_TODO_Plugin extends PersonalOS_Plugin_Base {
 				'type'              => 'integer',
 				'sanitize_callback' => 'absint',
 			),
+			'scheduled_for'            => array(
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_text_field',
+			),
 			'term'                     => array(
 				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_key',
@@ -1563,6 +1600,15 @@ class Personal_TODO_Plugin extends PersonalOS_Plugin_Base {
 
 		if ( ! empty( $meta ) ) {
 			$data['meta_input'] = $meta;
+		}
+
+		if ( null !== $request->get_param( 'scheduled_for' ) ) {
+			$scheduled_for = sanitize_text_field( $request->get_param( 'scheduled_for' ) );
+			$timestamp     = $scheduled_for ? strtotime( $scheduled_for ) : time();
+			if ( false !== $timestamp ) {
+				$data['post_date_gmt'] = gmdate( 'Y-m-d H:i:s', $timestamp );
+				$data['post_date']     = get_date_from_gmt( $data['post_date_gmt'] );
+			}
 		}
 
 		return $data;
