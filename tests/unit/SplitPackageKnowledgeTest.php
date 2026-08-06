@@ -136,19 +136,25 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Notes enables only the native editor surface for a headless Knowledge CPT.
+	 * Notes enables the native editor and taxonomy panel for headless Knowledge.
 	 */
 	public function test_notes_enables_native_knowledge_editor() {
 		$this->setExpectedIncorrectUsage( 'WP_Block_Type_Registry::register' );
 		$post_type_object               = get_post_type_object( 'wp_knowledge' );
 		$post_type_object->show_ui       = false;
 		$post_type_object->show_in_menu = false;
+		$taxonomy_object                = get_taxonomy( 'wp_knowledge_type' );
+		$taxonomy_object->show_ui        = false;
 
 		$plugin = new Personal_Notes_Plugin();
 		$plugin->register();
 
 		$this->assertTrue( get_post_type_object( 'wp_knowledge' )->show_ui );
 		$this->assertFalse( get_post_type_object( 'wp_knowledge' )->show_in_menu );
+		$this->assertTrue( get_taxonomy( 'wp_knowledge_type' )->show_ui );
+		$this->assertSame( 'Knowledge Types', get_taxonomy( 'wp_knowledge_type' )->labels->name );
+		$this->assertSame( 'Search Knowledge Types', get_taxonomy( 'wp_knowledge_type' )->labels->search_items );
+		$this->assertSame( 'Add Knowledge Type', get_taxonomy( 'wp_knowledge_type' )->labels->add_new_item );
 	}
 
 	/**

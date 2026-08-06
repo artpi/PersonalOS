@@ -72,15 +72,52 @@ class Personal_Notes_Plugin extends PersonalOS_Plugin_Base {
 	}
 
 	/**
-	 * Enable the native editor without exposing the full Knowledge list UI.
+	 * Enable the native editor and Knowledge Type panel without exposing the
+	 * full Knowledge list UI.
 	 *
 	 * @return void
 	 */
 	private function enable_knowledge_editor() {
 		$post_type_object = get_post_type_object( $this->knowledge()->post_type() );
+		$taxonomy_object  = get_taxonomy( $this->knowledge()->type_taxonomy() );
 
 		if ( $post_type_object ) {
 			$post_type_object->show_ui = true;
+		}
+
+		if ( $taxonomy_object ) {
+			$taxonomy_object->show_ui = true;
+			$taxonomy_object->label   = __( 'Knowledge Types', 'personal-notes' );
+
+			$labels = array(
+				'name'                  => __( 'Knowledge Types', 'personal-notes' ),
+				'singular_name'         => __( 'Knowledge Type', 'personal-notes' ),
+				'search_items'          => __( 'Search Knowledge Types', 'personal-notes' ),
+				'all_items'             => __( 'Knowledge Types', 'personal-notes' ),
+				'parent_item'           => __( 'Parent Knowledge Type', 'personal-notes' ),
+				'parent_item_colon'     => __( 'Parent Knowledge Type:', 'personal-notes' ),
+				'edit_item'             => __( 'Edit Knowledge Type', 'personal-notes' ),
+				'view_item'             => __( 'View Knowledge Type', 'personal-notes' ),
+				'update_item'           => __( 'Update Knowledge Type', 'personal-notes' ),
+				'add_new_item'          => __( 'Add Knowledge Type', 'personal-notes' ),
+				'new_item_name'         => __( 'New Knowledge Type Name', 'personal-notes' ),
+				'add_or_remove_items'   => __( 'Add or remove Knowledge Types', 'personal-notes' ),
+				'not_found'             => __( 'No Knowledge Types found.', 'personal-notes' ),
+				'no_terms'              => __( 'No Knowledge Types', 'personal-notes' ),
+				'items_list_navigation' => __( 'Knowledge Types list navigation', 'personal-notes' ),
+				'items_list'            => __( 'Knowledge Types list', 'personal-notes' ),
+				'back_to_items'         => __( 'Go to Knowledge Types', 'personal-notes' ),
+				'item_link'             => __( 'Knowledge Type Link', 'personal-notes' ),
+				'item_link_description' => __( 'A link to a Knowledge Type.', 'personal-notes' ),
+				'menu_name'             => __( 'Knowledge Types', 'personal-notes' ),
+				'name_admin_bar'        => __( 'Knowledge Type', 'personal-notes' ),
+				'archives'              => __( 'Knowledge Types', 'personal-notes' ),
+				'template_name'         => __( 'Knowledge Type Archives', 'personal-notes' ),
+			);
+
+			foreach ( $labels as $key => $label ) {
+				$taxonomy_object->labels->{$key} = $label;
+			}
 		}
 	}
 
