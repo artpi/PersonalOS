@@ -1,4 +1,4 @@
-@import "@wordpress/dataviews/build-style/style.css";
+@import "@wordpress/dataviews/build-style/style.css?personal-todo";
 
 body.personal-todo-js .personal-todo-admin-fallback {
 	display: none;
@@ -6,7 +6,7 @@ body.personal-todo-js .personal-todo-admin-fallback {
 
 .personal-todo-admin {
 	margin-top: 16px;
-	max-width: 1440px;
+	width: 100%;
 }
 
 .personal-todo-admin__layout {
@@ -26,8 +26,13 @@ body.personal-todo-js .personal-todo-admin-fallback {
 }
 
 .personal-todo-admin__quick-add {
-	max-width: 760px;
 	padding: 16px;
+	width: 100%;
+}
+
+.personal-todo-admin .dataviews-view-list {
+	list-style: none;
+	padding: 0;
 }
 
 .personal-todo-admin__loading {
@@ -124,7 +129,4 @@ body.personal-todo-js .personal-todo-admin-fallback {
 		margin-right: 10px;
 	}
 
-	.personal-todo-admin__quick-add {
-		max-width: none;
-	}
 }
