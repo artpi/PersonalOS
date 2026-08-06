@@ -33,7 +33,7 @@ if ( ! class_exists( 'PersonalOS_Admin_Notice_Helper' ) ) {
 			self::warning(
 				sprintf(
 					/* translators: %s: plugin name */
-					__( '%s is active, but no Knowledge or Guidelines runtime is available. Install or enable a runtime that provides wp_knowledge/wp_knowledge_type or wp_guideline/wp_guideline_type.', 'personalos' ),
+					__( '%s is active, but the WordPress Knowledge runtime is unavailable. Install or enable a runtime that provides wp_knowledge and wp_knowledge_type.', 'personalos' ),
 					esc_html( $plugin_name )
 				)
 			);

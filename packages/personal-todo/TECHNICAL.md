@@ -10,15 +10,15 @@ feed, and tests must share.
 Personal TODO requires a WordPress Knowledge surface but does not require any
 other Personal plugin.
 
-The shared Knowledge bridge resolves runtime identifiers in this order:
+The shared Knowledge bridge resolves these runtime identifiers:
 
-| Concept | Preferred | Fallback |
-| --- | --- | --- |
-| Post type | `wp_knowledge` | `wp_guideline` |
-| Type taxonomy | `wp_knowledge_type` | `wp_guideline_type` |
-| Source meta | `knowledge_source` | `guideline_source` |
+| Concept | Identifier |
+| --- | --- |
+| Post type | `wp_knowledge` |
+| Type taxonomy | `wp_knowledge_type` |
+| Source meta | `knowledge_source` when registered, otherwise `_personalos_source` |
 
-Package code must use the bridge instead of hardcoding one of these identifiers.
+Package code must use the bridge rather than duplicate availability and metadata checks.
 
 ## Canonical Task Identity
 

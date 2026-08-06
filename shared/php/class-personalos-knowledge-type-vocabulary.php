@@ -33,8 +33,6 @@ if ( ! class_exists( 'PersonalOS_Knowledge_Type_Vocabulary' ) ) {
 		 */
 		public function register_type_labels() {
 			add_filter( 'wp_knowledge_types', array( $this, 'filter_type_labels' ) );
-			add_filter( 'wp_guideline_types', array( $this, 'filter_type_labels' ) );
-			add_filter( 'wp_guideline_type_labels', array( $this, 'filter_type_labels' ) );
 		}
 
 		/**

@@ -12,7 +12,7 @@ Sync Evernote notes into WordPress Knowledge records.
 
 == Description ==
 
-Personal Evernote Sync stores Evernote notes in the shared WordPress Knowledge surface, preferring `wp_knowledge` and falling back to `wp_guideline`.
+Personal Evernote Sync stores Evernote notes in the shared WordPress Knowledge surface using `wp_knowledge` and `wp_knowledge_type`.
 
 Synced rows are private by default, authored by the user whose Evernote token is configured, and tagged with `artifact`, `note`, `evernote`, and `synced`.
 

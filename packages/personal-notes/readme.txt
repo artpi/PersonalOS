@@ -12,7 +12,7 @@ Create, edit, search, and organize personal notes stored as WordPress Knowledge 
 
 == Description ==
 
-Personal Notes stores notes in the shared WordPress Knowledge surface when available, preferring `wp_knowledge` and falling back to `wp_guideline`.
+Personal Notes stores notes in the shared WordPress Knowledge surface using `wp_knowledge` and `wp_knowledge_type`.
 
 Notes are private by default and use Knowledge type terms such as `artifact`, `note`, `manual`, `inbox`, `now`, projects, areas, and resources.
 
@@ -22,13 +22,13 @@ The private Notes app is available at `/notes/` and follows the signed-in user's
 
 1. Upload the `personal-notes` folder to `/wp-content/plugins/`.
 2. Activate Personal Notes.
-3. Ensure your site provides the WordPress Knowledge or Guidelines runtime, then open `/notes/`.
+3. Ensure your site provides the WordPress Knowledge runtime, then open `/notes/`.
 
 == Frequently Asked Questions ==
 
 = Does this require another Personal plugin? =
 
-No. Personal Notes only requires a WordPress runtime that provides Knowledge or Guidelines records.
+No. Personal Notes only requires a WordPress runtime that provides Knowledge records.
 
 == Privacy ==
 

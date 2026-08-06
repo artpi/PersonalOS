@@ -38,6 +38,8 @@ const networkedPackages = {
 	},
 };
 const nonNetworkedPackages = [ 'personal-notes', 'personal-todo' ];
+const legacyKnowledgePattern =
+	/\b(?:wp_guideline|wp_guidelines|wp_guideline_type|wp_guideline_types|guideline_source)\b|\/wp\/v2\/guidelines/;
 const wpAppVendorFiles = [
 	'vendor/akirk/wp-app/src/class-registry.php',
 	'vendor/akirk/wp-app/src/class-wpapp.php',
@@ -246,6 +248,12 @@ function verifyPackage( slug ) {
 			errors.push( `${ slug }: readme contains placeholder text` );
 		}
 
+		if ( legacyKnowledgePattern.test( readmeText ) ) {
+			errors.push(
+				`${ slug }: readme contains a removed Guidelines runtime alias`
+			);
+		}
+
 		if ( networkedPackages[ slug ] ) {
 			for ( const requiredText of networkedPackages[ slug ]
 				.requiredText ) {
@@ -307,6 +315,20 @@ function verifyPackage( slug ) {
 		for ( const entry of requiredEntries ) {
 			if ( ! entries.includes( entry ) ) {
 				errors.push( `${ slug }: ZIP missing ${ entry }` );
+			}
+		}
+
+		const bundledBridge = `${ slug }/includes/shared/class-personalos-knowledge-bridge.php`;
+		if ( entries.includes( bundledBridge ) ) {
+			const bridgeSource = execFileSync(
+				'unzip',
+				[ '-p', zipPath, bundledBridge ],
+				{ encoding: 'utf8' }
+			);
+			if ( legacyKnowledgePattern.test( bridgeSource ) ) {
+				errors.push(
+					`${ slug }: bundled Knowledge bridge contains a removed Guidelines runtime alias`
+				);
 			}
 		}
 
@@ -465,7 +487,7 @@ function verifyWpEnvMappings() {
 			)
 		) {
 			errors.push(
-				`${ configFile }: must enable the Gutenberg Guidelines experiment after startup`
+				`${ configFile }: must enable the pinned Gutenberg Knowledge experiment after startup`
 			);
 		}
 	}
@@ -517,6 +539,12 @@ function scanSourceFiles( slug, sourceFiles ) {
 	for ( const file of sourceFiles ) {
 		const relative = path.relative( root, file );
 		const content = readFileSync( file, 'utf8' );
+
+		if ( legacyKnowledgePattern.test( content ) ) {
+			errors.push(
+				`${ slug }: ${ relative } contains a removed Guidelines runtime alias`
+			);
+		}
 
 		for ( const pattern of [
 			/POS::/,

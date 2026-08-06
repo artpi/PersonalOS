@@ -12,7 +12,7 @@ Sync Readwise highlights into WordPress Knowledge records.
 
 == Description ==
 
-Personal Readwise Sync imports Readwise highlights and articles into the shared WordPress Knowledge surface, preferring `wp_knowledge` and falling back to `wp_guideline`.
+Personal Readwise Sync imports Readwise highlights and articles into the shared WordPress Knowledge surface using `wp_knowledge` and `wp_knowledge_type`.
 
 Synced rows are private by default, authored by the user whose Readwise token is configured, and tagged with `artifact`, `note`, `readwise`, and `synced`.
 

@@ -40,7 +40,7 @@ Use Personal-branded names for WordPress.org submission, and short names inside 
 
 Avoid submitting `Notes` or `TODO` as standalone plugin names. They are too generic for Plugin Directory review, and the `notes` and `todo` slugs already exist on WordPress.org. `Personal Notes` and `Personal TODO` are more strategic because they keep the Personal OS product family recognizable without requiring a shared runtime plugin.
 
-Tradeoff: `Personal` is friendlier and less infrastructure-heavy than `Knowledge`, but it is broader. Counter this in plugin subtitles, descriptions, screenshots, and readmes by saying these plugins manage a personal operating layer inside WordPress using Knowledge records through the bridge, with `wp_knowledge` preferred and current `wp_guideline`/`wp_guideline_type` Guidelines APIs as fallback.
+Tradeoff: `Personal` is friendlier and less infrastructure-heavy than `Knowledge`, but it is broader. Counter this in plugin subtitles, descriptions, screenshots, and readmes by saying these plugins manage a personal operating layer inside WordPress using the `wp_knowledge` and `wp_knowledge_type` APIs through the bridge.
 
 The preferred sync plugin display names are `Personal Readwise Sync` and `Personal Evernote Sync`, with package slugs `personal-readwise-sync` and `personal-evernote-sync`. If Plugin Directory review treats Readwise or Evernote as protected marks that must appear after a connector, fall back to `Personal Sync for Readwise` / `personal-sync-for-readwise` and `Personal Sync for Evernote` / `personal-sync-for-evernote`.
 
@@ -74,8 +74,7 @@ The Notes, TODO, and AI Chat release ZIPs bundle the same pinned WpApp 1.3.2 GPL
 
 Each v1 plugin should integrate only with shared WordPress runtime surfaces:
 
-- Preferred future Knowledge runtime: `wp_knowledge` CPT and its matching type taxonomy when available.
-- Fallback current Guidelines runtime: `wp_guideline` CPT, `wp_guideline_type` taxonomy, and `/wp/v2/guidelines`.
+- Knowledge runtime: `wp_knowledge` CPT, `wp_knowledge_type` taxonomy, and `/wp/v2/knowledge`.
 - Standard post meta, options, REST, cron, capabilities, actions, and filters.
 
 Package code should not hardcode the concrete post type, taxonomy, or REST collection outside the shared bridge. TODO uses the resolved Knowledge post type as the durable task store. Each actionable task should be its own Knowledge post with `artifact` and `todo` terms. Do not use one giant Knowledge post as the TODO database.
@@ -207,24 +206,17 @@ Recommended base class shape:
 
 ### Knowledge Runtime Resolution
 
-`PersonalOS_Knowledge_Bridge` is the comms layer between the split plugins and the underlying Knowledge/Guidelines implementation. It should always try the new Knowledge names first and fall back to the old Guidelines names automatically.
+`PersonalOS_Knowledge_Bridge` is the comms layer between the split plugins and the underlying Knowledge implementation. It centralizes runtime availability and metadata registration without carrying aliases for superseded APIs.
 
-Resolution order:
+Runtime contract:
 
-1. Prefer a native Knowledge runtime when it is available:
-   - Post type: `wp_knowledge`.
-   - Type taxonomy: `wp_knowledge_type` if the runtime exposes it.
-   - REST collection: a Knowledge route such as `/wp/v2/knowledge` if registered.
-   - Source/provenance meta: `knowledge_source` if the runtime exposes it.
-2. Fall back to the current Guidelines runtime:
-   - Post type: `wp_guideline`.
-   - Type taxonomy: `wp_guideline_type`.
-   - REST collection: `/wp/v2/guidelines`.
-   - Source/provenance meta: `guideline_source` if registered.
-   - Tolerate old helper/API aliases that use the plural `wp_guidelines` name, but normalize package code to the resolved singular post type.
-3. If neither runtime exists, activate cleanly and show setup guidance instead of fataling.
+1. Post type: `wp_knowledge`.
+2. Type taxonomy: `wp_knowledge_type`.
+3. REST collection: `/wp/v2/knowledge` or the route registered for `wp_knowledge`.
+4. Source/provenance meta: `knowledge_source` when registered, otherwise package-prefixed provenance meta.
+5. If the Knowledge runtime is unavailable, activate cleanly and show setup guidance instead of fataling.
 
-This is a runtime/API fallback, not a legacy PersonalOS data fallback. The bridge may fall back from `wp_knowledge` to the current Guidelines implementation, but it should not fall back to old PersonalOS `notes`, `todo`, or `notebook` storage.
+The bridge must not fall back to old PersonalOS `notes`, `todo`, or `notebook` storage or to superseded runtime aliases.
 
 The base class should expose this through methods rather than constants:
 
@@ -235,7 +227,7 @@ The base class should expose this through methods rather than constants:
 - `$this->knowledge()->register_post_meta( $key, $args )`
 - `$this->knowledge()->register_type_meta( $key, $args )`
 
-Package services should query and write through the resolved values. For example, Personal TODO should create tasks in `$this->knowledge()->post_type()` and assign terms in `$this->knowledge()->type_taxonomy()`, so the same code works on a future `wp_knowledge` runtime and today's `wp_guideline` runtime.
+Package services should query and write through the resolved values. For example, Personal TODO should create tasks in `$this->knowledge()->post_type()` and assign terms in `$this->knowledge()->type_taxonomy()` so availability checks and metadata registration remain centralized.
 
 `PersonalOS_Sync_Plugin_Base` should own sync mechanics only:
 
@@ -255,10 +247,10 @@ Base class constraints:
 
 Shared helper responsibilities:
 
-- Knowledge compatibility bridge: one place to detect whether the current runtime exposes future `wp_knowledge` names first, then fallback `wp_guideline`/`wp_guideline_type`, `/wp/v2/guidelines`, or old plural `wp_guidelines` aliases.
-- Source meta compatibility: prefer the runtime's registered source meta, such as `knowledge_source` or `guideline_source`, and fall back to package-prefixed provenance meta only when neither is available.
+- Knowledge bridge: one place to detect `wp_knowledge` and `wp_knowledge_type`, resolve the registered REST route, and register shared metadata.
+- Source meta compatibility: use the runtime's registered `knowledge_source` meta and fall back to package-prefixed provenance meta when it is unavailable.
 - Term resolution and idempotent creation for canonical type, source, and PARA/collection terms.
-- Type label registration through the runtime label API when it exists, preferring a future `wp_knowledge_types` API and falling back to the current `wp_guideline_types`, so shared terms such as `todo`, `note`, `project`, `area`, and `resource` have readable labels.
+- Type label registration through the `wp_knowledge_types` runtime label API so shared terms such as `todo`, `note`, `project`, `area`, and `resource` have readable labels.
 - Knowledge type vocabulary ownership: one bundled helper defines the shared term tree, normalizes existing term parents, and expands parent terms to child IDs for queries.
 - Scoped settings ownership: one helper stores `scope => site` settings in options and `scope => user` settings/state in user meta using package-scoped keys.
 - Token-to-user lookup for package-owned token settings, so private feeds or callbacks can resolve a request token to the owning WordPress user before querying Knowledge.
@@ -280,7 +272,7 @@ Acceptance criteria:
 - Activating all five plugins together produces no class redeclaration fatals.
 - Activating all five plugins together works no matter which package's bundled base class loads first.
 - Updating one package with a newer helper version does not break older sibling packages.
-- A future API rename from `wp_guideline` naming to `wp_knowledge` naming can be handled primarily in the shared bridge and then rebuilt into each package ZIP.
+- Knowledge API changes can be handled primarily in the shared bridge and then rebuilt into each package ZIP.
 
 ### Soft Inter-Plugin Relationships
 
@@ -306,9 +298,9 @@ Examples:
 
 ## Knowledge Storage Model
 
-Use the local Knowledge implementation guidance in `/Users/artpi/GIT/wp-agent-skills/skills/wp-guideline/SKILL.md`. That skill still uses the current `wp_guideline` API names, so treat it as the Guidelines fallback reference while the bridge prefers `wp_knowledge` when present.
+Use current WordPress Knowledge implementation guidance and verify it against the `wp_knowledge` API exposed by the pinned runtime fixture.
 
-Knowledge uses a type taxonomy, so rows can and should receive multiple terms. The bridge should prefer `wp_knowledge_type` when available and fall back to `wp_guideline_type`. That lets PersonalOS use canonical terms plus domain/source terms.
+Knowledge uses the `wp_knowledge_type` taxonomy, so rows can and should receive multiple canonical, domain, and source terms.
 
 ### Canonical Terms
 
@@ -328,7 +320,7 @@ Do not create a separate PersonalOS-only collection taxonomy in v1. Using the re
 
 Ownership:
 
-- The WordPress Knowledge/Guidelines runtime owns the resolved type taxonomy registration.
+- The WordPress Knowledge runtime owns the type taxonomy registration.
 - Bundled shared helper `PersonalOS_Knowledge_Type_Vocabulary` owns the shared term vocabulary, parent normalization, label registration, and parent-to-child query expansion.
 - Every PersonalOS package may call the shared helper before it writes or queries Knowledge. This keeps Notes, TODO, Readwise, Evernote, and AI Chat independently installable.
 - Personal Notes owns the full collection/PARA management UI: browse, create, rename, star, and organize project/area/resource child terms.
@@ -467,8 +459,8 @@ Use post fields for the human-readable content:
 
 Use post meta only for behavior, provenance, and sync:
 
-- Runtime source meta: use `$this->knowledge()->source_meta_key()` so the bridge can prefer `knowledge_source`, fall back to `guideline_source`, and then fall back to package-prefixed provenance meta. Use stable values such as a source URL, `native:personal-notes`, or `native:personal-readwise-sync:<external-id>`.
-- `_personalos_source`: fallback/source category only when neither `knowledge_source` nor `guideline_source` is available, or supplemental package-local source grouping such as `manual`, `readwise`, `evernote`, `todo`, `ai-chat`.
+- Runtime source meta: use `$this->knowledge()->source_meta_key()` so the bridge uses registered `knowledge_source` meta and otherwise falls back to package-prefixed provenance meta. Use stable values such as a source URL, `native:personal-notes`, or `native:personal-readwise-sync:<external-id>`.
+- `_personalos_source`: fallback/source category when `knowledge_source` is unavailable, or supplemental package-local source grouping such as `manual`, `readwise`, `evernote`, `todo`, `ai-chat`.
 - `_personalos_external_id`: source-system ID.
 - `_personalos_source_url`: source URL.
 - `_personalos_synced_at`: last sync timestamp.
@@ -479,9 +471,9 @@ Do not use meta as the primary discovery mechanism. Query by the resolved Knowle
 
 Do not store PARA category membership in post meta when a Knowledge type term can represent it. Keep meta for operational state such as TODO recurrence/blocking/scheduling, sync hashes, and provider response IDs.
 
-Do not self-register a global unprefixed `knowledge_source` or `guideline_source` convention if the active runtime does not expose it. Let `PersonalOS_Knowledge_Bridge` centralize detection and fallback behavior so a future rename or API shape change is fixed once and then rebuilt into all package ZIPs.
+Do not self-register a global unprefixed `knowledge_source` convention if the active runtime does not expose it. Let `PersonalOS_Knowledge_Bridge` centralize detection and fallback behavior so an API shape change is fixed once and then rebuilt into all package ZIPs.
 
-For TODO, keep the old plugin's storage shape as much as possible. Use the resolved Knowledge post type, preferring `wp_knowledge` and falling back to `wp_guideline`, but preserve the current task mechanics:
+For TODO, keep the old plugin's storage shape as much as possible. Use `wp_knowledge` through the bridge and preserve the current task mechanics:
 
 - Open tasks are `private` or `publish`.
 - Scheduled tasks use `post_date` / `post_date_gmt`, `future` status where useful, and a package cron hook.
@@ -491,13 +483,13 @@ For TODO, keep the old plugin's storage shape as much as possible. Use the resol
 
 ### PR #72 Multi-User Ideas To Carry Forward
 
-[PR #72, "Per-user permissions"](https://github.com/artpi/PersonalOS/pull/72), is worth carrying forward as design input, but not as code to copy unchanged. It was built for the monolith's private CPTs, while the split should rely on Knowledge/Guidelines scoping for Knowledge rows.
+[PR #72, "Per-user permissions"](https://github.com/artpi/PersonalOS/pull/72), is worth carrying forward as design input, but not as code to copy unchanged. It was built for the monolith's private CPTs, while the split should rely on Knowledge scoping for Knowledge rows.
 
 Specific PR #72 changes to incorporate:
 
 - `class-pos-settings.php` introduced setting scopes and separate storage for user settings vs global settings. In the split, keep the idea but name the scopes `user` and `site`: user settings/state go to user meta; site settings go to options.
 - `modules/class-pos-module.php` added `get_setting( $id, $user_id )`, `update_setting( $id, $value, $user_id )`, `get_user_ids_with_setting()`, `find_user_for_setting_token()`, `run_for_user()`, and per-user sync state helpers. Recreate these as package-safe methods on `PersonalOS_Plugin_Base`, `PersonalOS_Settings_Helper`, and `PersonalOS_Sync_Plugin_Base`.
-- `personalos.php` added `use_personalos`, `admin_personalos`, and monolith-specific `map_meta_cap` handling for `notes` and `todo`. Do not copy that as a PersonalOS-wide permission system. Knowledge/Guidelines already handles user scoping; split packages should call `current_user_can( 'read_post'|'edit_post'|'delete_post', $knowledge_id )` and use the resolved Knowledge REST permissions.
+- `personalos.php` added `use_personalos`, `admin_personalos`, and monolith-specific `map_meta_cap` handling for `notes` and `todo`. Do not copy that as a PersonalOS-wide permission system. Knowledge already handles user scoping; split packages should call `current_user_can( 'read_post'|'edit_post'|'delete_post', $knowledge_id )` and use the Knowledge REST permissions.
 - `modules/notes/class-notes-module.php` changed note creation and draft auto-publish to `private`, and filtered dashboard/widget queries by author unless the user has admin access. In the split, default user-created notes, TODOs, synced rows, memories, chat transcripts, and agent-created artifacts to private Knowledge rows authored by the owning user; use published Knowledge only for site-wide/admin-provided artifacts.
 - `modules/readwise/class-readwise.php` made `token` and `autotag` user-scoped, looped sync over users with configured tokens, stored `page_cursor` and `last_sync` per user, wrote private notes with `post_author = get_current_user_id()`, and deduped by external ID within that author. Personal Readwise Sync should do the same against the resolved Knowledge post type.
 - `modules/evernote/class-evernote-module.php` made `token`, `synced_notebooks`, and `active` user-scoped; reset cached clients between users; stored `usn`, `last_sync`, `last_update_count`, and `cached_data` as per-user sync state; wrote private notes as the current user; and scoped Evernote GUID lookups by author. Personal Evernote Sync should follow that pattern.
@@ -514,7 +506,7 @@ Artifact visibility rules:
 
 ### Current Storage Surface Inventory And Port
 
-The split should preserve the shape of the old plugin where it made the code simple. The important change is the object subtype: old note/task state moves from `notes` and `todo` CPT rows to the resolved Knowledge post type (`wp_knowledge` preferred, `wp_guideline` fallback), and old notebook organization moves from `notebook` terms to the resolved Knowledge type taxonomy (`wp_knowledge_type` preferred, `wp_guideline_type` fallback).
+The split should preserve the shape of the old plugin where it made the code simple. The important change is the object subtype: old note/task state moves from `notes` and `todo` CPT rows to `wp_knowledge`, and old notebook organization moves from `notebook` terms to `wp_knowledge_type`.
 
 Use the same setting field IDs inside package classes, but generate package-scoped storage keys through `PersonalOS_Plugin_Base::get_setting_storage_key()`. That keeps the module code familiar while avoiding cross-plugin option or user-meta collisions.
 
@@ -559,7 +551,7 @@ Keep site settings as separate options, like the current `POS_Module::get_settin
 
 #### Post Meta On Knowledge Rows
 
-Register these through the bridge, for example `$this->knowledge()->register_post_meta( ... )`, so the object subtype is `wp_knowledge` when available and `wp_guideline` otherwise. Keep `show_in_rest => true` for fields that the UI or external Knowledge consumers should see.
+Register these through the bridge, for example `$this->knowledge()->register_post_meta( ... )`, so the object subtype is consistently `wp_knowledge`. Keep `show_in_rest => true` for fields that the UI or external Knowledge consumers should see.
 
 | Current key | Current object | New object | Owner | Decision |
 | --- | --- | --- | --- | --- |
@@ -672,8 +664,6 @@ Out of scope:
 
 Use the current codebase as implementation reference only. The split plugins should create and manage new Knowledge-backed data going forward.
 
-This does not conflict with the bridge fallback above: falling back to the current Guidelines runtime means using `wp_guideline`/`wp_guideline_type` as the Knowledge backend when `wp_knowledge` is not available. It does not mean reading legacy PersonalOS `notes`, `todo`, or `notebook` data.
-
 ### Phase 1: Establish Shared Helpers And Package Skeletons
 
 Goal: create the independent plugin shape before moving feature code.
@@ -702,7 +692,7 @@ Goal: give each package a tiny data layer over Knowledge without a shared runtim
 - Add shared helper methods that expand parent terms to child term IDs for parent-level filters such as all status buckets, all projects, all areas, or all sources.
 - Use the bridge-resolved source meta key, source hashes, and external IDs for new sync rows and idempotent syncs.
 - Create user-specific Knowledge rows as `private` and authored by the owning user. Create site-wide Knowledge rows as `publish` only from an administrator-controlled setup flow.
-- Query Knowledge through normal WordPress APIs and filter returned rows with `current_user_can( 'read_post', $post_id )`; do not bypass Guidelines permissions with direct SQL.
+- Query Knowledge through normal WordPress APIs and filter returned rows with `current_user_can( 'read_post', $post_id )`; do not bypass Knowledge permissions with direct SQL.
 - Add package helper methods for `get_setting( $id, $user_id )`, `update_setting( $id, $value, $user_id )`, user sync state, user discovery by configured setting, and token-to-user lookup.
 - Do not read from or write to old PersonalOS CPTs/options as a compatibility path.
 
@@ -948,7 +938,7 @@ Default `wp-env` behavior:
   - `./packages/personal-todo`
   - `./packages/personal-ai-chat`
 - Map the monorepo `shared/php` and `vendor` directories to `wp-content/shared/php` and `wp-content/vendor`. wp-env mounts each package independently, so these mappings make package fallback loaders and Composer runtimes available during activation without adding release-time sibling dependencies.
-- Mount pinned Gutenberg 23.7.0 as the current Knowledge/Guidelines compatibility fixture and enable its `gutenberg-guidelines` experiment after startup. Remove that fixture when the selected WordPress core image registers the resolved Knowledge surface itself; it is not a PersonalOS sibling or release dependency.
+- Mount pinned Gutenberg 23.7.0 as the current Knowledge fixture and enable its historically named `gutenberg-guidelines` experiment after startup. The option name belongs to Gutenberg; the Personal package contract is Knowledge-only. Remove that fixture when the selected WordPress core image registers Knowledge itself; it is not a PersonalOS sibling or release dependency.
 - Activate all local PersonalOS packages after startup for the default development site.
 
 Testing behavior:
@@ -1019,17 +1009,17 @@ Implementation branches:
 - Run `npm run test:unit:backend` after each phase.
 - Run `composer run lint -- "file/path"` for changed PHP files.
 - Add activation tests for each extracted plugin with no sibling plugins active.
-- Add Knowledge availability tests for three cases: `wp_knowledge` available, only `wp_guideline`/Guidelines available, and neither runtime available.
+- Add Knowledge availability tests for `wp_knowledge` available and the Knowledge runtime unavailable.
 - Add regression tests proving split packages do not depend on old PersonalOS CPTs, notebooks, or provider settings.
 - Add tests proving PARA/collection terms are stored in the resolved Knowledge type taxonomy, not in a separate taxonomy or post meta.
 - Add tests proving canonical PARA terms use stable slugs, hierarchical parents, and numbered top-level display labels such as `1-Status`, `2-Projects`, `3-Areas`, and `4-Resources`.
 - Add tests proving container-only terms such as `status`, `project`, `area`, `resource`, and `archive` are hidden from assignable term pickers, are not applied directly to Knowledge rows by helper APIs, and work only through child-term query expansion.
 - Add tests proving old field IDs are registered against the bridge-resolved object types: `readwise_id`, `readwise_category`, `readwise_author`, `evernote_guid`, `evernote_content_hash`, `pos_blocked_by`, `pos_blocked_pending_term`, `pos_recurring_days`, `pos_model`, `pos_chat_prompt_id`, and `pos_last_response_id` on the resolved Knowledge post type; `flag`, `evernote_notebook_guid`, and `evernote_type` on the resolved Knowledge type taxonomy.
-- Add tests proving the bridge prefers `wp_knowledge`/`wp_knowledge_type` over `wp_guideline`/`wp_guideline_type` when both exist, and falls back to Guidelines when Knowledge does not exist.
+- Add tests proving the bridge resolves `wp_knowledge`/`wp_knowledge_type` and reports the runtime unavailable when either is missing.
 - Add tests proving package storage keys use package-scoped prefixes such as `personal_readwise_sync_last_sync` and do not read old module options such as `readwise_last_sync`.
 - Add tests, based on PR #72 `SettingScopeTest`, proving `scope => user` settings/state are stored in user meta and `scope => site` settings are stored in options.
 - Add tests, based on PR #72 `ModuleTokenMappingTest`, proving per-user tokens resolve to authorized WordPress users and reject missing, short, unknown, or unauthorized-user tokens.
-- Add tests, based on PR #72 `NotesRestPermissionsTest`, proving private Knowledge rows are readable/editable by their author and privileged users only, using the runtime's Knowledge/Guidelines REST permissions.
+- Add tests, based on PR #72 `NotesRestPermissionsTest`, proving private Knowledge rows are readable/editable by their author and privileged users only, using the runtime's Knowledge REST permissions.
 - Add idempotency tests for Readwise/Evernote external IDs and source hashes.
 - Add tests, based on PR #72 `ReadwiseModuleSyncTest` and `EvernoteModuleSyncTest`, proving sync loops over users with configured tokens/settings, switches current-user context during row creation, stores cursors per user, and does not let one user's failure block another user.
 - Add TODO ICS export tests against bridge-resolved Knowledge task data.
@@ -1046,7 +1036,7 @@ Implementation branches:
 | Risk | Mitigation |
 | --- | --- |
 | Knowledge is not available in the target runtime | Feature-detect, show admin notices, and avoid private replacement unless explicitly chosen |
-| Knowledge/Guidelines runtime names diverge | Keep all detection and compatibility shims inside bundled shared helpers; prefer `wp_knowledge`, fall back to Guidelines, then rebuild every package |
+| Knowledge runtime APIs change | Keep availability and metadata integration inside bundled shared helpers, update the bridge, then rebuild every package |
 | Knowledge type taxonomy becomes overloaded | Use a small shared vocabulary, hierarchical parent terms for PARA, and meta only for behavior/provenance that is not discoverable organization |
 | Shared helper copies drift across packages | Keep shared helpers dependency-free, guarded by `class_exists`, stable across package versions, and copied by CI rather than manually edited in packages |
 | Bundled WpApp versions drift across app packages | Pin WpApp 1.3.2 once in Composer, copy the same runtime into the three app ZIPs, and verify its source/license files per app package |
@@ -1063,7 +1053,7 @@ Implementation branches:
 - V1 plugin set is Notes, Readwise, Evernote, TODO, and AI Chat.
 - Public package names use the Personal family: Personal Notes, Personal TODO, Personal AI Chat, Personal Readwise Sync, and Personal Evernote Sync.
 - Knowledge is the shared storage layer for notes, synced content, TODOs, prompts, memory, artifacts, and conversations.
-- Knowledge/Guidelines owns row-level user scoping; split packages must use `private` user-authored rows for user artifacts, `publish` only for admin-created site artifacts, and normal `current_user_can( 'read_post'|'edit_post'|'delete_post' )` checks.
+- Knowledge owns row-level user scoping; split packages must use `private` user-authored rows for user artifacts, `publish` only for admin-created site artifacts, and normal `current_user_can( 'read_post'|'edit_post'|'delete_post' )` checks.
 - The bridge-resolved Knowledge type taxonomy is also the shared PARA/collection layer; do not add a PersonalOS-only collection taxonomy in v1.
 - PARA top-level display labels keep the old numeric sort convention: `1-Status`, `2-Projects`, `3-Areas`, `4-Resources`, with stable unnumbered slugs used for all code paths.
 - `status`, `project`, `area`, `resource`, and `archive` are container-only terms for hierarchy/filter expansion and must never be applied directly to Knowledge posts.
@@ -1086,8 +1076,6 @@ Implementation branches:
 - [PersonalOS PR #72: Per-user permissions](https://github.com/artpi/PersonalOS/pull/72)
 - [WordPress 7.0 Connectors API dev note](https://make.wordpress.org/core/2026/03/18/introducing-the-connectors-api-in-wordpress-7-0/)
 - [WordPress 7.0 AI Client dev note](https://make.wordpress.org/core/2026/03/24/introducing-the-ai-client-in-wordpress-7-0/)
-- [Guidelines Lands in Gutenberg 22.7, current upstream API naming](https://make.wordpress.org/ai/2026/03/23/guidelines-lands-in-gutenberg-22-7/)
-- [Gutenberg issue #77230: Guidelines support for skills, memory, and plans, current upstream API naming](https://github.com/wordpress/gutenberg/issues/77230)
 - [WordPress.org Detailed Plugin Guidelines](https://developer.wordpress.org/plugins/wordpress-org/detailed-plugin-guidelines/)
 - [WordPress Plugin Header Requirements](https://developer.wordpress.org/plugins/plugin-basics/header-requirements/)
 - [Including a Software License](https://developer.wordpress.org/plugins/plugin-basics/including-a-software-license/)
@@ -1095,5 +1083,4 @@ Implementation branches:
 - [Add Your Plugin](https://wordpress.org/plugins/developers/add/)
 - [WpApp](https://github.com/akirk/wp-app)
 - [create-wp-app](https://github.com/akirk/create-wp-app)
-- `/Users/artpi/GIT/wp-agent-skills/skills/wp-guideline/SKILL.md`
 - `/Users/artpi/GIT/wp-agent-skills/skills/wp-plugin-directory-guidelines/SKILL.md`

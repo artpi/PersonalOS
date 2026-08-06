@@ -31,12 +31,11 @@ class SplitKnowledgeFoundationTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Register fake Knowledge and Guidelines runtime surfaces.
+	 * Register a fake Knowledge runtime surface.
 	 */
 	public function set_up(): void {
 		parent::set_up();
-		$this->register_runtime( 'wp_guideline', 'wp_guideline_type', 'guidelines' );
-		$this->register_runtime( 'wp_knowledge', 'wp_knowledge_type', 'knowledge' );
+		$this->register_runtime();
 	}
 
 	/**
@@ -44,28 +43,39 @@ class SplitKnowledgeFoundationTest extends WP_UnitTestCase {
 	 */
 	public function tear_down(): void {
 		delete_option( 'personal_readwise_sync_last_sync' );
-		foreach ( array( 'wp_knowledge', 'wp_guideline' ) as $post_type ) {
-			if ( post_type_exists( $post_type ) ) {
-				unregister_post_type( $post_type );
-			}
+		if ( post_type_exists( 'wp_knowledge' ) ) {
+			unregister_post_type( 'wp_knowledge' );
 		}
-		foreach ( array( 'wp_knowledge_type', 'wp_guideline_type' ) as $taxonomy ) {
-			if ( taxonomy_exists( $taxonomy ) ) {
-				unregister_taxonomy( $taxonomy );
-			}
+		if ( taxonomy_exists( 'wp_knowledge_type' ) ) {
+			unregister_taxonomy( 'wp_knowledge_type' );
 		}
 		parent::tear_down();
 	}
 
 	/**
-	 * The bridge prefers Knowledge names over Guidelines names.
+	 * The bridge resolves the Knowledge runtime.
 	 */
-	public function test_bridge_prefers_knowledge_runtime() {
+	public function test_bridge_resolves_knowledge_runtime() {
 		$bridge = new PersonalOS_Knowledge_Bridge( 'personal-test' );
 
 		$this->assertSame( 'wp_knowledge', $bridge->post_type() );
 		$this->assertSame( 'wp_knowledge_type', $bridge->type_taxonomy() );
 		$this->assertSame( 'knowledge', $bridge->rest_base() );
+	}
+
+	/**
+	 * The bridge reports unavailable when Knowledge is missing.
+	 */
+	public function test_bridge_reports_missing_knowledge_runtime() {
+		unregister_taxonomy( 'wp_knowledge_type' );
+		unregister_post_type( 'wp_knowledge' );
+
+		$bridge = new PersonalOS_Knowledge_Bridge( 'personal-test' );
+
+		$this->assertFalse( $bridge->is_available() );
+		$this->assertSame( '', $bridge->post_type() );
+		$this->assertSame( '', $bridge->type_taxonomy() );
+		$this->assertSame( '', $bridge->rest_base() );
 	}
 
 	/**
@@ -130,31 +140,28 @@ class SplitKnowledgeFoundationTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Register a runtime pair.
+	 * Register the Knowledge runtime pair.
 	 *
-	 * @param string $post_type Post type.
-	 * @param string $taxonomy  Taxonomy.
-	 * @param string $rest_base Rest base.
 	 * @return void
 	 */
-	private function register_runtime( $post_type, $taxonomy, $rest_base ) {
-		if ( ! post_type_exists( $post_type ) ) {
+	private function register_runtime() {
+		if ( ! post_type_exists( 'wp_knowledge' ) ) {
 			register_post_type(
-				$post_type,
+				'wp_knowledge',
 				array(
 					'public'       => false,
 					'show_ui'      => true,
 					'show_in_rest' => true,
-					'rest_base'    => $rest_base,
+					'rest_base'    => 'knowledge',
 					'supports'     => array( 'title', 'editor', 'excerpt', 'custom-fields', 'comments' ),
 				)
 			);
 		}
 
-		if ( ! taxonomy_exists( $taxonomy ) ) {
+		if ( ! taxonomy_exists( 'wp_knowledge_type' ) ) {
 			register_taxonomy(
-				$taxonomy,
-				array( $post_type ),
+				'wp_knowledge_type',
+				array( 'wp_knowledge' ),
 				array(
 					'public'       => false,
 					'hierarchical' => true,

@@ -67,7 +67,7 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Register Guidelines fallback runtime.
+	 * Register the Knowledge runtime.
 	 */
 	public function set_up(): void {
 		parent::set_up();
@@ -124,11 +124,11 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 
 		$this->assertIsInt( $post_id );
 		$post = get_post( $post_id );
-		$this->assertSame( 'wp_guideline', $post->post_type );
+		$this->assertSame( 'wp_knowledge', $post->post_type );
 		$this->assertSame( 'private', $post->post_status );
 		$this->assertSame( get_current_user_id(), (int) $post->post_author );
 
-		$terms = wp_get_object_terms( $post_id, 'wp_guideline_type', array( 'fields' => 'slugs' ) );
+		$terms = wp_get_object_terms( $post_id, 'wp_knowledge_type', array( 'fields' => 'slugs' ) );
 		$this->assertContains( 'artifact', $terms );
 		$this->assertContains( 'note', $terms );
 		$this->assertContains( 'manual', $terms );
@@ -140,15 +140,15 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 	 */
 	public function test_notes_enables_native_knowledge_editor() {
 		$this->setExpectedIncorrectUsage( 'WP_Block_Type_Registry::register' );
-		$post_type_object               = get_post_type_object( 'wp_guideline' );
+		$post_type_object               = get_post_type_object( 'wp_knowledge' );
 		$post_type_object->show_ui       = false;
 		$post_type_object->show_in_menu = false;
 
 		$plugin = new Personal_Notes_Plugin();
 		$plugin->register();
 
-		$this->assertTrue( get_post_type_object( 'wp_guideline' )->show_ui );
-		$this->assertFalse( get_post_type_object( 'wp_guideline' )->show_in_menu );
+		$this->assertTrue( get_post_type_object( 'wp_knowledge' )->show_ui );
+		$this->assertFalse( get_post_type_object( 'wp_knowledge' )->show_in_menu );
 	}
 
 	/**
@@ -265,9 +265,9 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 
 		$this->assertIsInt( $post_id );
 		$post = get_post( $post_id );
-		$this->assertSame( 'wp_guideline', $post->post_type );
+		$this->assertSame( 'wp_knowledge', $post->post_type );
 
-		$terms = wp_get_object_terms( $post_id, 'wp_guideline_type', array( 'fields' => 'slugs' ) );
+		$terms = wp_get_object_terms( $post_id, 'wp_knowledge_type', array( 'fields' => 'slugs' ) );
 		$this->assertContains( 'artifact', $terms );
 		$this->assertContains( 'todo', $terms );
 		$this->assertContains( 'now', $terms );
@@ -473,13 +473,13 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 		$this->assertIsInt( $blocked_id );
 		$this->assertSame( array( $blocked_id ), $plugin->format_task( get_post( $blocking_id ) )['blocking'] );
 
-		$terms = wp_get_object_terms( $blocked_id, 'wp_guideline_type', array( 'fields' => 'slugs' ) );
+		$terms = wp_get_object_terms( $blocked_id, 'wp_knowledge_type', array( 'fields' => 'slugs' ) );
 		$this->assertContains( 'inbox', $terms );
 		$this->assertNotContains( 'now', $terms );
 
 		wp_trash_post( $blocking_id );
 
-		$terms = wp_get_object_terms( $blocked_id, 'wp_guideline_type', array( 'fields' => 'slugs' ) );
+		$terms = wp_get_object_terms( $blocked_id, 'wp_knowledge_type', array( 'fields' => 'slugs' ) );
 		$this->assertContains( 'inbox', $terms );
 		$this->assertContains( 'now', $terms );
 		$this->assertSame( '', get_post_meta( $blocked_id, 'pos_blocked_by', true ) );
@@ -518,10 +518,10 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 		$this->assertNotSame( $scheduled, $rescheduled );
 		$this->assertNotFalse( has_action( 'personal_todo_scheduled', array( $plugin, 'scheduled_task_now' ) ) );
 		$this->assertSame( 'now', get_post_meta( $post_id, 'pos_blocked_pending_term', true ) );
-		$this->assertNotFalse( get_term_by( 'slug', 'now', 'wp_guideline_type' ) );
+		$this->assertNotFalse( get_term_by( 'slug', 'now', 'wp_knowledge_type' ) );
 
 		do_action( 'personal_todo_scheduled', $post_id );
-		$terms = wp_get_object_terms( $post_id, 'wp_guideline_type', array( 'fields' => 'slugs' ) );
+		$terms = wp_get_object_terms( $post_id, 'wp_knowledge_type', array( 'fields' => 'slugs' ) );
 		$this->assertContains( 'inbox', $terms );
 		$this->assertContains( 'now', $terms );
 
@@ -555,7 +555,7 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 
 		$copies = get_posts(
 			array(
-				'post_type'      => 'wp_guideline',
+				'post_type'      => 'wp_knowledge',
 				'post_status'    => array( 'private', 'publish', 'future' ),
 				'posts_per_page' => -1,
 				'title'          => 'Recurring task',
@@ -573,7 +573,7 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 		$this->assertSame( 'now', get_post_meta( $copy->ID, 'pos_blocked_pending_term', true ) );
 		$this->assertGreaterThanOrEqual( time() + ( 2 * DAY_IN_SECONDS ) - 2, strtotime( $copy->post_date_gmt . ' GMT' ) );
 
-		$terms = wp_get_object_terms( $copy->ID, 'wp_guideline_type', array( 'fields' => 'slugs' ) );
+		$terms = wp_get_object_terms( $copy->ID, 'wp_knowledge_type', array( 'fields' => 'slugs' ) );
 		$this->assertContains( 'artifact', $terms );
 		$this->assertContains( 'todo', $terms );
 		$this->assertContains( 'inbox', $terms );
@@ -585,7 +585,7 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 		$this->assertEqualsWithDelta( strtotime( $copy->post_date_gmt . ' GMT' ), $scheduled, 2 );
 
 		do_action( 'personal_todo_scheduled', $copy->ID );
-		$terms = wp_get_object_terms( $copy->ID, 'wp_guideline_type', array( 'fields' => 'slugs' ) );
+		$terms = wp_get_object_terms( $copy->ID, 'wp_knowledge_type', array( 'fields' => 'slugs' ) );
 		$this->assertContains( 'now', $terms );
 
 		$history = implode( "\n", wp_list_pluck( $plugin->format_task( $copy )['history'], 'content' ) );
@@ -620,7 +620,7 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 
 		$copies = get_posts(
 			array(
-				'post_type'      => 'wp_guideline',
+				'post_type'      => 'wp_knowledge',
 				'post_status'    => array( 'private', 'publish', 'future' ),
 				'posts_per_page' => -1,
 				'title'          => 'Stop recurring task',
@@ -782,7 +782,7 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 
 		$posts = get_posts(
 			array(
-				'post_type'      => 'wp_guideline',
+				'post_type'      => 'wp_knowledge',
 				'post_status'    => 'private',
 				'posts_per_page' => -1,
 				'meta_key'       => 'evernote_guid',
@@ -798,7 +798,7 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Synced Notebook', $plugin->get_setting( 'cached_data', $user_one ) );
 
 		foreach ( $posts as $post ) {
-			$terms = wp_get_object_terms( $post->ID, 'wp_guideline_type', array( 'fields' => 'slugs' ) );
+			$terms = wp_get_object_terms( $post->ID, 'wp_knowledge_type', array( 'fields' => 'slugs' ) );
 			$this->assertContains( 'artifact', $terms );
 			$this->assertContains( 'note', $terms );
 			$this->assertContains( 'evernote', $terms );
@@ -902,7 +902,7 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 
 		$posts = get_posts(
 			array(
-				'post_type'      => 'wp_guideline',
+				'post_type'      => 'wp_knowledge',
 				'post_status'    => 'private',
 				'posts_per_page' => 1,
 				'meta_key'       => 'evernote_guid',
@@ -1012,28 +1012,28 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Register a Guidelines-like runtime only.
+	 * Register a Knowledge-like runtime.
 	 *
 	 * @return void
 	 */
 	private function register_runtime() {
-		if ( ! post_type_exists( 'wp_guideline' ) ) {
+		if ( ! post_type_exists( 'wp_knowledge' ) ) {
 			register_post_type(
-				'wp_guideline',
+				'wp_knowledge',
 				array(
 					'public'       => false,
 					'show_ui'      => true,
 					'show_in_rest' => true,
-					'rest_base'    => 'guidelines',
+					'rest_base'    => 'knowledge',
 					'supports'     => array( 'title', 'editor', 'excerpt', 'custom-fields', 'comments' ),
 				)
 			);
 		}
 
-		if ( ! taxonomy_exists( 'wp_guideline_type' ) ) {
+		if ( ! taxonomy_exists( 'wp_knowledge_type' ) ) {
 			register_taxonomy(
-				'wp_guideline_type',
-				array( 'wp_guideline' ),
+				'wp_knowledge_type',
+				array( 'wp_knowledge' ),
 				array(
 					'public'       => false,
 					'hierarchical' => true,

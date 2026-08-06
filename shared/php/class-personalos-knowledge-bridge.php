@@ -1,14 +1,13 @@
 <?php
 /**
- * Shared Knowledge/Guidelines runtime bridge.
+ * Shared Knowledge runtime bridge.
  *
  * @package PersonalOS
  */
 
 if ( ! class_exists( 'PersonalOS_Knowledge_Bridge' ) ) {
 	/**
-	 * Resolves the shared Knowledge runtime, preferring future Knowledge names
-	 * and falling back to current Guidelines names.
+	 * Resolves the shared Knowledge runtime.
 	 */
 	class PersonalOS_Knowledge_Bridge {
 		/**
@@ -42,7 +41,7 @@ if ( ! class_exists( 'PersonalOS_Knowledge_Bridge' ) ) {
 		}
 
 		/**
-		 * Returns whether a Knowledge/Guidelines runtime is available.
+		 * Returns whether the Knowledge runtime is available.
 		 *
 		 * @return bool
 		 */
@@ -60,20 +59,7 @@ if ( ! class_exists( 'PersonalOS_Knowledge_Bridge' ) ) {
 				return $this->post_type;
 			}
 
-			$candidates = array(
-				'wp_knowledge',
-				'wp_guideline',
-				'wp_guidelines',
-			);
-
-			foreach ( $candidates as $candidate ) {
-				if ( post_type_exists( $candidate ) ) {
-					$this->post_type = $candidate;
-					return $this->post_type;
-				}
-			}
-
-			$this->post_type = '';
+			$this->post_type = post_type_exists( 'wp_knowledge' ) ? 'wp_knowledge' : '';
 			return $this->post_type;
 		}
 
@@ -87,20 +73,7 @@ if ( ! class_exists( 'PersonalOS_Knowledge_Bridge' ) ) {
 				return $this->type_taxonomy;
 			}
 
-			$candidates = array(
-				'wp_knowledge_type',
-				'wp_guideline_type',
-				'wp_guideline_types',
-			);
-
-			foreach ( $candidates as $candidate ) {
-				if ( taxonomy_exists( $candidate ) ) {
-					$this->type_taxonomy = $candidate;
-					return $this->type_taxonomy;
-				}
-			}
-
-			$this->type_taxonomy = '';
+			$this->type_taxonomy = taxonomy_exists( 'wp_knowledge_type' ) ? 'wp_knowledge_type' : '';
 			return $this->type_taxonomy;
 		}
 
@@ -121,15 +94,7 @@ if ( ! class_exists( 'PersonalOS_Knowledge_Bridge' ) ) {
 				return $post_type_object->rest_base;
 			}
 
-			if ( 'wp_guideline' === $post_type || 'wp_guidelines' === $post_type ) {
-				return 'guidelines';
-			}
-
-			if ( 'wp_knowledge' === $post_type ) {
-				return 'knowledge';
-			}
-
-			return $post_type;
+			return 'knowledge';
 		}
 
 		/**
@@ -138,10 +103,8 @@ if ( ! class_exists( 'PersonalOS_Knowledge_Bridge' ) ) {
 		 * @return string
 		 */
 		public function source_meta_key() {
-			foreach ( array( 'knowledge_source', 'guideline_source' ) as $key ) {
-				if ( $this->is_registered_post_meta( $key ) ) {
-					return $key;
-				}
+			if ( $this->is_registered_post_meta( 'knowledge_source' ) ) {
+				return 'knowledge_source';
 			}
 
 			return '_personalos_source';

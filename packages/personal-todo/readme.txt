@@ -22,7 +22,7 @@ The private TODO app is available at `/todo/` and follows the signed-in user's W
 
 1. Upload the `personal-todo` folder to `/wp-content/plugins/`.
 2. Activate Personal TODO.
-3. Ensure your site provides the WordPress Knowledge or Guidelines runtime, then open `/todo/`.
+3. Ensure your site provides the WordPress Knowledge runtime, then open `/todo/`.
 
 == Frequently Asked Questions ==
 
