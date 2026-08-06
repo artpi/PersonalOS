@@ -6,6 +6,7 @@ module.exports = {
 		...defaultConfig.entry(),
 		index: './src/index.js',
 		'personal-notes/index': './packages/personal-notes/src/index.js',
+		'personal-notes/editor': './packages/personal-notes/src/editor.js',
 		'personal-notes/blocks/note/index':
 			'./packages/personal-notes/src/blocks/note/index.js',
 		'personal-readwise-sync/index':

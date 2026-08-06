@@ -120,6 +120,13 @@ function verifyPackage( slug ) {
 	requireFile( path.join( packageDir, 'build', 'index.js' ) );
 	requireFile( path.join( packageDir, 'build', 'index.asset.php' ) );
 	requireFile( path.join( packageDir, 'build', 'style-index.css' ) );
+	if ( slug === 'personal-notes' ) {
+		requireFile( path.join( packageDir, 'src', 'editor.js' ) );
+		requireFile( path.join( packageDir, 'src', 'editor.css' ) );
+		requireFile( path.join( packageDir, 'build', 'editor.js' ) );
+		requireFile( path.join( packageDir, 'build', 'editor.asset.php' ) );
+		requireFile( path.join( packageDir, 'build', 'editor.css' ) );
+	}
 	requireFile( zipPath );
 
 	for ( const block of packageBlocks[ slug ] || [] ) {
@@ -309,6 +316,14 @@ function verifyPackage( slug ) {
 			requiredEntries.push(
 				`${ slug }/includes/shared/class-personalos-wp-app.php`,
 				`${ slug }/templates/index.php`
+			);
+		}
+
+		if ( slug === 'personal-notes' ) {
+			requiredEntries.push(
+				`${ slug }/build/editor.js`,
+				`${ slug }/build/editor.asset.php`,
+				`${ slug }/build/editor.css`
 			);
 		}
 

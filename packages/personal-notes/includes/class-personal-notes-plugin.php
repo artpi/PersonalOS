@@ -57,6 +57,7 @@ class Personal_Notes_Plugin extends PersonalOS_Plugin_Base {
 		$this->register_common_knowledge_meta();
 		$this->enable_knowledge_editor();
 		add_filter( 'use_block_editor_for_post', array( $this, 'use_block_editor_for_knowledge_post' ), 10, 2 );
+		add_action( 'enqueue_block_editor_assets', array( $this, 'enqueue_editor_assets' ) );
 		$this->knowledge()->register_type_meta(
 			'flag',
 			array(
@@ -110,18 +111,54 @@ class Personal_Notes_Plugin extends PersonalOS_Plugin_Base {
 			return;
 		}
 
-		$taxonomy        = $this->knowledge()->type_taxonomy();
-		$taxonomy_object = get_taxonomy( $taxonomy );
-
 		wp_localize_script(
 			$this->script_handle(),
 			'personalNotesSettings',
-			array(
-				'knowledgeRestPath' => rest_get_route_for_post_type_items( $this->knowledge()->post_type() ),
-				'taxonomyRestPath'  => rest_get_route_for_taxonomy_items( $taxonomy ),
-				'taxonomyField'     => $taxonomy_object && $taxonomy_object->rest_base ? $taxonomy_object->rest_base : $taxonomy,
-				'editPostUrl'       => admin_url( 'post.php' ),
-			)
+			$this->knowledge_asset_settings()
+		);
+	}
+
+	/**
+	 * Enqueue the Notes sidebar in native post block editors.
+	 *
+	 * @return void
+	 */
+	public function enqueue_editor_assets() {
+		$screen = get_current_screen();
+		if ( ! $screen || 'post' !== $screen->base ) {
+			return;
+		}
+
+		$registered = PersonalOS_Assets_Helper::register_script( 'personal-notes-editor', PERSONAL_NOTES_FILE, 'build/editor.js' );
+		if ( ! $registered ) {
+			return;
+		}
+
+		PersonalOS_Assets_Helper::register_style(
+			'personal-notes-editor',
+			PERSONAL_NOTES_FILE,
+			'build/editor.css',
+			array( 'wp-components' )
+		);
+		wp_localize_script( 'personal-notes-editor', 'personalNotesSettings', $this->knowledge_asset_settings() );
+		wp_enqueue_script( 'personal-notes-editor' );
+		wp_enqueue_style( 'personal-notes-editor' );
+	}
+
+	/**
+	 * Settings shared by the Notes app and editor sidebar.
+	 *
+	 * @return array
+	 */
+	private function knowledge_asset_settings() {
+		$taxonomy        = $this->knowledge()->type_taxonomy();
+		$taxonomy_object = get_taxonomy( $taxonomy );
+
+		return array(
+			'knowledgeRestPath' => rest_get_route_for_post_type_items( $this->knowledge()->post_type() ),
+			'taxonomyRestPath'  => rest_get_route_for_taxonomy_items( $taxonomy ),
+			'taxonomyField'     => $taxonomy_object && $taxonomy_object->rest_base ? $taxonomy_object->rest_base : $taxonomy,
+			'editPostUrl'       => admin_url( 'post.php' ),
 		);
 	}
 

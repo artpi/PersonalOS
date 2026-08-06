@@ -183,6 +183,28 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Notes exposes its Knowledge browser in native block editors.
+	 */
+	public function test_notes_enqueues_block_editor_sidebar_assets() {
+		$this->setExpectedIncorrectUsage( 'WP_Block_Type_Registry::register' );
+		$plugin = new Personal_Notes_Plugin();
+		$plugin->register();
+		set_current_screen( 'post' );
+
+		$plugin->enqueue_editor_assets();
+
+		$this->assertTrue( wp_script_is( 'personal-notes-editor', 'enqueued' ) );
+		$this->assertTrue( wp_style_is( 'personal-notes-editor', 'enqueued' ) );
+		$script_data = wp_scripts()->get_data( 'personal-notes-editor', 'data' );
+		$this->assertStringContainsString( 'personalNotesSettings', $script_data );
+		$this->assertStringContainsString( '/wp/v2/knowledge', $script_data );
+
+		wp_dequeue_script( 'personal-notes-editor' );
+		wp_dequeue_style( 'personal-notes-editor' );
+		set_current_screen( 'front' );
+	}
+
+	/**
 	 * Notes REST endpoints create, filter, and update Knowledge rows.
 	 */
 	public function test_notes_rest_create_list_and_update() {

@@ -12,6 +12,7 @@ import { __ } from '@wordpress/i18n';
 import { edit, plus, trash } from '@wordpress/icons';
 import { addQueryArgs } from '@wordpress/url';
 
+import { isAssignableKnowledgeType } from './knowledge-types';
 import './style.css';
 
 const settings = window.personalNotesSettings || {};
@@ -54,24 +55,6 @@ const MOBILE_VIEW = {
 	perPage: 10,
 	layout: {},
 };
-
-const SYSTEM_TERMS = [
-	'artifact',
-	'note',
-	'daily-note',
-	'todo',
-	'conversation',
-	'memory',
-	'skill',
-	'manual',
-	'synced',
-	'readwise',
-	'evernote',
-	'ai-chat',
-	'personalos',
-];
-
-const CONTAINER_TERMS = [ 'status', 'project', 'area', 'resource', 'archive' ];
 
 async function fetchAllPages( path, query = {} ) {
 	const firstResponse = await apiFetch( {
@@ -131,12 +114,7 @@ function NotesAdmin() {
 		[ terms ]
 	);
 	const knowledgeTypeTerms = useMemo(
-		() =>
-			terms.filter(
-				( term ) =>
-					! SYSTEM_TERMS.includes( term.slug ) &&
-					! CONTAINER_TERMS.includes( term.slug )
-			),
+		() => terms.filter( isAssignableKnowledgeType ),
 		[ terms ]
 	);
 	const knowledgeTypeIds = useMemo(

@@ -718,12 +718,14 @@ Goal: make Notes a UI over Knowledge, not a private CPT owner.
 - Add filters for source terms: manual, daily-note, readwise, evernote, synced.
 - Add PARA/collection browsing and editing using resolved Knowledge type terms such as `inbox`, `now`, project child terms, area child terms, and resource child terms.
 - Select the native editor per Knowledge row from its canonical saved shape: serialized Gutenberg block content opens in the block editor, while Markdown, plain text, classic HTML, and empty/new rows open in the classic editor.
+- Expose a package-local Notes sidebar in Gutenberg post editors. It searches and filters the core Knowledge REST collection, previews note-like rows, and inserts or drags them as `pos/note` blocks; do not port monolith-only Readwise or Evernote document panels.
 - Do not include old `notes` CPT redirects, migration notices, or read-only compatibility views.
 
 Acceptance criteria:
 
 - Notes UI can create, edit, list, search, and filter note-like Knowledge.
 - Notes editor selection preserves both Gutenberg block serialization and unconverted Markdown content.
+- Gutenberg editors can search, preview, and insert Knowledge notes from the Notes sidebar without loading the monolith bundle.
 - Notes UI can assign and filter Knowledge by PARA/collection terms without a separate taxonomy.
 - Readwise/Evernote synced Knowledge appears in Notes UI without a PHP dependency.
 - Notes plugin can be active by itself.

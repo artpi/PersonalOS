@@ -18,6 +18,8 @@ Notes are private by default and use Knowledge type terms such as `artifact`, `n
 
 The private Notes app is available at `/notes/` and follows the signed-in user's WordPress admin color scheme.
 
+When writing in the WordPress block editor, the Notes sidebar can search and filter note-like Knowledge, preview a note, and insert it as a `pos/note` block. Notes saved as Markdown, plain text, or classic HTML continue to use the classic editor.
+
 == Installation ==
 
 1. Upload the `personal-notes` folder to `/wp-content/plugins/`.
