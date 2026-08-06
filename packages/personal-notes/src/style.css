@@ -16,7 +16,7 @@ body.personal-notes-js .personal-notes-admin-fallback {
 	margin: 0;
 }
 
-.personal-notes-admin__collections {
+.personal-notes-admin__knowledge-types {
 	color: var(--wp-app-color-muted, #50575e);
 }
 

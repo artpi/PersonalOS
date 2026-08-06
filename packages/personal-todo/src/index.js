@@ -241,7 +241,7 @@ function TaskForm( {
 							placeholder="https://..."
 						/>
 						<FormTokenField
-							label={ __( 'Knowledge types', 'personal-todo' ) }
+							label={ __( 'Knowledge Type', 'personal-todo' ) }
 							value={ chosenNames }
 							suggestions={ assignableTerms.map(
 								( term ) => term.name
@@ -534,7 +534,7 @@ function TodoAdmin() {
 			},
 			{
 				id: 'knowledgeTypes',
-				label: __( 'Knowledge types', 'personal-todo' ),
+				label: __( 'Knowledge Type', 'personal-todo' ),
 				type: 'text',
 				enableSorting: false,
 				elements: assignableTerms.map( ( term ) => ( {

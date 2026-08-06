@@ -23,7 +23,7 @@ const DEFAULT_VIEW = {
 	perPage: 20,
 	titleField: 'title',
 	descriptionField: 'description',
-	fields: [ 'collections', 'source', 'modified' ],
+	fields: [ 'knowledgeTypes', 'source', 'modified' ],
 	filters: [],
 	sort: {
 		field: 'modified',
@@ -42,7 +42,7 @@ const DEFAULT_LAYOUTS = {
 	list: {},
 	grid: {
 		layout: {
-			badgeFields: [ 'collections', 'source' ],
+			badgeFields: [ 'knowledgeTypes', 'source' ],
 			previewSize: 260,
 		},
 	},
@@ -130,7 +130,7 @@ function NotesAdmin() {
 		() => new Map( terms.map( ( term ) => [ term.slug, term ] ) ),
 		[ terms ]
 	);
-	const collectionTerms = useMemo(
+	const knowledgeTypeTerms = useMemo(
 		() =>
 			terms.filter(
 				( term ) =>
@@ -139,9 +139,9 @@ function NotesAdmin() {
 			),
 		[ terms ]
 	);
-	const collectionIds = useMemo(
-		() => new Set( collectionTerms.map( ( term ) => term.id ) ),
-		[ collectionTerms ]
+	const knowledgeTypeIds = useMemo(
+		() => new Set( knowledgeTypeTerms.map( ( term ) => term.id ) ),
+		[ knowledgeTypeTerms ]
 	);
 
 	const getSourceLabel = useCallback(
@@ -184,11 +184,11 @@ function NotesAdmin() {
 				getValue: ( { item } ) => item.excerpt.raw,
 			},
 			{
-				id: 'collections',
-				label: __( 'Collection', 'personal-notes' ),
+				id: 'knowledgeTypes',
+				label: __( 'Knowledge Type', 'personal-notes' ),
 				type: 'text',
 				enableSorting: false,
-				elements: collectionTerms.map( ( term ) => ( {
+				elements: knowledgeTypeTerms.map( ( term ) => ( {
 					label: term.name,
 					value: term.id.toString(),
 				} ) ),
@@ -198,12 +198,14 @@ function NotesAdmin() {
 				},
 				getValue: ( { item } ) =>
 					getTermIds( item )
-						.filter( ( termId ) => collectionIds.has( termId ) )
+						.filter( ( termId ) => knowledgeTypeIds.has( termId ) )
 						.map( ( termId ) => termId.toString() ),
 				render: ( { item } ) => (
-					<span className="personal-notes-admin__collections">
+					<span className="personal-notes-admin__knowledge-types">
 						{ getTermIds( item )
-							.filter( ( termId ) => collectionIds.has( termId ) )
+							.filter( ( termId ) =>
+								knowledgeTypeIds.has( termId )
+							)
 							.map( ( termId ) => termsById.get( termId )?.name )
 							.filter( Boolean )
 							.join( ', ' ) || __( 'Unfiled', 'personal-notes' ) }
@@ -229,7 +231,7 @@ function NotesAdmin() {
 					} ).format( new Date( getDateValue( item.modified_gmt ) ) ),
 			},
 		],
-		[ collectionIds, collectionTerms, getSourceLabel, termsById ]
+		[ knowledgeTypeIds, knowledgeTypeTerms, getSourceLabel, termsById ]
 	);
 
 	const { data: shownNotes, paginationInfo } = useMemo(
