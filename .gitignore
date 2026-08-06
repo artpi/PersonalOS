@@ -13,6 +13,7 @@ Thumbs.db
 
 # Local overrides
 .wp-env.override.json
+.vscode/
 
 .phpunit.result.cache
 
