@@ -306,6 +306,30 @@ if ( ! class_exists( 'PersonalOS_Plugin_Base' ) ) {
 		}
 
 		/**
+		 * Track an app launcher page and redirect it to the WpApp route.
+		 *
+		 * @param string $hook_suffix Admin page hook suffix.
+		 * @return void
+		 */
+		public function add_app_admin_page_hook( $hook_suffix ) {
+			$this->add_admin_page_hook( $hook_suffix );
+
+			if ( $hook_suffix && ! empty( $this->app['path'] ) ) {
+				add_action( 'load-' . $hook_suffix, array( $this, 'redirect_admin_page_to_app' ) );
+			}
+		}
+
+		/**
+		 * Redirect a wp-admin app launcher to its private WpApp route.
+		 *
+		 * @return void
+		 */
+		public function redirect_admin_page_to_app() {
+			wp_safe_redirect( home_url( '/' . trim( $this->app['path'], '/' ) . '/' ) );
+			exit;
+		}
+
+		/**
 		 * Enqueue package assets on owned admin pages.
 		 *
 		 * @param string $hook_suffix Current admin page hook suffix.

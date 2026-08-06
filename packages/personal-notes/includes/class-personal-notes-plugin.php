@@ -124,7 +124,7 @@ class Personal_Notes_Plugin extends PersonalOS_Plugin_Base {
 	 * @return void
 	 */
 	public function add_admin_menu() {
-		$this->add_admin_page_hook(
+		$this->add_app_admin_page_hook(
 			add_menu_page(
 				'Notes',
 				'Notes',
