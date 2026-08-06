@@ -152,6 +152,37 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Notes selects Gutenberg only for Knowledge rows with serialized blocks.
+	 */
+	public function test_notes_selects_editor_from_knowledge_content_shape() {
+		$this->setExpectedIncorrectUsage( 'WP_Block_Type_Registry::register' );
+		$plugin = new Personal_Notes_Plugin();
+		$plugin->register();
+
+		$block_id = $plugin->create_note(
+			'Block note',
+			"<!-- wp:paragraph -->\n<p>Block content.</p>\n<!-- /wp:paragraph -->"
+		);
+		$markdown_id = $plugin->create_note(
+			'Markdown note',
+			"# Markdown heading\n\n- First item\n- Second item"
+		);
+		$html_id  = $plugin->create_note( 'Classic HTML note', '<p>Classic HTML content.</p>' );
+		$empty_id = $plugin->create_note( 'Empty note', '' );
+		$post_id  = self::factory()->post->create(
+			array(
+				'post_content' => '# Ordinary post content',
+			)
+		);
+
+		$this->assertTrue( use_block_editor_for_post( $block_id ) );
+		$this->assertFalse( use_block_editor_for_post( $markdown_id ) );
+		$this->assertFalse( use_block_editor_for_post( $html_id ) );
+		$this->assertFalse( use_block_editor_for_post( $empty_id ) );
+		$this->assertTrue( use_block_editor_for_post( $post_id ) );
+	}
+
+	/**
 	 * Notes REST endpoints create, filter, and update Knowledge rows.
 	 */
 	public function test_notes_rest_create_list_and_update() {

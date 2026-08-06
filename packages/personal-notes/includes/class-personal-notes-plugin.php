@@ -56,6 +56,7 @@ class Personal_Notes_Plugin extends PersonalOS_Plugin_Base {
 
 		$this->register_common_knowledge_meta();
 		$this->enable_knowledge_editor();
+		add_filter( 'use_block_editor_for_post', array( $this, 'use_block_editor_for_knowledge_post' ), 10, 2 );
 		$this->knowledge()->register_type_meta(
 			'flag',
 			array(
@@ -80,6 +81,21 @@ class Personal_Notes_Plugin extends PersonalOS_Plugin_Base {
 		if ( $post_type_object ) {
 			$post_type_object->show_ui = true;
 		}
+	}
+
+	/**
+	 * Select the Knowledge editor from the saved content shape.
+	 *
+	 * @param bool    $use_block_editor Whether WordPress would use the block editor.
+	 * @param WP_Post $post             Post being edited.
+	 * @return bool
+	 */
+	public function use_block_editor_for_knowledge_post( $use_block_editor, WP_Post $post ) {
+		if ( $this->knowledge()->post_type() !== $post->post_type ) {
+			return $use_block_editor;
+		}
+
+		return $use_block_editor && has_blocks( $post->post_content );
 	}
 
 	/**
