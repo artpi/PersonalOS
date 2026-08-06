@@ -1,9 +1,19 @@
 {
-	"plugins": [ "./packages/personal-readwise-sync" ],
+	"plugins": [
+		"https://downloads.wordpress.org/plugin/gutenberg.23.7.0.zip",
+		"./packages/personal-readwise-sync"
+	],
 	"config": {
 		"WP_DEBUG": true,
 		"WP_DEBUG_LOG": true,
 		"SCRIPT_DEBUG": true,
 		"WP_DEBUG_DISPLAY": true
+	},
+	"mappings": {
+		"wp-content/shared/php": "./shared/php",
+		"wp-content/vendor": "./vendor"
+	},
+	"lifecycleScripts": {
+		"afterStart": "wp-env run cli wp option update gutenberg-experiments '{\"gutenberg-guidelines\":true}' --format=json"
 	}
 }

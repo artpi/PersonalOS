@@ -14,6 +14,12 @@ const packages = [
 	'personal-ai-chat',
 ];
 const appPackages = [ 'personal-notes', 'personal-todo', 'personal-ai-chat' ];
+const wpEnvConfigs = [
+	'.wp-env.json',
+	...packages.map( ( slug ) => `.wp-env.${ slug }.json` ),
+];
+const wpEnvKnowledgeFixture =
+	'https://downloads.wordpress.org/plugin/gutenberg.23.7.0.zip';
 const packageBlocks = {
 	'personal-notes': [ 'note' ],
 	'personal-readwise-sync': [ 'readwise', 'book-summary' ],
@@ -65,6 +71,7 @@ const selected = packageArg ? [ packageArg.split( '=' )[ 1 ] ] : packages;
 const errors = [];
 
 verifyWpAppDependency();
+verifyWpEnvMappings();
 
 for ( const slug of selected ) {
 	verifyPackage( slug );
@@ -414,6 +421,53 @@ function verifyWpAppDependency() {
 
 	if ( ! dependency || 'v1.3.2' !== dependency.version ) {
 		errors.push( 'Composer must lock akirk/wp-app at v1.3.2' );
+	}
+}
+
+function verifyWpEnvMappings() {
+	const expectedMappings = {
+		'wp-content/shared/php': './shared/php',
+		'wp-content/vendor': './vendor',
+	};
+
+	for ( const configFile of wpEnvConfigs ) {
+		const configPath = path.join( root, configFile );
+		if ( ! existsSync( configPath ) ) {
+			errors.push( `Missing ${ configFile }` );
+			continue;
+		}
+
+		let config;
+		try {
+			config = JSON.parse( readFileSync( configPath, 'utf8' ) );
+		} catch ( error ) {
+			errors.push( `${ configFile }: invalid JSON (${ error.message })` );
+			continue;
+		}
+
+		for ( const [ target, source ] of Object.entries( expectedMappings ) ) {
+			if ( source !== config.mappings?.[ target ] ) {
+				errors.push(
+					`${ configFile }: must map ${ target } to ${ source }`
+				);
+			}
+		}
+
+		if ( ! config.plugins?.includes( wpEnvKnowledgeFixture ) ) {
+			errors.push(
+				`${ configFile }: must install the pinned Gutenberg Knowledge fixture`
+			);
+		}
+
+		if (
+			! config.lifecycleScripts?.afterStart?.includes(
+				'gutenberg-guidelines'
+			)
+		) {
+			errors.push(
+				`${ configFile }: must enable the Gutenberg Guidelines experiment after startup`
+			);
+		}
 	}
 }
 

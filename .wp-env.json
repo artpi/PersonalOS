@@ -1,5 +1,6 @@
 {
 	"plugins": [
+		"https://downloads.wordpress.org/plugin/gutenberg.23.7.0.zip",
 		"./packages/personal-notes",
 		"./packages/personal-readwise-sync",
 		"./packages/personal-evernote-sync",
@@ -13,7 +14,9 @@
 		"WP_DEBUG_DISPLAY": true
 	},
 	"mappings": {
-		"wp-content/debug.log": "./debug.log"
+		"wp-content/debug.log": "./debug.log",
+		"wp-content/shared/php": "./shared/php",
+		"wp-content/vendor": "./vendor"
 	},
 	"env": {
 		"development": {
@@ -22,5 +25,8 @@
 		"tests": {
 			"port": 8902
 		}
+	},
+	"lifecycleScripts": {
+		"afterStart": "wp-env run cli wp option update gutenberg-experiments '{\"gutenberg-guidelines\":true}' --format=json"
 	}
 }

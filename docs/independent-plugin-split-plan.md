@@ -945,7 +945,8 @@ Default `wp-env` behavior:
   - `./packages/personal-evernote-sync`
   - `./packages/personal-todo`
   - `./packages/personal-ai-chat`
-- Mount the Knowledge/Guidelines runtime only if it is not already present in the selected WordPress 7.0 development runtime, and treat that as a runtime compatibility fixture rather than a PersonalOS sibling plugin.
+- Map the monorepo `shared/php` and `vendor` directories to `wp-content/shared/php` and `wp-content/vendor`. wp-env mounts each package independently, so these mappings make package fallback loaders and Composer runtimes available during activation without adding release-time sibling dependencies.
+- Mount pinned Gutenberg 23.7.0 as the current Knowledge/Guidelines compatibility fixture and enable its `gutenberg-guidelines` experiment after startup. Remove that fixture when the selected WordPress core image registers the resolved Knowledge surface itself; it is not a PersonalOS sibling or release dependency.
 - Activate all local PersonalOS packages after startup for the default development site.
 
 Testing behavior:
@@ -959,12 +960,20 @@ Example default split config shape:
 ```json
 {
 	"plugins": [
+		"https://downloads.wordpress.org/plugin/gutenberg.23.7.0.zip",
 		"./packages/personal-notes",
 		"./packages/personal-readwise-sync",
 		"./packages/personal-evernote-sync",
 		"./packages/personal-todo",
 		"./packages/personal-ai-chat"
-	]
+	],
+	"mappings": {
+		"wp-content/shared/php": "./shared/php",
+		"wp-content/vendor": "./vendor"
+	},
+	"lifecycleScripts": {
+		"afterStart": "wp-env run cli wp option update gutenberg-experiments '{\"gutenberg-guidelines\":true}' --format=json"
+	}
 }
 ```
 
