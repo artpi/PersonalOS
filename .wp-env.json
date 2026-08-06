@@ -15,6 +15,7 @@
 	},
 	"mappings": {
 		"wp-content/debug.log": "./debug.log",
+		"wp-content/personalos-tests": ".",
 		"wp-content/shared/php": "./shared/php",
 		"wp-content/vendor": "./vendor"
 	},

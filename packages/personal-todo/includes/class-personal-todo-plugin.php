@@ -74,6 +74,7 @@ class Personal_TODO_Plugin extends PersonalOS_Plugin_Base {
 			return;
 		}
 
+		$this->ensure_knowledge_terms( array( 'artifact', 'todo', 'inbox', 'now', 'later', 'follow-up' ) );
 		$this->register_common_knowledge_meta();
 		$this->knowledge()->register_post_meta( 'reminders_id' );
 		$this->knowledge()->register_post_meta( 'pos_blocked_pending_term' );
@@ -93,7 +94,7 @@ class Personal_TODO_Plugin extends PersonalOS_Plugin_Base {
 		);
 
 		add_action( $this->scheduled_hook, array( $this, 'scheduled_task_now' ), 10, 1 );
-		add_action( 'wp_trash_post', array( $this, 'unblock_tasks_when_completing' ), 10, 2 );
+		add_action( 'trashed_post', array( $this, 'unblock_tasks_when_completing' ), 10, 2 );
 		add_action( 'save_post_' . $this->knowledge()->post_type(), array( $this, 'save_task_meta_side_effects' ), 10, 3 );
 		add_action( 'post_updated', array( $this, 'save_task_update_history' ), 10, 3 );
 		add_action( 'set_object_terms', array( $this, 'save_task_term_history' ), 10, 6 );
@@ -1332,6 +1333,7 @@ class Personal_TODO_Plugin extends PersonalOS_Plugin_Base {
 
 		$new_post = $this->create_knowledge_post( $new_post_data, $terms, (int) $post->post_author );
 		if ( ! is_wp_error( $new_post ) ) {
+			$this->save_task_meta_side_effects( $new_post, get_post( $new_post ), false );
 			$this->add_task_history(
 				$new_post,
 				array(

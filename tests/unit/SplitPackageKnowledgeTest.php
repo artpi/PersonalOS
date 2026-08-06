@@ -85,6 +85,7 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 	 * Destination packages register WpApp routes; sync integrations do not.
 	 */
 	public function test_packages_register_wp_app_routes() {
+		$this->setExpectedIncorrectUsage( 'WP_Block_Type_Registry::register' );
 		$plugins = array(
 			new Personal_Notes_Plugin(),
 			new Personal_TODO_Plugin(),
@@ -115,6 +116,7 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 	 * Manual notes are private Knowledge artifacts with note/manual terms.
 	 */
 	public function test_notes_create_manual_knowledge_note() {
+		$this->setExpectedIncorrectUsage( 'WP_Block_Type_Registry::register' );
 		$plugin = new Personal_Notes_Plugin();
 		$plugin->register();
 
@@ -137,6 +139,7 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 	 * Notes enables only the native editor surface for a headless Knowledge CPT.
 	 */
 	public function test_notes_enables_native_knowledge_editor() {
+		$this->setExpectedIncorrectUsage( 'WP_Block_Type_Registry::register' );
 		$post_type_object               = get_post_type_object( 'wp_guideline' );
 		$post_type_object->show_ui       = false;
 		$post_type_object->show_in_menu = false;
@@ -152,6 +155,7 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 	 * Notes REST endpoints create, filter, and update Knowledge rows.
 	 */
 	public function test_notes_rest_create_list_and_update() {
+		$this->setExpectedIncorrectUsage( 'WP_Block_Type_Registry::register' );
 		$plugin = new Personal_Notes_Plugin();
 		$plugin->register();
 
@@ -195,6 +199,7 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 	 * Notes owns creation of PARA child terms.
 	 */
 	public function test_notes_rest_creates_para_child_term() {
+		$this->setExpectedIncorrectUsage( 'WP_Block_Type_Registry::register' );
 		$plugin = new Personal_Notes_Plugin();
 		$plugin->register();
 
@@ -412,6 +417,188 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Completing a blocking task releases dependent Knowledge tasks.
+	 */
+	public function test_todo_completion_releases_blocked_tasks() {
+		$plugin = new Personal_TODO_Plugin();
+		$plugin->register();
+
+		$blocking_id = $plugin->create_task(
+			array( 'post_title' => 'Blocking task' ),
+			array( 'now' )
+		);
+		$blocked_id = $plugin->create_task(
+			array(
+				'post_title' => 'Blocked task',
+				'meta_input' => array(
+					'pos_blocked_by'           => $blocking_id,
+					'pos_blocked_pending_term' => 'now',
+				),
+			),
+			array( 'inbox' )
+		);
+
+		$this->assertIsInt( $blocking_id );
+		$this->assertIsInt( $blocked_id );
+		$this->assertSame( array( $blocked_id ), $plugin->format_task( get_post( $blocking_id ) )['blocking'] );
+
+		$terms = wp_get_object_terms( $blocked_id, 'wp_guideline_type', array( 'fields' => 'slugs' ) );
+		$this->assertContains( 'inbox', $terms );
+		$this->assertNotContains( 'now', $terms );
+
+		wp_trash_post( $blocking_id );
+
+		$terms = wp_get_object_terms( $blocked_id, 'wp_guideline_type', array( 'fields' => 'slugs' ) );
+		$this->assertContains( 'inbox', $terms );
+		$this->assertContains( 'now', $terms );
+		$this->assertSame( '', get_post_meta( $blocked_id, 'pos_blocked_by', true ) );
+		$this->assertSame( 'now', get_post_meta( $blocked_id, 'pos_blocked_pending_term', true ) );
+	}
+
+	/**
+	 * Scheduled tasks transition, reschedule, and clean up cron on completion.
+	 */
+	public function test_todo_scheduling_rescheduling_and_completion_cleanup() {
+		$plugin = new Personal_TODO_Plugin();
+		$plugin->register();
+
+		$first_time = time() + ( 2 * DAY_IN_SECONDS );
+		$request = new WP_REST_Request( 'POST', '/personal-todo/v1/tasks' );
+		$request->set_param( 'title', 'Scheduled task' );
+		$request->set_param( 'terms', array( 'inbox' ) );
+		$request->set_param( 'pos_blocked_pending_term', 'now' );
+		$request->set_param( 'scheduled_for', gmdate( 'c', $first_time ) );
+
+		$created = $plugin->rest_create_task( $request )->get_data();
+		$post_id = $created['id'];
+		$scheduled = wp_next_scheduled( 'personal_todo_scheduled', array( $post_id ) );
+
+		$this->assertEqualsWithDelta( $first_time, $scheduled, 2 );
+		$this->assertNotContains( 'now', $created['terms'] );
+
+		$second_time = time() + ( 4 * DAY_IN_SECONDS );
+		$update = new WP_REST_Request( 'PUT', '/personal-todo/v1/tasks/' . $post_id );
+		$update->set_param( 'id', $post_id );
+		$update->set_param( 'scheduled_for', gmdate( 'c', $second_time ) );
+		$plugin->rest_update_task( $update );
+
+		$rescheduled = wp_next_scheduled( 'personal_todo_scheduled', array( $post_id ) );
+		$this->assertEqualsWithDelta( $second_time, $rescheduled, 2 );
+		$this->assertNotSame( $scheduled, $rescheduled );
+		$this->assertNotFalse( has_action( 'personal_todo_scheduled', array( $plugin, 'scheduled_task_now' ) ) );
+		$this->assertSame( 'now', get_post_meta( $post_id, 'pos_blocked_pending_term', true ) );
+		$this->assertNotFalse( get_term_by( 'slug', 'now', 'wp_guideline_type' ) );
+
+		do_action( 'personal_todo_scheduled', $post_id );
+		$terms = wp_get_object_terms( $post_id, 'wp_guideline_type', array( 'fields' => 'slugs' ) );
+		$this->assertContains( 'inbox', $terms );
+		$this->assertContains( 'now', $terms );
+
+		wp_trash_post( $post_id );
+		$this->assertFalse( wp_next_scheduled( 'personal_todo_scheduled', array( $post_id ) ) );
+	}
+
+	/**
+	 * Completing a recurring task creates and schedules its next occurrence.
+	 */
+	public function test_todo_recurring_completion_creates_scheduled_copy() {
+		$plugin = new Personal_TODO_Plugin();
+		$plugin->register();
+		$user_id = get_current_user_id();
+
+		$post_id = $plugin->create_task(
+			array(
+				'post_title'   => 'Recurring task',
+				'post_excerpt' => 'Recurring notes.',
+				'post_content' => '<p>Recurring details.</p>',
+				'meta_input'   => array(
+					'url'                      => 'https://example.com/recurring',
+					'pos_recurring_days'       => 2,
+					'pos_blocked_pending_term' => 'now',
+				),
+			),
+			array( 'inbox', 'now', 'later' )
+		);
+
+		wp_trash_post( $post_id );
+
+		$copies = get_posts(
+			array(
+				'post_type'      => 'wp_guideline',
+				'post_status'    => array( 'private', 'publish', 'future' ),
+				'posts_per_page' => -1,
+				'title'          => 'Recurring task',
+			)
+		);
+
+		$this->assertCount( 1, $copies );
+		$copy = $copies[0];
+		$this->assertNotSame( $post_id, $copy->ID );
+		$this->assertSame( $user_id, (int) $copy->post_author );
+		$this->assertSame( 'Recurring notes.', $copy->post_excerpt );
+		$this->assertSame( '<p>Recurring details.</p>', $copy->post_content );
+		$this->assertSame( 'https://example.com/recurring', get_post_meta( $copy->ID, 'url', true ) );
+		$this->assertSame( '2', get_post_meta( $copy->ID, 'pos_recurring_days', true ) );
+		$this->assertSame( 'now', get_post_meta( $copy->ID, 'pos_blocked_pending_term', true ) );
+		$this->assertGreaterThanOrEqual( time() + ( 2 * DAY_IN_SECONDS ) - 2, strtotime( $copy->post_date_gmt . ' GMT' ) );
+
+		$terms = wp_get_object_terms( $copy->ID, 'wp_guideline_type', array( 'fields' => 'slugs' ) );
+		$this->assertContains( 'artifact', $terms );
+		$this->assertContains( 'todo', $terms );
+		$this->assertContains( 'inbox', $terms );
+		$this->assertContains( 'later', $terms );
+		$this->assertNotContains( 'now', $terms );
+
+		$scheduled = wp_next_scheduled( 'personal_todo_scheduled', array( $copy->ID ) );
+		$this->assertNotFalse( $scheduled );
+		$this->assertEqualsWithDelta( strtotime( $copy->post_date_gmt . ' GMT' ), $scheduled, 2 );
+
+		do_action( 'personal_todo_scheduled', $copy->ID );
+		$terms = wp_get_object_terms( $copy->ID, 'wp_guideline_type', array( 'fields' => 'slugs' ) );
+		$this->assertContains( 'now', $terms );
+
+		$history = implode( "\n", wp_list_pluck( $plugin->format_task( $copy )['history'], 'content' ) );
+		$this->assertStringContainsString( 'Duplicated from task ' . $post_id, $history );
+	}
+
+	/**
+	 * Stopping recurrence before completion does not create a replacement task.
+	 */
+	public function test_todo_completion_can_stop_recurring() {
+		$plugin = new Personal_TODO_Plugin();
+		$plugin->register();
+		$post_id = $plugin->create_task(
+			array(
+				'post_title' => 'Stop recurring task',
+				'meta_input' => array(
+					'pos_recurring_days'       => 2,
+					'pos_blocked_pending_term' => 'now',
+				),
+			),
+			array( 'now' )
+		);
+
+		$update = new WP_REST_Request( 'PUT', '/personal-todo/v1/tasks/' . $post_id );
+		$update->set_param( 'id', $post_id );
+		$update->set_param( 'pos_recurring_days', 0 );
+		$plugin->rest_update_task( $update );
+
+		$complete = new WP_REST_Request( 'POST', '/personal-todo/v1/tasks/' . $post_id . '/complete' );
+		$complete->set_param( 'id', $post_id );
+		$plugin->rest_complete_task( $complete );
+
+		$copies = get_posts(
+			array(
+				'post_type'      => 'wp_guideline',
+				'post_status'    => array( 'private', 'publish', 'future' ),
+				'posts_per_page' => -1,
+				'title'          => 'Stop recurring task',
+			)
+		);
+		$this->assertSame( array(), $copies );
+	}
+
+	/**
 	 * ICS tokens resolve to the owning user.
 	 */
 	public function test_todo_ics_token_maps_to_user() {
@@ -428,9 +615,57 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * ICS content contains only the token owner's scheduled task data.
+	 */
+	public function test_todo_ics_content_is_scoped_to_owner() {
+		$owner_id = get_current_user_id();
+		$other_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$plugin = new Personal_TODO_Plugin();
+		$plugin->register();
+		$scheduled_time = time() + ( 2 * DAY_IN_SECONDS );
+		$post_date_gmt = gmdate( 'Y-m-d H:i:s', $scheduled_time );
+
+		$owner_task = $plugin->create_task(
+			array(
+				'post_title'   => 'Owner calendar task',
+				'post_excerpt' => 'Visible owner notes.',
+				'post_date'    => get_date_from_gmt( $post_date_gmt ),
+				'post_date_gmt' => $post_date_gmt,
+				'meta_input'   => array(
+					'url'                      => 'https://example.com/owner-task',
+					'pos_blocked_pending_term' => 'now',
+				),
+			),
+			array( 'inbox' ),
+			$owner_id
+		);
+		$plugin->create_task(
+			array(
+				'post_title'    => 'Other calendar task',
+				'post_date'     => get_date_from_gmt( $post_date_gmt ),
+				'post_date_gmt' => $post_date_gmt,
+				'meta_input'    => array( 'pos_blocked_pending_term' => 'now' ),
+			),
+			array( 'inbox' ),
+			$other_id
+		);
+
+		$this->assertNotFalse( wp_next_scheduled( 'personal_todo_scheduled', array( $owner_task ) ) );
+		$ics = $plugin->generate_ics_content( $owner_id );
+
+		$this->assertStringContainsString( 'BEGIN:VCALENDAR', $ics );
+		$this->assertStringContainsString( 'UID:personal-todo-' . $owner_task . '@personal-todo', $ics );
+		$this->assertStringContainsString( 'SUMMARY:Owner calendar task', $ics );
+		$this->assertStringContainsString( 'DESCRIPTION:Visible owner notes.', $ics );
+		$this->assertStringContainsString( 'URL:https://example.com/owner-task', $ics );
+		$this->assertStringNotContainsString( 'Other calendar task', $ics );
+	}
+
+	/**
 	 * Readwise book summary generation uses a package route and AI Client filter.
 	 */
 	public function test_readwise_book_summary_generation_route() {
+		$this->setExpectedIncorrectUsage( 'WP_Block_Type_Registry::register' );
 		$plugin = new Personal_Readwise_Sync_Plugin();
 		$plugin->register();
 
@@ -653,6 +888,7 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 	 * AI Chat creates private Knowledge conversation rows.
 	 */
 	public function test_ai_chat_creates_conversation_knowledge_row() {
+		$this->setExpectedIncorrectUsage( 'WP_Block_Type_Registry::register' );
 		$plugin = new Personal_AI_Chat_Plugin();
 		$plugin->register();
 
@@ -682,6 +918,7 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 	 * AI Chat appends transcript messages as AI message blocks.
 	 */
 	public function test_ai_chat_appends_message_block() {
+		$this->setExpectedIncorrectUsage( 'WP_Block_Type_Registry::register' );
 		$plugin = new Personal_AI_Chat_Plugin();
 		$plugin->register();
 
@@ -706,6 +943,7 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 	 * AI Chat can generate and persist an assistant reply through the AI Client path.
 	 */
 	public function test_ai_chat_generates_assistant_response() {
+		$this->setExpectedIncorrectUsage( 'WP_Block_Type_Registry::register' );
 		$plugin = new Personal_AI_Chat_Plugin();
 		$plugin->register();
 

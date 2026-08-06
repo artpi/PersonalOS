@@ -30,6 +30,11 @@ One actionable task is one Knowledge post. A post is a Personal TODO task when:
 Every task created by Personal TODO must also have the `artifact` term. Ordinary
 tasks must not receive the `plan` or `personalos` terms.
 
+At registration, the standalone plugin ensures that `artifact`, `todo`, `inbox`,
+`now`, `later`, and `follow-up`, together with their required parent terms, exist
+in the resolved taxonomy. Pending transitions must not depend on another plugin
+having provisioned their destination terms first.
+
 There is no package-specific TODO CPT, taxonomy, custom table, or aggregate post
 containing multiple tasks.
 
@@ -87,6 +92,11 @@ Scheduling is not stored in separate meta. It is represented by `post_date_gmt`
 plus a single WP-Cron event named `personal_todo_scheduled` with the task ID as
 its only argument.
 
+The shared row helper assigns Knowledge terms after `wp_insert_post()`. Any flow
+that creates a pre-scheduled task, including recurrence, must therefore invoke
+the scheduling side effect after the helper returns and the `todo` term is
+available. The scheduling operation is idempotent for an existing task event.
+
 ## Derived Values
 
 These response fields must be derived rather than duplicated into post meta:
@@ -135,7 +145,9 @@ tasks that reference its ID, appends each destination term, and removes each
 ### Completion
 
 Completion always uses `wp_trash_post()`. This is the domain operation, not a
-plain status update, because the trash hook must:
+plain status update. Completion side effects run on `trashed_post`, after core has
+trashed pre-existing comments, so the new completion history entry remains
+approved and visible. The completion hook must:
 
 - add a `Completed task.` history entry;
 - create the next recurrence when configured;
@@ -276,12 +288,3 @@ The behavioral contract requires tests for:
 8. "Complete and stop recurring" behavior.
 9. ICS token ownership, user isolation, and event contents.
 10. Ability parity with the REST lifecycle.
-
-## Known Implementation Gap
-
-On the current split branch, recurring completion creates the replacement row and
-copies its data correctly, but the replacement does not receive its cron event.
-`create_knowledge_post()` assigns Knowledge terms after `wp_insert_post()`, so the
-`save_post` scheduling hook does not yet recognize the new row as a task. This is
-a contract violation and must be fixed together with the recurrence regression
-test before release.
