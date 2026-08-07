@@ -1,0 +1,23 @@
+{
+	"plugins": [ ".", "WordPress/abilities-api" ],
+	"config": {
+		"WP_DEBUG": true,
+		"WP_DEBUG_LOG": true,
+		"SCRIPT_DEBUG": true,
+		"WP_DEBUG_DISPLAY": true
+	},
+	"mappings": {
+		"wp-content/debug.log": "./debug.log"
+	},
+	"env": {
+		"development": {
+			"port": 8901
+		},
+		"tests": {
+			"port": 8902
+		}
+	},
+	"lifecycleScripts": {
+		"afterStart": "wp-env run cli wp-content/plugins/$(basename $PWD)/wpenv-afterstart.sh"
+	}
+}

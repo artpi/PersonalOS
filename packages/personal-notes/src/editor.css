@@ -1,0 +1,79 @@
+.personal-notes-editor-sidebar {
+	display: grid;
+	gap: 16px;
+	padding: 16px;
+}
+
+.personal-notes-editor-sidebar__status {
+	display: flex;
+	justify-content: center;
+	padding: 24px;
+}
+
+.personal-notes-editor-sidebar__results {
+	border-top: 1px solid #ddd;
+}
+
+.personal-notes-editor-sidebar__result {
+	border-bottom: 1px solid #ddd;
+	cursor: grab;
+	padding: 12px 0;
+}
+
+.personal-notes-editor-sidebar__result:active {
+	cursor: grabbing;
+}
+
+.personal-notes-editor-sidebar__result-header {
+	align-items: flex-start;
+	display: flex;
+	gap: 8px;
+	justify-content: space-between;
+}
+
+.personal-notes-editor-sidebar__title.components-button {
+	display: block;
+	font-weight: 600;
+	height: auto;
+	line-height: 1.4;
+	min-width: 0;
+	padding: 4px 0;
+	text-align: left;
+	white-space: normal;
+}
+
+.personal-notes-editor-sidebar__actions {
+	display: flex;
+	flex: 0 0 auto;
+}
+
+.personal-notes-editor-sidebar__actions .components-button {
+	height: 32px;
+	min-width: 32px;
+	padding: 6px;
+	width: 32px;
+}
+
+.personal-notes-editor-sidebar__excerpt,
+.personal-notes-editor-sidebar__empty {
+	color: #50575e;
+	font-size: 12px;
+	line-height: 1.5;
+	margin: 4px 0 0;
+}
+
+.personal-notes-editor-sidebar__preview {
+	background: #f6f7f7;
+	border-left: 3px solid #8c8f94;
+	max-height: 240px;
+	overflow: auto;
+	padding: 12px;
+}
+
+.personal-notes-editor-sidebar__preview > :first-child {
+	margin-top: 0;
+}
+
+.personal-notes-editor-sidebar__preview > :last-child {
+	margin-bottom: 0;
+}

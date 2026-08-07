@@ -1,0 +1,35 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "pos/ai-message",
+	"version": "1.0.0",
+	"title": "AI Message",
+	"category": "widgets",
+	"description": "AI message representing a step in the AI chat conversation.",
+	"keywords": [],
+	"textdomain": "personal-ai-chat",
+	"attributes": {
+		"content": {
+			"type": "string",
+			"source": "text",
+			"selector": ".ai-message-text",
+			"default": ""
+		},
+		"role": {
+			"type": "string",
+			"default": "user",
+			"enum": [ "user", "assistant", "system" ]
+		},
+		"id": {
+			"type": "string",
+			"default": ""
+		}
+	},
+	"supports": {
+		"html": false,
+		"customClassName": false,
+		"className": true
+	},
+	"editorScript": "file:./index.js",
+	"editorStyle": "file:./index.css"
+}

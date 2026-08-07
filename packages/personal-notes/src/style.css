@@ -1,0 +1,31 @@
+@import "@wordpress/dataviews/build-style/style.css?personal-notes";
+
+body.personal-notes-js .personal-notes-admin-fallback {
+	display: none;
+}
+
+.personal-notes-admin {
+	background: var(--wp-app-color-surface, #fff);
+	border: 1px solid var(--wp-app-color-border, #dcdcde);
+	box-sizing: border-box;
+	margin-top: 16px;
+	max-width: 1440px;
+}
+
+.personal-notes-admin .components-notice {
+	margin: 0;
+}
+
+.personal-notes-admin__knowledge-types {
+	color: var(--wp-app-color-muted, #50575e);
+}
+
+.personal-notes-admin .dataviews-view-table__row:hover {
+	background: var(--wp-app-color-surface-alt, #f6f7f7);
+}
+
+@media (max-width: 782px) {
+	.personal-notes-admin {
+		margin-right: 10px;
+	}
+}

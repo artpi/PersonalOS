@@ -1,0 +1,132 @@
+@import "@wordpress/dataviews/build-style/style.css?personal-todo";
+
+body.personal-todo-js .personal-todo-admin-fallback {
+	display: none;
+}
+
+.personal-todo-admin {
+	margin-top: 16px;
+	width: 100%;
+}
+
+.personal-todo-admin__layout {
+	display: grid;
+	gap: 16px;
+}
+
+.personal-todo-admin__layout > .components-notice {
+	margin: 0;
+}
+
+.personal-todo-admin__quick-add,
+.personal-todo-admin__dataviews {
+	background: var(--wp-app-color-surface, #fff);
+	border: 1px solid var(--wp-app-color-border, #dcdcde);
+	box-sizing: border-box;
+}
+
+.personal-todo-admin__quick-add {
+	padding: 16px;
+	width: 100%;
+}
+
+.personal-todo-admin .dataviews-view-list {
+	list-style: none;
+	padding: 0;
+}
+
+.personal-todo-admin__loading {
+	align-items: center;
+	display: flex;
+	justify-content: center;
+	min-height: 180px;
+}
+
+.personal-todo-form {
+	display: grid;
+	gap: 16px;
+}
+
+.personal-todo-form__main {
+	display: grid;
+	gap: 12px;
+}
+
+.personal-todo-form__rules {
+	border: 1px solid #dcdcde;
+}
+
+.personal-todo-form__wide-row,
+.personal-todo-form__wide-row > div {
+	width: 100%;
+}
+
+.personal-todo-form__footer {
+	align-items: center;
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+}
+
+.personal-todo-admin__description {
+	color: var(--wp-app-color-muted, #50575e);
+}
+
+.personal-todo-admin__badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.personal-todo-admin__badge {
+	align-items: center;
+	background: #f0f0f1;
+	border-radius: 2px;
+	color: #2c3338;
+	display: inline-flex;
+	font-size: 12px;
+	gap: 4px;
+	line-height: 20px;
+	padding: 0 6px;
+}
+
+.personal-todo-admin__badge svg {
+	height: 16px;
+	width: 16px;
+}
+
+.personal-todo-admin__history {
+	border-top: 1px solid #dcdcde;
+	margin-top: 24px;
+	padding-top: 16px;
+}
+
+.personal-todo-admin__history h2 {
+	font-size: 13px;
+	margin: 0 0 12px;
+}
+
+.personal-todo-admin__history > div {
+	border-bottom: 1px solid #f0f0f1;
+	padding: 8px 0;
+}
+
+.personal-todo-admin__history p {
+	margin: 0 0 4px;
+}
+
+.personal-todo-admin__history time {
+	color: #646970;
+	font-size: 11px;
+}
+
+.personal-todo-admin__modal {
+	width: min(720px, calc(100vw - 32px));
+}
+
+@media (max-width: 782px) {
+	.personal-todo-admin {
+		margin-right: 10px;
+	}
+
+}

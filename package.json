@@ -15,17 +15,26 @@
 		"class-pos-settings.php"
 	],
 	"scripts": {
-		"build": "wp-scripts build",
+		"build": "wp-scripts build && node tools/sync-package-builds.mjs",
 		"format": "wp-scripts format",
 		"lint:css": "wp-scripts lint-style",
 		"lint:js": "wp-scripts lint-js",
 		"packages-update": "wp-scripts packages-update",
 		"plugin-zip": "wp-scripts plugin-zip",
+		"package:plugin": "node tools/package-plugin.mjs",
+		"package:plugins": "node tools/package-plugin.mjs --all",
+		"verify:split-packages": "node tools/verify-split-packages.mjs",
 		"start": "wp-scripts start",
 		"wp-env": "wp-env",
+		"wp-env:legacy-abilities": "wp-env start --config .wp-env.legacy-abilities.json",
+		"wp-env:notes": "wp-env start --config .wp-env.personal-notes.json",
+		"wp-env:readwise": "wp-env start --config .wp-env.personal-readwise-sync.json",
+		"wp-env:evernote": "wp-env start --config .wp-env.personal-evernote-sync.json",
+		"wp-env:todo": "wp-env start --config .wp-env.personal-todo.json",
+		"wp-env:ai-chat": "wp-env start --config .wp-env.personal-ai-chat.json",
 		"dev": "wp-scripts start",
-		"test:unit:backend": "PLUGIN_DIR=$(basename \"$PWD\"); wp-env run tests-cli --env-cwd=wp-content/plugins/$PLUGIN_DIR ./vendor/bin/phpunit --testsuite=unit",
-		"test:integration:backend": "PLUGIN_DIR=$(basename \"$PWD\"); wp-env run tests-cli --env-cwd=wp-content/plugins/$PLUGIN_DIR ./vendor/bin/phpunit --testsuite=integration"
+		"test:unit:backend": "wp-env run tests-cli --env-cwd=wp-content/personalos-tests ./vendor/bin/phpunit --testsuite=unit",
+		"test:integration:backend": "wp-env run tests-cli --env-cwd=wp-content/personalos-tests ./vendor/bin/phpunit --testsuite=integration"
 	},
 	"dependencies": {
 		"@wordpress/compose": "^6.27.0",

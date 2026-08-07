@@ -8,6 +8,7 @@
 		}
 	],
 	"require": {
+		"akirk/wp-app": "1.3.2",
 		"evernote/evernote-cloud-sdk-php": "dev-fix-curly-braces",
 		"symfony/css-selector": "v5.4.2",
 		"erusev/parsedown": "^1.7"
