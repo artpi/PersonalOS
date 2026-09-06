@@ -98,11 +98,17 @@ jobs:
       - name: Setup dependencies
         uses: ./.github/actions/setup-deps
 
+      - name: Lint WordPress styles
+        run: npm run lint:css
+
       - name: Setup WP-Env
         uses: ./.github/actions/setup-wp-env
 
       - name: Run PHP unit tests
         run: npm run test:unit:backend
+
+      - name: Run Personal Stuff block and search tests
+        run: npm run test:unit:stuff
 
   build-and-publish:
     if: ${{ github.event.pull_request.state == 'open' && github.event.pull_request.draft == false }}
@@ -116,6 +122,7 @@ jobs:
           - personal-evernote-sync
           - personal-todo
           - personal-ai-chat
+          - personal-stuff
     steps:
       - name: Checkout PR merge ref
         uses: actions/checkout@v4

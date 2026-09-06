@@ -25,6 +25,7 @@ body.personal-notes-js .personal-notes-admin-fallback {
 }
 
 @media (max-width: 782px) {
+
 	.personal-notes-admin {
 		margin-right: 10px;
 	}

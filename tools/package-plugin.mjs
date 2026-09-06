@@ -17,8 +17,14 @@ const packages = [
 	'personal-evernote-sync',
 	'personal-todo',
 	'personal-ai-chat',
+	'personal-stuff',
 ];
-const appPackages = [ 'personal-notes', 'personal-todo', 'personal-ai-chat' ];
+const appPackages = [
+	'personal-notes',
+	'personal-todo',
+	'personal-ai-chat',
+	'personal-stuff',
+];
 const wpAppVendorCopies = [
 	{
 		source: 'vendor/akirk/wp-app/src',
@@ -39,6 +45,7 @@ const wpAppVendorCopies = [
 ];
 const packageVendorCopies = {
 	'personal-notes': wpAppVendorCopies,
+	'personal-stuff': wpAppVendorCopies,
 	'personal-evernote-sync': [
 		{
 			source: 'vendor/evernote/evernote-cloud-sdk-php/src',

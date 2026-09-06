@@ -12,8 +12,14 @@ const packages = [
 	'personal-evernote-sync',
 	'personal-todo',
 	'personal-ai-chat',
+	'personal-stuff',
 ];
-const appPackages = [ 'personal-notes', 'personal-todo', 'personal-ai-chat' ];
+const appPackages = [
+	'personal-notes',
+	'personal-todo',
+	'personal-ai-chat',
+	'personal-stuff',
+];
 const wpEnvConfigs = [
 	'.wp-env.json',
 	...packages.map( ( slug ) => `.wp-env.${ slug }.json` ),
@@ -120,6 +126,16 @@ function verifyPackage( slug ) {
 	requireFile( path.join( packageDir, 'build', 'index.js' ) );
 	requireFile( path.join( packageDir, 'build', 'index.asset.php' ) );
 	requireFile( path.join( packageDir, 'build', 'style-index.css' ) );
+	if ( slug === 'personal-stuff' ) {
+		for ( const file of [
+			'build/editor.js',
+			'build/editor.asset.php',
+			'TECHNICAL.md',
+			'skills/personal-stuff/SKILL.md',
+		] ) {
+			requireFile( path.join( packageDir, file ) );
+		}
+	}
 	if ( slug === 'personal-notes' ) {
 		requireFile( path.join( packageDir, 'src', 'editor.js' ) );
 		requireFile( path.join( packageDir, 'src', 'editor.css' ) );
@@ -324,6 +340,14 @@ function verifyPackage( slug ) {
 				`${ slug }/build/editor.js`,
 				`${ slug }/build/editor.asset.php`,
 				`${ slug }/build/editor.css`
+			);
+		}
+		if ( slug === 'personal-stuff' ) {
+			requiredEntries.push(
+				`${ slug }/build/editor.js`,
+				`${ slug }/build/editor.asset.php`,
+				`${ slug }/TECHNICAL.md`,
+				`${ slug }/skills/personal-stuff/SKILL.md`
 			);
 		}
 

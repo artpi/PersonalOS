@@ -1,11 +1,6 @@
 {
 	"plugins": [
 		"https://downloads.wordpress.org/plugin/gutenberg.23.7.0.zip",
-		"./packages/personal-notes",
-		"./packages/personal-readwise-sync",
-		"./packages/personal-evernote-sync",
-		"./packages/personal-todo",
-		"./packages/personal-ai-chat",
 		"./packages/personal-stuff"
 	],
 	"config": {
@@ -15,18 +10,8 @@
 		"WP_DEBUG_DISPLAY": true
 	},
 	"mappings": {
-		"wp-content/debug.log": "./debug.log",
-		"wp-content/personalos-tests": ".",
 		"wp-content/shared/php": "./shared/php",
 		"wp-content/vendor": "./vendor"
-	},
-	"env": {
-		"development": {
-			"port": 8901
-		},
-		"tests": {
-			"port": 8902
-		}
 	},
 	"lifecycleScripts": {
 		"afterStart": "wp-env run cli wp option update gutenberg-experiments '{\"gutenberg-guidelines\":true}' --format=json"

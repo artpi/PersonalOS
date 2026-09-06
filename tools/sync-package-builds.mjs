@@ -12,8 +12,14 @@ const packages = [
 	'personal-evernote-sync',
 	'personal-todo',
 	'personal-ai-chat',
+	'personal-stuff',
 ];
-const appPackages = [ 'personal-notes', 'personal-todo', 'personal-ai-chat' ];
+const appPackages = [
+	'personal-notes',
+	'personal-todo',
+	'personal-ai-chat',
+	'personal-stuff',
+];
 
 for ( const slug of packages ) {
 	const source = path.join( root, 'build', slug );

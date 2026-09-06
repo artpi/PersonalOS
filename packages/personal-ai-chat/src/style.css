@@ -115,6 +115,7 @@ body.personal-ai-chat-js .personal-ai-chat-admin-fallback {
 }
 
 @media (max-width: 900px) {
+
 	.personal-ai-chat-admin__layout {
 		grid-template-columns: 1fr;
 	}
