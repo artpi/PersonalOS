@@ -1,0 +1,10 @@
+# Generated output and bundled dependencies.
+**/build/**
+**/dist/**
+**/out/**
+**/vendor/**
+**/coverage/**
+**/.next/**
+
+# Separate Next.js project; it does not use WordPress CSS conventions.
+src-chatbot/**

@@ -78,6 +78,7 @@
 .wp-block-pos-ai-message .markdown-content {
 	word-wrap: break-word;
 	overflow-wrap: break-word;
+	cursor: text;
 }
 
 .wp-block-pos-ai-message .markdown-content h1,
@@ -91,24 +92,15 @@
 	line-height: 1.3;
 }
 
-.wp-block-pos-ai-message .markdown-content h1:first-child,
-.wp-block-pos-ai-message .markdown-content h2:first-child,
-.wp-block-pos-ai-message .markdown-content h3:first-child,
-.wp-block-pos-ai-message .markdown-content h4:first-child,
-.wp-block-pos-ai-message .markdown-content h5:first-child,
-.wp-block-pos-ai-message .markdown-content h6:first-child {
-	margin-top: 0;
-}
-
 .wp-block-pos-ai-message .markdown-content h1 {
 	font-size: 1.5em;
-	border-bottom: 2px solid currentColor;
+	border-bottom: 2px solid currentcolor;
 	padding-bottom: 4px;
 }
 
 .wp-block-pos-ai-message .markdown-content h2 {
 	font-size: 1.3em;
-	border-bottom: 1px solid currentColor;
+	border-bottom: 1px solid currentcolor;
 	padding-bottom: 2px;
 }
 
@@ -123,6 +115,15 @@
 .wp-block-pos-ai-message .markdown-content h5,
 .wp-block-pos-ai-message .markdown-content h6 {
 	font-size: 1em;
+}
+
+.wp-block-pos-ai-message .markdown-content h1:first-child,
+.wp-block-pos-ai-message .markdown-content h2:first-child,
+.wp-block-pos-ai-message .markdown-content h3:first-child,
+.wp-block-pos-ai-message .markdown-content h4:first-child,
+.wp-block-pos-ai-message .markdown-content h5:first-child,
+.wp-block-pos-ai-message .markdown-content h6:first-child {
+	margin-top: 0;
 }
 
 .wp-block-pos-ai-message .markdown-content ul,
@@ -180,7 +181,7 @@
 	background: rgba(0, 0, 0, 0.1);
 	padding: 2px 6px;
 	border-radius: 4px;
-	font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+	font-family: Monaco, Menlo, "Ubuntu Mono", Consolas, source-code-pro, monospace;
 	font-size: 0.85em;
 	border: 1px solid rgba(0, 0, 0, 0.05);
 }
@@ -193,7 +194,7 @@
 	padding: 16px;
 	margin: 16px 0;
 	overflow-x: auto;
-	font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+	font-family: Monaco, Menlo, "Ubuntu Mono", Consolas, source-code-pro, monospace;
 	font-size: 0.85em;
 	line-height: 1.5;
 	white-space: pre;
@@ -232,7 +233,7 @@
 }
 
 .wp-block-pos-ai-message .markdown-content blockquote {
-	border-left: 4px solid currentColor;
+	border-left: 4px solid currentcolor;
 	margin: 16px 0;
 	padding-left: 16px;
 	font-style: italic;
@@ -286,12 +287,12 @@
 
 .wp-block-pos-ai-message.message-role-user .message-role-icon {
 	background: #3b82f6;
-	color: white;
+	color: #fff;
 }
 
 .wp-block-pos-ai-message.message-role-user .message-content {
 	background: #3b82f6;
-	color: white;
+	color: #fff;
 	border-color: #2563eb;
 	margin-left: 32px;
 }
@@ -334,7 +335,7 @@
 
 .wp-block-pos-ai-message.message-role-assistant .message-role-icon {
 	background: #10b981;
-	color: white;
+	color: #fff;
 }
 
 .wp-block-pos-ai-message.message-role-assistant .message-content {
@@ -369,7 +370,7 @@
 
 .wp-block-pos-ai-message.message-role-system .message-role-icon {
 	background: #f59e0b;
-	color: white;
+	color: #fff;
 }
 
 .wp-block-pos-ai-message.message-role-system .message-content {
@@ -404,6 +405,10 @@
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
+.wp-block-pos-ai-message.is-selected .message-content {
+	transform: translateY(-1px);
+}
+
 .wp-block-pos-ai-message.message-role-user:hover .message-content {
 	box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 }
@@ -417,9 +422,6 @@
 }
 
 /* Selected state */
-.wp-block-pos-ai-message.is-selected .message-content {
-	transform: translateY(-1px);
-}
 
 .wp-block-pos-ai-message.is-selected.message-role-user .message-content {
 	box-shadow: 0 0 0 2px #3b82f6, 0 4px 12px rgba(59, 130, 246, 0.4);
@@ -435,15 +437,16 @@
 
 /* Mobile responsiveness */
 @media (max-width: 768px) {
+
 	.wp-block-pos-ai-message {
 		margin: 12px 0;
 	}
-	
+
 	.wp-block-pos-ai-message .message-content {
 		padding: 10px 14px;
 		font-size: 13px;
 	}
-	
+
 	.wp-block-pos-ai-message.message-role-user .message-content {
 		margin-left: 24px;
 	}
@@ -486,7 +489,7 @@
 	padding: 0;
 	border: none;
 	background: transparent;
-	font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+	font-family: Monaco, Menlo, "Ubuntu Mono", Consolas, source-code-pro, monospace;
 	font-size: 13px;
 	line-height: 1.6;
 	color: inherit;
@@ -500,12 +503,9 @@
 }
 
 /* Click-to-edit hint */
-.wp-block-pos-ai-message .markdown-content {
-	cursor: text;
-}
 
 .wp-block-pos-ai-message.is-selected .markdown-content:not(:has(textarea))::after {
-	content: 'Click to edit';
+	content: "Click to edit";
 	position: absolute;
 	bottom: 8px;
 	right: 12px;

@@ -51,7 +51,9 @@
 		"@wordpress/dependency-extraction-webpack-plugin": "^6.14.0",
 		"@wordpress/env": "^9.2.0",
 		"@wordpress/scripts": "^30.7.0",
+		"@wordpress/stylelint-config": "23.6.0",
 		"eslint": "^8.56.0",
-		"prettier": "npm:wp-prettier@3.0.3"
+		"prettier": "npm:wp-prettier@3.0.3",
+		"stylelint": "16.12.0"
 	}
 }

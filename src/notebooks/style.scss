@@ -2,14 +2,16 @@
 
 
 .pos__dataview {
+
 	button {
 		background: transparent;
 		border: none;
 		cursor: pointer;
 	}
 }
+
 .components-dropdown__content {
-	background: white;
+	background: #fff;
 	z-index: 1000;
 }
 
@@ -26,6 +28,7 @@
 .pos__dataview .pos__notebook-badge:hover {
 	background: #e0e0e0;
 }
+
 .pos__dataview .pos__notebook-badge--future {
 	background: #f0f0f0;
 }
@@ -41,30 +44,35 @@
 	max-height: none;
 }
 
-.dataviews-view-table__actions-column  button.has-icon>svg {
+.dataviews-view-table__actions-column  button.has-icon > svg {
 	width: 24px;
 	height: 24px;
 }
+
 .pos__todo-form {
 	margin-bottom: 10px;
 }
 
-.pos__todo-form .components-datetime__date, .pos__todo-form .components-base-control {
+.pos__todo-form .components-datetime__date,
+.pos__todo-form .components-base-control {
 	width: 100%;
 }
 
-.components-panel__row.wide>div {
+.components-panel__row.wide > div {
 	width: 100%;
 }
 
-.pos__todo-form-recurring .components-input-control__prefix, .pos__todo-form-recurring .components-input-control__suffix {
+.pos__todo-form-recurring .components-input-control__prefix,
+.pos__todo-form-recurring .components-input-control__suffix {
 	display: flex;
 	color: rgb(117, 117, 117);
 }
+
 .pos__todo-form-recurring input {
 	flex-basis: 60%;
 	text-align: center;
 }
+
 .pos__todo-edit {
 	background: #f0f0f0;
 	padding-top: 20px;

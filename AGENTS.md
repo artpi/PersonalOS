@@ -31,6 +31,7 @@ Assume environment is set up.
 - IMPORTANT: When you learn something about the codebase or how I want you to operate, add it to lessons below.
 
 ### Lessons
+- Keep CSS lint dependencies compatible with the installed WordPress scripts: scripts 30.7.0 uses `@wordpress/stylelint-config/scss-stylistic` from config 23.6.0 and Stylelint 16.12.0. Declare the config and binary explicitly, preserve the lockfile, and validate with `npm ci`; ignore generated/bundled CSS and the separate Next.js project, while linting all WordPress source styles without disabling rules.
 - Personal Stuff creates a private empty Knowledge row before opening its editor so every upload surface has a saved authorized parent. Use both upload and sideload prefilters for filename randomization: Gutenberg/core REST supports raw-body and multipart uploads, while the native Media Library uses verified `post_id`. Keep originals and derivatives on the same random basename.
 - Browser tests confirmed Stuff and Personal Notes share native Gutenberg content without adding the `note` identity to Stuff items; Notes continues to list note records. Moving/tagging an item must omit unchanged `content` so gallery captions, order and custom blocks remain intact.
 - Personal Stuff is planned as a standalone plugin replicating `~/GIT/stuff`; its physical places must be hierarchical `wp_knowledge_type` terms in a tree rooted at the top-level `stuff` Knowledge Type, not separate place posts or `post_parent` relationships. Items remain individual Knowledge posts, and location is a taxonomy assignment.

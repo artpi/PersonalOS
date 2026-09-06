@@ -7,12 +7,14 @@ Verified locally on 2026-09-06 using wp-env, WordPress 7.1 and the pinned Gutenb
 - Full PHP unit suite: 171 tests, 1,047 assertions, 10 existing skips; no failures.
 - Stuff PHP coverage: six tests / 31 assertions covering vocabulary, native REST permissions/content, Notes editor compatibility and upload filename/thumbnail behavior.
 - Stuff JS suite: four passing tests using WordPress block parsing and serialization, including unknown blocks, gallery order and search.
-- PHP and JS lint passed. `git diff --check` passed.
+- PHP, JS and repository-wide WordPress CSS lint passed. `git diff --check` passed.
 - Production build passed; package verification accepted all six standalone ZIPs, including Stuff's bundled helpers, WpApp, editor assets, technical contract and operating skill.
 - The extracted Stuff ZIP activated independently. Its shared base loaded from the ZIP's own `includes/shared` directory, the fixed `stuff` term existed, and authenticated native Knowledge REST returned HTTP 200.
 - Operating skill validation passed.
 
-CSS lint could not start because the repository configuration references the unavailable `@wordpress/stylelint-config/scss-stylistic`. The environment was left unchanged. Styles were checked in the browser; normal webpack bundle-size warnings remain.
+CSS lint initially could not start because the lockfile paired WordPress scripts 30.7.0 with the obsolete Stylelint 14 / WordPress config 21.33.0. After authorization to repair the tooling, the project explicitly pins Stylelint 16.12.0 and the matching WordPress config 23.6.0. A clean `npm ci` succeeds, and all WordPress source styles pass the unmodified WordPress lint rules. Generated/bundled files and the separate Next.js project are excluded. Formatting, equivalent color notation, selector ordering and a duplicate rule were corrected; normal webpack bundle-size warnings remain.
+
+The tooling fix was checked with Node 20.20.2 and npm 10, matching CI's Node major: clean install, full CSS lint, four JS tests, production build and all six ZIP checks passed. A declaration comparison confirmed that all 13 reformatted stylesheets retain equivalent properties/values per selector and media context; reordered rules were reviewed for cascade behavior. CSS lint is now part of the PR workflow.
 
 ## Browser checks
 

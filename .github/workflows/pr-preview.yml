@@ -98,6 +98,9 @@ jobs:
       - name: Setup dependencies
         uses: ./.github/actions/setup-deps
 
+      - name: Lint WordPress styles
+        run: npm run lint:css
+
       - name: Setup WP-Env
         uses: ./.github/actions/setup-wp-env
 

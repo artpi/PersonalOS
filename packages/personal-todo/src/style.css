@@ -125,6 +125,7 @@ body.personal-todo-js .personal-todo-admin-fallback {
 }
 
 @media (max-width: 782px) {
+
 	.personal-todo-admin {
 		margin-right: 10px;
 	}
