@@ -1,547 +1,609 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PersonalOS - Your Personal Operating System</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Add Inter font for more modern look -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Add WordPress Dashicons -->
-    <link rel="stylesheet" href="https://s.w.org/wp-includes/css/dashicons.min.css">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                }
-            }
-        }
-    </script>
-    <style>
-        /* Enhanced header styles */
-        .enhanced-header {
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-            position: relative;
-            z-index: 1;
-            letter-spacing: 0.02em;
-            color: #e0e0ff; /* Brighter color */
-            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
-        }
-        
-        .enhanced-header::before {
-            content: none; /* Remove gradient effect */
-        }
-        
-        .header-outline {
-            -webkit-text-stroke: 1px rgba(255, 255, 255, 0.5);
-            text-stroke: 1px rgba(255, 255, 255, 0.5);
-        }
-        
-        /* White text headers need different styling for better contrast */
-        h2.enhanced-header.text-white {
-            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
-            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
-        }
-        
-        /* Lightbox styles */
-        .lightbox {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.9);
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        
-        .lightbox.active {
-            display: flex;
-            opacity: 1;
-        }
-        
-        .lightbox-content {
-            max-width: 90%;
-            max-height: 90%;
-            object-fit: contain;
-            border-radius: 0.5rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-            transform: scale(0.9);
-            transition: transform 0.3s ease;
-        }
-        
-        .lightbox.active .lightbox-content {
-            transform: scale(1);
-        }
-        
-        .lightbox-close {
-            position: absolute;
-            top: 1.5rem;
-            right: 1.5rem;
-            color: white;
-            font-size: 2rem;
-            cursor: pointer;
-            z-index: 1001;
-            width: 2.5rem;
-            height: 2.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: rgba(0, 0, 0, 0.5);
-            border-radius: 50%;
-            transition: background-color 0.3s ease;
-        }
-        
-        .lightbox-close:hover {
-            background-color: rgba(79, 70, 229, 0.7);
-        }
-        
-        .screenshot-img {
-            cursor: pointer;
-            transition: transform 0.3s ease;
-        }
-        
-        .screenshot-img:hover {
-            transform: scale(1.02);
-        }
-        
-        .enhanced-header.h3 {
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-            filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.3));
-        }
-        
-        .header-outline.h3 {
-            -webkit-text-stroke: 0.5px rgba(255, 255, 255, 0.3);
-            text-stroke: 0.5px rgba(255, 255, 255, 0.3);
-        }
-    </style>
-</head>
-<body class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white font-sans">
-    <!-- Lightbox container -->
-    <div id="lightbox" class="lightbox">
-        <div class="lightbox-close">&times;</div>
-        <img id="lightbox-img" class="lightbox-content" src="" alt="Enlarged screenshot">
-    </div>
-
-    <!-- Navigation -->
-    <nav class="fixed w-full bg-gray-900/80 backdrop-blur-xl border-b border-gray-800/50 z-10">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-            <div class="text-2xl font-bold tracking-tight enhanced-header header-outline" data-text="PersonalOS" style="color: #e0e0ff; filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));">
-                PersonalOS
-            </div>
-            <div class="hidden md:flex space-x-8">
-                <a href="#features" class="flex items-center bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-all duration-300">Features</a>
-                <a href="#download" class="inline-block bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 px-4 py-2 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-indigo-500/25">Install</a>
-                <a target="_blank" href="https://github.com/artpi/Personalos" class="flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-all duration-300">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"></path>
-                    </svg>
-                    <span>GitHub</span>
-                </a>
-            </div>
-            <button id="menu-toggle" class="md:hidden focus:outline-none">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
-                </svg>
-            </button>
-        </div>
-        <!-- Mobile Menu -->
-        <div id="mobile-menu" class="hidden md:hidden bg-gray-800">
-            <div class="px-4 pt-2 pb-4 space-y-2">
-                <a href="#features" class="block hover:text-indigo-400 transition">Features</a>
-                <a href="#download" class="block hover:text-indigo-400 transition">Install</a>
-                <a target="_blank" href="https://github.com/artpi/Personalos" class="flex items-center space-x-2 hover:text-indigo-400 transition">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"></path>
-                    </svg>
-                    <span>GitHub</span>
-                </a>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Hero Section -->
-    <section class="min-h-screen flex items-center pt-20 relative">
-        <div class="absolute inset-0 bg-gradient-to-tr from-indigo-500/10 via-purple-500/10 to-pink-500/10"></div>
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-12 relative">
-            <div class="space-y-8">
-                <h1 class="text-5xl md:text-6xl font-extrabold leading-tight">
-                    Your <span class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">Personal</span> Operating System
-                </h1>
-                <p class="text-xl text-gray-300 leading-relaxed">
-                    PersonalOS is your all-in-one personal management system, designed to keep your personal data in <b>your control</b>, but accessible for AI agents.
-                </p>
-                <a href="#download" class="inline-block bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 px-8 py-4 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-indigo-500/25">
-                    Get Started
-                </a>
-            </div>
-            <div class="flex justify-center">
-                <div class="bg-gradient-to-r from-gray-800 to-gray-700 p-6 rounded-2xl shadow-2xl backdrop-blur-xl border border-gray-700/50 transform rotate-3 hover:rotate-0 transition-all duration-300">
-                    <div class="bg-gray-900 p-6 rounded-xl border border-gray-800">
-                        <p class="text-sm text-gray-400">[Mockup Placeholder: Sleek app interface showing todos and notes]</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Features Section -->
-    <section id="features" class="py-20 bg-gradient-to-b from-gray-800 to-gray-900 relative">
-
-		<!-- <div class="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-purple-500/5"></div> -->
-        <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 relative">
-            <h2 class="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 enhanced-header header-outline" data-text="Your Second Brain, in your digital home">
-                Your Second Brain, in your digital home
-            </h2>
-            
-            <!-- Two screenshots side-by-side -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 mb-16 max-w-7xl mx-auto">
-                <!-- TODOs Screenshot -->
-                <div class="bg-gradient-to-br from-gray-900/80 to-indigo-900/30 p-5 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/20 transition-all duration-300 border border-indigo-800/30 backdrop-blur-xl">
-                    <h3 class="text-2xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 text-center font-sans flex items-center justify-center enhanced-header header-outline" data-text="TODOs">
-                        <span class="dashicons dashicons-editor-ul text-indigo-400 mr-2"></span>
-                        TODOs
-                    </h3>
-                    <div class="overflow-hidden rounded-xl border border-indigo-500/20 shadow-lg">
-                        <img src="assets/todos.png" alt="PersonalOS TODOs interface" class="w-full h-auto screenshot-img">
-                    </div>
-                    <p class="text-gray-300 leading-relaxed mt-5 text-left text-lg">
-                        An opinionated TODO manager designed to surface what's important <b>right now</b> while giving you the peace of mind that everything is taken care of:
-                        <ul class="list-none space-y-1 mt-4 mx-4 max-w-s">
-                            <li class="flex items-center">
-                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-                                Assign TODOS to NOW / LATER / FollowUP
-                            </li>
-							<li class="flex items-center">
-                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-                                Automatically transition statuses
-                            </li>
-                            <li class="flex items-center">
-                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-                                Set blocking TODOs for bigger projects
-                            </li>
-                            <li class="flex items-center">
-                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-                                Projects, contexts, areas,..
-                            </li>
-                            <li class="flex items-center">
-                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-                                Offline sync with dedicated WP-TODO mobile app
-                            </li>
-                        </ul>
-                    </p>
-					<a href="https://github.com/artpi/PersonalOS/blob/main/modules/todo/README.md" target="_blank" class="block text-center text-indigo-300 hover:text-indigo-200 mt-4 border border-indigo-500/30 rounded-lg py-2 px-4 mx-auto w-fit flex items-center justify-center transition-all duration-300 hover:border-indigo-400/50">
-						<span>All TODO features</span>
-						<span class="dashicons dashicons-external ml-1"></span>
-					</a>
-                </div>
-                
-                <!-- Notes Screenshot -->
-                <div class="bg-gradient-to-br from-gray-900/80 to-purple-900/30 p-5 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300 border border-purple-800/30 backdrop-blur-xl">
-                    <h3 class="text-2xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400 text-center font-sans flex items-center justify-center enhanced-header header-outline" data-text="Notes">
-                        <span class="dashicons dashicons-welcome-write-blog text-purple-400 mr-2"></span>
-                        Notes
-                    </h3>
-                    <div class="overflow-hidden rounded-xl border border-purple-500/20 shadow-lg">
-                        <img src="assets/notes.png" alt="PersonalOS Notes interface" class="w-full h-auto screenshot-img">
-                    </div>
-                    <p class="text-gray-300 leading-relaxed mt-5 text-left text-lg">
-                        Your notes, now powered with the most extensible editor on the web - WordPress Block Editor.
-                        <ul class="list-none space-y-1 mt-4 mx-4 max-w-s">
-                            <li class="flex items-center">
-                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-                                Embedded notes for creating networked ideas
-                            </li>
-							<li class="flex items-center">
-                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-                               Search for related concepts in sidebar or through autocompleter
-                            </li>
-                            <li class="flex items-center">
-                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-                                Use your favorite blocks from thousands of WordPress plugins
-                            </li>.
-                            <li class="flex items-center">
-                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-                                Built-in synchronization with Readwise, Evernote, ...
-                            </li>
-                        </ul>
-                    </p>
-					<a href="https://github.com/artpi/PersonalOS/blob/main/modules/notes/README.md" target="_blank" class="block text-center text-indigo-300 hover:text-indigo-200 mt-4 border border-indigo-500/30 rounded-lg py-2 px-4 mx-auto w-fit flex items-center justify-center transition-all duration-300 hover:border-indigo-400/50">
-						<span>All Notes features</span>
-						<span class="dashicons dashicons-external ml-1"></span>
-					</a>
-                </div>
-                </div>
-            </div>
-            
-        </div>
-
-		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative mt-20">
-            <h2 class="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 enhanced-header header-outline" data-text="Designed for AI">
-                Designed for AI
-            </h2>
-			<p class="text-gray-300 leading-relaxed text-center mb-12">
-				Invite AI into your Second Brain so it can <b>read your mind</b>.
-			</p>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center enhanced-header header-outline" data-text="Agents">
-                        <span class="dashicons dashicons-admin-users text-indigo-400 mr-2"></span>
-                        Environment for your Agents
-                    </h3>
-                    <p class="text-gray-300 leading-relaxed">
-                        Effortlessly share context with AI to set it up for success the first time.
-                        <ul class="list-none space-y-1 mt-4 mx-4 max-w-s">
-                            <li class="flex items-center">
-                                <!-- WordPress robot icon -->
-                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-                                Get context from your projects, notes, todos and blog
-                            </li>
-                            <li class="flex items-center">
-                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-                                Stop copy-pasting stuff to GPTs
-                            </li>
-                            <li class="flex items-center">
-                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-                                
-                            </li>
-                        </ul>
-                    </p>
-                </div>
-                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center enhanced-header header-outline" data-text="Integrates with everything">
-                        <span class="dashicons dashicons-admin-plugins text-indigo-400 mr-2"></span>
-                        Integrates with everything
-                    </h3>
-                    <p class="text-gray-300 leading-relaxed">
-                        Give AI superpowers to external services.
-                        <ul class="list-none space-y-1 mt-4 mx-4 max-w-s">
-                            <li class="flex items-center">
-                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-                                Sync notes from Readwise and Evernote
-                            </li>
-                            <li class="flex items-center">
-                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-                                Sync your TODOs from iOS Reminders
-                            </li>
-                            <li class="flex items-center">
-                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-                                Command your Second Brain through Slack
-                            </li>
-							<li class="flex items-center">
-                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-                                Custom GPTs with your personal context
-                            </li>
-                        </ul>
-                    </p>
-                </div>
-                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center enhanced-header header-outline" data-text="Your AI podcast">
-                        <span class="dashicons dashicons-microphone text-indigo-400 mr-2"></span>
-                        Your AI podcast
-                    </h3>
-                    <p class="text-gray-300 leading-relaxed">
-                        Start your day with a personal podcast from your Second Brain.
-                        <ul class="list-none space-y-1 mt-4 mx-4 max-w-s">
-                            <li class="flex items-center">
-                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-                                Personalized daily briefings that you care about
-                            </li>
-                            <li class="flex items-center">
-                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-                                Your Personal Voice Mode now reads your mind
-                            </li>
-                            <li class="flex items-center">
-                                <span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-                                Turn chores into productive time
-                            </li>
-                        </ul>
-                    </p>
-                </div>
-            </div>
-        </div>
-
-		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative mt-20">
-            <h2 class="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 enhanced-header header-outline" data-text="Engineered for the long run">
-                Engineered for the long run
-            </h2>
-			<p class="text-gray-300 leading-relaxed text-center mb-12">
-				PersonalOS is built on top of WordPress, the most popular self-hosted, and most extensible CMS in the world.<br/>Your data is in your control in a familiar interface.
-			</p>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center enhanced-header header-outline" data-text="Platform Independence">
-                        <span class="dashicons dashicons-admin-site-alt3 text-indigo-400 mr-2"></span>
-                        Platform Independence
-                    </h3>
-                    <p class="text-gray-300 leading-relaxed">
-                        PersonalOS will work just as good in 50 years
-                    </p>
-					<ul class="list-none space-y-1 mt-4 mx-4 max-w-s">
-						<li class="flex items-center">
-							<span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-							You can host it inside a safe if you want
-						</li>
-						<li class="flex items-center">
-							<span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-							Google can't shut it down
-						</li>
-						<li class="flex items-center">
-							<span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-							Data is stored in future-proof formats.
-						</li>
-					</ul>
-                </div>
-                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center enhanced-header header-outline" data-text="Powerful Integrations">
-                        <span class="dashicons dashicons-networking text-indigo-400 mr-2"></span>
-                        Powerful Integrations
-                    </h3>
-                    <p class="text-gray-300 leading-relaxed">
-                        WordPress has thousands of plugins, and PersonalOS is built to integrate with them seamlessly.
-                    </p>
-                </div>
-                <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 border border-gray-800/50 backdrop-blur-xl">
-                    <h3 class="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center enhanced-header header-outline" data-text="No investor pressure">
-                        <span class="dashicons dashicons-lock text-indigo-400 mr-2"></span>
-                        Power of Open Source
-                    </h3>
-                    <p class="text-gray-300 leading-relaxed">
-                        Incentivized to integrate with everything
-                    </p>
-					<ul class="list-none space-y-1 mt-4 mx-4 max-w-s">
-						<li class="flex items-center">
-							<span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-							No investors = no monetization pressure
-						</li>
-						<li class="flex items-center">
-							<span class="dashicons dashicons-yes text-indigo-400 mr-2"></span>
-							You want a feature? Implement it yourself!
-						</li>
-					</ul>
-                </div>
-            </div>
-        </div>
-    </section>
-
-	<!-- Download CTA -->
-	<section id="try" class="py-20 bg-gradient-to-r from-indigo-600 to-purple-600 relative overflow-hidden">
-		<div class="absolute inset-0 bg-gradient-to-r from-indigo-600/50 to-purple-600/50 backdrop-blur-3xl"></div>
-		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
-			<h2 class="text-4xl font-bold mb-6 flex items-center justify-center enhanced-header header-outline text-white" data-text="Try it yourself">
-				<span class="dashicons dashicons-welcome-learn-more text-white mr-3"></span>
-				Try it yourself
-			</h2>
-			<p class="text-xl text-indigo-100 mb-8">
-				Launch a fully-functioning WordPress instance with PersonalOS pre-installed, inside your browser. Data will never leave your browser, but AI features will require your own API keys.
-			</p>
-			<a
-				target="_blank"
-				href="https://playground.wordpress.net/?networking=yes#{%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginData%22:{%22resource%22:%22url%22,%22url%22:%22https://github.com/artpi/personalos/releases/latest/download/wp-personal-os.zip%22}}],%22landingPage%22:%22/wp-admin/admin.php?page=personalos-settings%22,%22login%22:true}"
-				class="inline-block bg-white text-indigo-600 hover:bg-gray-100 px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 shadow-xl hover:shadow-white/25"
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta
+			name="description"
+			content="Notes, tasks, belongings, conversations, and reading. Six independent WordPress plugins, connected by one shared Knowledge layer. Your data, on your own site."
+		/>
+		<meta name="theme-color" content="#f6f5ee" />
+		<meta property="og:title" content="PersonalOS — A little more connected." />
+		<meta
+			property="og:description"
+			content="Your notes, tasks, and everyday things. One open Knowledge layer, built on WordPress."
+		/>
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="https://personalos.net/" />
+		<title>PersonalOS — Your life, connected by Knowledge</title>
+		<link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
+		<link rel="stylesheet" href="style.css" />
+		<script src="site.js" defer></script>
+	</head>
+	<body>
+		<a class="skip-link" href="#main">Skip to content</a>
+		<header class="site-header wrap">
+			<a class="brand" href="#" aria-label="PersonalOS home"
+				><img
+					src="assets/mark.svg"
+					width="32"
+					height="32"
+					alt=""
+				/>Personal<span>OS</span></a
 			>
-				Launch test
-			</a>
-		</div>
-	</section>
+			<nav aria-label="Main navigation">
+				<a href="#knowledge">The idea</a>
+				<a href="#modules">The modules</a>
+				<a class="nav-github" href="https://github.com/artpi/PersonalOS"
+					>GitHub <span class="arrow" aria-hidden="true">↗</span></a
+				>
+			</nav>
+			<a class="button button-small" href="#start"
+				>Make it yours <span class="arrow" aria-hidden="true">↗</span></a
+			>
+		</header>
+		<main id="main">
+			<section class="hero wrap" aria-labelledby="hero-title">
+				<div class="hero-copy">
+					<p class="eyebrow">
+						<span class="status-dot"></span> A personal operating system for
+						WordPress
+					</p>
+					<h1 id="hero-title">
+						Your life.<br />Your data.<br /><em>All connected.</em>
+					</h1>
+					<p class="hero-description">
+						A home for your notes, tasks, and everyday things. Independent apps
+						that speak the same language: <strong>WordPress Knowledge.</strong>
+					</p>
+					<div class="hero-actions">
+						<a class="button" href="#modules"
+							>Find your modules
+							<span class="arrow" aria-hidden="true">↗</span></a
+						><a class="text-link" href="#knowledge"
+							>See how it connects <span aria-hidden="true">↓</span></a
+						>
+					</div>
+					<p class="hero-footnote">
+						Self-hosted. Open source. Yours to build on.
+					</p>
+				</div>
+				<div
+					class="knowledge-map"
+					role="img"
+					aria-label="Notes, TODO, Stuff, AI Chat, Readwise, and Evernote connect through the shared WordPress Knowledge layer. Other Knowledge-compatible tools can use the same records."
+				>
+					<div class="map-label">
+						<span class="status-dot"></span> THE PERSONALOS ECOSYSTEM
+					</div>
+					<div class="map-orbit orbit-one"></div>
+					<div class="map-orbit orbit-two"></div>
+					<svg class="map-connections" viewBox="0 0 600 540" aria-hidden="true">
+						<path
+							d="M140 124C140 225 300 160 300 262M459 135C459 225 300 160 300 262M95 280H300M496 294H300M152 425C152 325 300 390 300 262M451 426C451 325 300 390 300 262"
+						/>
+						<circle cx="213" cy="204" r="4" />
+						<circle cx="393" cy="213" r="4" />
+						<circle cx="205" cy="365" r="4" />
+						<circle cx="407" cy="370" r="4" />
+					</svg>
+					<div class="map-node node-notes">
+						<span class="app-icon lavender" aria-hidden="true">▤</span
+						><span>Notes<small>Ideas worth keeping</small></span>
+					</div>
+					<div class="map-node node-todo">
+						<span class="app-icon peach" aria-hidden="true">✓</span
+						><span>TODO<small>A little more done</small></span>
+					</div>
+					<div class="map-node node-readwise">
+						<span class="app-icon yellow" aria-hidden="true">≋</span
+						><span>Readwise<small>Keep the good parts</small></span>
+					</div>
+					<div class="map-center">
+						<span class="wp-mark" aria-hidden="true">W</span
+						><strong>WordPress<br />Knowledge</strong
+						><span class="map-center-caption">ONE SHARED LAYER</span>
+					</div>
+					<div class="map-node node-stuff">
+						<span class="app-icon sage" aria-hidden="true">⬡</span
+						><span>Stuff<small>Everything in its place</small></span>
+					</div>
+					<div class="map-node node-evernote">
+						<span class="app-icon mint" aria-hidden="true">↳</span
+						><span>Evernote<small>Bring your notes home</small></span>
+					</div>
+					<div class="map-node node-ai">
+						<span class="app-icon blue" aria-hidden="true">✳</span
+						><span>AI Chat<small>Room to think out loud</small></span>
+					</div>
+					<div class="map-footer">
+						<span aria-hidden="true">+ &nbsp;</span> Your next plugin. Your own
+						tools. The same Knowledge.
+					</div>
+				</div>
+			</section>
+			<div class="principles wrap" aria-label="Project principles">
+				<span><i aria-hidden="true">W</i> Built on WordPress</span
+				><span><i aria-hidden="true">⌘</i> Six independent plugins</span
+				><span><i aria-hidden="true">↔</i> One shared data model</span
+				><span><i aria-hidden="true">◇</i> GPL-2.0-or-later</span>
+			</div>
 
-    <!-- About Section -->
-    <section id="about" class="py-20 relative">
-        <div class="absolute inset-0 bg-gradient-to-t from-indigo-500/5 to-purple-500/5"></div>
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
-            <h2 class="text-4xl font-bold mb-8 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 enhanced-header header-outline flex items-center justify-center" data-text="Is it a plugin?">
-                <span class="dashicons dashicons-admin-plugins text-indigo-400 mr-3"></span>
-                Is it a plugin?
-            </h2>
-            <p class="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
-                PersonalOS is a WordPress plugin that turns your WordPress site into a personal operating system. You will need a WordPress instance to use it - you can launch one on WordPress.com, use one you already have or even install it on your own computer.
-            </p>
-        </div>
-    </section>
+			<section id="knowledge" class="knowledge-section">
+				<div class="wrap knowledge-layout">
+					<div class="knowledge-copy">
+						<p class="eyebrow">01 / THE CONNECTIVE TISSUE</p>
+						<h2>Different apps.<br /><em>Common ground.</em></h2>
+						<p>
+							A highlight you saved. A task you need to finish. The box with
+							your camera gear. They belong to your life. Their data should live
+							together, too.
+						</p>
+						<p>
+							PersonalOS stores them as native WordPress Knowledge records. Each
+							app adds its own view and behavior; compatible plugins and tools
+							can work with the same underlying content.
+						</p>
+						<a
+							class="text-link light-link"
+							href="https://github.com/artpi/PersonalOS/tree/main/shared/php"
+							>Explore the shared foundation
+							<span class="arrow" aria-hidden="true">↗</span></a
+						>
+					</div>
+					<div class="record-panel">
+						<div class="record-header">
+							<span
+								><span class="status-dot"></span> ANATOMY OF A KNOWLEDGE
+								RECORD</span
+							><span class="arrow" aria-hidden="true">↗</span>
+						</div>
+						<div class="record-title">
+							<span class="app-icon sage" aria-hidden="true">⬡</span>
+							<div>
+								<small>PERSONAL STUFF</small>
+								<h3>The weekend camera</h3>
+							</div>
+							<span class="record-private">Private</span>
+						</div>
+						<dl class="record-fields">
+							<div>
+								<dt>Content</dt>
+								<dd>Notes, photos &amp; native blocks</dd>
+							</div>
+							<div>
+								<dt>Knowledge Type</dt>
+								<dd>
+									<span class="record-tag">artifact</span
+									><span class="record-tag">stuff-item</span
+									><span class="record-tag">travel</span>
+								</dd>
+							</div>
+							<div>
+								<dt>Storage</dt>
+								<dd><code>wp_knowledge</code></dd>
+							</div>
+							<div>
+								<dt>Access</dt>
+								<dd>WordPress permissions + REST API</dd>
+							</div>
+						</dl>
+						<div class="record-endpoint">
+							<span class="request-method">GET</span
+							><code>/wp-json/wp/v2/knowledge</code
+							><span class="arrow" aria-hidden="true">↗</span>
+						</div>
+						<p class="record-note">
+							An illustrative record. A native format.<br />Ready for another
+							Knowledge-aware tool.
+						</p>
+					</div>
+					<div class="knowledge-details">
+						<article>
+							<span class="detail-number">01</span>
+							<h3>Shared meaning</h3>
+							<p>
+								Knowledge Types describe what a record is and where it belongs.
+								Apps keep their own focused views.
+							</p>
+						</article>
+						<article>
+							<span class="detail-number">02</span>
+							<h3>Native building blocks</h3>
+							<p>
+								Posts, terms, blocks, media, and REST. Familiar WordPress
+								primitives make your data useful beyond one interface.
+							</p>
+						</article>
+						<article>
+							<span class="detail-number">03</span>
+							<h3>Room for your tools</h3>
+							<p>
+								Build on the core Knowledge API. TODO also exposes task actions
+								through the WordPress Abilities API.
+							</p>
+						</article>
+					</div>
+				</div>
+			</section>
 
-	<!-- Download CTA -->
-	<section id="download" class="py-20 bg-gradient-to-r from-indigo-600 to-purple-600 relative overflow-hidden">
-		<div class="absolute inset-0 bg-gradient-to-r from-indigo-600/50 to-purple-600/50 backdrop-blur-3xl"></div>
-		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
-			<h2 class="text-4xl font-bold mb-6 flex items-center justify-center enhanced-header header-outline text-white" data-text="Install PersonalOS">
-				<span class="dashicons dashicons-download text-white mr-3"></span>
-				Install PersonalOS
-			</h2>
-			<p class="text-xl text-indigo-100 mb-8">
-				Learn how to install PersonalOS, if you have a WordPress or not yet.
+			<section id="modules" class="modules-section wrap">
+				<div class="section-heading">
+					<div>
+						<p class="eyebrow">02 / BUILD YOUR OWN EVERYDAY</p>
+						<h2>A small set of tools.<br /><em>A very personal system.</em></h2>
+					</div>
+					<p>
+						Start with what you need. Add what you love.<br />Every module is a
+						standalone plugin. No other PersonalOS plugin required.
+					</p>
+				</div>
+				<div class="module-grid">
+					<article class="module-card">
+						<div class="card-top">
+							<span class="app-icon lavender" aria-hidden="true">▤</span
+							><span class="module-kind">APP / 01</span>
+						</div>
+						<h3>Personal Notes</h3>
+						<p>
+							A place for unfinished thoughts and useful knowledge. Search,
+							organize, and bring your notes into the WordPress editor.
+						</p>
+						<ul>
+							<li>Shared Knowledge Types &amp; PARA organization</li>
+							<li>Native block or classic editing</li>
+							<li>Find and embed notes from the editor sidebar</li>
+						</ul>
+						<a
+							href="https://github.com/artpi/PersonalOS/tree/main/packages/personal-notes"
+							>Explore Notes <span class="arrow" aria-hidden="true">↗</span></a
+						>
+					</article>
+					<article class="module-card">
+						<div class="card-top">
+							<span class="app-icon peach" aria-hidden="true">✓</span
+							><span class="module-kind">APP / 02</span>
+						</div>
+						<h3>Personal TODO</h3>
+						<p>
+							Make space for what matters now. Capture tasks quickly, plan what
+							comes next, and let the recurring things take care of themselves.
+						</p>
+						<ul>
+							<li>Scheduling, recurrence &amp; dependencies</li>
+							<li>Task history and a personal ICS calendar feed</li>
+							<li>Task actions through the Abilities API</li>
+						</ul>
+						<a
+							href="https://github.com/artpi/PersonalOS/tree/main/packages/personal-todo"
+							>Explore TODO <span class="arrow" aria-hidden="true">↗</span></a
+						>
+					</article>
+					<article class="module-card stuff-card">
+						<div class="card-top">
+							<span class="app-icon sage" aria-hidden="true">⬡</span
+							><span class="module-kind"
+								><span class="status-dot"></span> NEW / APP 03</span
+							>
+						</div>
+						<h3>Personal Stuff</h3>
+						<p>
+							Remember what you own. And where you put it. A visual inventory
+							for the gear, boxes, and everyday objects in your life.
+						</p>
+						<ul>
+							<li>Photo galleries, places &amp; tags</li>
+							<li>Search location paths and print to PDF</li>
+							<li>Native Knowledge, Media &amp; editor APIs</li>
+						</ul>
+						<a
+							href="https://github.com/artpi/PersonalOS/tree/main/packages/personal-stuff"
+							>Explore Stuff <span class="arrow" aria-hidden="true">↗</span></a
+						>
+					</article>
+					<article class="module-card">
+						<div class="card-top">
+							<span class="app-icon blue" aria-hidden="true">✳</span
+							><span class="module-kind">APP / 04</span>
+						</div>
+						<h3>Personal AI Chat</h3>
+						<p>
+							A home for conversations with AI. Keep your chat history in
+							Knowledge and connect generation through WordPress AI Client.
+						</p>
+						<ul>
+							<li>Saved conversations as native blocks</li>
+							<li>Provider setup through WordPress Connectors</li>
+							<li>Discover registered WordPress abilities</li>
+						</ul>
+						<a
+							href="https://github.com/artpi/PersonalOS/tree/main/packages/personal-ai-chat"
+							>Explore AI Chat
+							<span class="arrow" aria-hidden="true">↗</span></a
+						>
+					</article>
+					<article class="module-card">
+						<div class="card-top">
+							<span class="app-icon yellow" aria-hidden="true">≋</span
+							><span class="module-kind">SYNC / 05</span>
+						</div>
+						<h3>Personal Readwise Sync</h3>
+						<p>
+							Good ideas deserve a second life. Bring your Readwise highlights
+							and articles into Knowledge, alongside your own notes.
+						</p>
+						<ul>
+							<li>Incremental imports with source attribution</li>
+							<li>Per-user Readwise connection</li>
+							<li>Optional AI-powered book summaries</li>
+						</ul>
+						<a
+							href="https://github.com/artpi/PersonalOS/tree/main/packages/personal-readwise-sync"
+							>Explore Readwise Sync
+							<span class="arrow" aria-hidden="true">↗</span></a
+						>
+					</article>
+					<article class="module-card">
+						<div class="card-top">
+							<span class="app-icon mint" aria-hidden="true">↳</span
+							><span class="module-kind">SYNC / 06</span>
+						</div>
+						<h3>Personal Evernote Sync</h3>
+						<p>
+							Bring an existing notebook habit home. Import selected Evernote
+							notebooks into WordPress as private Knowledge records.
+						</p>
+						<ul>
+							<li>One-way import from Evernote</li>
+							<li>Per-user connection and notebook scope</li>
+							<li>Read imported notes in Knowledge-aware apps</li>
+						</ul>
+						<a
+							href="https://github.com/artpi/PersonalOS/tree/main/packages/personal-evernote-sync"
+							>Explore Evernote Sync
+							<span class="arrow" aria-hidden="true">↗</span></a
+						>
+					</article>
+				</div>
+				<p class="module-note">
+					<span aria-hidden="true">↳</span> Four private app destinations. Two
+					background integrations. One WordPress site.
+				</p>
+			</section>
+
+			<section id="in-use" class="preview-section">
+				<div class="wrap">
+					<div class="section-heading">
+						<div>
+							<p class="eyebrow">03 / LESS ABSTRACT. MORE EVERYDAY.</p>
+							<h2>
+								Feels like your own<br /><em>little corner of the internet.</em>
+							</h2>
+						</div>
+						<p>
+							Familiar WordPress foundations.<br />Focused spaces for getting on
+							with life.
+						</p>
+					</div>
+					<div
+						class="preview-controls"
+						role="tablist"
+						aria-label="App screenshots"
+					>
+						<button
+							id="tab-notes"
+							role="tab"
+							aria-selected="true"
+							aria-controls="panel-notes"
+							tabindex="0"
+						>
+							<span aria-hidden="true">▤</span>
+							<span class="tab-label">Notes</span></button
+						><button
+							id="tab-todo"
+							role="tab"
+							aria-selected="false"
+							aria-controls="panel-todo"
+							tabindex="-1"
+						>
+							<span aria-hidden="true">✓</span>
+							<span class="tab-label">TODO</span></button
+						><button
+							id="tab-stuff"
+							role="tab"
+							aria-selected="false"
+							aria-controls="panel-stuff"
+							tabindex="-1"
+						>
+							<span aria-hidden="true">⬡</span>
+							<span class="tab-label">Stuff</span></button
+						><span class="preview-label"
+							><span class="status-dot"></span> REAL APPS, DEMO CONTENT</span
+						>
+					</div>
+					<div class="browser-frame">
+						<div class="browser-chrome" aria-hidden="true">
+							<span class="window-dots">● ● ●</span
+							><span class="browser-address"
+								>your-wordpress.site
+								<span id="preview-path">/notes/</span></span
+							><span>↗</span>
+						</div>
+						<div
+							id="panel-notes"
+							class="preview-panel"
+							role="tabpanel"
+							aria-labelledby="tab-notes"
+							tabindex="0"
+						>
+							<a
+								href="assets/knowledge-notes.png"
+								target="_blank"
+								rel="noopener"
+								aria-label="Open full-size Notes screenshot in a new tab"
+								><img
+									src="assets/knowledge-notes.png"
+									width="1440"
+									height="900"
+									loading="lazy"
+									alt="Personal Notes running on WordPress with sample notes, Knowledge Type labels, source information, and native DataViews search."
+							/></a>
+						</div>
+						<div
+							id="panel-todo"
+							class="preview-panel"
+							role="tabpanel"
+							aria-labelledby="tab-todo"
+							tabindex="0"
+							hidden
+						>
+							<a
+								href="assets/knowledge-todo.png"
+								target="_blank"
+								rel="noopener"
+								aria-label="Open full-size TODO screenshot in a new tab"
+								><img
+									src="assets/knowledge-todo.png"
+									width="1440"
+									height="900"
+									loading="lazy"
+									alt="Personal TODO running on WordPress with sample tasks and shared Knowledge Type filters."
+							/></a>
+						</div>
+						<div
+							id="panel-stuff"
+							class="preview-panel"
+							role="tabpanel"
+							aria-labelledby="tab-stuff"
+							tabindex="0"
+							hidden
+						>
+							<a
+								href="assets/knowledge-stuff.png"
+								target="_blank"
+								rel="noopener"
+								aria-label="Open full-size Stuff screenshot in a new tab"
+								><img
+									src="assets/knowledge-stuff.png"
+									width="1440"
+									height="900"
+									loading="lazy"
+									alt="Personal Stuff running on WordPress with a filtered collection of sample belongings, places, and tags."
+							/></a>
+						</div>
+					</div>
+					<div class="preview-caption">
+						<p id="preview-caption">
+							Your notes, organized with Knowledge Types and the native
+							WordPress DataViews interface.
+						</p>
+						<span>LOCAL WORDPRESS DEMO · CLICK TO ENLARGE</span>
+					</div>
+				</div>
+			</section>
+
+			<section class="ownership-section wrap">
+				<p class="eyebrow">04 / A DIGITAL HOME, ON YOUR TERMS</p>
+				<div class="ownership-layout">
+					<h2>Apps come and go.<br /><em>Your knowledge stays.</em></h2>
+					<div>
+						<p>
+							These plugins add ways to work with your data. The records live in
+							WordPress, and remain there when a PersonalOS plugin is
+							deactivated or uninstalled.
+						</p>
+						<p>
+							User-created records are private by default, with WordPress
+							controlling access. Sync services and AI providers are connections
+							you configure. Stuff photos use standard WordPress Media URLs;
+							private records do not make those files private.
+						</p>
+						<a class="text-link" href="https://github.com/artpi/PersonalOS"
+							>Read the code. Make it your own.
+							<span class="arrow" aria-hidden="true">↗</span></a
+						>
+					</div>
+				</div>
+			</section>
+
+			<section id="start" class="start-section wrap">
+				<div class="start-panel">
+					<div>
+						<p class="eyebrow">
+							<span class="status-dot"></span> SMALL TOOLS. AN OPEN FOUNDATION.
+						</p>
+						<h2>Make yourself<br /><em>at home.</em></h2>
+						<p>
+							Pick a plugin. Connect it to Knowledge.<br />Build a system that
+							feels like you.
+						</p>
+						<div class="start-actions">
+							<a
+								class="button button-lime"
+								href="https://github.com/artpi/PersonalOS/releases"
+								>Get the plugins
+								<span class="arrow" aria-hidden="true">↗</span></a
+							><a
+								class="text-link light-link"
+								href="https://github.com/artpi/PersonalOS/blob/main/docs/INSTALL.md"
+								>Installation guide
+								<span class="arrow" aria-hidden="true">↗</span></a
+							>
+						</div>
+					</div>
+					<ol class="start-steps">
+						<li>
+							<span>01</span>
+							<div>
+								<h3>Bring your WordPress</h3>
+								<p>
+									Target WordPress 7.0+ with a runtime that provides Knowledge.
+									The repository includes a local development fixture.
+								</p>
+							</div>
+						</li>
+						<li>
+							<span>02</span>
+							<div>
+								<h3>Choose your modules</h3>
+								<p>
+									Install individual plugin ZIPs. Stuff is available from source
+									on main while awaiting its first release ZIP.
+								</p>
+							</div>
+						</li>
+						<li>
+							<span>03</span>
+							<div>
+								<h3>Settle in</h3>
+								<p>
+									Open your apps. Add tokens for the sync integrations, or
+									configure AI Client and a provider for AI Chat.
+								</p>
+							</div>
+						</li>
+					</ol>
+				</div>
+			</section>
+		</main>
+		<footer class="site-footer wrap">
+			<a class="brand" href="#"
+				><img
+					src="assets/mark.svg"
+					width="28"
+					height="28"
+					alt=""
+				/>Personal<span>OS</span></a
+			>
+			<p>
+				A personal project by
+				<a href="https://piszek.com">Artur Piszek</a>.<br />Built for a life
+				beyond the browser.
 			</p>
-			<a href="https://github.com/artpi/PersonalOS/blob/main/docs/INSTALL.md" class="inline-block bg-white text-indigo-600 hover:bg-gray-100 px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 shadow-xl hover:shadow-white/25">
-				Get Personal
-			</a>
-		</div>
-	</section>
-
-    <!-- Footer -->
-    <footer class="bg-gradient-to-b from-gray-800 to-gray-900 py-8 border-t border-gray-800/50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-gray-400">
-            <p>&copy; 2025 PersonalOS. All rights reserved.</p>
-        </div>
-    </footer>
-
-    <!-- Minimal JS for Mobile Menu -->
-    <script>
-        const menuToggle = document.getElementById('menu-toggle');
-        const mobileMenu = document.getElementById('mobile-menu');
-
-        menuToggle.addEventListener('click', () => {
-            mobileMenu.classList.toggle('hidden');
-        });
-    </script>
-
-    <!-- Lightbox functionality -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const lightbox = document.getElementById('lightbox');
-            const lightboxImg = document.getElementById('lightbox-img');
-            const lightboxClose = document.querySelector('.lightbox-close');
-            const screenshotImages = document.querySelectorAll('.screenshot-img');
-            
-            // Open lightbox when a screenshot is clicked
-            screenshotImages.forEach(img => {
-                img.addEventListener('click', function() {
-                    lightboxImg.src = this.src;
-                    lightboxImg.alt = this.alt;
-                    lightbox.classList.add('active');
-                    document.body.style.overflow = 'hidden'; // Prevent scrolling when lightbox is open
-                });
-            });
-            
-            // Close lightbox when clicking on the close button or outside the image
-            lightboxClose.addEventListener('click', closeLightbox);
-            lightbox.addEventListener('click', function(e) {
-                if (e.target === lightbox) {
-                    closeLightbox();
-                }
-            });
-            
-            // Close lightbox when pressing Escape key
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape' && lightbox.classList.contains('active')) {
-                    closeLightbox();
-                }
-            });
-            
-            function closeLightbox() {
-                lightbox.classList.remove('active');
-                document.body.style.overflow = ''; // Restore scrolling
-                setTimeout(() => {
-                    lightboxImg.src = '';
-                }, 300);
-            }
-        });
-    </script>
-</body>
+			<div>
+				<a href="https://github.com/artpi/PersonalOS">Source code ↗</a
+				><span>OPEN SOURCE · GPL-2.0-OR-LATER</span>
+			</div>
+		</footer>
+	</body>
 </html>
