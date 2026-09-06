@@ -5,6 +5,8 @@ module.exports = {
 	entry: {
 		...defaultConfig.entry(),
 		index: './src/index.js',
+		'personal-stuff/index': './packages/personal-stuff/src/index.js',
+		'personal-stuff/editor': './packages/personal-stuff/src/editor.js',
 		'personal-notes/index': './packages/personal-notes/src/index.js',
 		'personal-notes/editor': './packages/personal-notes/src/editor.js',
 		'personal-notes/blocks/note/index':

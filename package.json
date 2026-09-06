@@ -34,7 +34,9 @@
 		"wp-env:ai-chat": "wp-env start --config .wp-env.personal-ai-chat.json",
 		"dev": "wp-scripts start",
 		"test:unit:backend": "wp-env run tests-cli --env-cwd=wp-content/personalos-tests ./vendor/bin/phpunit --testsuite=unit",
-		"test:integration:backend": "wp-env run tests-cli --env-cwd=wp-content/personalos-tests ./vendor/bin/phpunit --testsuite=integration"
+		"test:integration:backend": "wp-env run tests-cli --env-cwd=wp-content/personalos-tests ./vendor/bin/phpunit --testsuite=integration",
+		"wp-env:stuff": "wp-env start --config .wp-env.personal-stuff.json",
+		"test:unit:stuff": "wp-scripts test-unit-js --runInBand --testEnvironmentOptions='{\"customExportConditions\":[\"node\",\"node-addons\"]}' packages/personal-stuff/src/test"
 	},
 	"dependencies": {
 		"@wordpress/compose": "^6.27.0",

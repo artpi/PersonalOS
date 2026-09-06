@@ -14,6 +14,7 @@ jobs:
           - personal-evernote-sync
           - personal-todo
           - personal-ai-chat
+          - personal-stuff
 
     steps:
     - name: Checkout Repository
