@@ -36,7 +36,17 @@ import {
 } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 import { addQueryArgs } from '@wordpress/url';
-import { edit } from '@wordpress/icons';
+import {
+	edit,
+	plus,
+	search as searchIcon,
+	image as imageIcon,
+	Icon,
+	chevronRight,
+	update,
+	funnel,
+	category,
+} from '@wordpress/icons';
 import { contentSession, appendPhotos, itemContent } from './content';
 import { SearchIndex } from './search';
 import './style.css';
@@ -110,6 +120,7 @@ function Photo( { url, alt = '' } ) {
 		/>
 	) : (
 		<span className="stuff-photo-empty">
+			<Icon icon={ imageIcon } size={ 36 } />
 			{ url
 				? __( 'Photo unavailable', 'personal-stuff' )
 				: __( 'No photo', 'personal-stuff' ) }
@@ -117,7 +128,7 @@ function Photo( { url, alt = '' } ) {
 	);
 }
 
-function ItemEditor( { item, vocabulary, onSaved, onClose } ) {
+function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 	useEffect( () => {
 		const previous = window.wp.media.view.settings.post.id;
 		window.wp.media.view.settings.post.id = item.id;
@@ -132,7 +143,7 @@ function ItemEditor( { item, vocabulary, onSaved, onClose } ) {
 	const [ blocks, setBlocks ] = useState( session.blocks );
 	const blocksRef = useRef( blocks );
 	blocksRef.current = blocks;
-	const [ name, setName ] = useState( title( item ) );
+	const [ name, setName ] = useState( isNew ? '' : title( item ) );
 	const currentPlaces = termIds( item ).filter( ( id ) =>
 		vocabulary.places.some( ( place ) => place.id === id )
 	);
@@ -305,12 +316,15 @@ function ItemEditor( { item, vocabulary, onSaved, onClose } ) {
 		}
 	}
 	const close = () => ( dirty ? setConfirmClose( true ) : onClose() );
+	const saveStatus = dirty
+		? __( 'Unsaved changes', 'personal-stuff' )
+		: __( 'Saved', 'personal-stuff' );
 	return (
 		<Modal
 			title={
-				saved.id
-					? __( 'Edit item', 'personal-stuff' )
-					: __( 'Add item', 'personal-stuff' )
+				isNew
+					? __( 'Add item', 'personal-stuff' )
+					: __( 'Edit item', 'personal-stuff' )
 			}
 			className="stuff-editor-modal"
 			onRequestClose={ busy ? () => {} : close }
@@ -329,8 +343,13 @@ function ItemEditor( { item, vocabulary, onSaved, onClose } ) {
 					) }
 				</Notice>
 			) }
-			<fieldset disabled={ busy }>
+			<fieldset disabled={ busy } className="stuff-item-fields">
 				<TextControl
+					className="stuff-item-name"
+					placeholder={ __(
+						'What are you putting away?',
+						'personal-stuff'
+					) }
 					label={ __( 'Name', 'personal-stuff' ) }
 					value={ name }
 					onChange={ ( value ) => {
@@ -375,13 +394,22 @@ function ItemEditor( { item, vocabulary, onSaved, onClose } ) {
 						/>
 					) ) }
 				</details>
-				<div className="stuff-toolbar">
+				<div className="stuff-toolbar stuff-photo-actions">
 					{ settings.canUpload && (
 						<label
 							className="stuff-file"
 							htmlFor="stuff-photo-upload"
 						>
-							{ __( 'Add photos / camera', 'personal-stuff' ) }
+							<Icon icon={ imageIcon } size={ 28 } />
+							<strong>
+								{ __( 'Add photos', 'personal-stuff' ) }
+							</strong>
+							<span>
+								{ __(
+									'Take a photo or choose from your library',
+									'personal-stuff'
+								) }
+							</span>
 							<input
 								id="stuff-photo-upload"
 								type="file"
@@ -394,6 +422,11 @@ function ItemEditor( { item, vocabulary, onSaved, onClose } ) {
 							/>
 						</label>
 					) }
+				</div>
+				<details>
+					<summary>
+						{ __( 'More photo options', 'personal-stuff' ) }
+					</summary>
 					{ saved.id > 0 && (
 						<Button
 							href={ editorUrl( saved ) }
@@ -403,11 +436,12 @@ function ItemEditor( { item, vocabulary, onSaved, onClose } ) {
 							{ __( 'Open in Gutenberg', 'personal-stuff' ) }
 						</Button>
 					) }
-				</div>
-				<details>
-					<summary>
-						{ __( 'Photo from URL', 'personal-stuff' ) }
-					</summary>
+					<p className="stuff-hint">
+						{ __(
+							'Photos use public, hard-to-guess Media URLs. Reorder image blocks to choose the cover. Removing a block keeps its Media file.',
+							'personal-stuff'
+						) }
+					</p>
 					<TextControl
 						label={ __( 'Photo URL', 'personal-stuff' ) }
 						value={ url }
@@ -422,12 +456,7 @@ function ItemEditor( { item, vocabulary, onSaved, onClose } ) {
 					</Button>
 				</details>
 			</fieldset>
-			<p className="stuff-hint">
-				{ __(
-					'Photos use public, hard-to-guess Media URLs. Reorder image blocks to choose the cover. Removing a block keeps its Media file.',
-					'personal-stuff'
-				) }
-			</p>
+
 			<SlotFillProvider>
 				<BlockEditorProvider
 					value={ blocks }
@@ -441,7 +470,10 @@ function ItemEditor( { item, vocabulary, onSaved, onClose } ) {
 							: undefined,
 					} }
 				>
-					<div className="stuff-toolbar">
+					<div className="stuff-toolbar stuff-content-toolbar">
+						<strong>
+							{ __( 'Notes & photos', 'personal-stuff' ) }
+						</strong>
 						<Inserter />
 						<Button
 							aria-pressed={ inspect }
@@ -472,19 +504,25 @@ function ItemEditor( { item, vocabulary, onSaved, onClose } ) {
 					<Popover.Slot />
 				</BlockEditorProvider>
 			</SlotFillProvider>
-			<div aria-live="polite">{ progress }</div>
-			<div className="stuff-toolbar">
-				<Button
-					variant="primary"
-					isBusy={ busy }
-					disabled={ busy }
-					onClick={ save }
-				>
-					{ __( 'Save item', 'personal-stuff' ) }
-				</Button>
-				<Button disabled={ busy } onClick={ close }>
-					{ __( 'Close', 'personal-stuff' ) }
-				</Button>
+			<div className="stuff-editor-footer">
+				<div className="stuff-save-status" role="status">
+					{ busy
+						? progress || __( 'Saving item…', 'personal-stuff' )
+						: saveStatus }
+				</div>
+				<div className="stuff-toolbar">
+					<Button
+						variant="primary"
+						isBusy={ busy }
+						disabled={ busy }
+						onClick={ save }
+					>
+						{ __( 'Save item', 'personal-stuff' ) }
+					</Button>
+					<Button disabled={ busy } onClick={ close }>
+						{ __( 'Close', 'personal-stuff' ) }
+					</Button>
+				</div>
 			</div>
 			{ confirmClose && (
 				<Modal
@@ -799,6 +837,8 @@ function Stuff() {
 	const [ error, setError ] = useState( '' );
 	const [ editing, setEditing ] = useState( null );
 	const [ managing, setManaging ] = useState( false );
+	const [ addingId, setAddingId ] = useState( null );
+	const [ showFilters, setShowFilters ] = useState( false );
 	const [ route, setRoute ] = useState(
 		() => new URLSearchParams( window.location.search )
 	);
@@ -811,7 +851,7 @@ function Stuff() {
 		mediaField: 'cover',
 		descriptionField: 'location',
 		fields: [ 'tags' ],
-		layout: { previewSize: 240 },
+		layout: {},
 		search: '',
 	} );
 	const touch = useRef( null );
@@ -1013,6 +1053,7 @@ function Stuff() {
 				},
 			} );
 			onSaved( item );
+			setAddingId( item.id );
 			setEditing( item );
 		} catch ( failure ) {
 			setError( failure.message );
@@ -1074,26 +1115,32 @@ function Stuff() {
 				</div>
 				<div className="stuff-toolbar">
 					<Button
-						variant="secondary"
+						icon={ update }
+						label={ __( 'Refresh', 'personal-stuff' ) }
+						className="stuff-refresh"
 						onClick={ load }
 						disabled={ loading }
-					>
-						{ __( 'Refresh', 'personal-stuff' ) }
-					</Button>
+					></Button>
 					{ settings.canManageTerms && (
 						<Button
 							variant="secondary"
+							icon={ category }
+							className="stuff-manage"
+							label={ __( 'Places & tags', 'personal-stuff' ) }
 							disabled={
 								loading ||
 								! vocabulary.bySlug.has( 'stuff-places' )
 							}
 							onClick={ () => setManaging( true ) }
 						>
-							{ __( 'Places & tags', 'personal-stuff' ) }
+							<span>
+								{ __( 'Places & tags', 'personal-stuff' ) }
+							</span>
 						</Button>
 					) }
 					<Button
 						variant="primary"
+						icon={ plus }
 						disabled={
 							loading || ! vocabulary.bySlug.has( 'stuff-item' )
 						}
@@ -1108,18 +1155,34 @@ function Stuff() {
 					{ error }
 				</Notice>
 			) }
-			<div className="stuff-filters">
+			<div className="stuff-search-row">
+				<Icon icon={ searchIcon } />
 				<TextControl
+					hideLabelFromVision
 					label={ __( 'Search belongings', 'personal-stuff' ) }
-					placeholder={ __(
-						'Name, description, place, tag…',
-						'personal-stuff'
-					) }
+					placeholder={ __( 'Find something…', 'personal-stuff' ) }
 					value={ search }
 					onChange={ ( value ) =>
 						navigate( { q: value, item: '' }, true )
 					}
 				/>
+				<Button
+					icon={ funnel }
+					aria-expanded={ showFilters }
+					aria-controls="stuff-filters"
+					onClick={ () => setShowFilters( ! showFilters ) }
+				>
+					{ __( 'Filters', 'personal-stuff' ) }
+					{ ( place || tag || photo !== 'all' ) && (
+						<span className="stuff-filter-dot" />
+					) }
+				</Button>
+			</div>
+			<div
+				className="stuff-filters"
+				id="stuff-filters"
+				hidden={ ! showFilters }
+			>
 				<SelectControl
 					label={ __( 'Place and descendants', 'personal-stuff' ) }
 					value={ place }
@@ -1180,49 +1243,124 @@ function Stuff() {
 					] }
 				/>
 			</div>
-			<div className="stuff-toolbar stuff-count">
-				<span>
-					{ sprintf(
-						// translators: %d: number of matching inventory items.
-						_n(
-							'%d item',
-							'%d items',
-							filtered.length,
-							'personal-stuff'
-						),
-						filtered.length
-					) }
+			<nav
+				className="stuff-places"
+				aria-label={ __( 'Browse places', 'personal-stuff' ) }
+			>
+				<a
+					href={ addQueryArgs( window.location.pathname, {
+						place: '',
+						q: search,
+						tag,
+						photo,
+					} ) }
+					aria-current={ ! place ? 'location' : undefined }
+					onClick={ ( event ) => {
+						if (
+							event.button === 0 &&
+							! event.metaKey &&
+							! event.ctrlKey &&
+							! event.shiftKey &&
+							! event.altKey
+						) {
+							event.preventDefault();
+							navigate( { place: '', item: '' } );
+						}
+					} }
+				>
+					{ __( 'All stuff', 'personal-stuff' ) }
+				</a>
+				{ ancestors( vocabulary.bySlug.get( place ), vocabulary.byId )
+					.filter( ( term ) =>
+						vocabulary.below( term, 'stuff-places' )
+					)
+					.map( ( term ) => (
+						<span className="stuff-place-crumb" key={ term.id }>
+							<Icon icon={ chevronRight } size={ 16 } />
+							<Button
+								aria-current={
+									term.slug === place ? 'location' : undefined
+								}
+								onClick={ () =>
+									navigate( { place: term.slug, item: '' } )
+								}
+							>
+								{ term.name }
+							</Button>
+						</span>
+					) ) }
+				<span className="stuff-place-children">
+					{ vocabulary.places
+						.filter(
+							( term ) =>
+								term.parent ===
+								( vocabulary.bySlug.get( place )?.id ||
+									vocabulary.bySlug.get( 'stuff-places' )
+										?.id )
+						)
+						.map( ( term ) => (
+							<Button
+								key={ term.id }
+								onClick={ () =>
+									navigate( { place: term.slug, item: '' } )
+								}
+							>
+								{ term.name }
+								<Icon icon={ chevronRight } size={ 16 } />
+							</Button>
+						) ) }
 				</span>
-				<Button
-					onClick={ () =>
-						navigate( {
-							q: '',
-							place: '',
-							tag: '',
-							photo: '',
-							item: '',
-						} )
-					}
-				>
-					{ __( 'Clear filters', 'personal-stuff' ) }
-				</Button>
-				<Button
-					disabled={ loading || printing }
-					onClick={ () => setPrinting( true ) }
-				>
-					{ printing
-						? __( 'Preparing…', 'personal-stuff' )
-						: __( 'Print / PDF', 'personal-stuff' ) }
-				</Button>
-			</div>
+			</nav>
+
 			<DataViews
+				header={
+					<div className="stuff-toolbar stuff-count">
+						<span>
+							{ sprintf(
+								// translators: %d: number of matching inventory items.
+								_n(
+									'%d item',
+									'%d items',
+									filtered.length,
+									'personal-stuff'
+								),
+								filtered.length
+							) }
+						</span>
+						<Button
+							className="stuff-clear-filters"
+							disabled={
+								! search && ! place && ! tag && photo === 'all'
+							}
+							onClick={ () =>
+								navigate( {
+									q: '',
+									place: '',
+									tag: '',
+									photo: '',
+									item: '',
+								} )
+							}
+						>
+							{ __( 'Clear filters', 'personal-stuff' ) }
+						</Button>
+						<Button
+							disabled={ loading || printing }
+							onClick={ () => setPrinting( true ) }
+						>
+							{ printing
+								? __( 'Preparing…', 'personal-stuff' )
+								: __( 'Print / PDF', 'personal-stuff' ) }
+						</Button>
+					</div>
+				}
 				data={ data }
 				fields={ fields }
 				view={ view }
 				onChangeView={ setView }
 				paginationInfo={ paginationInfo }
 				defaultLayouts={ {
-					grid: { layout: { previewSize: 240 } },
+					grid: { layout: {} },
 					list: {},
 					table: {},
 				} }
@@ -1368,9 +1506,13 @@ function Stuff() {
 				<ItemEditor
 					key={ editing.id }
 					item={ editing }
+					isNew={ editing.id === addingId }
 					vocabulary={ vocabulary }
 					onSaved={ onSaved }
-					onClose={ () => setEditing( null ) }
+					onClose={ () => {
+						setEditing( null );
+						setAddingId( null );
+					} }
 				/>
 			) }
 			{ managing && (

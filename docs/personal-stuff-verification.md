@@ -35,3 +35,13 @@ The development site is left running with synthetic sample records: Camera kit, 
 ## Scope of evidence
 
 These checks establish the native storage/editor and standalone package paths on the tested fixture. They do not establish private media access, atomic multi-editor concurrency, offline support, or exhaustive compatibility with third-party Gutenberg blocks. Those are not features of this implementation.
+
+## UX refinement — 2026-09-06
+
+The follow-up design uses cream/green and dark green palettes, uncropped photo cards, compact search with optional filters, place breadcrumbs, and a native DataViews header containing counts and actions. Add/edit uses the entire viewport on phones, a sticky save/progress footer, and optional photo/block controls. The source feedback and superseded requirements are recorded in `docs/personal-stuff-ux-feedback.md`.
+
+- Browser checks on the development site at `http://artpi-m5.tailaea879.ts.net:8901/stuff/`: name-only creation, saved place assignment, Home subtree browsing, search, photo filtering and empty results, detail/editor transitions, and saving existing gallery content with its caption retained.
+- The restyled file input opened the chooser and uploaded a synthetic icon into a native gallery, with randomized basename `c2d61a7cdcdd3a4c430625ece75c9a0e.png`. Progress changed from saving/uploading to saved; the photo filter reflected the upload.
+- Chrome responsive inspection at 390×844 and 320×740 confirmed the editor starts at (0, 0), matches the viewport width/height, has no horizontal overflow, uses 16px inputs, and keeps the save footer at the bottom. Light and dark appearances were visually inspected. These are emulated layout checks; real iOS keyboard, focus zoom and camera behavior are not established by them. Chrome's automated touch dispatch was unavailable; functional interactions were exercised in the in-app browser.
+- Personal Notes still lists the existing Packing checklist note and does not list the new Stuff items. No shared helper, PHP, storage, or Notes asset changes were made in this UX pass.
+- Four block/search JS tests, JS lint, all WordPress source CSS lint, production build, and all six standalone package ZIP checks pass. Backend evidence above predates this JS/CSS pass; the previously reported test-site duplicate ZIP/source plugin activation issue was left untouched.

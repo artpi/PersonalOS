@@ -42,6 +42,8 @@ The app uses `BlockEditorProvider`, `BlockList`, native block settings, the core
 
 Clicking Add item creates a private, empty Knowledge row before opening the editor, as in the existing Notes creation flow. This guarantees a saved, authorized parent for uploads from all editor surfaces. Closing does not delete that row. Existing records retain their status; publishing, trash and restore use WordPress's native editor controls.
 
+The inventory uses a search-led photo grid with uncropped covers, optional filters, and derived place breadcrumbs/child navigation. Add/edit fills the viewport at widths up to 700px, with 16px or larger inputs and a sticky save/progress footer. Block settings remain optional and stack below the content on phones. New-item presentation is transient React state, not persisted metadata. DataViews `previewSize` means a column count, not a pixel width; leave it unset for responsive defaults.
+
 Before a Stuff save, the app reads the current row and compares content, title, modification time and taxonomy assignments with the last version it loaded/saved. A mismatch requests reopening the item. This is a best-effort stale-edit guard, not an atomic lock. WordPress remains responsible for native editor locking, revisions and permissions.
 
 ## Uploads and recovery

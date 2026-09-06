@@ -1,0 +1,14 @@
+# Personal Stuff UX feedback
+
+Research date: 2026-09-06. A bounded Luna sub-agent reviewed `~/GIT/stuff` local Codex sessions, repository documentation and commit history. `gh pr list --repo artpi/stuff --state all` returned no PRs; no PR review feedback was available. Session IDs below identify local source conversations, not public links. PRD statements are product requirements, not verbatim user messages.
+
+| Evidence | Applicable decision |
+| --- | --- |
+| Session `01a025ab-e83d-7912-9e0b-49c398c4e12a`: “header takes too much space” and “make the add/edit panel on mobile full screen because there are zoom problem when editing on ios.” Follow-up `01a076b3-85bc-73a1-b2c1-855d3ef5ca1d`; source commit `12a19b1`. | Full-viewport add/edit at phone widths, compact app header, inputs at least 16px, sticky save actions, optional inline block inspector. Verify iOS on a real device separately from Chrome emulation. |
+| Source `docs/prd.md`: “camera/gallery action is visually primary on phones but never blocks a text-only record.” | Prominent photo target; blank name field for a new item; name-only save remains valid. The private Knowledge parent still exists before uploads. |
+| Session `01a03f98-c544-7c71-b392-a392e1d7bc41`: “sharing photos after uploading takes forever and then fails”; source commit `1ce3800`. | Keep upload progress visible beside the save controls; preserve entered values and successful uploads on failure. No Drive sharing phase in WordPress. |
+| Session `01a023c8-1da7-7e32-a5c4-52538171dba7`: “each thumbnail was in its entirety” and “photos [should be] in the center of attention”; source commits `7dc8ab8`, `12a19b1`. | Inventory thumbnails use contain, with clear missing-image placeholders. Preserve photo-led filtered printing and native gallery content. |
+| Session `01a023de-9a93-7e53-a263-a1aa83e0606a`: “This seems very misaligned when you click ‘choose location’”; source commit `027cd13`. | Explicit place breadcrumbs and child-place buttons, with the complete hierarchical selector in Filters. Parent filtering includes descendants. |
+| Source `docs/prd.md`: “feel as visual and inviting as Pinterest while keeping search, location context, and fast data entry more prominent”; design review request in session `01a02465-a2db-7b22-882c-82845c3f6042`. | Search-led layout, restrained green/cream palette with dark counterpart, consistent card spacing and progressive disclosure of filters and secondary editor controls. |
+
+Existing contextual previous/next, swipe navigation, error retention and Gutenberg interoperability remain part of the implementation. The original app's quantity, place photos, Google Picker/Drive recovery, spreadsheet storage/migration and broad service-worker caching are superseded by the current Knowledge-only plan and must not be reintroduced from historical feedback.
