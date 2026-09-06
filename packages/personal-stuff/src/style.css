@@ -637,7 +637,7 @@ body.wp-app-body.personalos-wp-app-body.personalos-wp-app-stuff {
 @media print {
 
 	html:root,
-	body.personalos-wp-app-stuff {
+	body.wp-app-body.personalos-wp-app-body.personalos-wp-app-stuff {
 		margin: 0 !important;
 		min-height: 0 !important;
 		height: auto !important;
@@ -703,11 +703,14 @@ body.personalos-wp-app-stuff.modal-open #wpadminbar {
 	color: var(--wp-app-color-accent);
 }
 
-html:has(body.personalos-wp-app-stuff) {
-	background: #f6f5f1;
+@media screen {
+
+	html:has(body.personalos-wp-app-stuff) {
+		background: #f6f5f1;
+	}
 }
 
-@media (prefers-color-scheme: dark) {
+@media screen and (prefers-color-scheme: dark) {
 
 	html:has(body.personalos-wp-app-stuff) {
 		background: #141d19;
