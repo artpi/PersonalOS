@@ -58,6 +58,17 @@ test( 'photos serialize as native galleries and order determines cover', () => {
 	);
 } );
 
+test( 'photos retain responsive image candidates for collection thumbnails', () => {
+	const content = itemContent(
+		'<img src="photo.jpg" srcset="photo-150.jpg 150w, photo-300.jpg 300w, photo.jpg 1200w" alt="Camera">'
+	);
+	expect( content.photos[ 0 ] ).toEqual( {
+		url: 'photo.jpg',
+		srcSet: 'photo-150.jpg 150w, photo-300.jpg 300w, photo.jpg 1200w',
+		alt: 'Camera',
+	} );
+} );
+
 test( 'description changes preserve gallery captions and nested blocks', () => {
 	const raw =
 		'<!-- wp:paragraph -->\n<p>Old description</p>\n<!-- /wp:paragraph -->\n\n' +

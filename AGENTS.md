@@ -31,6 +31,7 @@ Assume environment is set up.
 - IMPORTANT: When you learn something about the codebase or how I want you to operate, add it to lessons below.
 
 ### Lessons
+- Personal Stuff should not create an empty Knowledge row merely when Add item is clicked; keep a new editor transient until Save, while allowing the first upload to persist the required authorized media parent. Its DataViews collection should open View as the primary action, progressively load on scroll, and use WordPress responsive image candidates rather than downloading full-size originals for thumbnails.
 - Personal Stuff UX should keep search and uncropped photos prominent, minimize mobile header clutter, and use a full-viewport add/edit flow on phones with inputs at least 16px and persistent save/progress controls. Keep secondary photo controls and block settings optional. `docs/personal-stuff-ux-feedback.md` records applicable feedback mined from the original Stuff sessions; no PRs were available there.
 - DataViews grid `layout.previewSize` is a column count, not a pixel width. Leave it unset for responsive defaults; a value such as 240 produces an unusable grid below the library's mobile breakpoint.
 - On M5, offer the optional Tailscale hostname setup when working with wp-env WordPress projects, but never enable it automatically or treat this project's approval as consent for other projects. The shared machine-context skill and M5 profile hold the reusable procedure; localhost remains the default until the user accepts.

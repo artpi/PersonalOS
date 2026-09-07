@@ -46,6 +46,7 @@ import {
 	update,
 	funnel,
 	category,
+	seen as viewIcon,
 } from '@wordpress/icons';
 import { contentSession, appendPhotos, itemContent } from './content';
 import { SearchIndex } from './search';
@@ -108,12 +109,14 @@ function useVocabulary( terms ) {
 	}, [ terms ] );
 }
 
-function Photo( { url, alt = '' } ) {
+function Photo( { url, srcSet = '', alt = '' } ) {
 	const [ broken, setBroken ] = useState( false );
 	useEffect( () => setBroken( false ), [ url ] );
 	return url && ! broken ? (
 		<img
 			src={ url }
+			srcSet={ srcSet || undefined }
+			sizes={ srcSet ? '(max-width: 480px) 100vw, 320px' : undefined }
 			alt={ alt }
 			loading="lazy"
 			onError={ () => setBroken( true ) }
@@ -129,13 +132,6 @@ function Photo( { url, alt = '' } ) {
 }
 
 function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
-	useEffect( () => {
-		const previous = window.wp.media.view.settings.post.id;
-		window.wp.media.view.settings.post.id = item.id;
-		return () => {
-			window.wp.media.view.settings.post.id = previous;
-		};
-	}, [ item.id ] );
 	const session = useMemo(
 		() => contentSession( item.content.raw ),
 		[ item.content.raw ]
@@ -156,6 +152,13 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 	const [ saved, setSaved ] = useState( item );
 	const savedRef = useRef( saved );
 	savedRef.current = saved;
+	useEffect( () => {
+		const previous = window.wp.media.view.settings.post.id;
+		window.wp.media.view.settings.post.id = saved.id || 0;
+		return () => {
+			window.wp.media.view.settings.post.id = previous;
+		};
+	}, [ saved.id ] );
 	const [ busy, setBusy ] = useState( false );
 	const [ error, setError ] = useState( '' );
 	const [ progress, setProgress ] = useState( '' );
@@ -316,9 +319,12 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 		}
 	}
 	const close = () => ( dirty ? setConfirmClose( true ) : onClose() );
-	const saveStatus = dirty
-		? __( 'Unsaved changes', 'personal-stuff' )
-		: __( 'Saved', 'personal-stuff' );
+	let saveStatus = saved.id
+		? __( 'Saved', 'personal-stuff' )
+		: __( 'Not saved yet', 'personal-stuff' );
+	if ( dirty ) {
+		saveStatus = __( 'Unsaved changes', 'personal-stuff' );
+	}
 	return (
 		<Modal
 			title={
@@ -855,6 +861,7 @@ function Stuff() {
 		search: '',
 	} );
 	const touch = useRef( null );
+	const loadMore = useRef( null );
 	const detail = items.find(
 		( item ) => item.id === Number( route.get( 'item' ) )
 	);
@@ -878,7 +885,11 @@ function Stuff() {
 				[ 'q', 'place', 'tag', 'photo' ].includes( key )
 			)
 		) {
-			setView( ( current ) => ( { ...current, page: 1 } ) );
+			setView( ( current ) => ( {
+				...current,
+				page: 1,
+				perPage: 24,
+			} ) );
 		}
 	}
 	async function load() {
@@ -928,7 +939,9 @@ function Stuff() {
 	const projected = useMemo(
 		() =>
 			items.map( ( item ) => {
-				const content = itemContent( item.content.raw );
+				const content = itemContent(
+					item.content.rendered || item.content.raw
+				);
 				const assigned = termIds( item )
 					.map( ( id ) => vocabulary.byId.get( id ) )
 					.filter( Boolean );
@@ -1020,6 +1033,28 @@ function Stuff() {
 		{ ...view, page: 1, perPage: Math.max( filtered.length, 1 ) },
 		fields
 	).data;
+	useEffect( () => {
+		if ( loading || data.length >= filtered.length || ! loadMore.current ) {
+			return;
+		}
+		const observer = new window.IntersectionObserver(
+			( entries ) => {
+				if ( entries.some( ( entry ) => entry.isIntersecting ) ) {
+					setView( ( current ) => ( {
+						...current,
+						page: 1,
+						perPage: Math.min(
+							( current.perPage || 24 ) + 24,
+							filtered.length
+						),
+					} ) );
+				}
+			},
+			{ rootMargin: '400px 0px' }
+		);
+		observer.observe( loadMore.current );
+		return () => observer.disconnect();
+	}, [ data.length, filtered.length, loading ] );
 	const position = ordered.findIndex( ( item ) => item.id === detail?.id );
 	function step( offset ) {
 		const next = ordered[ position + offset ];
@@ -1027,39 +1062,22 @@ function Stuff() {
 			navigate( { item: next.id } );
 		}
 	}
-	async function createItem() {
-		setLoading( true );
-		setError( '' );
-		try {
-			const ids = [
-				vocabulary.bySlug.get( 'artifact' ).id,
-				vocabulary.bySlug.get( 'stuff-item' ).id,
-			];
-			if (
-				place &&
-				place !== 'unplaced' &&
-				vocabulary.bySlug.has( place )
-			) {
-				ids.push( vocabulary.bySlug.get( place ).id );
-			}
-			const item = await apiFetch( {
-				path: settings.knowledgeRestPath,
-				method: 'POST',
-				data: {
-					title: __( 'Untitled item', 'personal-stuff' ),
-					content: '',
-					status: 'private',
-					[ settings.taxonomyField ]: ids,
-				},
-			} );
-			onSaved( item );
-			setAddingId( item.id );
-			setEditing( item );
-		} catch ( failure ) {
-			setError( failure.message );
-		} finally {
-			setLoading( false );
+	function createItem() {
+		const ids = [
+			vocabulary.bySlug.get( 'artifact' ).id,
+			vocabulary.bySlug.get( 'stuff-item' ).id,
+		];
+		if ( place && place !== 'unplaced' && vocabulary.bySlug.has( place ) ) {
+			ids.push( vocabulary.bySlug.get( place ).id );
 		}
+		setAddingId( 0 );
+		setEditing( {
+			id: 0,
+			title: { raw: '', rendered: '' },
+			content: { raw: '', rendered: '' },
+			modified_gmt: '',
+			[ settings.taxonomyField ]: ids,
+		} );
 	}
 	function onSaved( item ) {
 		setItems( ( current ) =>
@@ -1369,16 +1387,32 @@ function Stuff() {
 				search={ false }
 				actions={ [
 					{
+						id: 'view',
+						label: __( 'View item', 'personal-stuff' ),
+						icon: viewIcon,
+						isPrimary: true,
+						callback: ( rows ) =>
+							navigate( { item: rows[ 0 ].id } ),
+					},
+					{
 						id: 'edit',
 						label: __( 'Edit item', 'personal-stuff' ),
 						icon: edit,
-						isPrimary: true,
 						callback: ( rows ) => setEditing( rows[ 0 ] ),
 					},
 				] }
 				onClickItem={ ( item ) => navigate( { item: item.id } ) }
 				isItemClickable={ () => true }
 			/>
+			{ data.length < filtered.length && (
+				<div
+					ref={ loadMore }
+					className="stuff-load-more"
+					aria-hidden="true"
+				>
+					<Spinner />
+				</div>
+			) }
 			{ loading && <Spinner /> }
 			{ ! loading && route.has( 'item' ) && ! detail && (
 				<Notice status="warning" isDismissible={ false }>

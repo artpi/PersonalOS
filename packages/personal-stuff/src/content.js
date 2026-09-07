@@ -10,6 +10,7 @@ export function itemContent( content ) {
 		photos: Array.from( document.querySelectorAll( 'img' ) ).map(
 			( img ) => ( {
 				url: img.getAttribute( 'src' ),
+				srcSet: img.getAttribute( 'srcset' ) || '',
 				alt: img.getAttribute( 'alt' ) || '',
 			} )
 		),

@@ -232,6 +232,16 @@ body.wp-app-body.personalos-wp-app-body.personalos-wp-app-stuff {
 	background: transparent;
 }
 
+.personal-stuff .dataviews-pagination {
+	display: none;
+}
+
+.stuff-load-more {
+	display: flex;
+	justify-content: center;
+	min-height: 48px;
+}
+
 .personal-stuff .dataviews__view-actions {
 	padding: 0;
 	margin: 0 0 12px;
