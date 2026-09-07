@@ -24,6 +24,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'name'    => 'Private token for accessing the podcast feed',
 				'label'   => strlen( $token ) < 3 ? 'You need a token longer than 3 characters to enable the podcast feed' : 'Your feed is accessible <a href="' . add_query_arg( 'token', $token, get_rest_url( null, $this->rest_namespace . '/ai-podcast' ) ) . '" target="_blank">here</a>',
 				'default' => '0',
+				'scope'   => 'user',
 			),
 			'tts_service' => array(
 				'type'    => 'select',
@@ -33,6 +34,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'options' => array(
 					'openai-gpt4o-audio' => 'OpenAI GPT-4o Audio',
 				),
+				'scope'   => 'global',
 			),
 		);
 		if ( $this->elevenlabs->is_configured() ) {
@@ -42,6 +44,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'name'    => 'ElevenLabs Voice ID',
 				'label'   => 'The voice to use for your motivational podcast. Add this voice to your account or paste another id <a href="https://elevenlabs.io/app/voice-lab/share/f441776f9bb056eb2295e030ffce576ee35583946b9d95b273731d9887cb51e9/jB108zg64sTcu1kCbN9L" target="_blank">here</a>',
 				'default' => 'jB108zg64sTcu1kCbN9L',
+				'scope'   => 'global',
 			);
 		}
 
@@ -55,6 +58,32 @@ class POS_AI_Podcast_Module extends POS_Module {
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ), 10, 1 );
 
+	}
+
+	/**
+	 * Locate the user that owns a given podcast token.
+	 *
+	 * @param string $token Token from the request.
+	 * @return WP_User|null
+	 */
+	private function get_user_for_token( string $token ): ?WP_User {
+		return $this->find_user_for_setting_token( 'token', $token );
+	}
+
+	/**
+	 * Authorize a REST request by token.
+	 *
+	 * @param string $token Token from the request.
+	 * @return bool
+	 */
+	private function authorize_token( string $token ): bool {
+		$user = $this->get_user_for_token( $token );
+		if ( ! $user ) {
+			return false;
+		}
+
+		wp_set_current_user( $user->ID );
+		return true;
 	}
 
 	public function admin_menu() {
@@ -116,6 +145,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 			array(
 				'post_type'   => 'attachment',
 				'post_status' => 'private, publish, inherit',
+				'author'      => get_current_user_id(),
 				'meta_query'  => array(
 					array(
 						'key'     => 'pos_podcast',
@@ -125,27 +155,28 @@ class POS_AI_Podcast_Module extends POS_Module {
 			)
 		);
 		global $post;
-		header( 'Content-Type: ' . feed_content_type( 'rss-http' ) . '; charset=' . get_option( 'blog_charset' ), true );
-		echo '<?xml version="1.0" encoding="' . get_option( 'blog_charset' ) . '"?' . '>';
+		$blog_charset = esc_attr( get_option( 'blog_charset' ) );
+		header( 'Content-Type: ' . feed_content_type( 'rss-http' ) . '; charset=' . $blog_charset, true );
+		echo '<?xml version="1.0" encoding="' . esc_attr( $blog_charset ) . '"?' . '>';
 		?>
 
 		<?php // Start the iTunes RSS Feed: https://www.apple.com/itunes/podcasts/specs.html ?>
 		<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" version="2.0">
 		<channel>
-			<title>Good morning from <?php echo get_bloginfo( 'name' ); ?></title>
-			<link><?php echo get_bloginfo( 'url' ); ?></link>
-			<language><?php echo get_bloginfo( 'language' ); ?></language>
-			<copyright><?php echo date( 'Y' ); ?> <?php echo get_bloginfo( 'name' ); ?></copyright>
-			<itunes:author><?php echo get_bloginfo( 'name' ); ?></itunes:author>
+			<title>Good morning from <?php echo esc_html( get_bloginfo( 'name' ) ); ?></title>
+			<link><?php echo esc_url( get_bloginfo( 'url' ) ); ?></link>
+			<language><?php echo esc_html( get_bloginfo( 'language' ) ); ?></language>
+			<copyright><?php echo esc_html( gmdate( 'Y' ) ); ?> <?php echo esc_html( get_bloginfo( 'name' ) ); ?></copyright>
+			<itunes:author><?php echo esc_html( get_bloginfo( 'name' ) ); ?></itunes:author>
 			<itunes:summary>Private podcast with all the hype and energy you need to start your day.</itunes:summary>
 			<itunes:owner>
-			<itunes:name><?php echo get_bloginfo( 'name' ); ?></itunes:name>
-			<itunes:email><?php echo get_bloginfo( 'admin_email' ); ?></itunes:email>
+			<itunes:name><?php echo esc_html( get_bloginfo( 'name' ) ); ?></itunes:name>
+			<itunes:email><?php echo esc_html( get_bloginfo( 'admin_email' ) ); ?></itunes:email>
 			</itunes:owner>
 			<?php
 				$logo = get_custom_logo();
 			if ( $logo ) {
-				echo "<itunes:image href=\"{$logo}\" />";
+				echo '<itunes:image href="' . esc_url( $logo ) . '" />';
 			}
 			?>
 
@@ -161,13 +192,13 @@ class POS_AI_Podcast_Module extends POS_Module {
 				?>
 			<item>
 			<title><?php the_title_rss(); ?></title>
-			<itunes:author><?php echo get_bloginfo( 'name' ); ?></itunes:author>
+			<itunes:author><?php echo esc_html( get_bloginfo( 'name' ) ); ?></itunes:author>
 			<itunes:summary></itunes:summary>
 				<?php
 				$attachment_id = $post->ID;
 				$fileurl = wp_get_attachment_url( $attachment_id );
 				$filesize = filesize( get_attached_file( $attachment_id ) );
-				$dateformatstring = _x( 'D, d M Y H:i:s O', 'Date formating for iTunes feed.' );
+				$dateformatstring = _x( 'D, d M Y H:i:s O', 'Date formating for iTunes feed.', 'personalos' );
 				?>
 
 			<enclosure url="<?php echo esc_url( $fileurl ); ?>" length="<?php echo esc_attr( $filesize ); ?>" type="audio/mpeg" />
@@ -203,11 +234,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'methods'             => 'GET',
 				'callback'            => array( $this, 'output_feed' ),
 				'permission_callback' => function( $request ) {
-					$token = $this->get_setting( 'token' );
-					if ( strlen( $token ) < 3 ) {
-						return false;
-					}
-					return $token === $request->get_param( 'token' );
+					return $this->authorize_token( (string) $request->get_param( 'token' ) );
 				},
 			)
 		);
@@ -230,7 +257,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 					return $this->generate( $request->has_param( 'prompt_id' ) ? $request->get_param( 'prompt_id' ) : null );
 				},
 				'permission_callback' => function( $request ) {
-					return true;
+					return $this->authorize_token( (string) $request->get_param( 'token' ) );
 				},
 			)
 		);
@@ -268,6 +295,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 				'post_type'      => 'todo',
 				'post_status'    => array( 'publish', 'private' ),
 				'posts_per_page' => 25,
+				'author'         => get_current_user_id(),
 				'tax_query'      => array(
 					array(
 						'taxonomy' => 'notebook',
@@ -288,7 +316,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 							array_map(
 								function( $term ) {
 									$termmeta = get_term_meta( $term->term_id, 'flag' );
-									if ( ! in_array( 'project', $termmeta ) ) {
+									if ( ! in_array( 'project', $termmeta, true ) ) {
 										return '';
 									}
 									return '#' . $term->name;
@@ -316,6 +344,7 @@ class POS_AI_Podcast_Module extends POS_Module {
 			array(
 				'post_type'   => 'attachment',
 				'post_status' => 'private',
+				'author'      => get_current_user_id(),
 				'meta_query'  => array(
 					array(
 						'key'     => 'pos_podcast',

@@ -52,6 +52,7 @@ class POS_Ollama_Server {
 			'name'    => 'Token for authorizing OLLAMA mock API.',
 			'label'   => strlen( $token ) < 3 ? 'Set a token to enable Ollama-compatible API for external clients' : 'OLLAMA Api accessible at <a href="' . add_query_arg( 'token', $token, get_rest_url( null, $this->rest_namespace ) ) . '" target="_blank">here</a>',
 			'default' => '0',
+			'scope'   => 'user',
 		);
 		if ( strlen( $token ) >= 3 ) {
 			// Initialize models lazily when needed, not during construction.
@@ -138,17 +139,14 @@ class POS_Ollama_Server {
 	}
 
 	public function check_permission( WP_REST_Request $request ) {
-		$token = $request->get_param( 'token' );
-		if ( $token === $this->module->get_setting( 'ollama_auth_token' ) ) {
-			// Switch to the async jobs user if configured.
-			// @TODO actually make this endpoint authorize by user and store tokens in user meta.
-			$notes_module = POS::get_module_by_id( 'notes' );
-			if ( $notes_module ) {
-				$notes_module->switch_to_user();
-			}
-			return true;
+		$token = (string) $request->get_param( 'token' );
+		$user  = $this->get_user_for_token( $token, 'ollama_auth_token' );
+		if ( ! $user ) {
+			return false;
 		}
-		return false;
+
+		wp_set_current_user( $user->ID );
+		return true;
 	}
 
 	/**
@@ -775,5 +773,50 @@ Used for testing and development purposes only.
 			array( 'models' => $running_models ),
 			200
 		);
+	}
+
+	/**
+	 * Resolve WordPress user for a provided token.
+	 *
+	 * @param string $token      Token string from the request.
+	 * @param string $setting_id Related OpenAI module setting id.
+	 * @return WP_User|null
+	 */
+	private function get_user_for_token( string $token, string $setting_id ): ?WP_User {
+		if ( method_exists( $this->module, 'find_user_for_setting_token' ) ) {
+			$user = $this->module->find_user_for_setting_token( $setting_id, $token );
+			if ( $user instanceof WP_User ) {
+				return $user;
+			}
+		}
+
+		if ( strlen( $token ) < 3 ) {
+			return null;
+		}
+
+		global $wpdb;
+		$meta_key = 'pos_' . $this->module->id . '_' . $setting_id;
+		$user_id  = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = %s AND meta_value = %s LIMIT 1",
+				$meta_key,
+				$token
+			)
+		);
+
+		if ( ! $user_id ) {
+			return null;
+		}
+
+		$user = get_user_by( 'ID', (int) $user_id );
+		if ( ! $user instanceof WP_User ) {
+			return null;
+		}
+
+		if ( ! user_can( $user, 'use_personalos' ) ) {
+			return null;
+		}
+
+		return $user;
 	}
 }
