@@ -9,7 +9,7 @@ Use the site's existing authenticated WordPress connection. Discover the availab
 
 ## Resolve vocabulary and access
 
-1. Confirm `wp_knowledge` and hierarchical `wp_knowledge_type` exist. Discover their REST routes/fields from `/wp/v2/types/wp_knowledge` and `/wp/v2/taxonomies/wp_knowledge_type`, or equivalent existing tools. The Knowledge collection is `/wp/v2/knowledge`.
+1. Confirm `wp_knowledge` and hierarchical `wp_knowledge_type` exist. Discover their REST routes/fields from `/wp/v2/types/wp_knowledge` and `/wp/v2/taxonomies/wp_knowledge_type`, or equivalent existing tools. The Knowledge collection is `/wp/v2/knowledge`. Read the taxonomy schema's `rest_namespace` and `rest_base` before querying terms; the resulting term collection may be `/wp/v2/wp_knowledge_type`, not an assumed pluralized route such as `/wp/v2/knowledge-types`.
 2. Resolve terms by slugs `artifact`, `stuff`, `stuff-item`, `stuff-places`, `stuff-tags`; include `hide_empty=false`. Follow REST pagination. Never persist root IDs in options or another registry.
 3. If fixed roots are absent, report that Personal Stuff must be activated with Knowledge available. Do not invent parallel taxonomies or create place posts.
 4. Only operate within the authenticated user's existing permissions. Private item access does not make Media file URLs or raw taxonomy terms private.
@@ -54,6 +54,19 @@ Term deletion removes assignments and reparents children according to WordPress 
 6. Removing an image block retains the Media attachment. Use WordPress's normal Media controls for an explicitly requested permanent deletion.
 
 Random filenames provide hard-to-guess public URLs, not private media. Do not claim otherwise. Existing attachment names are unchanged; original image metadata may remain. Do not rename unrelated uploads or existing files retroactively.
+
+When the user wants an external photo copied into Personal Stuff, retrieve and validate the image bytes, then upload them as Media attached to the saved item; do not leave an external image block in that case. Prefer a confirmed original-quality image over a derivative when both are available, but retain the provided URL as a fallback. Use the authorized client for protected images instead of assuming a share or display URL is directly downloadable.
+
+WordPress may add ordinary derivative suffixes such as `-scaled` or `-rotated`. When checking filename randomization, verify that the unpredictable stem remains intact rather than requiring the final filename to contain only the stem and extension.
+
+## Large batch operations
+
+- Preflight the intended item, place, tag, and photo counts. Validate identifiers, parent references, hierarchy cycles, missing photo sources, and ambiguous names before writing.
+- Start with one representative item and verify its status, terms, place path, Media parent, content blocks, and visible photo before continuing.
+- Use deterministic pagination such as `orderby=id&order=asc`. Date-only ordering can omit or repeat rows at page boundaries when timestamps are tied. Respect the core `per_page` limit and follow every page.
+- Keep resumability state local and temporary. It may map operation input identifiers to created post, term, and attachment IDs, but must not add import IDs, locks, registries, options, or custom fields to Personal Stuff data.
+- Save and record each successful photo before continuing. A batch may continue past an isolated failure only when the caller authorized that behavior and the final report identifies every incomplete item or photo.
+- Finish with an independent read-back reconciliation. Check exact counts, term parent relationships, private item status and assignments, Media parents, attachment references and order in serialized content, and randomized filename stems. Do not treat the write loop's own success messages as sufficient verification.
 
 ## UI handoff
 
