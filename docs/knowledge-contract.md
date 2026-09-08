@@ -35,6 +35,12 @@ raw terms, including system/container terms. Stuff's app assigns leaf terms but
 also preserves unrelated terms. Do not impose a global prohibition that changes
 the native editor. See each package contract for its identity and assignment rules.
 
+The core Knowledge Type REST collection preserves stored term descriptions. When
+Personal Stuff is active and a description is empty, its shared vocabulary adds
+a response-only derived role and root-to-leaf name/ID path, so constrained
+clients can classify a paginated term without resolving its parents. This never
+writes generated text to WordPress term storage.
+
 ## Integration boundaries
 
 Shared base classes own settings, assets, logging and Knowledge access without a

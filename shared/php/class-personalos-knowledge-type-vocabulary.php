@@ -11,6 +11,13 @@ if ( ! class_exists( 'PersonalOS_Knowledge_Type_Vocabulary' ) ) {
 	 */
 	class PersonalOS_Knowledge_Type_Vocabulary {
 		/**
+		 * Whether the core Knowledge Type REST response filter is registered.
+		 *
+		 * @var bool
+		 */
+		private static $rest_descriptions_registered = false;
+
+		/**
 		 * Knowledge bridge.
 		 *
 		 * @var PersonalOS_Knowledge_Bridge
@@ -33,6 +40,174 @@ if ( ! class_exists( 'PersonalOS_Knowledge_Type_Vocabulary' ) ) {
 		 */
 		public function register_type_labels() {
 			add_filter( 'wp_knowledge_types', array( $this, 'filter_type_labels' ) );
+		}
+
+		/**
+		 * Register derived descriptions on core Knowledge Type REST responses.
+		 *
+		 * @return void
+		 */
+		public function register_rest_descriptions() {
+			if ( ! self::$rest_descriptions_registered ) {
+				add_filter( 'rest_prepare_wp_knowledge_type', array( $this, 'add_rest_term_description' ), 10, 3 );
+				self::$rest_descriptions_registered = true;
+			}
+		}
+
+		/**
+		 * Describe otherwise empty Knowledge Type terms in core REST responses.
+		 *
+		 * Native term descriptions remain user-authored content. The response-only
+		 * fallback lets clients that cannot resolve the full term hierarchy identify
+		 * structural terms and Personal Stuff places from a single paginated row.
+		 *
+		 * @param WP_REST_Response $response REST response.
+		 * @param WP_Term          $term     Prepared Knowledge Type term.
+		 * @param WP_REST_Request  $request  REST request.
+		 * @return WP_REST_Response
+		 */
+		public function add_rest_term_description( WP_REST_Response $response, WP_Term $term, WP_REST_Request $request ) {
+			if ( '' !== trim( $term->description ) ) {
+				return $response;
+			}
+
+			$data                = $response->get_data();
+			$data['description'] = $this->rest_term_description( $term );
+			$response->set_data( $data );
+
+			return $response;
+		}
+
+		/**
+		 * Build a derived description for a Knowledge Type REST row.
+		 *
+		 * @param WP_Term $term Knowledge Type term.
+		 * @return string
+		 */
+		private function rest_term_description( WP_Term $term ) {
+			$description = $this->rest_term_role_description( $term );
+			$path        = $this->rest_term_path( $term );
+
+			return sprintf(
+				/* translators: 1: Knowledge Type role, 2: hierarchical term path. */
+				__( '%1$s Path: %2$s', 'personalos' ),
+				$description,
+				implode( ' › ', $path )
+			);
+		}
+
+		/**
+		 * Get the derived role description for a Knowledge Type term.
+		 *
+		 * @param WP_Term $term Knowledge Type term.
+		 * @return string
+		 */
+		private function rest_term_role_description( WP_Term $term ) {
+			$path_slugs = $this->rest_term_path_slugs( $term );
+
+			if ( in_array( 'stuff-places', $path_slugs, true ) ) {
+				return __( 'Personal Stuff place.', 'personalos' );
+			}
+
+			if ( in_array( 'stuff-tags', $path_slugs, true ) ) {
+				return __( 'Personal Stuff tag.', 'personalos' );
+			}
+
+			$descriptions = array(
+				'artifact'     => __( 'Knowledge artifact container.', 'personalos' ),
+				'note'         => __( 'Personal Notes type.', 'personalos' ),
+				'daily-note'   => __( 'Personal Notes daily-note type.', 'personalos' ),
+				'todo'         => __( 'Personal TODO type.', 'personalos' ),
+				'conversation' => __( 'Personal AI Chat conversation type.', 'personalos' ),
+				'memory'       => __( 'Knowledge memory type.', 'personalos' ),
+				'skill'        => __( 'Knowledge skill type.', 'personalos' ),
+				'source'       => __( 'Knowledge source container.', 'personalos' ),
+				'manual'       => __( 'Manually created Knowledge source.', 'personalos' ),
+				'synced'       => __( 'Synced Knowledge source.', 'personalos' ),
+				'readwise'     => __( 'Readwise Knowledge source.', 'personalos' ),
+				'evernote'     => __( 'Evernote Knowledge source.', 'personalos' ),
+				'ai-chat'      => __( 'Personal AI Chat Knowledge source.', 'personalos' ),
+				'personalos'   => __( 'PersonalOS Knowledge source.', 'personalos' ),
+				'status'       => __( 'Knowledge status container.', 'personalos' ),
+				'inbox'        => __( 'Knowledge inbox status.', 'personalos' ),
+				'now'          => __( 'Knowledge current-status type.', 'personalos' ),
+				'later'        => __( 'Knowledge later-status type.', 'personalos' ),
+				'follow-up'    => __( 'Knowledge follow-up status.', 'personalos' ),
+				'project'      => __( 'PARA projects container.', 'personalos' ),
+				'area'         => __( 'PARA areas container.', 'personalos' ),
+				'resource'     => __( 'PARA resources container.', 'personalos' ),
+				'reference'    => __( 'PARA reference type.', 'personalos' ),
+				'archive'      => __( 'PARA archive container.', 'personalos' ),
+				'starred'      => __( 'Knowledge starred marker.', 'personalos' ),
+				'stuff'        => __( 'Personal Stuff container.', 'personalos' ),
+				'stuff-item'   => __( 'Personal Stuff item type.', 'personalos' ),
+				'stuff-places' => __( 'Personal Stuff places container.', 'personalos' ),
+				'stuff-tags'   => __( 'Personal Stuff tags container.', 'personalos' ),
+			);
+
+			return isset( $descriptions[ $term->slug ] ) ? $descriptions[ $term->slug ] : __( 'Knowledge Type.', 'personalos' );
+		}
+
+		/**
+		 * Get the term path formatted with names and IDs.
+		 *
+		 * @param WP_Term $term Knowledge Type term.
+		 * @return string[]
+		 */
+		private function rest_term_path( WP_Term $term ) {
+			$terms = $this->rest_term_path_terms( $term );
+
+			return array_map(
+				function ( $path_term ) {
+					return sprintf(
+						/* translators: 1: Knowledge Type name, 2: Knowledge Type ID. */
+						__( '%1$s (%2$d)', 'personalos' ),
+						$path_term->name,
+						$path_term->term_id
+					);
+				},
+				$terms
+			);
+		}
+
+		/**
+		 * Get the term slugs in its root-to-leaf path.
+		 *
+		 * @param WP_Term $term Knowledge Type term.
+		 * @return string[]
+		 */
+		private function rest_term_path_slugs( WP_Term $term ) {
+			return array_map(
+				function ( $path_term ) {
+					return $path_term->slug;
+				},
+				$this->rest_term_path_terms( $term )
+			);
+		}
+
+		/**
+		 * Get a term's root-to-leaf path without following malformed cycles.
+		 *
+		 * @param WP_Term $term Knowledge Type term.
+		 * @return WP_Term[]
+		 */
+		private function rest_term_path_terms( WP_Term $term ) {
+			$terms     = array( $term );
+			$seen_ids  = array( (int) $term->term_id );
+			$parent_id = (int) $term->parent;
+
+			while ( $parent_id && ! in_array( $parent_id, $seen_ids, true ) ) {
+				$parent = get_term( $parent_id, $this->bridge->type_taxonomy() );
+				if ( ! $parent || is_wp_error( $parent ) ) {
+					break;
+				}
+
+				array_unshift( $terms, $parent );
+				$seen_ids[] = (int) $parent->term_id;
+				$parent_id  = (int) $parent->parent;
+			}
+
+			return $terms;
 		}
 
 		/**

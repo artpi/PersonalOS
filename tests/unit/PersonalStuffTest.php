@@ -47,6 +47,32 @@ class PersonalStuffTest extends WP_UnitTestCase {
 		$this->assertSame( $before, $wpdb->get_col( "SELECT option_name FROM $wpdb->options WHERE option_name LIKE 'personal_stuff_%'" ) );
 	}
 
+	public function test_core_term_rest_descriptions_explain_empty_terms_without_changing_stored_descriptions() {
+		$this->plugin->vocabulary()->register_rest_descriptions();
+		$place = wp_insert_term( 'Blaszak', 'wp_knowledge_type', array( 'parent' => $this->ids['stuff-places'] ) );
+		$tag   = wp_insert_term( 'Travel', 'wp_knowledge_type', array( 'parent' => $this->ids['stuff-tags'], 'description' => 'Used away from home.' ) );
+		$server = rest_get_server();
+		do_action( 'rest_api_init', $server );
+		$request  = new WP_REST_Request( 'GET', rest_get_route_for_taxonomy_items( 'wp_knowledge_type' ) );
+		$request->set_param( 'context', 'edit' );
+		$request->set_param( 'hide_empty', false );
+		$response = $server->dispatch( $request );
+		$terms    = array_column( $response->get_data(), null, 'id' );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame(
+			sprintf(
+				'Personal Stuff place. Path: Stuff (%d) › Places (%d) › Blaszak (%d)',
+				$this->ids['stuff'],
+				$this->ids['stuff-places'],
+				$place['term_id']
+			),
+			$terms[ $place['term_id'] ]['description']
+		);
+		$this->assertSame( 'Used away from home.', $terms[ $tag['term_id'] ]['description'] );
+		$this->assertSame( '', get_term( $place['term_id'], 'wp_knowledge_type' )->description );
+	}
+
 	public function test_provisioning_can_be_deferred_until_knowledge_exists() {
 		unregister_taxonomy( 'wp_knowledge_type' );
 		$this->assertSame( array(), $this->plugin->ensure_terms() );

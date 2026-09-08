@@ -36,6 +36,8 @@ class Personal_Stuff_Plugin extends PersonalOS_Plugin_Base {
 
 	/** Register only native integrations; no package REST or storage. */
 	public function register() {
+		$this->vocabulary()->register_type_labels();
+		$this->vocabulary()->register_rest_descriptions();
 		$this->register_missing_knowledge_notice();
 		$this->register_wp_app( array( $this, 'render_app' ) );
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );

@@ -64,6 +64,7 @@ PHP passes paths discovered with `rest_get_route_for_post_type_items` and `rest_
 
 - Knowledge collection/item CRUD: `/wp/v2/knowledge`, using `context=edit` for raw content.
 - Terms: resolved core Knowledge Type REST collection; paginate all terms and expand descendants in JS.
+- Empty term descriptions in that core collection receive a response-only, derived role and root-to-leaf path with term IDs. Stored descriptions are never changed.
 - Files: `/wp/v2/media`, with `post=<item ID>` on upload.
 
 Every permission decision is WordPress's existing post, term or attachment permission. Taxonomy terms retain the Knowledge runtime's native visibility. No claim is made that raw term names/descriptions are private merely because the app is private.
