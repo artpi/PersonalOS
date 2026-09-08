@@ -61,3 +61,6 @@ src-chatbot/test-results/
 src-chatbot/playwright-report/
 src-chatbot/blob-report/
 src-chatbot/playwright/*
+
+# Private local operations and deployment artifacts
+/tools/local/
