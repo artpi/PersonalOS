@@ -64,6 +64,7 @@ PHP passes paths discovered with `rest_get_route_for_post_type_items` and `rest_
 
 - Knowledge collection/item CRUD: `/wp/v2/knowledge`, using `context=edit` for raw content.
 - Terms: resolved core Knowledge Type REST collection; paginate all terms and expand descendants in JS.
+- Empty term descriptions in that core collection receive a response-only, derived role and root-to-leaf path with term IDs. Stored descriptions are never changed.
 - Files: `/wp/v2/media`, with `post=<item ID>` on upload.
 
 Every permission decision is WordPress's existing post, term or attachment permission. Taxonomy terms retain the Knowledge runtime's native visibility. No claim is made that raw term names/descriptions are private merely because the app is private.
@@ -90,3 +91,9 @@ The suite config mounts Stuff with Notes and the other packages. `.wp-env.person
 `PersonalStuffTest` covers idempotent/deferred raw terms without plugin options, Notes editor compatibility, private native REST rows, unknown content/unrelated term retention, permission-scoped filenames and raw-body upload derivatives. JS tests use the core serializer for gallery validity/order, unknown block retention, description isolation, and accent/typo/path search. The Jest command selects Node exports for dependencies while retaining JSDOM for block serialization.
 
 Browser checks should cover term parent changes, a camera/file upload, gallery caption/order, inline description editing, native Gutenberg round trips with Notes active, URL filters, collection navigation, responsive layout, and Print/PDF. Check anonymous app access and inspect attachment filenames and generated sizes. Do not cache authenticated responses in a broad service worker.
+
+## Design feedback
+
+[Session-derived UX feedback](../../docs/personal-stuff-ux-feedback.md) provides
+context for search, photos and mobile editing. Use the current contract above
+when older feedback describes superseded behavior.

@@ -17,7 +17,6 @@ These are roughly the features I want to implement. They are meant to be
 - We need proper Unit Testing for everything
 - Notes: Note should be attachable to URLs. Then we can write a Chrome plugin or something similar to display "notes" once URL is visited.
 - We need a tool to send emails
-- Docs: Write cursor rules and docs explaining how to create a new module and a tool.
 - Openverse has some good epic soundtracks for the background of motivational prompt: https://openverse.org/search/audio?q=epic+cinematic+motivational
 - Need to implement UX for Notebooks, similar to how Todos are using Data Views. Then implement a dashboard for Bucketlists.
 - Need integration with Google Calendar, Google Docs, Google Drive and other google services to sync data.
@@ -53,5 +52,3 @@ These are roughly the features I want to implement. They are meant to be
 ---
 
 - Explanation how saving convesation works
-- Cursor rule about running tests after every big change
-- Cursor rule about noting what you learned
