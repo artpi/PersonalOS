@@ -1,9 +1,0 @@
----
-description: Local WordPress development, tests and environment repair
-globs: .wp-env*.json,package.json,composer.json,tests/**,tools/**
-alwaysApply: false
----
-Use [Development](../../docs/development.md) for current commands, fixture
-boundaries, focused verification and routine local environment repair.
-Use [Packaging](../../docs/packaging.md) for package versions and deployment.
-Do not substitute legacy monolith commands for the current split-package flow.

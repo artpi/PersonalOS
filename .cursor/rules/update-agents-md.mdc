@@ -1,9 +1,0 @@
----
-description: Maintain current, scoped contributor and technical guidance
-globs: AGENTS.md,packages/**/TECHNICAL.md,modules/**/TECHNICAL.md,docs/*.md
-alwaysApply: false
----
-Follow [Maintaining instructions](../../AGENTS.md#maintaining-instructions).
-Replace superseded rules instead of appending contradictory lessons. Put package
-contracts beside their source, shared contracts in `docs/`, and link new current
-contracts from AGENTS.md. Legacy module docs remain scoped to legacy work.

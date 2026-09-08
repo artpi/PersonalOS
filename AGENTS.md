@@ -33,10 +33,11 @@ an explicit behavior comparison.
 - Prefer native WordPress APIs, storage and components. Add helpers only for a
   meaningful domain rule, useful reuse, or an intentional override point.
   Avoid speculative registries, migration layers and broad style refactors.
-- Apply the repo's PHP/JS standards when changing that language; see
-  `.cursor/rules/wordpress-coding-standards/`. The optional personal
-  `artpi-wp-php-style` skill supplements the repo's actual lint configuration.
-  Do not impose WordPress formatting on the separate legacy Next.js app.
+- Apply the repository's PHPCS and WordPress Scripts lint configuration when
+  changing PHP or JavaScript; use the focused commands in `docs/development.md`.
+  The optional personal `artpi-wp-php-style` skill supplements the actual lint
+  configuration. Do not impose WordPress formatting on the separate legacy
+  Next.js app.
 - Match validation to the changed behavior. UI work needs a browser check of
   the interaction and resulting state; activation or a build alone is not UI
   verification. See the development guide for commands and test boundaries.

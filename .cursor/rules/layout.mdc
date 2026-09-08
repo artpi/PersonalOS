@@ -1,9 +1,0 @@
----
-description: PersonalOS repository layout and contributor guidance
-globs:
-alwaysApply: true
----
-Read [AGENTS.md](../../AGENTS.md) for the current architecture and task-specific
-reference routing. Current plugins live in `packages/` with helpers in
-`shared/php`. The root plugin, `modules/`, and `src-chatbot/` are legacy.
-WordPress formatting does not apply to the separate Next.js app.
