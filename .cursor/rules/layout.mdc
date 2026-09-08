@@ -1,13 +1,9 @@
 ---
-description: 
-globs: 
+description: PersonalOS repository layout and contributor guidance
+globs:
 alwaysApply: true
 ---
-This is a repository with a project called PersonalOS.
-It is a WordPress plugin that turns WordPress into a personal productivity system.
-
-Here are the different directories:
-
-- `src-chatbot` is a directory with a NextJS app that DOES NOT conform to WordPress rules. DO NOT apply the wordpress formatting rules there. This app builds to the `build/chatbot` and is included in WordPress plugin distribution
-- `src` are the JS components and Gutenberg blocks for the plugin
-- `modules` are different modules for the plugin. Each functionality is wrapped in a module inheriting `class-pos-module.php`
+Read [AGENTS.md](../../AGENTS.md) for the current architecture and task-specific
+reference routing. Current plugins live in `packages/` with helpers in
+`shared/php`. The root plugin, `modules/`, and `src-chatbot/` are legacy.
+WordPress formatting does not apply to the separate Next.js app.

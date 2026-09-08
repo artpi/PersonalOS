@@ -1,20 +1,9 @@
 ---
-description: 
-globs: 
-alwaysApply: true
+description: Local WordPress development, tests and environment repair
+globs: .wp-env*.json,package.json,composer.json,tests/**,tools/**
+alwaysApply: false
 ---
-The dev environment is managed by the `wp-env` package.
-In order to run code and run tests, you need to use the proper syntax to run commands.
-
-If you think the test environment failed DO NOT TRY TO FIX IT. Tell me.
-
-## Testing Commands
-
-- To run unit tests, you would `npm run test:unit:backend`
-- To read the debug.log you would `npm run wp-env run cli -- tail -n 100 wp-content/debug.log`
-- To run a wp-cli "wp pos" command you would do `npm run wp-env run cli wp pos`
-
-## Versioning
-
-- Version numbers must use three-part semantic versioning format (e.g., `0.3.0`, not `0.3`)
-- Update version in both `personalos.php` (plugin header and `$version` property) and `package.json`
+Use [Development](../../docs/development.md) for current commands, fixture
+boundaries, focused verification and routine local environment repair.
+Use [Packaging](../../docs/packaging.md) for package versions and deployment.
+Do not substitute legacy monolith commands for the current split-package flow.

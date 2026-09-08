@@ -1,107 +1,63 @@
-This is a WordPress plugin serving as Personal Operating System with todos, notes, ai integration etc.
+# PersonalOS contributor guidance
 
-## Other files you should read
+PersonalOS is a monorepo of six independent WordPress plugins built on Knowledge.
+The current code lives in `packages/`, with bundled helpers in `shared/php`.
+The root `personalos.php`, `modules/`, and `src-chatbot/` belong to the legacy
+monolith; do not activate it alongside the split suite.
 
-- .cursor/rules/layout.mdc to learn about the layout of the repository, what dir does what
-- .cursor/rules/dev-environment.mdc to learn about dev environment and testing environment
-- .cursor/rules/wordpress-coding-standards/wordpress-coding-standards-php.mdc to learn about standards for php
-- .cursor/rules/wordpress-coding-standards/wordpress-coding-standards-javascript.mdc to learn about standards for js.
+## Read for the task
 
-## Module Technical Documentation
+Read the relevant contract before changing its behavior; do not load every
+reference for an unrelated edit.
 
-Modules can have TECHNICAL.md files that document their technical implementation details, architecture, and design decisions. These files are valuable for understanding how specific modules work.
+| Work area | Guidance |
+| --- | --- |
+| Shared Knowledge storage, terms, permissions, interoperability | [Knowledge contract](docs/knowledge-contract.md) |
+| Local setup, tests, lint, environment repair | [Development](docs/development.md) |
+| ZIPs, CI, releases, deployment | [Packaging](docs/packaging.md) |
+| Stuff UI, media, taxonomy, operating API | [Stuff contract](packages/personal-stuff/TECHNICAL.md) and [operating skill](packages/personal-stuff/skills/personal-stuff/SKILL.md) |
+| TODO storage, recurrence, history, ICS, abilities | [TODO contract](packages/personal-todo/TECHNICAL.md) |
+| Notes library and native editors | [Notes contract](packages/personal-notes/TECHNICAL.md) |
+| AI Chat | [AI Chat contract](packages/personal-ai-chat/TECHNICAL.md) |
+| Readwise and Evernote | [Sync contracts](docs/sync-contracts.md) |
+| Public landing page | Static site in `docs/`; use synthetic screenshot data, distinguish four apps from two sync integrations, and verify release assets before advertising downloads. Attach a full-page screenshot to landing-page PRs. |
 
-### Current TECHNICAL.md files
+`docs/*-plan.md` files record design history; use current contracts and source
+for implementation. Read legacy module documentation only for legacy work or
+an explicit behavior comparison.
 
-- `modules/imap/TECHNICAL.md` - Technical documentation for the IMAP module
-- `modules/openai/TECHNICAL.md` - Technical documentation for the OpenAI module
-- `modules/slack/TECHNICAL.md` - Technical documentation for the Slack integration module
-- `packages/personal-todo/TECHNICAL.md` - Canonical storage, lifecycle, API, and testing contract for Personal TODO
+## Working agreements
 
-## Coding
+- Preserve unrelated tracked and untracked work. If a requested fresh branch
+  would disturb it, use a separate worktree from the requested base.
+- Prefer native WordPress APIs, storage and components. Add helpers only for a
+  meaningful domain rule, useful reuse, or an intentional override point.
+  Avoid speculative registries, migration layers and broad style refactors.
+- Apply the repo's PHP/JS standards when changing that language; see
+  `.cursor/rules/wordpress-coding-standards/`. The optional personal
+  `artpi-wp-php-style` skill supplements the repo's actual lint configuration.
+  Do not impose WordPress formatting on the separate legacy Next.js app.
+- Match validation to the changed behavior. UI work needs a browser check of
+  the interaction and resulting state; activation or a build alone is not UI
+  verification. See the development guide for commands and test boundaries.
+- Carry authorization through the requested deliverable: a request to create
+  or update a PR includes scoped commits and pushes. A review-only request does
+  not. Report the branch, push status, PR URL, validation and remaining blockers.
+  Do not infer deployment or merging from a request to open a PR.
+- Private deployment helpers and artifacts belong in ignored `tools/local/`.
+  Inspect them only when needed for an explicitly requested deployment; keep
+  host details, backups and credentials out of tracked documentation.
 
-Assume environment is set up.
+## Maintaining instructions
 
-- `composer run lint -- "file/path"` to lint
-- `composer run phpcbf -- "file/path"` to format entire file, including whitespace. Dont try to use python or other scripts to add whitespace.
-- `npm run test:unit:backend` to run tests. Feel free to run them often.
+Update the existing rule when a decision changes and remove the superseded
+rule. Add only durable guidance not already documented. Put package behavior
+in its technical contract, shared behavior in the shared contracts, and session
+progress or unresolved bugs in the issue/PR rather than a growing Lessons list.
+For durable domain records, document stored versus derived fields, lifecycle,
+API shape, permissions and regression checks in the package contract. Update the
+routing table when adding a contract. Distinguish required behavior
+from verified implementation; do not document an unfixed bug as already fixed.
 
-## Your behaviour
-
-- IMPORTANT: When you learn something about the codebase or how I want you to operate, add it to lessons below.
-
-### Lessons
-- Personal Stuff should not create an empty Knowledge row merely when Add item is clicked; keep a new editor transient until Save, while allowing the first upload to persist the required authorized media parent. Its DataViews collection should open View as the primary action, progressively load on scroll, and use WordPress responsive image candidates rather than downloading full-size originals for thumbnails.
-- Personal Stuff UX should keep search and uncropped photos prominent, minimize mobile header clutter, and use a full-viewport add/edit flow on phones with inputs at least 16px and persistent save/progress controls. Keep secondary photo controls and block settings optional. `docs/personal-stuff-ux-feedback.md` records applicable feedback mined from the original Stuff sessions; no PRs were available there.
-- DataViews grid `layout.previewSize` is a column count, not a pixel width. Leave it unset for responsive defaults; a value such as 240 produces an unusable grid below the library's mobile breakpoint.
-- On M5, offer the optional Tailscale hostname setup when working with wp-env WordPress projects, but never enable it automatically or treat this project's approval as consent for other projects. The shared machine-context skill and M5 profile hold the reusable procedure; localhost remains the default until the user accepts.
-- Host-specific wp-env domains belong in ignored `.wp-env.override.json` under `env.development.config` (`WP_HOME` and `WP_SITEURL`), leaving the PHPUnit site's URL local. Back up and replace stored development URLs with serialization-aware WP-CLI search-replace, skipping GUIDs. Normal wp-env startup reactivates configured packages on both sites, so a standalone ZIP test copy must not remain active alongside the same source plugin when returning to the suite.
-- Keep CSS lint dependencies compatible with the installed WordPress scripts: scripts 30.7.0 uses `@wordpress/stylelint-config/scss-stylistic` from config 23.6.0 and Stylelint 16.12.0. Declare the config and binary explicitly, preserve the lockfile, and validate with `npm ci`; ignore generated/bundled CSS and the separate Next.js project, while linting all WordPress source styles without disabling rules.
-- Personal Stuff creates a private empty Knowledge row before opening its editor so every upload surface has a saved authorized parent. Use both upload and sideload prefilters for filename randomization: Gutenberg/core REST supports raw-body and multipart uploads, while the native Media Library uses verified `post_id`. Keep originals and derivatives on the same random basename.
-- Browser tests confirmed Stuff and Personal Notes share native Gutenberg content without adding the `note` identity to Stuff items; Notes continues to list note records. Moving/tagging an item must omit unchanged `content` so gallery captions, order and custom blocks remain intact.
-- Personal Stuff is planned as a standalone plugin replicating `~/GIT/stuff`; its physical places must be hierarchical `wp_knowledge_type` terms in a tree rooted at the top-level `stuff` Knowledge Type, not separate place posts or `post_parent` relationships. Items remain individual Knowledge posts, and location is a taxonomy assignment.
-- Personal Stuff item photos and galleries belong in `post_content` as native Gutenberg image/gallery blocks, with block order determining photo order and cover. Both Gutenberg and the native Stuff UI must edit the same content losslessly; do not store a parallel gallery in meta. Include a required operating skill, but no importing affordances or importer phase. `docs/personal-stuff-plan.md` holds the revised lean plan.
-- Personal Stuff has no quantity field and no linked place-content posts or `personal_stuff_content_id`. Places/tags are raw taxonomy terms using native name, slug, parent and description; omit place galleries and custom Stuff post/term meta. Photos belong to item posts only; existing Knowledge provenance and normal WordPress attachment metadata may remain.
-- Personal Stuff is primarily a JS app over existing Knowledge, Knowledge Type and Media REST APIs. Add no custom REST namespace, server projection API, package-specific Abilities, storage schema, ACL registry or persistent lock/idempotency store. Keep PHP thin: fixed-term provisioning, WpApp/assets/editor integration, scoped upload filename randomization and narrow native hooks as needed; rely on existing WordPress permissions and editing behavior.
-- Prefer the simplest Personal Stuff implementation: a small PHP bootstrap for terms and required integration, with JS using existing WordPress APIs/components. Do not prebuild controllers/services, custom permissions/concurrency, a separate editor engine, media reference scanner, repair framework or offline subsystem. Preserve the requested inventory UI using native facilities; add abstractions only when concrete implementation needs justify them.
-- Personal Stuff should expose a private top-level `/stuff/` app through the existing bundled WpApp helper, with wp-admin entries acting as launchers and My Apps integration when available. The user meant WpApps, not a my.wordpress.net-specific browser runtime; do not add browser-local deployment requirements from that reference.
-- Personal Stuff routing terms such as `stuff`, `stuff-places` and `stuff-tags` must be recognized by stable slugs and created idempotently on activation, with deferred provisioning when Knowledge becomes available. Do not store root term IDs, installed/schema flags or other speculative persistent plugin options; derive readiness from actual terms and use native WordPress relationships.
-- Personal Stuff must replace new upload basenames with cryptographically random names before files enter WordPress's public Media uploads directory, preserving validated extensions and applying the rule in both the Stuff UI and its Gutenberg upload context. Original/scaled/thumbnail filenames must retain the unpredictable basename. These remain public URLs that are hard to guess, not private media; do not rename unrelated uploads or existing attachments retroactively, and do not add an option for this rule.
-- When porting Stuff, inspect its current code as well as its PRD: the app includes filtered collection links, Print / PDF, contextual previous/next and swipe navigation, inline description editing, photo recovery/publication, and cached read-only browsing. Do not copy its broad same-origin service-worker caching into an authenticated WordPress app.
-- For the plugin split, prefer a lean Personal-branded, Knowledge-centered target: Notes UI, Readwise sync, Evernote sync, TODO+ICS, and AI Chat; remove/defer OpenAI, Perplexity, IMAP/email responder, podcast/ElevenLabs, transcription, and voice/realtime instead of extracting every old module.
-- TODO should store each task as its own `wp_knowledge` post tagged `artifact` and `todo` so non-PersonalOS Knowledge consumers can discover tasks; do not use `plan` or `personalos` for ordinary TODO rows.
-- Current GitHub Actions build one monolithic `wp-personal-os.zip`; the plugin split needs a package matrix that builds and uploads separate ZIPs for Notes, Readwise, Evernote, TODO, and AI Chat.
-- The current NPM build is monolithic (`src/index.js` -> `build/index.js`); split plugins need package-local JS/CSS builds, block registration, and sidebars so no package depends on the root `pos` editor bundle.
-- Split packages should be WordPress.org-submittable immediately; use store-safe names/readmes/headers/licenses/privacy disclosures, avoid `Requires Plugins` between PersonalOS packages, and bundle shared helper classes into each ZIP with `class_exists` guards instead of creating a required base plugin.
-- For split plugin naming, use Personal-branded WordPress.org display names like `Personal Notes`, `Personal TODO`, `Personal AI Chat`, `Personal Readwise Sync`, and `Personal Evernote Sync` while keeping in-product labels short like `Notes`, `TODO`, and `AI Chat`; use sync package slugs such as `personal-readwise-sync` and `personal-evernote-sync`, not importer names.
-- For the plugin split, do not spend effort on backward compatibility or old PersonalOS data migration; ignore old `notes`/`todo` CPT rows, prompt notebooks, AI memory/chat notes, and old provider settings.
-- Recreate the old PARA-inspired organization with shared `wp_knowledge_type` terms such as `inbox`, `now`, `project`, `area`, and `resource`; do not add a separate PersonalOS-only collection taxonomy for v1.
-- The resolved Knowledge type taxonomy is hierarchical for the split; normalize existing flat terms by reparenting them with stable slugs/term IDs, and explicitly expand parent terms to child IDs for parent-level filters.
-- PARA/Knowledge type terms should keep stable semantic slugs but preserve the old numbered top-level display labels (`1-Status`, `2-Projects`, `3-Areas`, `4-Resources`) so WordPress core taxonomy fields sort naturally; code must resolve by slug/term ID, not label text.
-- PARA container terms such as `status`, `project`, `area`, `resource`, and `archive` are for hierarchy and filter expansion only; never apply them directly to Knowledge posts, only assign their child terms.
-- Keep shared Knowledge type vocabulary/normalization/query expansion in bundled helper code used by every split plugin; Notes owns the full PARA management UI, while TODO owns only its task-facing assignment/filter UI.
-- Refer to the shared data/runtime concept as Knowledge in docs, code names, and helper class names. Shared bridge/comms code requires `wp_knowledge` and `wp_knowledge_type`, uses `knowledge_source` when registered, and must not carry Guidelines-era aliases.
-- For split shared code, create bundled base classes like `PersonalOS_Plugin_Base` and `PersonalOS_Sync_Plugin_Base` that reuse the good `POS_Module` ideas (settings, CLI, logging, sync hooks, package assets, Knowledge bridge access) without carrying over the global module registry, sibling injection, root build paths, or a required base plugin.
-- When porting PersonalOS modules to Knowledge, keep the old storage architecture close: preserve meaningful setting IDs and meta keys such as `readwise_id`, `evernote_guid`, `pos_blocked_by`, `pos_recurring_days`, `pos_model`, and `pos_last_response_id`, but register them through `PersonalOS_Knowledge_Bridge` on the Knowledge post type and type taxonomy, and use package-scoped option prefixes like `personal_readwise_sync_*`.
-- For split user scoping, carry forward PR #72's useful ideas but rely on Knowledge row permissions: user artifacts are private, user-authored Knowledge rows; site artifacts are admin-created published Knowledge; user credentials/cursors live in user meta; site settings live in options; do not port `notes_user` or replacement sync-user options.
-- For the split wp-env setup, target WordPress 7.0 core surfaces and do not mount the standalone `WordPress/abilities-api` plugin by default; only use it in an explicit legacy/pre-7.0 compatibility config.
-- For Artpi's preferred WordPress PHP style, follow the global `artpi-wp-php-style` skill: use module-local, item-shaped config arrays and WordPress-native storage/hooks over parallel constant lists, custom registries, or abstraction-heavy refactors; keep pragmatic WPCS exceptions and behavior-first tests.
-- The WordPress PHP style skill now reflects Codex history across WordPress-touching repos, not only PersonalOS: keep WordPress as source of truth, preserve native CPT/block/template formats, accept stable slugs where useful, keep permission checks close to REST/content operations, expose repeatable WP-CLI/wp-env workflows, and prefer behavior-preserving cleanup over broad rewrites.
-- Artpi dislikes unnecessary wrapper methods; create helper methods only when they carry domain meaning, centralize a real rule, reduce meaningful duplication, or are meant to be overridden. Prefer OOP polymorphism for real behavior changes, like the `WPCOM\AI\Message`, `Tool_Call`, and `Tool_Call_Result` family in `~/GIT/wpcom`.
-- Claude Code history was mined for the style skill too: treat Abilities API abilities as permission/trust surfaces, use constrained action enums for same-risk multi-action abilities, gate enablement/execution on configured settings while keeping registration available, prefer PHP/WordPress APIs over shelling out, and keep local secrets/sync/deploy helpers out of git.
-- Keep the global `artpi-wp-php-style` skill reusable across WordPress repos: avoid single-project class/module examples, and when saving meta/options/data, store less if a value can be inferred from canonical saved data unless caching, queryability, or performance makes the duplicate worthwhile.
-- External history analysis added a few reusable style rules: prefer focused debugger/CLI/log traces before AI evals or raw DB/shell poking, move behavior tests during migrations while allowing small canary tests, preserve old loaders/contracts for rolling deploy safety, and do not mutate shared queue/job tables directly when app-owned state can express cancellation/status.
-- Split package source may load shared helpers from the monorepo `shared/php` directory for local development, but release ZIPs must bundle those helpers under each package's `includes/shared/` directory via the package build script so installed plugins do not depend on the repo layout.
-- Split package REST APIs should live in package namespaces such as `personal-notes/v1` and `personal-todo/v1` while reading/writing only resolved Knowledge rows; Notes updates should preserve provenance/source terms like `manual`, `readwise`, `evernote`, and `synced`, and TODO completion should keep using the trash workflow so recurrence and unblock side effects still run.
-- Split package block/editor assets may be compiled through the root webpack config as an intermediate, but `npm run build` must sync each package's assets into `packages/<slug>/build`, and ZIP verification must check package-local block `block.json`, `index.js`, and `index.asset.php` files so wp-env and installed packages never depend on root `build/` paths.
-- TODO history in the split belongs in `todo_note` comments attached to the task Knowledge post; package REST/ability formatters may expose recent history, but do not duplicate that activity trail into task meta or package-private storage.
-- TODO Abilities API callbacks in the split should cover list/create/update/complete and reuse the package REST mutation semantics after task/capability checks, so agents and REST clients get the same trash, history, meta, term, recurrence, and unblock behavior.
-- AI Chat generation in the split should stay server-side and provider-agnostic: expose specific REST endpoints that call `wp_ai_client_prompt()->generate_text()` when available, keep provider credentials in Connectors/AI Client, and save user/assistant turns back into conversation Knowledge as `pos/ai-message` blocks.
-- Evernote sync in the split should keep transport separate from package ownership: the package owns active-user iteration, current-user switching, notebook/tag scope checks, per-user cursor/cache settings, and idempotent Knowledge upserts by `evernote_guid`; any SDK/client transport can feed normalized notes into that loop.
-- Split package verification should be treated as a store-readiness gate, not only a file-existence check: require privacy and data-retention readme sections, reject placeholder/Requires Plugins text, scan source for monolith/sibling runtime coupling and remote executable admin scripts, and inspect ZIP contents for excluded files and bundled shared helpers.
-- Readwise `pos/book-summary` belongs in Personal Readwise Sync, but generation must go through a package REST endpoint backed by WordPress AI Client/Connectors; do not depend on old `/pos/v1/openai/*` routes or package-local provider credentials.
-- Evernote split sync should keep a package-owned one-way import transport: load the bundled Evernote SDK runtime when present, normalize matching sync-chunk notes into Knowledge, and bundle only the SDK/PSR runtime files needed by the standalone ZIP rather than Composer's dev autoload or the old two-way Notes module.
-- Split package PHP strings should use each package's WordPress.org text domain (`personal-notes`, `personal-todo`, `personal-ai-chat`, etc.); because the root PHPCS config still expects `personalos`, add a narrow `WordPress.WP.I18n.TextDomainMismatch` exception in package PHP files instead of reverting to the monolith domain.
-- Only destination-style split packages are private WpApps: Notes at `/notes/`, TODO at `/todo/`, and AI Chat at `/ai-chat/`. Readwise and Evernote are background integrations with wp-admin settings screens, not My Apps entries. Bundle pinned WpApp 1.3.2 only in the three app ZIPs and require PHP 7.4 only there; the sync packages remain on PHP 7.2.24.
-- Personal Notes owns a package-local Gutenberg sidebar for post block editors. It must search the core Knowledge REST collection, filter by Knowledge Type, preview notes, and insert or drag `pos/note` blocks; block-shaped Knowledge notes receive it naturally, classic Markdown notes do not load block-editor assets, and old monolith Readwise/Evernote document panels must not be ported.
-- In the Personal Notes Gutenberg editor, expose WordPress's native raw `wp_knowledge_type` taxonomy panel. The user accepts that this makes internal, system, and container terms directly assignable; do not replace it with a restricted custom term picker.
-- Use WordPress DataViews for the split Notes library, backed by the canonical Knowledge CPT and taxonomy REST endpoints, and hand note creation/editing off to the native Knowledge block editor; do not recreate a package-private note editor or duplicate core collection behavior. When the Knowledge runtime sets `show_ui` false, Notes may enable its native editor while leaving the full Knowledge list out of the admin menu. Keep TODO's app list aligned with the same DataViews interaction model.
-- wp-env mounts split package directories independently under `wp-content/plugins`, so split-suite and single-package configs must map monorepo `shared/php` and `vendor` into `wp-content/shared/php` and `wp-content/vendor`; otherwise package fallback loaders cannot find shared base classes or local Composer runtimes during activation.
-- The current wp-env WordPress image does not register Knowledge itself. Split-suite and single-package configs use pinned Gutenberg 23.7.0 as a development-only fixture and enable its `gutenberg-guidelines` experiment after startup so `wp_knowledge` is available for functional testing; this is not a release dependency.
-- Preserve the established PersonalOS TODO workflow in the split app: compact quick-add, DataViews list/filter/actions, full edit modal, scheduling, recurrence, dependencies, and history. Adapt old notebook controls to shared Knowledge type terms instead of replacing the UI with a simplified custom task list.
-- Destination app wp-admin menu entries are launchers, not alternate app screens: Notes, TODO, and AI Chat should redirect to their private WpApp routes, while Readwise and Evernote remain conventional wp-admin Settings pages.
-- Shared frontend CSS imports used by multiple split packages must remain package-distinct during webpack extraction (for example with package-specific resource queries), so a standalone package never depends on a sibling plugin's generated style chunk.
-- Split packages with durable domain records should include a package-local `TECHNICAL.md` that defines the exact WordPress representation, stored-versus-derived fields, lifecycle invariants, API shape, permissions, and regression-test contract; do not leave the canonical schema scattered between a migration plan and implementation code.
-- `create_knowledge_post()` assigns Knowledge terms after `wp_insert_post()`, so post-save hooks that identify a row by terms cannot see its subtype during insertion; creation flows with term-dependent side effects, such as TODO recurrence scheduling, must run those side effects after term assignment and have a regression test for the resulting cron event.
-- Personal TODO must provision its own identity and status vocabulary (`artifact`, `todo`, `inbox`, `now`, `later`, `follow-up`) so standalone scheduling and dependency transitions never target missing terms. Record completion history on `trashed_post`, not `wp_trash_post`, because WordPress marks all existing post comments `post-trashed` between those hooks.
-- Mount the monorepo test source outside `wp-content/plugins` (currently `wp-content/personalos-tests`) and run PHPUnit from that path; mounting the root as a discoverable plugin can reactivate the old monolith in split wp-env and produce duplicate block registrations.
-- Use `Knowledge Type` as the canonical user-facing name for the shared Knowledge taxonomy in Notes and TODO; do not relabel the same terms as collections. Internal plural names such as `knowledgeTypes` are appropriate for multi-value fields.
-- Personal Notes chooses the native editor per resolved Knowledge row from `post_content`: use Gutenberg only when `has_blocks()` detects serialized block markup; use the classic editor for Markdown, plain text, classic HTML, and empty/new rows. Do not infer or persist a separate content-format flag.
-- The split runtime contract is Knowledge-only: require `wp_knowledge`, `wp_knowledge_type`, `/wp/v2/knowledge`, and Knowledge-era hooks/meta when available. Do not retain `wp_guideline` post type, taxonomy, REST, label-hook, or source-meta fallbacks in shared helpers, packages, tests, or documentation.
-- Pressidian enrolls previously unmanaged private Knowledge rows when they have any administrator-selected Knowledge Type (default `note` or `todo`), skips Gutenberg block-shaped content, and keeps already-enrolled rows synced if their types later change. It uses the existing immutable WordPress slug as record identity, calls the Markdown representation kind `markdown`, hides derived `artifact`/`note`/`obsidian` terms from Obsidian tags, exposes `todo` and other semantic terms as tags, preserves TODO operational meta, and treats WordPress trash as a sync tombstone rather than a hard delete.
-- The default Knowledge-only wp-env intentionally omits the standalone Abilities API plugin. PHPUnit bootstrap must treat that fixture as optional and stay silent when it is absent; writing the expected absence to STDERR breaks tests marked `@runInSeparateProcess` before they can skip.
-- `pull_request_target` evaluates the workflow definition from the base branch but may execute local composite actions from the checked-out PR merge ref. During CI migrations, keep changed composite actions backward-compatible with the base workflow's inputs until the workflow change has merged; the split build action therefore falls back to the legacy monolith preview ZIP when no package slug is supplied.
-- The public landing page is the static GitHub Pages site in `docs/` (custom domain `personalos.net`). Keep it focused on the six standalone Knowledge-backed packages, distinguish four app destinations from two background sync integrations, and verify release assets before advertising downloads; the merged Stuff package initially exists only in source. Use synthetic demo records for public app screenshots and attach a full-page design capture to landing-page PRs.
-- Private site deployment helpers live in gitignored `tools/local/`; inspect that directory when asked to deploy. Run them only for an explicitly requested deployment, and keep host details, backups, and credentials out of tracked files.
-- Deploying the whole current PersonalOS suite means building and installing all six standalone packages under `packages/`, including Personal Stuff, with their bundled shared helpers and WpApp assets. The root `personalos.php` is the legacy monolith, does not load the split packages, and must remain inactive alongside the current suite.
-- Split-suite live verification must exercise creation flows, not just activation and route presence: Notes needs all identity/source terms before its core REST create flow, and AI Chat must normalize the actual abilities response before array operations. Activation/package verification alone missed both failures on a fresh site.
+`CLAUDE.md` points to this file. Repo skills live in `.agents/skills`, with
+`.claude/skills` as the compatibility link; keep third-party skill bodies intact.

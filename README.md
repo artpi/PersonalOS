@@ -1,28 +1,36 @@
-# Personal OS is the operating system for your life installed in your digital home.
+# PersonalOS
 
-A modern note-taking and productivity system built on WordPress with the latest and greatest WordPress features.
+PersonalOS is a suite of independent WordPress plugins for notes, tasks, chat,
+sync and a home inventory, sharing WordPress Knowledge as their data model.
 
-### [🚀 Open PersonalOS Playground](https://playground.wordpress.net/?networking=yes#{%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginData%22:{%22resource%22:%22url%22,%22url%22:%22https://github.com/artpi/personalos/releases/latest/download/wp-personal-os.zip%22}}],%22landingPage%22:%22/wp-admin/admin.php?page=personalos-settings%22,%22login%22:true})
+| Plugin | Purpose |
+| --- | --- |
+| [Personal Notes](packages/personal-notes/readme.txt) | Notes library and native editing at `/notes/` |
+| [Personal TODO](packages/personal-todo/readme.txt) | Tasks, recurrence, dependencies and ICS at `/todo/` |
+| [Personal AI Chat](packages/personal-ai-chat/readme.txt) | AI Client/Connectors-backed conversations at `/ai-chat/` |
+| [Personal Stuff](packages/personal-stuff/readme.txt) | Inventory, places and photos at `/stuff/` |
+| [Personal Readwise Sync](packages/personal-readwise-sync/readme.txt) | Readwise import and summaries |
+| [Personal Evernote Sync](packages/personal-evernote-sync/readme.txt) | One-way Evernote import |
 
+## Development and installation
 
-### Few principles
+Start with [contributor guidance](AGENTS.md), [local development](docs/development.md)
+and [packaging](docs/packaging.md). Build standalone ZIPs with
+`npm run build` followed by `npm run package:plugins`; install the selected ZIPs
+on a WordPress site providing the required Knowledge runtime. Package readmes
+specify their requirements. The default wp-env config supplies a development
+Knowledge fixture for all six packages.
 
-- Methodologies borrowed from Building a Second Brain, and GTD
-- Inspired by Roam Research, Logseq, Obsidian and Tana
-- Opinionated. I will ship features because I want them
-- Has to work with any WordPress supporting plugins
-- Implement things the WordPress Way™. WordPress has a ton of new APIs.
+[GitHub releases](https://github.com/artpi/PersonalOS/releases) contain published
+assets; verify that the desired package ZIP is present. A source merge does not
+by itself publish a release. The root `personalos.php` and `modules/` are the
+legacy monolith, not the current suite, and must not be active alongside it.
 
-## Features
+## Principles
 
-I consider this a humble start. I intend to grow this feature list until it becomes my main notetaking app.
+- Borrow from Building a Second Brain and GTD.
+- Implement features using native WordPress storage, APIs and components.
+- Keep each package independently installable while preserving interoperability.
 
-- [TODOs](modules/todo/README.md) - Manage your TODOs right in WordPress or through a dedicated mobile app
-- [Notes](modules/notes/README.md) - Fully private "note" CPT, with embeddable nesting
-  - [Readwise](modules/readwise/README.md) - Sync notes with Readwise
-  - [Evernote](modules/evernote/README.md) - Sync notes with Evernote via 2-way sync
-  - [Transcriptions](modules/openai/README.md) - Upload an mp3 and it will get transcribed and turned into a note.
-
-## How to install
-
-[Install](./docs/INSTALL.md)
+The public landing page lives in `docs/`. Historical module documentation and
+split plans remain available for reference, not as current installation guidance.

@@ -5,6 +5,12 @@ It describes how a TODO is represented in WordPress, which values are durable or
 derived, and the lifecycle guarantees that the UI, REST API, Abilities API, ICS
 feed, and tests must share.
 
+## App interaction
+
+Preserve compact quick-add, the DataViews list/filter/actions, and the full edit
+modal with scheduling, recurrence, dependencies and history. Use shared Knowledge
+Type terms in assignment controls instead of the old notebook controls.
+
 ## Runtime Dependencies
 
 Personal TODO requires a WordPress Knowledge surface but does not require any
