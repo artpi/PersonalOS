@@ -4,7 +4,7 @@ Tags: inventory, knowledge, photos
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.1.2
+Stable tag: 0.1.3
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,9 @@ Deactivating or uninstalling leaves Knowledge posts, taxonomy terms, and Media f
 Source is included under `src/`. In the PersonalOS repository run `npm ci`, `composer install`, `npm run build`, and `npm run package:plugin -- --package=personal-stuff`. The ZIP bundles shared helpers and WpApp 1.3.2 (GPL-2.0-or-later) for routing and app access control. See TECHNICAL.md for the storage contract and tests. The portable agent skill is included at skills/personal-stuff/SKILL.md and linked from the app.
 
 == Changelog ==
+
+= 0.1.3 =
+The new-item editor now opens immediately while vocabulary and inventory data continue loading in the background.
 
 = 0.1.2 =
 New items use stable UUID slugs, and item details remain editable while photos upload in the background.

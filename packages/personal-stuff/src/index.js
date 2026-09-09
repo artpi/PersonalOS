@@ -132,7 +132,14 @@ function Photo( { url, srcSet = '', alt = '' } ) {
 	);
 }
 
-function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
+function ItemEditor( {
+	item,
+	isNew,
+	initialPlaceSlug,
+	vocabulary,
+	onSaved,
+	onClose,
+} ) {
 	const session = useMemo(
 		() => contentSession( item.content.raw ),
 		[ item.content.raw ]
@@ -149,6 +156,9 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 	const [ place, setPlace ] = useState( String( currentPlaces[ 0 ] || '' ) );
 	const placeRef = useRef( place );
 	placeRef.current = place;
+	const initialPlaceApplied = useRef(
+		! isNew || ! initialPlaceSlug || initialPlaceSlug === 'unplaced'
+	);
 	const [ tags, setTags ] = useState(
 		termIds( item ).filter( ( id ) =>
 			vocabulary.tags.some( ( tag ) => tag.id === id )
@@ -178,6 +188,24 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 	const [ confirmClose, setConfirmClose ] = useState( false );
 	const [ dirty, setDirty ] = useState( false );
 	const revisionRef = useRef( 0 );
+	const vocabularyReady = [ 'artifact', 'stuff-item' ].every( ( slug ) =>
+		vocabulary.bySlug.has( slug )
+	);
+	useEffect( () => {
+		if ( initialPlaceApplied.current ) {
+			return;
+		}
+		const initialPlace = vocabulary.bySlug.get( initialPlaceSlug );
+		if (
+			initialPlace &&
+			vocabulary.places.some( ( term ) => term.id === initialPlace.id )
+		) {
+			const initialPlaceId = String( initialPlace.id );
+			placeRef.current = initialPlaceId;
+			setPlace( initialPlaceId );
+			initialPlaceApplied.current = true;
+		}
+	}, [ initialPlaceSlug, vocabulary ] );
 	useEffect( () => {
 		if ( ! dirty ) {
 			return;
@@ -197,6 +225,14 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 	};
 
 	async function persist( requestedBlocks ) {
+		if ( ! vocabularyReady ) {
+			throw new Error(
+				__(
+					'Item options are still loading. Try saving again in a moment.',
+					'personal-stuff'
+				)
+			);
+		}
 		const previous = savedRef.current;
 		if ( previous.id ) {
 			const current = await apiFetch( {
@@ -346,8 +382,13 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 	let saveStatus = saved.id
 		? __( 'Saved', 'personal-stuff' )
 		: __( 'Not saved yet', 'personal-stuff' );
+	if ( ! vocabularyReady ) {
+		saveStatus = __( 'Loading item options…', 'personal-stuff' );
+	}
 	if ( dirty ) {
-		saveStatus = __( 'Unsaved changes', 'personal-stuff' );
+		saveStatus = vocabularyReady
+			? __( 'Unsaved changes', 'personal-stuff' )
+			: __( 'Loading item options…', 'personal-stuff' );
 	}
 	return (
 		<Modal
@@ -393,6 +434,7 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 					label={ __( 'Place', 'personal-stuff' ) }
 					value={ place }
 					onChange={ ( value ) => {
+						initialPlaceApplied.current = true;
 						placeRef.current = value;
 						setPlace( value );
 						revisionRef.current += 1;
@@ -450,7 +492,7 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 								type="file"
 								accept="image/*"
 								multiple
-								disabled={ busy }
+								disabled={ busy || ! vocabularyReady }
 								onChange={ ( event ) => {
 									upload( event.target.files );
 									event.target.value = '';
@@ -500,10 +542,15 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 					onChange={ changeBlocks }
 					settings={ {
 						hasFixedToolbar: false,
-						mediaUpload: settings.canUpload
-							? ( { filesList, onFileChange, onError } ) =>
-									upload( filesList, onFileChange, onError )
-							: undefined,
+						mediaUpload:
+							settings.canUpload && vocabularyReady
+								? ( { filesList, onFileChange, onError } ) =>
+										upload(
+											filesList,
+											onFileChange,
+											onError
+										)
+								: undefined,
 					} }
 				>
 					<div className="stuff-toolbar stuff-content-toolbar">
@@ -547,7 +594,7 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 					<Button
 						variant="primary"
 						isBusy={ busy }
-						disabled={ busy }
+						disabled={ busy || ! vocabularyReady }
 						onClick={ save }
 					>
 						{ __( 'Save item', 'personal-stuff' ) }
@@ -943,12 +990,12 @@ function Stuff() {
 					)
 				);
 			}
+			setTerms( fetchedTerms );
 			const fetchedItems = await allPages( settings.knowledgeRestPath, {
 				context: 'edit',
 				status: [ 'private', 'publish', 'draft', 'future', 'pending' ],
 				[ settings.taxonomyField ]: [ identity.id ],
 			} );
-			setTerms( fetchedTerms );
 			setItems( fetchedItems );
 		} catch ( failure ) {
 			setError( failure.message );
@@ -1090,10 +1137,9 @@ function Stuff() {
 		}
 	}
 	function createItem() {
-		const ids = [
-			vocabulary.bySlug.get( 'artifact' ).id,
-			vocabulary.bySlug.get( 'stuff-item' ).id,
-		];
+		const ids = [ 'artifact', 'stuff-item' ]
+			.map( ( slug ) => vocabulary.bySlug.get( slug )?.id )
+			.filter( Boolean );
 		if ( place && place !== 'unplaced' && vocabulary.bySlug.has( place ) ) {
 			ids.push( vocabulary.bySlug.get( place ).id );
 		}
@@ -1186,9 +1232,6 @@ function Stuff() {
 					<Button
 						variant="primary"
 						icon={ plus }
-						disabled={
-							loading || ! vocabulary.bySlug.has( 'stuff-item' )
-						}
 						onClick={ createItem }
 					>
 						{ __( 'Add item', 'personal-stuff' ) }
@@ -1568,6 +1611,7 @@ function Stuff() {
 					key={ editing.id }
 					item={ editing }
 					isNew={ editing.id === addingId }
+					initialPlaceSlug={ place }
 					vocabulary={ vocabulary }
 					onSaved={ onSaved }
 					onClose={ () => {

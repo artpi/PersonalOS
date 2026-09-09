@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Personal Stuff
  * Description:       Find and organize belongings, places, tags, and photos stored as Knowledge records.
- * Version:           0.1.2
+ * Version:           0.1.3
  * Requires at least: 7.0
  * Requires PHP:      7.4
  * Author:            Artur Piszek
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'PERSONAL_STUFF_VERSION', '0.1.2' );
+define( 'PERSONAL_STUFF_VERSION', '0.1.3' );
 define( 'PERSONAL_STUFF_FILE', __FILE__ );
 
 /**
