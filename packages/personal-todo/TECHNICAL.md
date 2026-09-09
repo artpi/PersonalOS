@@ -11,6 +11,11 @@ Preserve compact quick-add, the DataViews list/filter/actions, and the full edit
 modal with scheduling, recurrence, dependencies and history. Use shared Knowledge
 Type terms in assignment controls instead of the old notebook controls.
 
+The selected edit modal is addressable as `/todo/?task=<post ID>` and follows
+browser history. TODO owns native permalinks and shortlinks for Knowledge rows
+carrying the `todo` identity. An editable legacy `?p=<post ID>` request redirects
+to that app URL; unauthorized requests retain WordPress's normal response.
+
 ## Runtime Dependencies
 
 Personal TODO requires a WordPress Knowledge surface but does not require any

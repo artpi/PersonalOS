@@ -92,6 +92,18 @@ class PersonalStuffTest extends WP_UnitTestCase {
 		$this->assertTrue( use_block_editor_for_post( $block ) );
 	}
 
+	public function test_item_links_resolve_to_the_stuff_interface() {
+		$item_id = $this->item();
+		$expected = home_url( '/stuff/?item=' . $item_id );
+
+		$this->assertSame( $expected, $this->plugin->get_item_url( $item_id ) );
+		$this->assertSame( $expected, $this->plugin->filter_item_permalink( 'https://example.com/original', get_post( $item_id ) ) );
+		$this->assertSame( $expected, $this->plugin->filter_item_shortlink( 'https://example.com/?p=' . $item_id, $item_id ) );
+
+		$post_id = self::factory()->post->create( array( 'post_type' => 'wp_knowledge' ) );
+		$this->assertSame( '', $this->plugin->get_item_url( $post_id ) );
+	}
+
 	public function test_upload_names_are_random_only_for_authorized_item_context() {
 		$file = array( 'name' => 'secret-camera.JPG', 'type' => 'image/jpeg', 'tmp_name' => '/tmp/example', 'error' => 0 );
 		$request = new WP_REST_Request( 'POST', '/wp/v2/media' );

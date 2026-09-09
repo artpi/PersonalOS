@@ -61,6 +61,9 @@ class Personal_TODO_Plugin extends PersonalOS_Plugin_Base {
 		$this->register_missing_knowledge_notice();
 		$this->register_wp_app( array( $this, 'render_admin_page' ) );
 
+		add_action( 'template_redirect', array( $this, 'redirect_task_link' ), 5 );
+		add_filter( 'post_type_link', array( $this, 'filter_task_permalink' ), 10, 2 );
+		add_filter( 'get_shortlink', array( $this, 'filter_task_shortlink' ), 10, 2 );
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
@@ -138,6 +141,47 @@ class Personal_TODO_Plugin extends PersonalOS_Plugin_Base {
 				'taxonomyRestPath' => rest_get_route_for_taxonomy_items( $this->knowledge()->type_taxonomy() ),
 			)
 		);
+	}
+
+	/**
+	 * Return the TODO app URL for a task.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string Empty when the post is not a task.
+	 */
+	public function get_task_url( $post_id ) {
+		$post = get_post( $post_id );
+		if ( ! $this->is_task( $post ) ) {
+			return '';
+		}
+
+		return add_query_arg( 'task', $post->ID, home_url( '/todo/' ) );
+	}
+
+	/** Filter a task permalink to its TODO interface URL. */
+	public function filter_task_permalink( $url, $post ) {
+		$task_url = $post instanceof WP_Post ? $this->get_task_url( $post->ID ) : '';
+
+		return $task_url ? $task_url : $url;
+	}
+
+	/** Filter a task shortlink to its TODO interface URL. */
+	public function filter_task_shortlink( $shortlink, $post_id ) {
+		$task_url = $this->get_task_url( $post_id );
+
+		return $task_url ? $task_url : $shortlink;
+	}
+
+	/** Redirect an editable legacy ?p= link to the TODO task interface. */
+	public function redirect_task_link() {
+		$post_id = absint( get_query_var( 'p' ) );
+		$task_url = $this->get_task_url( $post_id );
+		if ( get_query_var( 'preview' ) || ! $task_url || ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+
+		wp_safe_redirect( $task_url );
+		exit;
 	}
 
 	/**

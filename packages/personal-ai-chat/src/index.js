@@ -69,10 +69,17 @@ function AiChatAdmin() {
 				path: '/personal-ai-chat/v1/conversations',
 			} );
 			setConversations( response );
-			if ( ! active && response.length ) {
-				setActive( response[ 0 ] );
-				setTitle( response[ 0 ].title );
-			}
+			const conversationId = Number(
+				new URLSearchParams( window.location.search ).get(
+					'conversation'
+				)
+			);
+			const selected =
+				response.find( ( item ) => item.id === conversationId ) ||
+				response[ 0 ] ||
+				null;
+			setActive( selected );
+			setTitle( selected?.title || '' );
 		} catch ( error ) {
 			setNotice( {
 				status: 'error',
@@ -83,7 +90,7 @@ function AiChatAdmin() {
 		} finally {
 			setLoading( false );
 		}
-	}, [ active ] );
+	}, [] );
 
 	useEffect( () => {
 		document.body.classList.add( 'personal-ai-chat-js' );
@@ -92,6 +99,40 @@ function AiChatAdmin() {
 			.then( setAbilities )
 			.catch( () => setAbilities( [] ) );
 	}, [ fetchConversations ] );
+
+	useEffect( () => {
+		function syncConversationToRoute() {
+			const conversationId = Number(
+				new URLSearchParams( window.location.search ).get(
+					'conversation'
+				)
+			);
+			const selected =
+				conversations.find( ( item ) => item.id === conversationId ) ||
+				conversations[ 0 ];
+
+			if ( selected ) {
+				setActive( selected );
+				setTitle( selected.title );
+			}
+		}
+
+		window.addEventListener( 'popstate', syncConversationToRoute );
+		return () =>
+			window.removeEventListener( 'popstate', syncConversationToRoute );
+	}, [ conversations ] );
+
+	function selectConversation( conversation ) {
+		setActive( conversation );
+		setTitle( conversation.title );
+		const route = new URLSearchParams( window.location.search );
+		route.set( 'conversation', conversation.id );
+		window.history.pushState(
+			{},
+			'',
+			`${ window.location.pathname }?${ route }`
+		);
+	}
 
 	async function createConversation() {
 		setSaving( true );
@@ -108,8 +149,7 @@ function AiChatAdmin() {
 					content: '',
 				},
 			} );
-			setActive( response );
-			setTitle( response.title );
+			selectConversation( response );
 			setConversations( ( current ) => [ response, ...current ] );
 			setNotice( {
 				status: 'success',
@@ -221,10 +261,9 @@ function AiChatAdmin() {
 								key={ conversation.id }
 								type="button"
 								className="personal-ai-chat-admin__conversation"
-								onClick={ () => {
-									setActive( conversation );
-									setTitle( conversation.title );
-								} }
+								onClick={ () =>
+									selectConversation( conversation )
+								}
 							>
 								<span>{ conversation.title }</span>
 								<small>{ conversation.modified_gmt }</small>

@@ -421,6 +421,23 @@ function TodoAdmin() {
 			.finally( () => setLoading( false ) );
 	}, [] );
 
+	useEffect( () => {
+		function syncEditorToRoute() {
+			const taskId = Number(
+				new URLSearchParams( window.location.search ).get( 'task' )
+			);
+			const task = tasks.find( ( item ) => item.id === taskId );
+
+			setEditedTask( task || null );
+			setEditDraft( task ? draftFromTask( task ) : null );
+		}
+
+		syncEditorToRoute();
+		window.addEventListener( 'popstate', syncEditorToRoute );
+		return () =>
+			window.removeEventListener( 'popstate', syncEditorToRoute );
+	}, [ tasks ] );
+
 	const termNames = useCallback(
 		( task ) =>
 			task.terms
@@ -596,8 +613,9 @@ function TodoAdmin() {
 				...current.filter( ( item ) => item.id !== task.id ),
 			] );
 			setDraft( EMPTY_DRAFT );
-			setEditedTask( null );
-			setEditDraft( null );
+			if ( taskDraft.id ) {
+				closeEditor();
+			}
 			setNotice( {
 				status: 'success',
 				message: taskDraft.id
@@ -691,6 +709,25 @@ function TodoAdmin() {
 	function openEditor( task ) {
 		setEditedTask( task );
 		setEditDraft( draftFromTask( task ) );
+		const route = new URLSearchParams( window.location.search );
+		route.set( 'task', task.id );
+		window.history.pushState(
+			{},
+			'',
+			`${ window.location.pathname }?${ route }`
+		);
+	}
+
+	function closeEditor() {
+		setEditedTask( null );
+		setEditDraft( null );
+		const route = new URLSearchParams( window.location.search );
+		route.delete( 'task' );
+		window.history.pushState(
+			{},
+			'',
+			`${ window.location.pathname }${ route.size ? `?${ route }` : '' }`
+		);
 	}
 
 	const actions = [
@@ -779,14 +816,14 @@ function TodoAdmin() {
 						__( 'Edit %s', 'personal-todo' ),
 						editedTask.title
 					) }
-					onRequestClose={ () => setEditedTask( null ) }
+					onRequestClose={ closeEditor }
 					className="personal-todo-admin__modal"
 				>
 					<TaskForm
 						draft={ editDraft }
 						onChange={ setEditDraft }
 						onSave={ ( event ) => saveTask( event, editDraft ) }
-						onCancel={ () => setEditedTask( null ) }
+						onCancel={ closeEditor }
 						saving={ saving }
 						tasks={ tasks }
 						terms={ terms }

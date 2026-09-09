@@ -40,6 +40,9 @@ class Personal_Stuff_Plugin extends PersonalOS_Plugin_Base {
 		$this->vocabulary()->register_rest_descriptions();
 		$this->register_missing_knowledge_notice();
 		$this->register_wp_app( array( $this, 'render_app' ) );
+		add_action( 'template_redirect', array( $this, 'redirect_item_link' ), 5 );
+		add_filter( 'post_type_link', array( $this, 'filter_item_permalink' ), 10, 2 );
+		add_filter( 'get_shortlink', array( $this, 'filter_item_shortlink' ), 10, 2 );
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
 		// Recheck actual terms when Knowledge becomes available; no installed flag.
 		$this->ensure_terms();
@@ -123,6 +126,59 @@ class Personal_Stuff_Plugin extends PersonalOS_Plugin_Base {
 	 */
 	public function is_item( $post_id ) {
 		return 'wp_knowledge' === get_post_type( $post_id ) && has_term( 'stuff-item', 'wp_knowledge_type', $post_id );
+	}
+
+	/**
+	 * Return the Stuff app URL for an item.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string Empty when the post is not a Stuff item.
+	 */
+	public function get_item_url( $post_id ) {
+		$post = get_post( $post_id );
+		if ( ! $post instanceof WP_Post || ! $this->is_item( $post->ID ) ) {
+			return '';
+		}
+
+		return add_query_arg( 'item', $post->ID, home_url( '/stuff/' ) );
+	}
+
+	/**
+	 * Point native Knowledge permalinks at the owning Stuff interface.
+	 *
+	 * @param string  $url  Existing permalink.
+	 * @param WP_Post $post Post object.
+	 * @return string
+	 */
+	public function filter_item_permalink( $url, $post ) {
+		$item_url = $post instanceof WP_Post ? $this->get_item_url( $post->ID ) : '';
+
+		return $item_url ? $item_url : $url;
+	}
+
+	/**
+	 * Point native shortlinks at the owning Stuff interface.
+	 *
+	 * @param string $shortlink Existing shortlink.
+	 * @param int    $post_id   Post ID.
+	 * @return string
+	 */
+	public function filter_item_shortlink( $shortlink, $post_id ) {
+		$item_url = $this->get_item_url( $post_id );
+
+		return $item_url ? $item_url : $shortlink;
+	}
+
+	/** Redirect an editable legacy ?p= link to the Stuff item interface. */
+	public function redirect_item_link() {
+		$post_id = absint( get_query_var( 'p' ) );
+		$item_url = $this->get_item_url( $post_id );
+		if ( get_query_var( 'preview' ) || ! $item_url || ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+
+		wp_safe_redirect( $item_url );
+		exit;
 	}
 
 	/**
