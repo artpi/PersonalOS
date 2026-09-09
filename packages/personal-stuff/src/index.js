@@ -49,6 +49,7 @@ import {
 	seen as viewIcon,
 } from '@wordpress/icons';
 import { contentSession, appendPhotos, itemContent } from './content';
+import { createItemSlug } from './identity';
 import { SearchIndex } from './search';
 import './style.css';
 
@@ -140,15 +141,25 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 	const blocksRef = useRef( blocks );
 	blocksRef.current = blocks;
 	const [ name, setName ] = useState( isNew ? '' : title( item ) );
+	const nameRef = useRef( name );
+	nameRef.current = name;
 	const currentPlaces = termIds( item ).filter( ( id ) =>
 		vocabulary.places.some( ( place ) => place.id === id )
 	);
 	const [ place, setPlace ] = useState( String( currentPlaces[ 0 ] || '' ) );
+	const placeRef = useRef( place );
+	placeRef.current = place;
 	const [ tags, setTags ] = useState(
 		termIds( item ).filter( ( id ) =>
 			vocabulary.tags.some( ( tag ) => tag.id === id )
 		)
 	);
+	const tagsRef = useRef( tags );
+	tagsRef.current = tags;
+	const newItemSlug = useRef( '' );
+	if ( isNew && ! newItemSlug.current ) {
+		newItemSlug.current = createItemSlug( window.crypto );
+	}
 	const [ saved, setSaved ] = useState( item );
 	const savedRef = useRef( saved );
 	savedRef.current = saved;
@@ -166,6 +177,7 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 	const [ inspect, setInspect ] = useState( false );
 	const [ confirmClose, setConfirmClose ] = useState( false );
 	const [ dirty, setDirty ] = useState( false );
+	const revisionRef = useRef( 0 );
 	useEffect( () => {
 		if ( ! dirty ) {
 			return;
@@ -178,11 +190,13 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 		return () => window.removeEventListener( 'beforeunload', warn );
 	}, [ dirty ] );
 	const changeBlocks = ( next ) => {
+		blocksRef.current = next;
 		setBlocks( next );
+		revisionRef.current += 1;
 		setDirty( true );
 	};
 
-	async function persist( nextBlocks = blocksRef.current ) {
+	async function persist( requestedBlocks ) {
 		const previous = savedRef.current;
 		if ( previous.id ) {
 			const current = await apiFetch( {
@@ -208,19 +222,27 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 				! vocabulary.places.some( ( term ) => term.id === id ) &&
 				! vocabulary.tags.some( ( term ) => term.id === id )
 		);
+		const nextBlocks = requestedBlocks || blocksRef.current;
 		const content = session.serialize( nextBlocks );
+		const persistedRevision = revisionRef.current;
 		const data = {
-			title: name.trim() || __( 'Untitled item', 'personal-stuff' ),
+			title:
+				nameRef.current.trim() ||
+				__( 'Untitled item', 'personal-stuff' ),
 			[ settings.taxonomyField ]: Array.from(
 				new Set( [
 					...unrelated,
 					vocabulary.bySlug.get( 'artifact' ).id,
 					vocabulary.bySlug.get( 'stuff-item' ).id,
-					...tags,
-					...( place ? [ Number( place ) ] : [] ),
+					...tagsRef.current,
+					...( placeRef.current
+						? [ Number( placeRef.current ) ]
+						: [] ),
 				] )
 			),
-			...( previous.id ? {} : { status: 'private' } ),
+			...( previous.id
+				? {}
+				: { status: 'private', slug: newItemSlug.current } ),
 			...( ! previous.id || content !== previous.content.raw
 				? { content }
 				: {} ),
@@ -234,7 +256,9 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 		} );
 		savedRef.current = result;
 		setSaved( result );
-		setDirty( false );
+		if ( revisionRef.current === persistedRevision ) {
+			setDirty( false );
+		}
 		onSaved( result );
 		return result;
 	}
@@ -349,7 +373,7 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 					) }
 				</Notice>
 			) }
-			<fieldset disabled={ busy } className="stuff-item-fields">
+			<fieldset aria-busy={ busy } className="stuff-item-fields">
 				<TextControl
 					className="stuff-item-name"
 					placeholder={ __(
@@ -359,7 +383,9 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 					label={ __( 'Name', 'personal-stuff' ) }
 					value={ name }
 					onChange={ ( value ) => {
+						nameRef.current = value;
 						setName( value );
+						revisionRef.current += 1;
 						setDirty( true );
 					} }
 				/>
@@ -367,7 +393,9 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 					label={ __( 'Place', 'personal-stuff' ) }
 					value={ place }
 					onChange={ ( value ) => {
+						placeRef.current = value;
 						setPlace( value );
+						revisionRef.current += 1;
 						setDirty( true );
 					} }
 					options={ [
@@ -390,11 +418,12 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 							aria-label={ tag.name }
 							checked={ tags.includes( tag.id ) }
 							onChange={ ( checked ) => {
-								setTags(
-									checked
-										? [ ...tags, tag.id ]
-										: tags.filter( ( id ) => id !== tag.id )
-								);
+								const nextTags = checked
+									? [ ...tags, tag.id ]
+									: tags.filter( ( id ) => id !== tag.id );
+								tagsRef.current = nextTags;
+								setTags( nextTags );
+								revisionRef.current += 1;
 								setDirty( true );
 							} }
 						/>
@@ -421,6 +450,7 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 								type="file"
 								accept="image/*"
 								multiple
+								disabled={ busy }
 								onChange={ ( event ) => {
 									upload( event.target.files );
 									event.target.value = '';
@@ -488,10 +518,7 @@ function ItemEditor( { item, isNew, vocabulary, onSaved, onClose } ) {
 							{ __( 'Block settings', 'personal-stuff' ) }
 						</Button>
 					</div>
-					<div
-						className="stuff-block-layout"
-						inert={ busy ? '' : undefined }
-					>
+					<div className="stuff-block-layout">
 						<div className="stuff-blocks editor-styles-wrapper">
 							<BlockTools>
 								<WritingFlow>

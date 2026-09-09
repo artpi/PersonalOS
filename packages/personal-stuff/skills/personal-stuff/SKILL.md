@@ -22,7 +22,7 @@ Read descriptions from content blocks. Resolve location assignments against desc
 
 ## Add or update an item
 
-- Create one Knowledge post with `status: private`, a meaningful `title`, and taxonomy IDs for `artifact`, `stuff-item`, zero/one physical place and any descriptive tags. Let WordPress assign the author, ID and slug.
+- Create one Knowledge post with `status: private`, a meaningful `title`, a cryptographically random UUID `slug`, and taxonomy IDs for `artifact`, `stuff-item`, zero/one physical place and any descriptive tags. Let WordPress assign the author and ID. Keep the slug stable when the title changes.
 - Store descriptions in native paragraph blocks and photos in core image/gallery blocks in `content`. Preserve all unrelated blocks, captions, gallery settings, and other Knowledge Type assignments.
 - Before editing, fetch the current raw row. Send only fields that need changing. For a move, update taxonomy assignments and leave content untouched. Never send an empty content field accidentally.
 - If concurrent edits are visible, refetch and reconcile before saving. Core REST updates do not provide an atomic compare-and-swap guarantee. Check the result of every write.

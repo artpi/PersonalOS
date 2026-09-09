@@ -7,7 +7,7 @@ Personal Stuff is a JS inventory app over native WordPress Knowledge, Knowledge 
 | Value | Stored representation |
 | --- | --- |
 | Item | One `wp_knowledge` post; private on creation, current author |
-| Identity | Native post ID; existing WordPress slug is untouched |
+| Identity | Native post ID; new-item slug is a random UUID and remains stable when the title changes |
 | Name | `post_title` |
 | Description and photos | `post_content`, serialized Gutenberg blocks |
 | Identity terms | `artifact` and `stuff-item` in `wp_knowledge_type` |
@@ -40,7 +40,7 @@ Core paragraphs, images and galleries are the only native structures needed. Gal
 
 The app uses `BlockEditorProvider`, `BlockList`, native block settings, the core Media Library, and `@wordpress/blocks` parsing/serialization. Unavailable custom blocks retain Gutenberg's original-content representation; users can open the full editor for plugin-specific controls. A title/place/tag edit does not send `content` when it has not changed. Content edits use normal Gutenberg serialization, which may normalize delimiter whitespace. The inline description editor changes only the first top-level paragraph (or prepends one), preserving other blocks.
 
-Clicking Add item opens a transient editor and does not create a Knowledge row. Save creates the private row. The first photo upload also saves the row because WordPress Media requires a saved, authorized parent; closing an untouched new editor leaves no empty item behind. Existing records retain their status; publishing, trash and restore use WordPress's native editor controls.
+Clicking Add item opens a transient editor and generates its UUID slug in memory without creating a Knowledge row. Save creates the private row with that slug. The first photo upload also saves the row because WordPress Media requires a saved, authorized parent; closing an untouched new editor leaves no empty item behind. Existing records retain their slug and status; publishing, trash and restore use WordPress's native editor controls.
 
 The inventory uses a search-led photo grid with uncropped covers, optional filters, and derived place breadcrumbs/child navigation. Add/edit fills the viewport at widths up to 700px, with 16px or larger inputs and a sticky save/progress footer. Block settings remain optional and stack below the content on phones. New-item presentation is transient React state, not persisted metadata. DataViews `previewSize` means a column count, not a pixel width; leave it unset for responsive defaults. DataViews still owns filtering, sorting and layouts; the app progressively increases the first page through an intersection sentinel to provide infinite scrolling. Collection thumbnails use responsive candidates from WordPress-rendered image markup while detail and print views retain full content.
 
@@ -54,7 +54,7 @@ The filters require both `upload_files` and `edit_post` on a verified Stuff item
 
 Original, scaled and thumbnail files retain the randomized stem through WordPress's normal image processing. Existing attachments are never renamed. External URL references are not sideloaded. The file URLs are public, including if the parent is private; randomness reduces guessability and does not provide media authorization. EXIF and other original image metadata are not stripped by Stuff.
 
-The explicit photo uploader saves the item first, uploads sequentially and saves each successful image block before continuing. Earlier successes survive later failure. Block-editor/Media Library uploads use normal editor Save behavior. Errors retain the editor state; there is no blind automatic retry of uncertain POSTs. Recover an uncertain upload from the native Media Library before trying again. Removing a photo block unlinks it; permanent attachment deletion belongs to Media Library.
+The explicit photo uploader saves the item first, uploads sequentially and saves each successful image block before continuing. Other fields and blocks remain editable during this background work, while Save, Close, and starting another file upload remain unavailable. Edits made during an in-flight request stay marked as unsaved and are included in the next upload checkpoint or explicit save. Earlier successes survive later failure. Block-editor/Media Library uploads use normal editor Save behavior. Errors retain the editor state; there is no blind automatic retry of uncertain POSTs. Recover an uncertain upload from the native Media Library before trying again. Removing a photo block unlinks it; permanent attachment deletion belongs to Media Library.
 
 ## Integration and API
 
