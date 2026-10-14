@@ -13,6 +13,7 @@ class OllamaServerTest extends WP_UnitTestCase {
 
 	private $ollama_server;
 	private $mock_openai_module;
+	private $token_user_id;
 
 	public function set_up(): void {
 		parent::set_up();
@@ -21,10 +22,22 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$this->mock_openai_module = $this->createMock( OpenAI_Module::class );
 		$this->mock_openai_module->settings = array();
 
-		// Mock get_setting method to return test token
+		// Mock get_setting method to return test token for settings UI.
 		$this->mock_openai_module->method( 'get_setting' )
-			->with( 'ollama_auth_token' )
-			->willReturn( 'test-token-123' );
+			->willReturnMap(
+				array(
+					array( 'ollama_auth_token', 'test-token-123' ),
+				)
+			);
+
+		$this->token_user_id = self::factory()->user->create(
+			array(
+				'role'       => 'editor',
+				'user_email' => 'ollama-user@example.com',
+			)
+		);
+		update_user_meta( $this->token_user_id, 'pos_openai_ollama_auth_token', 'test-token-123' );
+		wp_set_current_user( $this->token_user_id );
 
 		// Mock get_chat_prompts to return test prompts with personalos:4o model
 		$this->mock_openai_module->method( 'get_chat_prompts' )
@@ -124,6 +137,15 @@ class OllamaServerTest extends WP_UnitTestCase {
 		$result = $this->ollama_server->check_permission( $request );
 
 		$this->assertFalse( $result );
+	}
+
+	public function test_check_permission_sets_current_user() {
+		wp_set_current_user( 0 );
+		$request = new WP_REST_Request( 'GET', '/ollama/v1/api/tags' );
+		$request->set_param( 'token', 'test-token-123' );
+
+		$this->assertTrue( $this->ollama_server->check_permission( $request ) );
+		$this->assertSame( $this->token_user_id, get_current_user_id() );
 	}
 
 	/**

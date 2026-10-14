@@ -51,8 +51,27 @@ class POS_Module {
 		return $this->id . '_' . $setting_id;
 	}
 
-	public function get_setting( $id ) {
-		$default = isset( $this->settings[ $id ]['default'] ) ? $this->settings[ $id ]['default'] : false;
+	public function get_setting( $id, $user_id = null ) {
+		if ( ! isset( $this->settings[ $id ] ) ) {
+			return false;
+		}
+
+		$setting = $this->settings[ $id ];
+		$scope   = isset( $setting['scope'] ) ? $setting['scope'] : 'global';
+		$default = isset( $setting['default'] ) ? $setting['default'] : false;
+
+		if ( 'user' === $scope ) {
+			$user_id = $user_id ?? get_current_user_id();
+			if ( ! $user_id ) {
+				return $default;
+			}
+			$value = get_user_meta( $user_id, $this->get_user_setting_meta_key( $id ), true );
+			if ( '' === $value || null === $value ) {
+				return $default;
+			}
+			return $value;
+		}
+
 		return get_option( $this->get_setting_option_name( $id ), $default );
 	}
 
@@ -89,6 +108,12 @@ class POS_Module {
 			unset( $args['labels'] );
 		}
 
+		if ( isset( $args['capabilities'] ) ) {
+			$args['capabilities'] = array_merge( $this->get_default_capabilities(), $args['capabilities'] );
+		} else {
+			$args['capabilities'] = $this->get_default_capabilities();
+		}
+
 		$defaults = array_merge(
 			array(
 				'show_in_rest'          => true,
@@ -103,6 +128,7 @@ class POS_Module {
 				'labels'                => $labels,
 				'supports'              => array( 'title', 'excerpt', 'editor', 'custom-fields' ),
 				'taxonomies'            => array(),
+				'map_meta_cap'          => true,
 			),
 			$args
 		);
@@ -110,6 +136,32 @@ class POS_Module {
 		if ( $redirect_to_admin ) {
 			add_action( 'template_redirect', array( $this, 'redirect_cpt_to_admin_edit' ) );
 		}
+
+		// Filter admin list to show only user's own posts (unless admin)
+		add_action( 'pre_get_posts', array( $this, 'filter_admin_posts_list' ) );
+	}
+
+	/**
+	 * Filter admin post list to show only current user's posts unless they have admin_personalos.
+	 *
+	 * @param WP_Query $query The query object.
+	 */
+	public function filter_admin_posts_list( $query ) {
+		if ( ! is_admin() || ! $query->is_main_query() ) {
+			return;
+		}
+
+		if ( $query->get( 'post_type' ) !== $this->id ) {
+			return;
+		}
+
+		// If user has admin_personalos, they can see all posts
+		if ( current_user_can( 'admin_personalos' ) ) {
+			return;
+		}
+
+		// Otherwise, only show their own posts
+		$query->set( 'author', get_current_user_id() );
 	}
 
 	public function redirect_cpt_to_admin_edit() {
@@ -215,6 +267,93 @@ class POS_Module {
 			\WP_CLI::line( "[{$level}] [{$this->id}] {$message}" );
 		}
 	}
+
+	protected function get_default_capabilities() {
+		return array(
+			'edit_posts'             => 'use_personalos',
+			'edit_others_posts'      => 'admin_personalos',
+			'publish_posts'          => 'use_personalos',
+			'read_private_posts'     => 'admin_personalos',
+			'delete_posts'           => 'use_personalos',
+			'delete_others_posts'    => 'admin_personalos',
+			'delete_private_posts'   => 'admin_personalos',
+			'delete_published_posts' => 'use_personalos',
+			'edit_private_posts'     => 'use_personalos',
+			'edit_published_posts'   => 'use_personalos',
+		);
+	}
+
+	protected function get_user_setting_meta_key( $setting_id ) {
+		return 'pos_' . $this->id . '_' . $setting_id;
+	}
+
+	/**
+	 * Locate a WordPress user by matching a user-scoped token setting.
+	 *
+	 * @param string $setting_id Token setting identifier.
+	 * @param string $token      Token value to match.
+	 * @return WP_User|null User when found and authorized, null otherwise.
+	 */
+	public function find_user_for_setting_token( string $setting_id, string $token ): ?WP_User {
+		if ( strlen( $token ) < 3 ) {
+			return null;
+		}
+
+		global $wpdb;
+		$meta_key = $this->get_user_setting_meta_key( $setting_id );
+		$user_id  = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = %s AND meta_value = %s LIMIT 1",
+				$meta_key,
+				$token
+			)
+		);
+
+		if ( ! $user_id ) {
+			return null;
+		}
+
+		$user = get_user_by( 'ID', (int) $user_id );
+		if ( ! $user instanceof WP_User ) {
+			return null;
+		}
+
+		if ( ! user_can( $user, 'use_personalos' ) ) {
+			return null;
+		}
+
+		return $user;
+	}
+
+	protected function get_user_ids_with_setting( $setting_id ) {
+		global $wpdb;
+		$meta_key = $this->get_user_setting_meta_key( $setting_id );
+		$user_ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = %s AND meta_value <> ''",
+				$meta_key
+			)
+		);
+
+		return array_map( 'intval', $user_ids );
+	}
+
+	public function update_setting( $id, $value, $user_id = null ) {
+		if ( ! isset( $this->settings[ $id ] ) ) {
+			return false;
+		}
+
+		$scope = isset( $this->settings[ $id ]['scope'] ) ? $this->settings[ $id ]['scope'] : 'global';
+		if ( 'user' === $scope ) {
+			$user_id = $user_id ?? get_current_user_id();
+			if ( ! $user_id ) {
+				return false;
+			}
+			return update_user_meta( $user_id, $this->get_user_setting_meta_key( $id ), $value );
+		}
+
+		return update_option( $this->get_setting_option_name( $id ), $value );
+	}
 }
 
 class POS_CPT_Rest_Controller extends WP_REST_Posts_Controller {
@@ -231,6 +370,7 @@ class POS_CPT_Rest_Controller extends WP_REST_Posts_Controller {
 class External_Service_Module extends POS_Module {
 	public $id   = 'external_service';
 	public $name = 'External Service';
+	protected $current_sync_user_id = 0;
 
 	public function get_sync_hook_name() {
 		return 'pos_sync_' . $this->id;
@@ -246,6 +386,67 @@ class External_Service_Module extends POS_Module {
 
 	public function sync() {
 		$this->log( 'EMPTY SYNC' );
+	}
+
+	protected function run_for_user( int $user_id, callable $callback ) {
+		$previous_user_id      = get_current_user_id();
+		$previous_sync_user_id = $this->current_sync_user_id;
+
+		wp_set_current_user( $user_id );
+		$this->current_sync_user_id = $user_id;
+		$this->reset_user_context();
+
+		try {
+			return $callback( $user_id );
+		} finally {
+			$this->reset_user_context();
+			$this->current_sync_user_id = $previous_sync_user_id;
+			wp_set_current_user( $previous_user_id );
+		}
+	}
+
+	protected function reset_user_context() {
+		// Allow subclasses to reset cached data between user runs.
+	}
+
+	protected function get_user_state_meta_key( string $key ): string {
+		return 'pos_' . $this->id . '_state_' . $key;
+	}
+
+	protected function get_user_state( string $key, $default = null, ?int $user_id = null ) {
+		$user_id = $user_id ?? $this->current_sync_user_id;
+		if ( ! $user_id ) {
+			return $default;
+		}
+
+		$value = get_user_meta( $user_id, $this->get_user_state_meta_key( $key ), true );
+		if ( '' === $value || null === $value ) {
+			return $default;
+		}
+
+		return $value;
+	}
+
+	protected function set_user_state( string $key, $value, ?int $user_id = null ) {
+		$user_id = $user_id ?? $this->current_sync_user_id;
+		if ( ! $user_id ) {
+			return false;
+		}
+
+		if ( null === $value ) {
+			return delete_user_meta( $user_id, $this->get_user_state_meta_key( $key ) );
+		}
+
+		return update_user_meta( $user_id, $this->get_user_state_meta_key( $key ), $value );
+	}
+
+	protected function delete_user_state( string $key, ?int $user_id = null ) {
+		$user_id = $user_id ?? $this->current_sync_user_id;
+		if ( ! $user_id ) {
+			return false;
+		}
+
+		return delete_user_meta( $user_id, $this->get_user_state_meta_key( $key ) );
 	}
 }
 

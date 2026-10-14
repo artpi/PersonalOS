@@ -176,7 +176,9 @@ class SettingsTest extends WP_UnitTestCase {
 		
 		// Get the sanitize callback for a text setting
 		$text_setting = $wp_registered_settings['test_module_1_api_key'];
-		$this->assertEquals( 'sanitize_text_field', $text_setting['sanitize_callback'] );
+		$this->assertIsCallable( $text_setting['sanitize_callback'] );
+		$sanitize_callback = $text_setting['sanitize_callback'];
+		$this->assertEquals( 'example', $sanitize_callback( ' example ' ) );
 	}
 
 	/**

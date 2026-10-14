@@ -121,6 +121,8 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 
 
 		$module  = \POS::$modules[2];
+		$user_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		wp_set_current_user( $user_id );
 
 		$note               = new \EDAM\Types\Note();
 		$note->title        = 'Evernote';
@@ -137,6 +139,8 @@ class EvernoteModuleTest extends WP_UnitTestCase {
 		$this->assertEquals( $note->guid, $updated_note->post_name );
 		$this->assertEquals( 'Evernote', $updated_note->post_title );
 		$this->assertStringContainsString( 'First Test paragraph', $updated_note->post_content );
+		$this->assertSame( 'private', $updated_note->post_status );
+		$this->assertSame( $user_id, (int) $updated_note->post_author );
 		$assigned_taxonomies = wp_get_object_terms( $post_id, 'notebook', array( 'fields' => 'ids' ) );
 		$this->assertContains( $this->test_tag['term_id'], $assigned_taxonomies );
 		$this->assertContains( $term['term_id'], $assigned_taxonomies );

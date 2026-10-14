@@ -351,7 +351,7 @@ class Notes_Module extends POS_Module {
 				<?php foreach ( $possible_flags as $flag ) : ?>
 					<label style="display: block; margin-bottom: 5px;">
 						<input type="checkbox" name="pos_flag[]" value="<?php echo esc_attr( $flag['id'] ); ?>"
-							<?php checked( in_array( $flag['id'], $value ) ); ?>>
+							<?php checked( in_array( $flag['id'], $value, true ) ); ?>>
 						<?php echo esc_html( $flag['label'] ); ?>
 					</label>
 				<?php endforeach; ?>
@@ -401,7 +401,14 @@ class Notes_Module extends POS_Module {
 
 	public function autopublish_drafts( $post_id, $post, $updating ) {
 		if ( $post->post_status === 'draft' ) {
-			wp_publish_post( $post );
+			remove_action( 'save_post_' . $this->id, array( $this, 'autopublish_drafts' ), 10 );
+			wp_update_post(
+				array(
+					'ID'          => $post_id,
+					'post_status' => 'private',
+				)
+			);
+			add_action( 'save_post_' . $this->id, array( $this, 'autopublish_drafts' ), 10, 3 );
 		}
 	}
 
@@ -409,7 +416,7 @@ class Notes_Module extends POS_Module {
 		$post    = array(
 			'post_title'   => $title,
 			'post_content' => $content,
-			'post_status'  => 'publish',
+			'post_status'  => 'private',
 			'post_type'    => $this->id,
 		);
 		$post = wp_parse_args( $post, $args );
@@ -543,7 +550,7 @@ class Notes_Module extends POS_Module {
                 method: 'POST',
                 data: {
                     title: 'Quick Note',
-                    status: 'publish',
+                    status: 'private',
                     content: document.querySelector('#quicknote textarea').value,
                 }
             } ).then( function( response ) {
@@ -578,6 +585,37 @@ class Notes_Module extends POS_Module {
 			$term
 		);
 	}
+
+	protected function get_notebook_widget_posts( $post_type, $notebook_slug ) {
+		$args = array(
+			'post_type'      => $post_type,
+			'post_status'    => array( 'publish', 'private' ),
+			'posts_per_page' => 25,
+			'tax_query'      => array(
+				array(
+					'taxonomy' => 'notebook',
+					'field'    => 'slug',
+					'terms'    => array( $notebook_slug ),
+				),
+			),
+		);
+
+		if ( ! current_user_can( 'admin_personalos' ) ) {
+			$current_user_id = get_current_user_id();
+			if ( $current_user_id ) {
+				$args['author'] = $current_user_id;
+			}
+		}
+
+		$posts = get_posts( $args );
+		return array_filter(
+			$posts,
+			function( $post ) {
+				return current_user_can( 'read_post', $post->ID );
+			}
+		);
+	}
+
 	public function notebook_admin_widget( $widget_config, $conf ) {
 		$check = '<?xml version="1.0" ?><svg height="20px" version="1.1" viewBox="0 0 20 20" width="20px" xmlns="http://www.w3.org/2000/svg" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns" xmlns:xlink="http://www.w3.org/1999/xlink"><title/><desc/><defs/><g fill="none" fill-rule="evenodd" id="Page-1" stroke="none" stroke-width="1"><g fill="#000000" id="Core" transform="translate(-170.000000, -86.000000)"><g id="check-circle-outline-blank" transform="translate(170.000000, 86.000000)"><path d="M10,0 C4.5,0 0,4.5 0,10 C0,15.5 4.5,20 10,20 C15.5,20 20,15.5 20,10 C20,4.5 15.5,0 10,0 L10,0 Z M10,18 C5.6,18 2,14.4 2,10 C2,5.6 5.6,2 10,2 C14.4,2 18,5.6 18,10 C18,14.4 14.4,18 10,18 L10,18 Z" id="Shape"/></g></g></g></svg>';
 
@@ -611,28 +649,7 @@ class Notes_Module extends POS_Module {
 				'defs'  => array(),
 			)
 		);
-		$notes = get_posts(
-			array(
-				'post_type'      => $this->id,
-				'post_status'    => array( 'publish', 'private' ),
-				'posts_per_page' => 25,
-				'tax_query'      => array(
-					array(
-						'taxonomy' => 'notebook',
-						'field'    => 'slug',
-						'terms'    => array(
-							$conf['args']->slug,
-						),
-					),
-				),
-			)
-		);
-		$notes = array_filter(
-			$notes,
-			function( $post ) {
-				return current_user_can( 'read_post', $post->ID );
-			}
-		);
+		$notes = $this->get_notebook_widget_posts( $this->id, $conf['args']->slug );
 		if ( count( $notes ) > 0 ) {
 			echo '<h3><a href="edit.php?notebook=' . esc_attr( $conf['args']->slug ) . '&post_type=notes">' . esc_html( $conf['args']->name ) . ': Notes</a></h3>';
 			$notes = array_map(
@@ -644,28 +661,7 @@ class Notes_Module extends POS_Module {
 
 			echo '<ul class="pos_admin_widget_notes">' . wp_kses_post( implode( '', $notes ) ) . '</ul>';
 		}
-		$notes = get_posts(
-			array(
-				'post_type'      => 'todo',
-				'post_status'    => array( 'publish', 'private' ),
-				'posts_per_page' => 25,
-				'tax_query'      => array(
-					array(
-						'taxonomy' => 'notebook',
-						'field'    => 'slug',
-						'terms'    => array(
-							$conf['args']->slug,
-						),
-					),
-				),
-			)
-		);
-		$notes = array_filter(
-			$notes,
-			function( $post ) {
-				return current_user_can( 'read_post', $post->ID );
-			}
-		);
+		$notes = $this->get_notebook_widget_posts( 'todo', $conf['args']->slug );
 		if ( count( $notes ) > 0 ) {
 			echo '<h3><a href="admin.php?page=pos-todo#' . esc_attr( $conf['args']->slug ) . '">' . esc_html( $conf['args']->name ) . ': TODOs</a></h3>';
 			$notes = array_map(
