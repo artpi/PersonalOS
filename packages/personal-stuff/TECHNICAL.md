@@ -34,6 +34,11 @@ The app assigns the leaf identity, physical location and tags, preserving unrela
 
 Derived in memory: breadcrumbs, descendants, cover, photo count, search index, filtered collection, previous/next order. Filters and item selection are URL query parameters (`q`, `place`, `tag`, `photo`, `item`); place/tag filter values are slugs. DataViews layout and paging stay in memory. There is no localStorage database, service worker or offline write queue.
 
+Stuff owns links for Knowledge rows carrying the `stuff-item` identity. Native
+permalinks and shortlinks resolve to `/stuff/?item=<post ID>`. An editable legacy
+`?p=<post ID>` request redirects there as well; unauthorized requests retain
+WordPress's normal response.
+
 ## Content and editing
 
 Core paragraphs, images and galleries are the only native structures needed. Gallery children and document block order define photo order; the first image is the cover. Captions, alt text, image links, gallery layout and any other blocks live in their ordinary block attributes/HTML.

@@ -53,6 +53,9 @@ class Personal_AI_Chat_Plugin extends PersonalOS_Plugin_Base {
 		$this->vocabulary()->register_type_labels();
 		$this->register_missing_knowledge_notice();
 		$this->register_wp_app( array( $this, 'render_admin_page' ) );
+		add_action( 'template_redirect', array( $this, 'redirect_conversation_link' ), 5 );
+		add_filter( 'post_type_link', array( $this, 'filter_conversation_permalink' ), 10, 2 );
+		add_filter( 'get_shortlink', array( $this, 'filter_conversation_shortlink' ), 10, 2 );
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
@@ -87,6 +90,47 @@ class Personal_AI_Chat_Plugin extends PersonalOS_Plugin_Base {
 	public function register_blocks() {
 		$this->register_block_from_package( 'build/blocks/message' );
 		$this->register_block_from_package( 'build/blocks/tool' );
+	}
+
+	/**
+	 * Return the AI Chat app URL for a conversation.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string Empty when the post is not an AI Chat conversation.
+	 */
+	public function get_conversation_url( $post_id ) {
+		$post = get_post( $post_id );
+		if ( ! $this->is_conversation( $post ) ) {
+			return '';
+		}
+
+		return add_query_arg( 'conversation', $post->ID, home_url( '/ai-chat/' ) );
+	}
+
+	/** Filter a conversation permalink to its AI Chat interface URL. */
+	public function filter_conversation_permalink( $url, $post ) {
+		$conversation_url = $post instanceof WP_Post ? $this->get_conversation_url( $post->ID ) : '';
+
+		return $conversation_url ? $conversation_url : $url;
+	}
+
+	/** Filter a conversation shortlink to its AI Chat interface URL. */
+	public function filter_conversation_shortlink( $shortlink, $post_id ) {
+		$conversation_url = $this->get_conversation_url( $post_id );
+
+		return $conversation_url ? $conversation_url : $shortlink;
+	}
+
+	/** Redirect an editable legacy ?p= link to the AI Chat conversation. */
+	public function redirect_conversation_link() {
+		$post_id = absint( get_query_var( 'p' ) );
+		$conversation_url = $this->get_conversation_url( $post_id );
+		if ( get_query_var( 'preview' ) || ! $conversation_url || ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+
+		wp_safe_redirect( $conversation_url );
+		exit;
 	}
 
 	/**
@@ -464,7 +508,7 @@ class Personal_AI_Chat_Plugin extends PersonalOS_Plugin_Base {
 	 * @return WP_REST_Response
 	 */
 	public function rest_list_abilities() {
-		return rest_ensure_response( array_map( array( $this, 'format_ability' ), $this->discover_abilities() ) );
+		return rest_ensure_response( array_values( array_map( array( $this, 'format_ability' ), $this->discover_abilities() ) ) );
 	}
 
 	/**
@@ -823,6 +867,17 @@ class Personal_AI_Chat_Plugin extends PersonalOS_Plugin_Base {
 	 * @return array
 	 */
 	private function format_ability( $ability ) {
+		if ( is_object( $ability ) && is_callable( array( $ability, 'get_name' ) ) ) {
+			return array(
+				'name'          => sanitize_text_field( $ability->get_name() ),
+				'label'         => sanitize_text_field( $ability->get_label() ),
+				'description'   => sanitize_text_field( $ability->get_description() ),
+				'input_schema'  => $ability->get_input_schema(),
+				'output_schema' => $ability->get_output_schema(),
+				'meta'          => $ability->get_meta(),
+			);
+		}
+
 		$ability = (array) $ability;
 
 		return array(

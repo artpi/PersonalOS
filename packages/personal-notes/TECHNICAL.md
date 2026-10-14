@@ -25,6 +25,11 @@ The library lists `note` records. Stuff uses `artifact` + `stuff-item`, without
 `note`, and should not automatically appear as ordinary Notes rows. Preserve
 source/provenance terms (`manual`, `readwise`, `evernote`, `synced`) during edits.
 
+Notes owns native permalinks and shortlinks for Knowledge rows carrying the
+`note` identity and resolves them to the native WordPress editor. An editable
+legacy `?p=<post ID>` request redirects to that editor; unauthorized requests
+retain WordPress's normal response.
+
 ## Gutenberg sidebar
 
 The package-local sidebar searches Knowledge, filters by Knowledge Type, previews

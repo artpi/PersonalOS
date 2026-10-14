@@ -113,6 +113,42 @@ class SplitPackageKnowledgeTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Each app independently owns links for its canonical Knowledge identity.
+	 */
+	public function test_packages_resolve_owned_knowledge_links() {
+		$this->setExpectedIncorrectUsage( 'WP_Block_Type_Registry::register' );
+		$notes = new Personal_Notes_Plugin();
+		$todo  = new Personal_TODO_Plugin();
+		$chat  = new Personal_AI_Chat_Plugin();
+		$notes->register();
+		$todo->register();
+		$chat->register();
+
+		$note_id = $notes->create_note( 'Linked note', 'Body' );
+		$task_id = $todo->create_task( array( 'post_title' => 'Linked task' ) );
+		$chat_id = $chat->create_conversation( 'Linked conversation', '' );
+
+		$note_url = add_query_arg( array( 'post' => $note_id, 'action' => 'edit' ), admin_url( 'post.php' ) );
+		$this->assertSame( $note_url, $notes->get_note_url( $note_id ) );
+		$this->assertSame( home_url( '/todo/?task=' . $task_id ), $todo->get_task_url( $task_id ) );
+		$this->assertSame( home_url( '/ai-chat/?conversation=' . $chat_id ), $chat->get_conversation_url( $chat_id ) );
+		$this->assertSame( $note_url, get_permalink( $note_id ) );
+		$this->assertSame( home_url( '/todo/?task=' . $task_id ), get_permalink( $task_id ) );
+		$this->assertSame( home_url( '/ai-chat/?conversation=' . $chat_id ), wp_get_shortlink( $chat_id ) );
+
+		$original = 'https://example.com/?p=' . $note_id;
+		$this->assertSame( $original, $todo->filter_task_shortlink( $original, $note_id ) );
+		$this->assertSame( $original, $chat->filter_conversation_shortlink( $original, $note_id ) );
+		$this->assertSame( $note_url, $notes->filter_note_shortlink( $original, $note_id ) );
+
+		$abilities = $chat->rest_list_abilities()->get_data();
+		$this->assertSame( array_values( $abilities ), $abilities );
+		foreach ( $abilities as $ability ) {
+			$this->assertNotEmpty( $ability['name'] );
+		}
+	}
+
+	/**
 	 * Manual notes are private Knowledge artifacts with note/manual terms.
 	 */
 	public function test_notes_create_manual_knowledge_note() {

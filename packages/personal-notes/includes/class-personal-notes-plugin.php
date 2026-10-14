@@ -46,6 +46,9 @@ class Personal_Notes_Plugin extends PersonalOS_Plugin_Base {
 		$this->vocabulary()->register_type_labels();
 		$this->register_missing_knowledge_notice();
 		$this->register_wp_app( array( $this, 'render_admin_page' ) );
+		add_action( 'template_redirect', array( $this, 'redirect_note_link' ), 5 );
+		add_filter( 'post_type_link', array( $this, 'filter_note_permalink' ), 10, 2 );
+		add_filter( 'get_shortlink', array( $this, 'filter_note_shortlink' ), 10, 2 );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
 
@@ -153,6 +156,53 @@ class Personal_Notes_Plugin extends PersonalOS_Plugin_Base {
 			'personalNotesSettings',
 			$this->knowledge_asset_settings()
 		);
+	}
+
+	/**
+	 * Return the native editor URL for a note.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string Empty when the post is not a note.
+	 */
+	public function get_note_url( $post_id ) {
+		$post = get_post( $post_id );
+		if ( ! $this->is_note( $post ) ) {
+			return '';
+		}
+
+		return add_query_arg(
+			array(
+				'post'   => $post->ID,
+				'action' => 'edit',
+			),
+			admin_url( 'post.php' )
+		);
+	}
+
+	/** Filter a note permalink to its native editor URL. */
+	public function filter_note_permalink( $url, $post ) {
+		$note_url = $post instanceof WP_Post ? $this->get_note_url( $post->ID ) : '';
+
+		return $note_url ? $note_url : $url;
+	}
+
+	/** Filter a note shortlink to its native editor URL. */
+	public function filter_note_shortlink( $shortlink, $post_id ) {
+		$note_url = $this->get_note_url( $post_id );
+
+		return $note_url ? $note_url : $shortlink;
+	}
+
+	/** Redirect an editable legacy ?p= link to the native note editor. */
+	public function redirect_note_link() {
+		$post_id = absint( get_query_var( 'p' ) );
+		$note_url = $this->get_note_url( $post_id );
+		if ( get_query_var( 'preview' ) || ! $note_url || ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+
+		wp_safe_redirect( $note_url );
+		exit;
 	}
 
 	/**

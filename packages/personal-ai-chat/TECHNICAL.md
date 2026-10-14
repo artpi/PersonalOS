@@ -10,6 +10,12 @@ Connectors rather than package-local credentials. Save user/assistant turns in
 conversation Knowledge as `pos/ai-message` blocks; preserve meaningful model and
 response metadata (`pos_model`, `pos_last_response_id`).
 
+The selected conversation is addressable as
+`/ai-chat/?conversation=<post ID>` and follows browser history. AI Chat owns
+native permalinks and shortlinks for Knowledge rows carrying both `conversation`
+and `ai-chat`. An editable legacy `?p=<post ID>` request redirects to that app
+URL; unauthorized requests retain WordPress's normal response.
+
 Use the package's PHP class and block metadata for exact REST and block schemas.
 Do not restore old monolith `/pos/v1/openai/*` transport or root editor assets.
 
